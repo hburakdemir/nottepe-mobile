@@ -75,6 +75,7 @@ interface Follow {
 interface ForumItem {
   key: string;
   kind: 'faq' | 'suggestion';
+  targetId: number;
   created_at: string;
   title: string;
   body?: string;
@@ -163,6 +164,7 @@ export default function ProfileScreen() {
       const faqItems: ForumItem[] = (faqRes.data.activity || []).map((a: any) => ({
         key: `faq-${a.comment_id}`,
         kind: 'faq',
+        targetId: a.entry_id,
         created_at: a.created_at,
         title: a.question,
         body: a.comment_content,
@@ -170,6 +172,7 @@ export default function ProfileScreen() {
       const sugItems: ForumItem[] = (sugRes.data.activity || []).map((a: any) => ({
         key: `suggestion-${a.type}-${a.comment_id || a.suggestion_id}`,
         kind: 'suggestion',
+        targetId: a.suggestion_id,
         created_at: a.created_at,
         title: a.type === 'started' ? 'Yeni öneri paylaştı' : 'Öneriye yorum yaptı',
         body: a.type === 'started' ? a.suggestion_content : a.comment_content,
@@ -494,7 +497,15 @@ export default function ProfileScreen() {
               <EmptyState icon={MessagesSquare} text="Henüz bir foruma katılmadı." />
             ) : (
               forumItems.map((item) => (
-                <View key={item.key} style={styles.forumRow}>
+                <Pressable
+                  key={item.key}
+                  style={styles.forumRow}
+                  onPress={() =>
+                    item.kind === 'faq'
+                      ? navigation.navigate('FaqDetail', { id: item.targetId })
+                      : navigation.navigate('SuggestionDetail', { id: item.targetId })
+                  }
+                >
                   {item.kind === 'faq' ? <HelpCircle size={15} color="#2F5755" /> : <Lightbulb size={15} color="#2F5755" />}
                   <View style={{ flex: 1 }}>
                     <Text style={styles.forumTitle}>{item.title}</Text>
@@ -505,7 +516,7 @@ export default function ProfileScreen() {
                     )}
                     <Text style={styles.forumDate}>{formatDate(item.created_at)}</Text>
                   </View>
-                </View>
+                </Pressable>
               ))
             ))}
         </View>

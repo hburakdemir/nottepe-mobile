@@ -136,14 +136,16 @@ function ActivityCard({ notif }: { notif: any }) {
   const meta = ACTIVITY_TYPE_META[notif.type];
   const Icon = meta?.icon || Bell;
   const label = meta ? meta.label(notif) : 'Yeni aktivite bildirimi';
-  const canNavigate = !!notif.post_id;
+  const canNavigate = !!notif.post_id || !!notif.faq_entry_id || !!notif.suggestion_id;
+
+  const handlePress = () => {
+    if (notif.post_id) navigation.navigate('PostDetail', { postId: notif.post_id });
+    else if (notif.faq_entry_id) navigation.navigate('FaqDetail', { id: notif.faq_entry_id });
+    else if (notif.suggestion_id) navigation.navigate('SuggestionDetail', { id: notif.suggestion_id });
+  };
 
   return (
-    <Pressable
-      style={styles.activityCard}
-      disabled={!canNavigate}
-      onPress={() => canNavigate && navigation.navigate('PostDetail', { postId: notif.post_id })}
-    >
+    <Pressable style={styles.activityCard} disabled={!canNavigate} onPress={handlePress}>
       <View style={styles.activityIcon}>
         <Icon size={16} color="#2F5755" />
       </View>
