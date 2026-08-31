@@ -11,10 +11,10 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import * as DocumentPicker from 'expo-document-picker';
-import { AlertCircle, CheckCircle, FileText, Upload, X } from 'lucide-react-native';
+import { AlertCircle, CheckCircle, FileText, HeartHandshake, Upload, X } from 'lucide-react-native';
 import { postsAPI } from '../../lib/api';
 import { faculties, departments } from '../../data/departments';
 import type { MainTabParamList } from '../../navigation/types';
@@ -80,12 +80,14 @@ function PickerModal({
 
 export default function AddPostScreen() {
   const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+  const route = useRoute<any>();
+  const noteRequest = (route.params as MainTabParamList['AddPost'])?.noteRequest;
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [link, setLink] = useState('');
-  const [faculty, setFaculty] = useState('');
-  const [department, setDepartment] = useState('');
+  const [faculty, setFaculty] = useState(noteRequest?.faculty || '');
+  const [department, setDepartment] = useState(noteRequest?.department || '');
   const [files, setFiles] = useState<PickedFile[]>([]);
 
   const [facultyModalOpen, setFacultyModalOpen] = useState(false);
@@ -147,6 +149,9 @@ export default function AddPostScreen() {
       formData.append('link', link.trim());
       formData.append('faculty', faculty);
       formData.append('department', department);
+      if (noteRequest?.id) {
+        formData.append('note_request_id', String(noteRequest.id));
+      }
       files.forEach((file) => {
         formData.append('files', {
           uri: file.uri,
@@ -177,6 +182,16 @@ export default function AddPostScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Not Paylaş</Text>
+
+      {!!noteRequest && (
+        <View style={styles.requestBanner}>
+          <HeartHandshake size={16} color="#2F5755" style={{ marginTop: 1 }} />
+          <Text style={styles.requestBannerText}>
+            <Text style={{ fontWeight: '700' }}>"{noteRequest.course_name}"</Text> isteği için not yüklüyorsun. Notun
+            onaylanınca istek otomatik olarak karşılanmış sayılır ve isteyen kullanıcıya haber verilir.
+          </Text>
+        </View>
+      )}
 
       {!!error && (
         <View style={styles.alertError}>
@@ -305,6 +320,15 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   content: { padding: 16, paddingBottom: 60, gap: 4 },
   title: { fontSize: 24, fontWeight: '700', color: '#111827', marginBottom: 12 },
+  requestBanner: {
+    flexDirection: 'row',
+    gap: 8,
+    backgroundColor: '#2F575519',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 14,
+  },
+  requestBannerText: { flex: 1, fontSize: 12.5, color: '#2F5755', lineHeight: 18 },
   alertError: {
     flexDirection: 'row',
     alignItems: 'center',

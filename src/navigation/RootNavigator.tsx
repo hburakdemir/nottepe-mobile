@@ -11,6 +11,7 @@ import UserProfileScreen from '../screens/main/UserProfileScreen';
 import ChecklistsScreen from '../screens/main/ChecklistsScreen';
 import AktsCalculatorScreen from '../screens/main/AktsCalculatorScreen';
 import ScheduleScreen from '../screens/main/ScheduleScreen';
+import NoteRequestsScreen from '../screens/main/NoteRequestsScreen';
 import KvkkGateModal from '../components/onboarding/KvkkGateModal';
 import type { RootStackParamList } from './types';
 
@@ -56,6 +57,7 @@ export default function RootNavigator() {
         options={{ title: 'AKTS / GANO Hesapla' }}
       />
       <Stack.Screen name="Schedule" component={ScheduleScreen} options={{ title: 'Ders Programı' }} />
+      <Stack.Screen name="NoteRequests" component={NoteRequestsScreen} options={{ title: 'Not İstekleri' }} />
     </Stack.Navigator>
     {needsOnboardingGate && <KvkkGateModal />}
     </>

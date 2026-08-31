@@ -11,10 +11,13 @@ import {
   View,
 } from 'react-native';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { ChevronDown, Search, X } from 'lucide-react-native';
-import { postsAPI } from '../../lib/api';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { ArrowRight, ChevronDown, HeartHandshake, Search, X } from 'lucide-react-native';
+import { noteRequestAPI, postsAPI } from '../../lib/api';
 import PostCard from '../../components/PostCard';
 import { faculties as ALL_FACULTIES } from '../../data/departments';
+import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
 
 interface PostsPage {
@@ -23,12 +26,21 @@ interface PostsPage {
 }
 
 export default function HomeScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [faculty, setFaculty] = useState('');
   const [showFacultyPicker, setShowFacultyPicker] = useState(false);
   const [faculties, setFaculties] = useState<string[]>(ALL_FACULTIES);
+  const [openRequestCount, setOpenRequestCount] = useState<number | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    noteRequestAPI
+      .getAll({ page: 1, limit: 1, status: 'open' })
+      .then((res) => setOpenRequestCount(res.data?.total ?? null))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     postsAPI
@@ -76,7 +88,24 @@ export default function HomeScreen() {
   const hasMore = posts.length < total;
 
   const filterBar = (
-    <View style={styles.filterCard}>
+    <View>
+      <Pressable style={styles.noteRequestCta} onPress={() => navigation.navigate('NoteRequests')}>
+        <View style={styles.noteRequestIconWrap}>
+          <HeartHandshake size={18} color="#2F5755" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.noteRequestTitle}>Not İstekleri</Text>
+          <Text style={styles.noteRequestSubtitle}>Aradığın notu bulamadın mı? İste, elinde olan karşılasın.</Text>
+        </View>
+        <View style={styles.noteRequestLinkRow}>
+          <Text style={styles.noteRequestLinkText}>
+            {openRequestCount !== null && openRequestCount > 0 ? `${openRequestCount} açık istek` : 'Panoya git'}
+          </Text>
+          <ArrowRight size={14} color="#2F5755" />
+        </View>
+      </Pressable>
+
+      <View style={styles.filterCard}>
       <Text style={styles.pageTitle}>Tüm Notlar</Text>
       <Text style={styles.pageSubtitle}>Öğrenciler tarafından paylaşılan ders notlarını inceleyin</Text>
 
@@ -97,6 +126,7 @@ export default function HomeScreen() {
         </Text>
         <ChevronDown size={16} color="#6b7280" />
       </Pressable>
+      </View>
     </View>
   );
 
@@ -184,6 +214,27 @@ const styles = StyleSheet.create({
   listContent: { padding: 12, flexGrow: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
   errorText: { color: '#6b7280', fontSize: 14 },
+  noteRequestCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+  },
+  noteRequestIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: '#2F575519',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noteRequestTitle: { fontSize: 13.5, fontWeight: '700', color: '#111827' },
+  noteRequestSubtitle: { fontSize: 11, color: '#6b7280', marginTop: 2 },
+  noteRequestLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  noteRequestLinkText: { fontSize: 11.5, fontWeight: '600', color: '#2F5755' },
   filterCard: { backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 14 },
   pageTitle: { fontSize: 21, fontWeight: '800', color: '#111827' },
   pageSubtitle: { fontSize: 12.5, color: '#6b7280', marginTop: 4, marginBottom: 14 },

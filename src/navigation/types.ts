@@ -6,10 +6,17 @@ export type AuthStackParamList = {
   ResetPassword: { email: string };
 };
 
+export interface NoteRequestSummary {
+  id: number;
+  faculty: string;
+  department: string;
+  course_name: string;
+}
+
 export type MainTabParamList = {
   Home: undefined;
   Departments: undefined;
-  AddPost: undefined;
+  AddPost: { noteRequest?: NoteRequestSummary } | undefined;
   Tools: undefined;
   Notifications: undefined;
   Profile: undefined;
@@ -24,4 +31,5 @@ export type RootStackParamList = {
   Checklists: { slug?: string } | undefined;
   AktsCalculator: { loadId?: number } | undefined;
   Schedule: undefined;
+  NoteRequests: undefined;
 };
