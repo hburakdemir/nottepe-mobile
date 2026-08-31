@@ -96,7 +96,7 @@ export default function PostDetailScreen() {
         <View style={{ flexDirection: 'row', gap: 14 }}>
           {isAuthenticated && (
             <Pressable onPress={() => toggleSavePost(postId)} hitSlop={8}>
-              <Bookmark size={20} color="#1d4ed8" fill={isSaved ? '#1d4ed8' : 'none'} />
+              <Bookmark size={20} color={isSaved ? '#003161' : '#111827'} fill={isSaved ? '#003161' : 'none'} />
             </Pressable>
           )}
           {isOwner && (

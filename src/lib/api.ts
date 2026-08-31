@@ -158,6 +158,7 @@ export const passwordApi = {
 
 export const profileupdateAPI = {
   updateProfile: (data: Record<string, unknown>) => api.patch('/update/profile', data),
+  deleteAccount: (reason: string) => api.delete('/users/me', { data: { reason } }),
 };
 
 export const ratingAPI = {

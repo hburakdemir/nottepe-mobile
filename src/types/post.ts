@@ -1,3 +1,5 @@
+import type { Badge } from '../components/BadgeChip';
+
 export interface Post {
   id: number;
   post_id?: number;
@@ -15,4 +17,5 @@ export interface Post {
   avg_rating?: number | string;
   rating_count?: number;
   comment_count?: number;
+  badges?: Badge[];
 }

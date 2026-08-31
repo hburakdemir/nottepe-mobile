@@ -10,8 +10,21 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Calculator, ChevronDown, Plus, Save, Trash2, X } from 'lucide-react-native';
+import { useRoute } from '@react-navigation/native';
+import {
+  CheckCircle2,
+  ChevronDown,
+  GraduationCap,
+  Layers,
+  Plus,
+  Save,
+  Sigma,
+  Trash2,
+  X,
+  XCircle,
+} from 'lucide-react-native';
 import { aktsAPI } from '../../lib/api';
+import type { RootStackParamList } from '../../navigation/types';
 import {
   ALL_GRADES,
   computeTotals,
@@ -40,6 +53,8 @@ function emptyDraft(): { name: string; semester: string; akts: string; grade: st
 }
 
 export default function AktsCalculatorScreen() {
+  const route = useRoute<any>();
+  const loadId = (route.params as RootStackParamList['AktsCalculator'])?.loadId;
   const [title, setTitle] = useState('Hesaplamam');
   const [courses, setCourses] = useState<Course[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -58,15 +73,28 @@ export default function AktsCalculatorScreen() {
     try {
       const res = await aktsAPI.getAll();
       setSavedCalcs(res.data.calculations || []);
+      return res.data.calculations || [];
     } catch {
-      // sessizce geç
+      return [];
     } finally {
       setLoadingSaved(false);
     }
   };
 
   useEffect(() => {
-    fetchSaved();
+    (async () => {
+      const calcs = await fetchSaved();
+      if (loadId) {
+        const full = calcs.find((c: any) => c.id === loadId);
+        if (full) {
+          const { courses: loaded } = serverDataToCourses(full.data);
+          setCourses(loaded);
+          setTitle(full.title);
+          setEditingId(full.id);
+        }
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const totals = useMemo(() => computeTotals(courses), [courses]);
@@ -198,25 +226,43 @@ export default function AktsCalculatorScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.summaryCard}>
-        <Calculator size={22} color="#fff" />
-        <Text style={styles.summaryLabel}>GENEL ORTALAMA (GANO)</Text>
-        <Text style={styles.summaryValue}>{formatGpa(totals.gano)}</Text>
-        <Text style={styles.summarySub}>{totals.creditedAkts} kredili AKTS</Text>
-      </View>
-
-      <View style={styles.statsRow}>
-        <View style={styles.statBox}>
-          <Text style={styles.statValue}>{totals.totalAkts}</Text>
-          <Text style={styles.statLabel}>Toplam AKTS</Text>
+      <View style={styles.statsGrid}>
+        <View style={styles.statCard}>
+          <View style={styles.statCardHeader}>
+            <Layers size={14} color="#2F5755" />
+            <Text style={styles.statCardLabel}>Toplam AKTS</Text>
+          </View>
+          <Text style={styles.statCardValue}>{totals.totalAkts.toLocaleString('tr-TR')}</Text>
         </View>
-        <View style={styles.statBox}>
-          <Text style={[styles.statValue, { color: '#15803d' }]}>{totals.passedAkts}</Text>
-          <Text style={styles.statLabel}>Başarılı AKTS</Text>
+        <View style={styles.statCard}>
+          <View style={styles.statCardHeader}>
+            <CheckCircle2 size={14} color="#2F5755" />
+            <Text style={styles.statCardLabel}>Başarılı AKTS</Text>
+          </View>
+          <Text style={styles.statCardValue}>{totals.passedAkts.toLocaleString('tr-TR')}</Text>
         </View>
-        <View style={styles.statBox}>
-          <Text style={[styles.statValue, { color: '#dc2626' }]}>{totals.failedAkts}</Text>
-          <Text style={styles.statLabel}>Başarısız AKTS</Text>
+        <View style={styles.statCard}>
+          <View style={styles.statCardHeader}>
+            <XCircle size={14} color="#2F5755" />
+            <Text style={styles.statCardLabel}>Başarısız AKTS</Text>
+          </View>
+          <Text style={styles.statCardValue}>{totals.failedAkts.toLocaleString('tr-TR')}</Text>
+        </View>
+        <View style={styles.statCard}>
+          <View style={styles.statCardHeader}>
+            <Sigma size={14} color="#2F5755" />
+            <Text style={styles.statCardLabel}>Toplam Kalite Puanı</Text>
+          </View>
+          <Text style={styles.statCardValue}>
+            {totals.qualityPoints.toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+          </Text>
+        </View>
+        <View style={[styles.statCard, styles.ganoCard]}>
+          <View style={styles.statCardHeader}>
+            <GraduationCap size={14} color="#fff" />
+            <Text style={[styles.statCardLabel, { color: '#E0D9D9' }]}>GANO</Text>
+          </View>
+          <Text style={[styles.statCardValue, { color: '#fff' }]}>{formatGpa(totals.gano)}</Text>
         </View>
       </View>
 
@@ -378,20 +424,17 @@ export default function AktsCalculatorScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   content: { padding: 16, paddingBottom: 40 },
-  summaryCard: {
-    backgroundColor: '#2F5755',
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    marginBottom: 14,
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
+  statCard: {
+    width: '47.5%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
   },
-  summaryLabel: { color: '#E0D9D9', fontSize: 11, fontWeight: '700', letterSpacing: 0.5, marginTop: 6 },
-  summaryValue: { color: '#fff', fontSize: 34, fontWeight: '800', marginTop: 4 },
-  summarySub: { color: '#E0D9D9', fontSize: 12, marginTop: 2 },
-  statsRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  statBox: { flex: 1, backgroundColor: '#fff', borderRadius: 12, padding: 12, alignItems: 'center' },
-  statValue: { fontSize: 17, fontWeight: '700', color: '#111827' },
-  statLabel: { fontSize: 10.5, color: '#6b7280', marginTop: 2, textAlign: 'center' },
+  statCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  statCardLabel: { fontSize: 11.5, fontWeight: '600', color: '#4b5563' },
+  statCardValue: { fontSize: 20, fontWeight: '700', color: '#111827' },
+  ganoCard: { width: '100%', backgroundColor: '#2F5755' },
   titleRow: { flexDirection: 'row', gap: 10, marginBottom: 8 },
   titleInput: {
     flex: 1,

@@ -19,6 +19,6 @@ export type RootStackParamList = {
   SavedPosts: undefined;
   UserProfile: { username: string };
   Checklists: { slug?: string } | undefined;
-  AktsCalculator: undefined;
+  AktsCalculator: { loadId?: number } | undefined;
   Schedule: undefined;
 };

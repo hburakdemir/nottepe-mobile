@@ -11,6 +11,7 @@ export interface Badge {
   icon_value?: string;
   icon_color?: string | null;
   bg_color?: string | null;
+  is_visible?: boolean;
 }
 
 function hexToBg(color: string) {
