@@ -11,12 +11,13 @@ import UserProfileScreen from '../screens/main/UserProfileScreen';
 import ChecklistsScreen from '../screens/main/ChecklistsScreen';
 import AktsCalculatorScreen from '../screens/main/AktsCalculatorScreen';
 import ScheduleScreen from '../screens/main/ScheduleScreen';
+import KvkkGateModal from '../components/onboarding/KvkkGateModal';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootNavigator() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user } = useAuth();
 
   if (loading) {
     return (
@@ -30,7 +31,10 @@ export default function RootNavigator() {
     return <AuthNavigator />;
   }
 
+  const needsOnboardingGate = !!user && (!user.kvkkConsentAt || !user.faculty || !user.department);
+
   return (
+    <>
     <Stack.Navigator>
       <Stack.Screen name="MainTabs" component={MainNavigator} options={{ headerShown: false }} />
       <Stack.Screen name="PostDetail" component={PostDetailScreen} options={{ title: 'Gönderi' }} />
@@ -53,5 +57,7 @@ export default function RootNavigator() {
       />
       <Stack.Screen name="Schedule" component={ScheduleScreen} options={{ title: 'Ders Programı' }} />
     </Stack.Navigator>
+    {needsOnboardingGate && <KvkkGateModal />}
+    </>
   );
 }
