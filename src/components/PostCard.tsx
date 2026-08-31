@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Calendar, FileText, MessageSquare, Star, User } from 'lucide-react-native';
 import type { Post } from '../types/post';
 import { getFileUrl } from '../lib/config';
+import type { HomeStackParamList } from '../navigation/types';
 
 const MAX_LENGTH = 200;
 
@@ -15,6 +18,7 @@ function formatDate(dateString: string): string {
 }
 
 export default function PostCard({ post }: { post: Post }) {
+  const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
   const [showMore, setShowMore] = useState(false);
   const content = post.content || '';
   const isLong = content.length > MAX_LENGTH;
@@ -23,7 +27,10 @@ export default function PostCard({ post }: { post: Post }) {
   const ratingCount = post.rating_count || 0;
 
   return (
-    <View style={styles.card}>
+    <Pressable
+      style={styles.card}
+      onPress={() => navigation.navigate('PostDetail', { postId: post.id ?? post.post_id! })}
+    >
       <Text style={styles.title}>{post.title}</Text>
       <Text style={styles.content}>{displayText}</Text>
       {isLong && (
@@ -95,7 +102,7 @@ export default function PostCard({ post }: { post: Post }) {
           </Text>
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
