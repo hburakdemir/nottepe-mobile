@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Calculator, CalendarDays, ChevronRight, ListChecks } from 'lucide-react-native';
+import { Calculator, CalendarDays, ChevronRight, HeartHandshake, HelpCircle, Lightbulb, ListChecks } from 'lucide-react-native';
 import type { RootStackParamList } from '../../navigation/types';
 
 const TOOLS = [
@@ -23,6 +23,24 @@ const TOOLS = [
     icon: CalendarDays,
     title: 'Ders Programı',
     desc: 'Haftalık ders programını oluştur, düzenle.',
+  },
+  {
+    key: 'NoteRequests' as const,
+    icon: HeartHandshake,
+    title: 'Not İstekleri',
+    desc: 'Aradığın notu bulamadın mı? İste, elinde olan karşılasın.',
+  },
+  {
+    key: 'Faq' as const,
+    icon: HelpCircle,
+    title: 'Sık Sorulan Sorular',
+    desc: 'Merak edilenler ve kullanıcı tartışmaları.',
+  },
+  {
+    key: 'Suggestions' as const,
+    icon: Lightbulb,
+    title: 'Öneriler',
+    desc: "Nottepe'yi nasıl daha iyi yapabiliriz?",
   },
 ];
 

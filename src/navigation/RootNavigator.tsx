@@ -12,6 +12,10 @@ import ChecklistsScreen from '../screens/main/ChecklistsScreen';
 import AktsCalculatorScreen from '../screens/main/AktsCalculatorScreen';
 import ScheduleScreen from '../screens/main/ScheduleScreen';
 import NoteRequestsScreen from '../screens/main/NoteRequestsScreen';
+import FaqScreen from '../screens/main/FaqScreen';
+import FaqDetailScreen from '../screens/main/FaqDetailScreen';
+import SuggestionsScreen from '../screens/main/SuggestionsScreen';
+import SuggestionDetailScreen from '../screens/main/SuggestionDetailScreen';
 import KvkkGateModal from '../components/onboarding/KvkkGateModal';
 import type { RootStackParamList } from './types';
 
@@ -58,6 +62,10 @@ export default function RootNavigator() {
       />
       <Stack.Screen name="Schedule" component={ScheduleScreen} options={{ title: 'Ders Programı' }} />
       <Stack.Screen name="NoteRequests" component={NoteRequestsScreen} options={{ title: 'Not İstekleri' }} />
+      <Stack.Screen name="Faq" component={FaqScreen} options={{ title: 'Sık Sorulan Sorular' }} />
+      <Stack.Screen name="FaqDetail" component={FaqDetailScreen} options={{ title: 'Soru' }} />
+      <Stack.Screen name="Suggestions" component={SuggestionsScreen} options={{ title: 'Öneriler' }} />
+      <Stack.Screen name="SuggestionDetail" component={SuggestionDetailScreen} options={{ title: 'Öneri' }} />
     </Stack.Navigator>
     {needsOnboardingGate && <KvkkGateModal />}
     </>

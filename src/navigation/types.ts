@@ -32,4 +32,8 @@ export type RootStackParamList = {
   AktsCalculator: { loadId?: number } | undefined;
   Schedule: undefined;
   NoteRequests: undefined;
+  Faq: undefined;
+  FaqDetail: { id: number };
+  Suggestions: undefined;
+  SuggestionDetail: { id: number };
 };
