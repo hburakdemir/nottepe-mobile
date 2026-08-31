@@ -11,6 +11,7 @@ import {
   Megaphone,
   MessageSquare,
   Tag,
+  User,
 } from 'lucide-react-native';
 import { notificationAPI, userNotificationAPI } from '../../lib/api';
 import type { RootStackParamList } from '../../navigation/types';
@@ -30,7 +31,20 @@ interface Announcement {
   link?: string | null;
   category_name?: string;
   is_viewed?: boolean;
+  viewed_at?: string | null;
+  creator_full_name?: string | null;
+  creator_role?: string | null;
   created_at: string;
+}
+
+function formatDateTime(dateString: string): string {
+  return new Date(dateString).toLocaleDateString('tr-TR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 interface Category {
@@ -51,15 +65,24 @@ const ACTIVITY_TYPE_META: Record<string, { icon: any; label: (n: any) => string 
   },
   request_fulfilled: {
     icon: CheckCircle,
-    label: (n) => `Not isteğin karşılandı: ${n.post_title || 'karşılanan not'}`,
+    label: (n) =>
+      `Not isteğin karşılandı: ${n.post_title || 'karşılanan not'}${
+        n.actor_username ? ` — ${n.actor_full_name || n.actor_username} tarafından` : ''
+      }`,
   },
   supported_req_fulfilled: {
     icon: CheckCircle,
-    label: (n) => `"+1" verdiğin not isteği karşılandı: ${n.post_title || 'karşılanan not'}`,
+    label: (n) =>
+      `"+1" verdiğin not isteği karşılandı: ${n.post_title || 'karşılanan not'}${
+        n.actor_username ? ` — ${n.actor_full_name || n.actor_username} tarafından` : ''
+      }`,
   },
   comment_reply: {
     icon: MessageSquare,
-    label: (n) => `${n.actor_full_name || n.actor_username || 'Bir kullanıcı'} yorumuna yanıt verdi.`,
+    label: (n) =>
+      `${n.actor_full_name || n.actor_username || 'Bir kullanıcı'} yorumuna yanıt verdi${
+        n.faq_question ? `: ${n.faq_question}` : n.suggestion_content ? ' (öneri)' : ''
+      }`,
   },
 };
 
@@ -69,7 +92,7 @@ function AnnouncementCard({ notif }: { notif: Announcement }) {
       <View style={styles.metaRow}>
         <View style={[styles.badge, notif.is_viewed ? styles.badgeMuted : styles.badgeActive]}>
           <Text style={[styles.badgeText, notif.is_viewed && styles.badgeTextMuted]}>
-            {notif.is_viewed ? 'Görüntülendi' : 'Yeni'}
+            {notif.is_viewed ? `Görüntüleme Tarihi${notif.viewed_at ? ` · ${formatDateTime(notif.viewed_at)}` : ''}` : 'Yeni'}
           </Text>
         </View>
         {!!notif.category_name && (
@@ -78,9 +101,22 @@ function AnnouncementCard({ notif }: { notif: Announcement }) {
             <Text style={styles.categoryText}>{notif.category_name}</Text>
           </View>
         )}
+        {!!notif.creator_full_name && (
+          <View style={styles.creatorBadge}>
+            <User size={11} color="#4b5563" />
+            <Text style={styles.creatorText}>{notif.creator_full_name}</Text>
+            {!!notif.creator_role && (
+              <View style={[styles.roleBadge, notif.creator_role === 'admin' && styles.roleBadgeAdmin]}>
+                <Text style={[styles.roleBadgeText, notif.creator_role === 'admin' && styles.roleBadgeTextAdmin]}>
+                  {notif.creator_role}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
         <View style={styles.dateRow}>
           <Calendar size={11} color="#9ca3af" />
-          <Text style={styles.dateText}>{formatDate(notif.created_at)}</Text>
+          <Text style={styles.dateText}>Duyuru Tarihi: {formatDate(notif.created_at)}</Text>
         </View>
       </View>
       <Text style={styles.cardTitle}>{notif.title}</Text>
@@ -263,6 +299,12 @@ const styles = StyleSheet.create({
   badgeTextMuted: { color: '#6b7280' },
   categoryBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#4f7d7a', borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3 },
   categoryText: { fontSize: 10.5, fontWeight: '600', color: '#fff' },
+  creatorBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f3f4f6', borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3 },
+  creatorText: { fontSize: 10.5, fontWeight: '600', color: '#4b5563' },
+  roleBadge: { backgroundColor: '#dbeafe', borderRadius: 4, paddingHorizontal: 4, marginLeft: 2 },
+  roleBadgeAdmin: { backgroundColor: '#1e3a8a' },
+  roleBadgeText: { fontSize: 9, fontWeight: '700', color: '#1d4ed8' },
+  roleBadgeTextAdmin: { color: '#fde047' },
   dateRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' },
   dateText: { fontSize: 11, color: '#9ca3af' },
   cardTitle: { fontSize: 15.5, fontWeight: '700', color: '#111827', marginBottom: 6 },

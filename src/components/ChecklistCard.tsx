@@ -7,10 +7,11 @@ interface Props {
   checklist: Checklist;
   isOpen: boolean;
   onToggleOpen: (checklist: Checklist) => void;
-  onToggleItem: (checklistId: number, item: ChecklistItem) => void;
-  onStatsClick: (checklist: Checklist) => void;
-  onEditClick: (checklist: Checklist) => void;
+  onToggleItem?: (checklistId: number, item: ChecklistItem) => void;
+  onStatsClick?: (checklist: Checklist) => void;
+  onEditClick?: (checklist: Checklist) => void;
   canEdit?: boolean;
+  readOnlyItems?: boolean;
 }
 
 export default function ChecklistCard({
@@ -21,6 +22,7 @@ export default function ChecklistCard({
   onStatsClick,
   onEditClick,
   canEdit = false,
+  readOnlyItems = false,
 }: Props) {
   const total = checklist.items.length;
   const done = checklist.items.filter((i) => i.checked).length;
@@ -66,7 +68,8 @@ export default function ChecklistCard({
               <Pressable
                 key={item.id}
                 style={styles.itemRow}
-                onPress={() => onToggleItem(checklist.id, item)}
+                disabled={readOnlyItems}
+                onPress={() => onToggleItem?.(checklist.id, item)}
               >
                 <View style={[styles.checkbox, item.checked && styles.checkboxChecked]}>
                   {item.checked && <CheckCircle2 size={14} color="#fff" />}
@@ -89,12 +92,12 @@ export default function ChecklistCard({
 
       <View style={styles.actionsRow}>
         {canEdit && (
-          <Pressable style={styles.actionBtn} onPress={() => onEditClick(checklist)} hitSlop={8}>
+          <Pressable style={styles.actionBtn} onPress={() => onEditClick?.(checklist)} hitSlop={8}>
             <Pencil size={15} color="#6b7280" />
           </Pressable>
         )}
         {isUserList && checklist.completion && (
-          <Pressable style={styles.actionBtn} onPress={() => onStatsClick(checklist)} hitSlop={8}>
+          <Pressable style={styles.actionBtn} onPress={() => onStatsClick?.(checklist)} hitSlop={8}>
             <BarChart2 size={15} color="#6b7280" />
           </Pressable>
         )}

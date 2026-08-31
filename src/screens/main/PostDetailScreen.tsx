@@ -175,6 +175,7 @@ export default function PostDetailScreen() {
       <CommentSection
         postId={postId}
         postOwnerId={post.user_id}
+        isAdmin={user?.role === 'admin' || user?.role === 'moderator'}
         onRatingChange={({ avg_rating, rating_count }) =>
           setPost((prev) => (prev ? { ...prev, avg_rating, rating_count } : prev))
         }

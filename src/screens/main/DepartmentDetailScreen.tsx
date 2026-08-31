@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation } from '@react-navigation/native';
 import { Bell, BellOff } from 'lucide-react-native';
 import { postsAPI, departmentFollowAPI } from '../../lib/api';
 import PostCard from '../../components/PostCard';
@@ -15,6 +17,7 @@ interface PostsPage {
 
 export default function DepartmentDetailScreen() {
   const route = useRoute<any>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { faculty, department } = route.params as RootStackParamList['DepartmentDetail'];
 
   const [isFollowing, setIsFollowing] = useState(false);
@@ -119,11 +122,21 @@ export default function DepartmentDetailScreen() {
         if (hasNextPage && !isFetchingNextPage) fetchNextPage();
       }}
       ListFooterComponent={
-        isFetchingNextPage ? <ActivityIndicator style={{ marginVertical: 16 }} color="#1d4ed8" /> : null
+        isFetchingNextPage ? (
+          <ActivityIndicator style={{ marginVertical: 16 }} color="#1d4ed8" />
+        ) : !hasNextPage && posts.length > 0 ? (
+          <Text style={styles.footerText}>Tüm notlar yüklendi ({total} not)</Text>
+        ) : null
       }
       ListEmptyComponent={
         <View style={styles.center}>
           <Text style={styles.errorText}>Bu bölüm için henüz not paylaşılmamış.</Text>
+          <Pressable
+            style={styles.addPostBtn}
+            onPress={() => navigation.navigate('MainTabs', { screen: 'AddPost' } as any)}
+          >
+            <Text style={styles.addPostBtnText}>İlk Notu Siz Paylaşın</Text>
+          </Pressable>
         </View>
       }
     />
@@ -152,4 +165,7 @@ const styles = StyleSheet.create({
   followBtnActive: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#2F5755' },
   followBtnText: { color: '#fff', fontSize: 12.5, fontWeight: '600' },
   followBtnTextActive: { color: '#2F5755' },
+  footerText: { textAlign: 'center', fontSize: 12.5, color: '#9ca3af', paddingVertical: 20 },
+  addPostBtn: { backgroundColor: '#2F5755', borderRadius: 10, paddingHorizontal: 18, paddingVertical: 11, marginTop: 14 },
+  addPostBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
 });
