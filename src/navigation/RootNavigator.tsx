@@ -16,6 +16,7 @@ import FaqScreen from '../screens/main/FaqScreen';
 import FaqDetailScreen from '../screens/main/FaqDetailScreen';
 import SuggestionsScreen from '../screens/main/SuggestionsScreen';
 import SuggestionDetailScreen from '../screens/main/SuggestionDetailScreen';
+import CafeteriaMenuScreen from '../screens/main/CafeteriaMenuScreen';
 import KvkkGateModal from '../components/onboarding/KvkkGateModal';
 import type { RootStackParamList } from './types';
 
@@ -66,6 +67,7 @@ export default function RootNavigator() {
       <Stack.Screen name="FaqDetail" component={FaqDetailScreen} options={{ title: 'Soru' }} />
       <Stack.Screen name="Suggestions" component={SuggestionsScreen} options={{ title: 'Öneriler' }} />
       <Stack.Screen name="SuggestionDetail" component={SuggestionDetailScreen} options={{ title: 'Öneri' }} />
+      <Stack.Screen name="CafeteriaMenu" component={CafeteriaMenuScreen} options={{ title: 'Yemek Listesi' }} />
     </Stack.Navigator>
     {needsOnboardingGate && <KvkkGateModal />}
     </>

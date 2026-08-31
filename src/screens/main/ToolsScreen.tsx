@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Calculator, CalendarDays, ChevronRight, HeartHandshake, HelpCircle, Lightbulb, ListChecks } from 'lucide-react-native';
+import { Calculator, CalendarDays, ChevronRight, HeartHandshake, HelpCircle, Lightbulb, ListChecks, UtensilsCrossed } from 'lucide-react-native';
 import type { RootStackParamList } from '../../navigation/types';
 
 const TOOLS = [
@@ -41,6 +41,12 @@ const TOOLS = [
     icon: Lightbulb,
     title: 'Öneriler',
     desc: "Nottepe'yi nasıl daha iyi yapabiliriz?",
+  },
+  {
+    key: 'CafeteriaMenu' as const,
+    icon: UtensilsCrossed,
+    title: 'Yemek Listesi',
+    desc: 'Hacettepe yemekhanesinin günlük ve haftalık menüsü.',
   },
 ];
 

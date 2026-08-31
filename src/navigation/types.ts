@@ -36,4 +36,5 @@ export type RootStackParamList = {
   FaqDetail: { id: number };
   Suggestions: undefined;
   SuggestionDetail: { id: number };
+  CafeteriaMenu: undefined;
 };
