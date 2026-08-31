@@ -8,6 +8,7 @@ import { getFileUrl } from '../lib/config';
 import type { RootStackParamList } from '../navigation/types';
 import { useAuth } from '../context/AuthContext';
 import { useSavedPosts } from '../context/SavedPostContext';
+import { useGoToUserProfile } from '../hooks/useGoToUserProfile';
 
 const MAX_LENGTH = 200;
 
@@ -23,6 +24,7 @@ export default function PostCard({ post }: { post: Post }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { isAuthenticated } = useAuth();
   const { savedPosts, toggleSavePost } = useSavedPosts();
+  const goToUserProfile = useGoToUserProfile();
   const [showMore, setShowMore] = useState(false);
   const content = post.content || '';
   const isLong = content.length > MAX_LENGTH;
@@ -67,12 +69,12 @@ export default function PostCard({ post }: { post: Post }) {
         </View>
       </View>
 
-      <View style={styles.ownerRow}>
+      <Pressable style={styles.ownerRow} onPress={() => goToUserProfile(post.username)}>
         <View style={styles.avatarFallback}>
           <User size={16} color="#6b7280" />
         </View>
         <Text style={styles.username}>{post.username || 'Anonim'}</Text>
-      </View>
+      </Pressable>
 
       {post.file_urls && post.file_urls.length > 0 && (
         <View style={{ marginTop: 8, gap: 6 }}>

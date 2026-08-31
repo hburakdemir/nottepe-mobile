@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View 
 import { Send, Star, Trash2, User } from 'lucide-react-native';
 import { commentAPI } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import { useGoToUserProfile } from '../hooks/useGoToUserProfile';
 import type { Comment } from '../types/comment';
 
 function formatDateTime(dateString: string): string {
@@ -50,6 +51,7 @@ interface Props {
 
 export default function CommentSection({ postId, postOwnerId, onRatingChange }: Props) {
   const { user, isAuthenticated } = useAuth();
+  const goToUserProfile = useGoToUserProfile();
 
   const [comments, setComments] = useState<Comment[]>([]);
   const [total, setTotal] = useState(0);
@@ -146,7 +148,7 @@ export default function CommentSection({ postId, postOwnerId, onRatingChange }: 
             return (
               <View key={c.id} style={styles.commentCard}>
                 <View style={styles.commentHeader}>
-                  <View style={styles.commentUser}>
+                  <Pressable style={styles.commentUser} onPress={() => goToUserProfile(c.username)}>
                     <View style={styles.avatarFallback}>
                       <User size={14} color="#6b7280" />
                     </View>
@@ -154,7 +156,7 @@ export default function CommentSection({ postId, postOwnerId, onRatingChange }: 
                       <Text style={styles.username}>{c.username || 'Anonim'}</Text>
                       <Text style={styles.date}>{formatDateTime(c.created_at)}</Text>
                     </View>
-                  </View>
+                  </Pressable>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     {!!c.rating && <StarDisplay value={c.rating} />}
                     {(isOwner || isPostOwner) && (

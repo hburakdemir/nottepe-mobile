@@ -7,6 +7,7 @@ import MainNavigator from './MainNavigator';
 import PostDetailScreen from '../screens/main/PostDetailScreen';
 import DepartmentDetailScreen from '../screens/main/DepartmentDetailScreen';
 import SavedPostsScreen from '../screens/main/SavedPostsScreen';
+import UserProfileScreen from '../screens/main/UserProfileScreen';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -36,6 +37,11 @@ export default function RootNavigator() {
         options={({ route }) => ({ title: route.params.department })}
       />
       <Stack.Screen name="SavedPosts" component={SavedPostsScreen} options={{ title: 'Kaydedilenler' }} />
+      <Stack.Screen
+        name="UserProfile"
+        component={UserProfileScreen}
+        options={({ route }) => ({ title: `@${route.params.username}` })}
+      />
     </Stack.Navigator>
   );
 }

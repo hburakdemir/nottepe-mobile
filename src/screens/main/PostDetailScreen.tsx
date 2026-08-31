@@ -7,6 +7,7 @@ import { postsAPI } from '../../lib/api';
 import { getFileUrl } from '../../lib/config';
 import { useAuth } from '../../context/AuthContext';
 import { useSavedPosts } from '../../context/SavedPostContext';
+import { useGoToUserProfile } from '../../hooks/useGoToUserProfile';
 import CommentSection from '../../components/CommentSection';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
@@ -24,6 +25,7 @@ export default function PostDetailScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user, isAuthenticated } = useAuth();
   const { savedPosts, toggleSavePost } = useSavedPosts();
+  const goToUserProfile = useGoToUserProfile();
   const { postId } = route.params as RootStackParamList['PostDetail'];
   const isSaved = savedPosts.includes(String(postId));
 
@@ -115,12 +117,12 @@ export default function PostDetailScreen() {
       </View>
 
       <View style={styles.metaRow}>
-        <View style={styles.metaItem}>
+        <Pressable style={styles.metaItem} onPress={() => goToUserProfile(post.username)}>
           <View style={styles.avatarFallback}>
             <User size={14} color="#6b7280" />
           </View>
           <Text style={styles.metaText}>{post.username || 'Anonim'}</Text>
-        </View>
+        </Pressable>
         <View style={styles.metaItem}>
           <Calendar size={13} color="#6b7280" />
           <Text style={styles.metaText}>{formatDate(post.created_at)}</Text>

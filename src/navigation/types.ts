@@ -16,4 +16,5 @@ export type RootStackParamList = {
   PostDetail: { postId: number };
   DepartmentDetail: { faculty: string; department: string };
   SavedPosts: undefined;
+  UserProfile: { username: string };
 };
