@@ -7,7 +7,7 @@ import { postsAPI } from '../../lib/api';
 import { getFileUrl } from '../../lib/config';
 import { useAuth } from '../../context/AuthContext';
 import CommentSection from '../../components/CommentSection';
-import type { HomeStackParamList } from '../../navigation/types';
+import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
 
 function formatDate(dateString: string): string {
@@ -20,9 +20,9 @@ function formatDate(dateString: string): string {
 
 export default function PostDetailScreen() {
   const route = useRoute<any>();
-  const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user } = useAuth();
-  const { postId } = route.params as HomeStackParamList['PostDetail'];
+  const { postId } = route.params as RootStackParamList['PostDetail'];
 
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);

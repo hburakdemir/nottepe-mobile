@@ -4,14 +4,15 @@ export type AuthStackParamList = {
 };
 
 export type MainTabParamList = {
-  HomeTab: undefined;
+  Home: undefined;
   Departments: undefined;
   AddPost: undefined;
   Notifications: undefined;
   Profile: undefined;
 };
 
-export type HomeStackParamList = {
-  Home: undefined;
+export type RootStackParamList = {
+  MainTabs: undefined;
   PostDetail: { postId: number };
+  DepartmentDetail: { faculty: string; department: string };
 };

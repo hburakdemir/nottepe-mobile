@@ -1,6 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import HomeStackNavigator from './HomeStackNavigator';
+import HomeScreen from '../screens/main/HomeScreen';
 import DepartmentsScreen from '../screens/main/DepartmentsScreen';
 import AddPostScreen from '../screens/main/AddPostScreen';
 import NotificationsScreen from '../screens/main/NotificationsScreen';
@@ -12,7 +12,7 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 export default function MainNavigator() {
   return (
     <Tab.Navigator screenOptions={{ headerShown: false }}>
-      <Tab.Screen name="HomeTab" component={HomeStackNavigator} options={{ title: 'Ana Sayfa' }} />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Ana Sayfa' }} />
       <Tab.Screen name="Departments" component={DepartmentsScreen} options={{ title: 'Bölümler' }} />
       <Tab.Screen name="AddPost" component={AddPostScreen} options={{ title: 'Ekle' }} />
       <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Bildirimler' }} />

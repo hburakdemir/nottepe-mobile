@@ -5,7 +5,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Calendar, FileText, MessageSquare, Star, User } from 'lucide-react-native';
 import type { Post } from '../types/post';
 import { getFileUrl } from '../lib/config';
-import type { HomeStackParamList } from '../navigation/types';
+import type { RootStackParamList } from '../navigation/types';
 
 const MAX_LENGTH = 200;
 
@@ -18,7 +18,7 @@ function formatDate(dateString: string): string {
 }
 
 export default function PostCard({ post }: { post: Post }) {
-  const navigation = useNavigation<NativeStackNavigationProp<HomeStackParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [showMore, setShowMore] = useState(false);
   const content = post.content || '';
   const isLong = content.length > MAX_LENGTH;
