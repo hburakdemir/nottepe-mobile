@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Calculator, CalendarDays, ChevronRight, HeartHandshake, HelpCircle, Lightbulb, ListChecks, Trophy, UtensilsCrossed } from 'lucide-react-native';
+import { Calculator, CalendarDays, ChevronRight, HeartHandshake, HelpCircle, Lightbulb, ListChecks, MessageCircleQuestion, Trophy, UtensilsCrossed } from 'lucide-react-native';
 import type { RootStackParamList } from '../../navigation/types';
 
 const TOOLS = [
@@ -53,6 +53,12 @@ const TOOLS = [
     icon: Trophy,
     title: 'Liderlik Tablosu',
     desc: 'En yüksek seri, en çok onaylı not ve rozete sahip öğrenciler.',
+  },
+  {
+    key: 'Help' as const,
+    icon: MessageCircleQuestion,
+    title: 'Yardım ve İletişim',
+    desc: 'Biz kimiz, sık sorulanlar ve bize ulaşma yolları.',
   },
 ];
 

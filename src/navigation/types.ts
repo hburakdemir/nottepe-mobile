@@ -38,4 +38,5 @@ export type RootStackParamList = {
   SuggestionDetail: { id: number };
   CafeteriaMenu: undefined;
   Leaderboard: undefined;
+  Help: undefined;
 };
