@@ -15,4 +15,5 @@ export type RootStackParamList = {
   MainTabs: undefined;
   PostDetail: { postId: number };
   DepartmentDetail: { faculty: string; department: string };
+  SavedPosts: undefined;
 };

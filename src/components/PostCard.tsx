@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Calendar, FileText, MessageSquare, Star, User } from 'lucide-react-native';
+import { Bookmark, Calendar, FileText, MessageSquare, Star, User } from 'lucide-react-native';
 import type { Post } from '../types/post';
 import { getFileUrl } from '../lib/config';
 import type { RootStackParamList } from '../navigation/types';
+import { useAuth } from '../context/AuthContext';
+import { useSavedPosts } from '../context/SavedPostContext';
 
 const MAX_LENGTH = 200;
 
@@ -19,19 +21,30 @@ function formatDate(dateString: string): string {
 
 export default function PostCard({ post }: { post: Post }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { isAuthenticated } = useAuth();
+  const { savedPosts, toggleSavePost } = useSavedPosts();
   const [showMore, setShowMore] = useState(false);
   const content = post.content || '';
   const isLong = content.length > MAX_LENGTH;
   const displayText = showMore || !isLong ? content : content.slice(0, MAX_LENGTH) + '...';
   const avgRating = Number(post.avg_rating) || 0;
   const ratingCount = post.rating_count || 0;
+  const postId = post.id ?? post.post_id!;
+  const isSaved = savedPosts.includes(String(postId));
 
   return (
     <Pressable
       style={styles.card}
-      onPress={() => navigation.navigate('PostDetail', { postId: post.id ?? post.post_id! })}
+      onPress={() => navigation.navigate('PostDetail', { postId })}
     >
-      <Text style={styles.title}>{post.title}</Text>
+      <View style={styles.titleRow}>
+        <Text style={[styles.title, { flex: 1 }]}>{post.title}</Text>
+        {isAuthenticated && (
+          <Pressable onPress={() => toggleSavePost(postId)} hitSlop={8}>
+            <Bookmark size={19} color="#1d4ed8" fill={isSaved ? '#1d4ed8' : 'none'} />
+          </Pressable>
+        )}
+      </View>
       <Text style={styles.content}>{displayText}</Text>
       {isLong && (
         <Pressable onPress={() => setShowMore((v) => !v)}>
@@ -118,7 +131,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
-  title: { fontSize: 17, fontWeight: '600', color: '#111827', marginBottom: 6 },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 6 },
+  title: { fontSize: 17, fontWeight: '600', color: '#111827' },
   content: { fontSize: 14, color: '#1f2937', lineHeight: 20 },
   more: { color: '#1d4ed8', fontSize: 13, marginTop: 4 },
   link: { color: '#1d4ed8', fontSize: 13, marginTop: 8, fontWeight: '500' },

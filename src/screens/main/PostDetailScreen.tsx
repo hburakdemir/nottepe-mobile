@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Calendar, ExternalLink, FileText, Star, Trash2, User } from 'lucide-react-native';
+import { Bookmark, Calendar, ExternalLink, FileText, Star, Trash2, User } from 'lucide-react-native';
 import { postsAPI } from '../../lib/api';
 import { getFileUrl } from '../../lib/config';
 import { useAuth } from '../../context/AuthContext';
+import { useSavedPosts } from '../../context/SavedPostContext';
 import CommentSection from '../../components/CommentSection';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
@@ -21,8 +22,10 @@ function formatDate(dateString: string): string {
 export default function PostDetailScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
+  const { savedPosts, toggleSavePost } = useSavedPosts();
   const { postId } = route.params as RootStackParamList['PostDetail'];
+  const isSaved = savedPosts.includes(String(postId));
 
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,11 +91,18 @@ export default function PostDetailScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.titleRow}>
         <Text style={styles.title}>{post.title}</Text>
-        {isOwner && (
-          <Pressable onPress={handleDeletePost} hitSlop={8}>
-            <Trash2 size={20} color="#dc2626" />
-          </Pressable>
-        )}
+        <View style={{ flexDirection: 'row', gap: 14 }}>
+          {isAuthenticated && (
+            <Pressable onPress={() => toggleSavePost(postId)} hitSlop={8}>
+              <Bookmark size={20} color="#1d4ed8" fill={isSaved ? '#1d4ed8' : 'none'} />
+            </Pressable>
+          )}
+          {isOwner && (
+            <Pressable onPress={handleDeletePost} hitSlop={8}>
+              <Trash2 size={20} color="#dc2626" />
+            </Pressable>
+          )}
+        </View>
       </View>
 
       <View style={styles.chipRow}>

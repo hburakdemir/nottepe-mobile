@@ -6,6 +6,7 @@ import AuthNavigator from './AuthNavigator';
 import MainNavigator from './MainNavigator';
 import PostDetailScreen from '../screens/main/PostDetailScreen';
 import DepartmentDetailScreen from '../screens/main/DepartmentDetailScreen';
+import SavedPostsScreen from '../screens/main/SavedPostsScreen';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -34,6 +35,7 @@ export default function RootNavigator() {
         component={DepartmentDetailScreen}
         options={({ route }) => ({ title: route.params.department })}
       />
+      <Stack.Screen name="SavedPosts" component={SavedPostsScreen} options={{ title: 'Kaydedilenler' }} />
     </Stack.Navigator>
   );
 }
