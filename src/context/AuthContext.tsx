@@ -18,7 +18,6 @@ interface AuthContextValue {
   loading: boolean;
   isAuthenticated: boolean;
   login: (credentials: { username: string; password: string }) => Promise<LoginResult>;
-  register: (userData: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateUser: (patch: Partial<User>) => void;
 }
@@ -81,18 +80,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const register = async (userData: Record<string, unknown>) => {
-    try {
-      await authAPI.register(userData);
-      return { success: true };
-    } catch (error: any) {
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Kayıt olunurken bir hata oluştu',
-      };
-    }
-  };
-
   const logout = async () => {
     try {
       await authAPI.logout();
@@ -117,7 +104,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     loading,
     isAuthenticated: !!user,
     login,
-    register,
     logout,
     updateUser,
   };
