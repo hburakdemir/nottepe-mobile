@@ -8,6 +8,9 @@ import PostDetailScreen from '../screens/main/PostDetailScreen';
 import DepartmentDetailScreen from '../screens/main/DepartmentDetailScreen';
 import SavedPostsScreen from '../screens/main/SavedPostsScreen';
 import UserProfileScreen from '../screens/main/UserProfileScreen';
+import ChecklistsScreen from '../screens/main/ChecklistsScreen';
+import AktsCalculatorScreen from '../screens/main/AktsCalculatorScreen';
+import ScheduleScreen from '../screens/main/ScheduleScreen';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -42,6 +45,13 @@ export default function RootNavigator() {
         component={UserProfileScreen}
         options={({ route }) => ({ title: `@${route.params.username}` })}
       />
+      <Stack.Screen name="Checklists" component={ChecklistsScreen} options={{ title: 'Checklistler' }} />
+      <Stack.Screen
+        name="AktsCalculator"
+        component={AktsCalculatorScreen}
+        options={{ title: 'AKTS / GANO Hesapla' }}
+      />
+      <Stack.Screen name="Schedule" component={ScheduleScreen} options={{ title: 'Ders Programı' }} />
     </Stack.Navigator>
   );
 }
