@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -243,7 +243,7 @@ export default function UserProfileScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View className="flex-1 items-center justify-center gap-3 px-8">
         <ActivityIndicator size="large" color="#2F5755" />
       </View>
     );
@@ -251,18 +251,18 @@ export default function UserProfileScreen() {
 
   if (banned) {
     return (
-      <View style={styles.center}>
+      <View className="flex-1 items-center justify-center gap-3 px-8">
         <ShieldOff size={48} color="#f87171" />
-        <Text style={styles.centerTitle}>Profil görüntülemeniz admin tarafından yasaklanmıştır</Text>
+        <Text className="text-[15px] font-semibold text-gray-700 text-center">Profil görüntülemeniz admin tarafından yasaklanmıştır</Text>
       </View>
     );
   }
 
   if (notFound || !profile) {
     return (
-      <View style={styles.center}>
+      <View className="flex-1 items-center justify-center gap-3 px-8">
         <UserIcon size={48} color="#d1d5db" />
-        <Text style={styles.centerTitle}>Kullanıcı bulunamadı</Text>
+        <Text className="text-[15px] font-semibold text-gray-700 text-center">Kullanıcı bulunamadı</Text>
       </View>
     );
   }
@@ -272,25 +272,25 @@ export default function UserProfileScreen() {
   const tabs = TAB_DEFS.filter((t) => t.sectionKey === null || sectionVisibility[t.sectionKey]);
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: '#f9fafb' }}>
-      <View style={styles.headerCard}>
-        <View style={styles.avatarCircle}>
+    <ScrollView className="flex-1 bg-primary" contentContainerClassName="px-4 py-8">
+      <View className="bg-white rounded-lg p-4 items-center mb-8" style={SHADOW_MD}>
+        <View className="w-20 h-20 rounded-3xl bg-brand border-2 border-darkbgbutton items-center justify-center overflow-hidden mb-2.5">
           {avatar ? <AvatarDisplay avatar={avatar} size={80} /> : <UserIcon size={32} color="#fff" />}
         </View>
-        <Text style={styles.username}>{profile.username}</Text>
-        {!!profile.full_name && <Text style={styles.fullName}>{profile.full_name}</Text>}
+        <Text className="text-2xl font-bold text-gray-900">{profile.username}</Text>
+        {!!profile.full_name && <Text className="text-base text-gray-600 mt-0.5">{profile.full_name}</Text>}
         {!!profile.department && (
-          <Text style={styles.dept}>
+          <Text className="text-xs text-gray-500 mt-1 text-center">
             {profile.department}
             {profile.faculty ? ` · ${profile.faculty}` : ''}
           </Text>
         )}
-        {typeof profile.post_count === 'number' && <Text style={styles.postCount}>{profile.post_count} onaylı not</Text>}
-        {!!profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
+        {typeof profile.post_count === 'number' && <Text className="text-sm text-gray-500 mt-1.5">{profile.post_count} onaylı not</Text>}
+        {!!profile.bio && <Text className="text-sm text-gray-600 mt-2 text-center leading-[21px]">{profile.bio}</Text>}
         {sectionVisibility.badges && (
-          <View style={styles.badgeRow}>
+          <View className="flex-row flex-wrap gap-2 mt-3 justify-center">
             {badges.length === 0 ? (
-              <Text style={styles.noBadgeText}>Henüz rozet yok.</Text>
+              <Text className="text-xs text-gray-400">Henüz rozet yok.</Text>
             ) : (
               badges.map((badge) => <BadgeChip key={badge.id} badge={badge} />)
             )}
@@ -299,26 +299,32 @@ export default function UserProfileScreen() {
       </View>
 
       {isPrivate ? (
-        <View style={styles.privateBox}>
-          <Lock size={32} color="#9ca3af" />
-          <Text style={styles.privateText}>Bu profil gizli.</Text>
-          <Text style={styles.privateHint}>Kullanıcı postlarını ve listelerini yalnızca kendisi görebilir.</Text>
+        <View className="items-center gap-2 py-8 px-[30px] bg-white rounded-lg" style={SHADOW_MD}>
+          <Lock size={48} color="#9ca3af" />
+          <Text className="text-lg text-gray-500 font-semibold">Bu profil gizli.</Text>
+          <Text className="text-sm text-gray-400 text-center">Kullanıcı postlarını ve listelerini yalnızca kendisi görebilir.</Text>
         </View>
       ) : (
         <>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabBar} contentContainerStyle={{ paddingHorizontal: 12 }}>
-            {tabs.map(({ key, label, icon: Icon }) => {
-              const active = activeTab === key;
-              return (
-                <Pressable key={key} style={[styles.tabBtn, active && styles.tabBtnActive]} onPress={() => setActiveTab(key)}>
-                  <Icon size={14} color={active ? '#2F5755' : '#9ca3af'} />
-                  <Text style={[styles.tabBtnText, active && styles.tabBtnTextActive]}>{label}</Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+          <View className="bg-white rounded-lg mb-8" style={SHADOW_MD}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="border-b border-gray-200" contentContainerStyle={{ paddingHorizontal: 16 }}>
+              {tabs.map(({ key, label, icon: Icon }) => {
+                const active = activeTab === key;
+                return (
+                  <Pressable
+                    key={key}
+                    className={`flex-row items-center gap-1.5 py-3 mr-5 border-b-2 ${active ? 'border-b-[#1e40af]' : 'border-b-transparent'}`}
+                    onPress={() => setActiveTab(key)}
+                  >
+                    <Icon size={16} color={active ? '#1e3a8a' : '#6b7280'} />
+                    <Text className={`text-xs font-medium ${active ? 'text-[#1e3a8a]' : 'text-gray-500'}`}>{label}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
 
-          <View style={styles.tabContent}>
+          <View className="gap-3">
             {activeTab === 'posts' &&
               (postsLoading ? (
                 <ActivityIndicator style={{ marginTop: 24 }} color="#2F5755" />
@@ -330,19 +336,19 @@ export default function UserProfileScreen() {
                     <PostCard key={String(post.id ?? post.post_id)} post={post} showRating={false} />
                   ))}
                   {postsTotal > POSTS_LIMIT && (
-                    <View style={styles.pagerRow}>
+                    <View className="flex-row items-center justify-center gap-4 py-3.5">
                       <Pressable
-                        style={[styles.pagerBtn, postsPage <= 1 && styles.pagerBtnDisabled]}
+                        className={`w-[34px] h-[34px] rounded-[17px] bg-white items-center justify-center ${postsPage <= 1 ? 'opacity-50' : ''}`}
                         disabled={postsPage <= 1}
                         onPress={() => setPostsPage((p) => Math.max(1, p - 1))}
                       >
                         <ChevronLeft size={16} color={postsPage <= 1 ? '#d1d5db' : '#2F5755'} />
                       </Pressable>
-                      <Text style={styles.pagerText}>
+                      <Text className="text-[12.5px] text-gray-500 font-semibold">
                         Sayfa {postsPage} / {Math.ceil(postsTotal / POSTS_LIMIT)}
                       </Text>
                       <Pressable
-                        style={[styles.pagerBtn, postsPage >= Math.ceil(postsTotal / POSTS_LIMIT) && styles.pagerBtnDisabled]}
+                        className={`w-[34px] h-[34px] rounded-[17px] bg-white items-center justify-center ${postsPage >= Math.ceil(postsTotal / POSTS_LIMIT) ? 'opacity-50' : ''}`}
                         disabled={postsPage >= Math.ceil(postsTotal / POSTS_LIMIT)}
                         onPress={() => setPostsPage((p) => p + 1)}
                       >
@@ -389,18 +395,18 @@ export default function UserProfileScreen() {
                   const semesterCount = calc.data?.semesters?.length || 0;
                   const courseCount = calc.data?.semesters?.reduce((sum, s) => sum + (s.courses?.length || 0), 0) || 0;
                   return (
-                    <View key={calc.id} style={styles.rowCard}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.rowCardTitle} numberOfLines={1}>
+                    <View key={calc.id} className="flex-row items-center justify-between bg-white rounded-lg p-5 mb-1" style={SHADOW_MD}>
+                      <View className="flex-1">
+                        <Text className="text-sm font-semibold text-gray-900" numberOfLines={1}>
                           {calc.title}
                         </Text>
-                        <Text style={styles.rowCardMeta}>
+                        <Text className="text-sm text-gray-500 mt-0.5">
                           {semesterCount} dönem · {courseCount} ders · {formatDate(calc.updated_at)}
                         </Text>
                       </View>
-                      <View style={{ alignItems: 'center' }}>
-                        <Text style={styles.gpaValue}>{formatGpa(calc.gpa)}</Text>
-                        <Text style={styles.gpaLabel}>GANO</Text>
+                      <View className="items-center">
+                        <Text className="text-2xl font-bold text-brand">{formatGpa(calc.gpa)}</Text>
+                        <Text className="text-[10px] text-gray-400 uppercase">GANO</Text>
                       </View>
                     </View>
                   );
@@ -417,16 +423,16 @@ export default function UserProfileScreen() {
                   const dayCourses = scheduleCourses.filter((c) => c.day === day).sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
                   if (dayCourses.length === 0) return null;
                   return (
-                    <View key={day} style={styles.dayCard}>
-                      <Text style={styles.dayTitle}>{DAY_NAMES[day]}</Text>
+                    <View key={day} className="bg-white rounded-lg p-3 mb-2" style={SHADOW_MD}>
+                      <Text className="text-[13px] font-bold text-gray-900 mb-2">{DAY_NAMES[day]}</Text>
                       {dayCourses.map((c) => (
-                        <View key={c.id} style={styles.courseRow}>
-                          <View style={[styles.colorBar, { backgroundColor: getCourseColor(c.colorIdx).hex }]} />
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.courseName} numberOfLines={1}>
+                        <View key={c.id} className="flex-row items-center gap-2 py-1.5">
+                          <View className="w-1 h-[26px] rounded-sm" style={{ backgroundColor: getCourseColor(c.colorIdx).hex }} />
+                          <View className="flex-1">
+                            <Text className="text-[12.5px] font-semibold text-gray-900" numberOfLines={1}>
                               {c.name}
                             </Text>
-                            <Text style={styles.courseMeta}>
+                            <Text className="text-[11px] text-gray-500 mt-px">
                               {c.start}–{c.end}
                               {c.location ? ` · ${c.location}` : ''}
                             </Text>
@@ -447,12 +453,13 @@ export default function UserProfileScreen() {
                 follows.map((f) => (
                   <Pressable
                     key={`${f.faculty}-${f.department}`}
-                    style={styles.rowCard}
+                    className="flex-row items-center justify-between bg-white rounded-lg p-5 mb-1"
+                    style={SHADOW_MD}
                     onPress={() => navigation.navigate('DepartmentDetail', { faculty: f.faculty, department: f.department })}
                   >
                     <View>
-                      <Text style={styles.rowCardTitle}>{f.department}</Text>
-                      <Text style={styles.rowCardMeta}>{f.faculty}</Text>
+                      <Text className="text-sm font-semibold text-gray-900">{f.department}</Text>
+                      <Text className="text-sm text-gray-500 mt-0.5">{f.faculty}</Text>
                     </View>
                   </Pressable>
                 ))
@@ -467,7 +474,8 @@ export default function UserProfileScreen() {
                 forumItems.map((item) => (
                   <Pressable
                     key={item.key}
-                    style={styles.forumRow}
+                    className="flex-row gap-2 bg-white rounded-lg p-3 mb-1"
+                    style={SHADOW_MD}
                     onPress={() =>
                       item.kind === 'faq'
                         ? navigation.navigate('FaqDetail', { id: item.targetId })
@@ -475,14 +483,14 @@ export default function UserProfileScreen() {
                     }
                   >
                     {item.kind === 'faq' ? <HelpCircle size={15} color="#2F5755" /> : <Lightbulb size={15} color="#2F5755" />}
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.forumTitle}>{item.title}</Text>
+                    <View className="flex-1">
+                      <Text className="text-[11.5px] font-semibold text-gray-500">{item.title}</Text>
                       {!!item.body && (
-                        <Text style={styles.forumBody} numberOfLines={2}>
+                        <Text className="text-sm text-gray-700 mt-[3px]" numberOfLines={2}>
                           {item.body}
                         </Text>
                       )}
-                      <Text style={styles.forumDate}>{formatDate(item.created_at)}</Text>
+                      <Text className="text-[10.5px] text-gray-400 mt-1">{formatDate(item.created_at)}</Text>
                     </View>
                   </Pressable>
                 ))
@@ -496,62 +504,17 @@ export default function UserProfileScreen() {
 
 function EmptyState({ icon: Icon, text }: { icon: any; text: string }) {
   return (
-    <View style={styles.emptyBox}>
-      <Icon size={40} color="#d1d5db" />
-      <Text style={styles.emptyText}>{text}</Text>
+    <View className="items-center py-8 gap-2.5 bg-white rounded-lg" style={SHADOW_MD}>
+      <Icon size={48} color="#9ca3af" />
+      <Text className="text-gray-500 text-base text-center px-[30px]">{text}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 32 },
-  centerTitle: { fontSize: 15, fontWeight: '600', color: '#374151', textAlign: 'center' },
-  headerCard: { backgroundColor: '#fff', padding: 20, alignItems: 'center' },
-  avatarCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    backgroundColor: '#2F5755',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    marginBottom: 10,
-  },
-  username: { fontSize: 20, fontWeight: '700', color: '#111827' },
-  fullName: { fontSize: 13.5, color: '#6b7280', marginTop: 2 },
-  dept: { fontSize: 12.5, color: '#9ca3af', marginTop: 4, textAlign: 'center' },
-  postCount: { fontSize: 12.5, color: '#6b7280', marginTop: 6 },
-  bio: { fontSize: 13, color: '#4b5563', marginTop: 10, textAlign: 'center', lineHeight: 19 },
-  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14, justifyContent: 'center' },
-  noBadgeText: { fontSize: 11.5, color: '#9ca3af' },
-  privateBox: { alignItems: 'center', gap: 8, paddingVertical: 50, paddingHorizontal: 30 },
-  privateText: { fontSize: 15, color: '#6b7280', fontWeight: '600' },
-  privateHint: { fontSize: 12, color: '#9ca3af', textAlign: 'center' },
-  tabBar: { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f3f4f6' },
-  tabBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 12, marginRight: 18, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabBtnActive: { borderBottomColor: '#2F5755' },
-  tabBtnText: { fontSize: 12.5, fontWeight: '600', color: '#9ca3af' },
-  tabBtnTextActive: { color: '#2F5755' },
-  tabContent: { padding: 12, gap: 10 },
-  emptyBox: { alignItems: 'center', paddingVertical: 50, gap: 10 },
-  emptyText: { color: '#9ca3af', fontSize: 13.5, textAlign: 'center', paddingHorizontal: 30 },
-  rowCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 4 },
-  rowCardTitle: { fontSize: 14, fontWeight: '700', color: '#111827' },
-  rowCardMeta: { fontSize: 11.5, color: '#9ca3af', marginTop: 2 },
-  gpaValue: { fontSize: 18, fontWeight: '800', color: '#2F5755' },
-  gpaLabel: { fontSize: 9, color: '#9ca3af', textTransform: 'uppercase' },
-  dayCard: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 8 },
-  dayTitle: { fontSize: 13, fontWeight: '700', color: '#111827', marginBottom: 8 },
-  courseRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
-  colorBar: { width: 4, height: 26, borderRadius: 2 },
-  courseName: { fontSize: 12.5, fontWeight: '600', color: '#111827' },
-  courseMeta: { fontSize: 11, color: '#6b7280', marginTop: 1 },
-  forumRow: { flexDirection: 'row', gap: 8, backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 4 },
-  forumTitle: { fontSize: 11.5, fontWeight: '600', color: '#6b7280' },
-  forumBody: { fontSize: 13, color: '#374151', marginTop: 3 },
-  forumDate: { fontSize: 10.5, color: '#9ca3af', marginTop: 4 },
-  pagerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 16, paddingVertical: 14 },
-  pagerBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  pagerBtnDisabled: { opacity: 0.5 },
-  pagerText: { fontSize: 12.5, color: '#6b7280', fontWeight: '600' },
-});
+const SHADOW_MD = {
+  shadowColor: '#000',
+  shadowOpacity: 0.1,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 3 },
+  elevation: 3,
+} as const;

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import {
   CalendarDays,
   CalendarX,
@@ -82,27 +82,27 @@ function MealCard({ mealType, meal }: { mealType: string; meal?: Meal }) {
   const totalCal = meal.items.reduce((sum, i) => sum + (i.calories || 0), 0);
 
   return (
-    <View style={styles.mealCard}>
-      <View style={styles.mealCardHeader}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+    <View className="bg-white rounded-[14px] p-3.5 border border-gray-100">
+      <View className="flex-row items-center justify-between mb-2.5">
+        <View className="flex-row items-center gap-2">
           <Icon size={17} color="#2F5755" />
-          <Text style={styles.mealCardTitle}>{config.label}</Text>
+          <Text className="text-sm font-bold text-gray-900">{config.label}</Text>
         </View>
         {totalCal > 0 && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <View className="flex-row items-center gap-1">
             <Flame size={12} color="#ea580c" />
-            <Text style={styles.mealCardCal}>{totalCal} kcal</Text>
+            <Text className="text-[11px] text-orange-600 font-semibold">{totalCal} kcal</Text>
           </View>
         )}
       </View>
-      <View style={{ gap: 8 }}>
+      <View className="gap-2">
         {sortItems(meal.items).map((item, idx) => (
-          <View key={idx} style={styles.mealItemRow}>
-            <View style={{ flex: 1 }}>
-              {!!item.category && <Text style={styles.mealItemCategory}>{item.category}</Text>}
-              <Text style={styles.mealItemName}>{item.name}</Text>
+          <View key={idx} className="flex-row items-center justify-between gap-2">
+            <View className="flex-1">
+              {!!item.category && <Text className="text-[9.5px] text-gray-400 uppercase tracking-[0.3px]">{item.category}</Text>}
+              <Text className="text-[13px] text-gray-800 font-medium">{item.name}</Text>
             </View>
-            {!!item.calories && <Text style={styles.mealItemCal}>{item.calories} kcal</Text>}
+            {!!item.calories && <Text className="text-[11px] text-gray-400">{item.calories} kcal</Text>}
           </View>
         ))}
       </View>
@@ -116,23 +116,23 @@ function MealPreviewCard({ mealType, meal }: { mealType: string; meal?: Meal }) 
   const Icon = config.icon;
 
   return (
-    <View style={styles.previewCard}>
-      <View style={styles.mealCardHeader}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+    <View className="bg-white rounded-[14px] p-3.5 border border-gray-200 border-dashed mt-2.5">
+      <View className="flex-row items-center justify-between mb-2.5">
+        <View className="flex-row items-center gap-2">
           <Icon size={17} color="#2F5755" />
-          <Text style={styles.mealCardTitle}>{config.label}</Text>
+          <Text className="text-sm font-bold text-gray-900">{config.label}</Text>
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+        <View className="flex-row items-center gap-1">
           <Sparkles size={12} color="#9ca3af" />
-          <Text style={styles.previewLabel}>Önizleme</Text>
+          <Text className="text-[11px] text-gray-400">Önizleme</Text>
         </View>
       </View>
       {meal.items.map((item, idx) => (
-        <Text key={idx} style={styles.previewItemName}>
+        <Text key={idx} className="text-[12.5px] text-gray-500 mb-1">
           {item.name}
         </Text>
       ))}
-      <Text style={styles.previewHint}>
+      <Text className="text-[10.5px] text-gray-400 mt-1">
         beslenme.hacettepe.edu.tr'nin aylık görünümünden alınan kısaltılmış önizleme.
       </Text>
     </View>
@@ -207,34 +207,40 @@ export default function CafeteriaMenuScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color="#2F5755" />
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.titleRow}>
+    <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4 pb-10">
+      <View className="flex-row items-center gap-2.5">
         <UtensilsCrossed size={22} color="#2F5755" />
-        <Text style={styles.title}>Yemek Listesi</Text>
+        <Text className="text-[22px] font-extrabold text-gray-900">Yemek Listesi</Text>
       </View>
-      <Text style={styles.subtitle}>
+      <Text className="text-[12.5px] text-gray-500 mt-1.5 mb-3.5 leading-[17px]">
         Hacettepe yemekhanesi menüsü —{' '}
-        <Text style={styles.subtitleLink} onPress={() => Linking.openURL('https://beslenme.hacettepe.edu.tr/')}>
+        <Text className="text-brand underline" onPress={() => Linking.openURL('https://beslenme.hacettepe.edu.tr/')}>
           beslenme.hacettepe.edu.tr
         </Text>{' '}
         kaynağından alınır.
       </Text>
 
-      <View style={styles.viewModeRow}>
-        <Pressable style={[styles.viewModeBtn, viewMode === 'week' && styles.viewModeBtnActive]} onPress={() => setViewMode('week')}>
+      <View className="flex-row gap-2 mb-3.5">
+        <Pressable
+          className={`flex-row items-center gap-1.5 rounded-[10px] px-3.5 py-[9px] ${viewMode === 'week' ? 'bg-brand' : 'bg-white'}`}
+          onPress={() => setViewMode('week')}
+        >
           <ListTree size={14} color={viewMode === 'week' ? '#fff' : '#4b5563'} />
-          <Text style={[styles.viewModeBtnText, viewMode === 'week' && styles.viewModeBtnTextActive]}>Haftalık</Text>
+          <Text className={`text-[12.5px] font-semibold ${viewMode === 'week' ? 'text-white' : 'text-gray-600'}`}>Haftalık</Text>
         </Pressable>
-        <Pressable style={[styles.viewModeBtn, viewMode === 'month' && styles.viewModeBtnActive]} onPress={() => setViewMode('month')}>
+        <Pressable
+          className={`flex-row items-center gap-1.5 rounded-[10px] px-3.5 py-[9px] ${viewMode === 'month' ? 'bg-brand' : 'bg-white'}`}
+          onPress={() => setViewMode('month')}
+        >
           <CalendarDays size={14} color={viewMode === 'month' ? '#fff' : '#4b5563'} />
-          <Text style={[styles.viewModeBtnText, viewMode === 'month' && styles.viewModeBtnTextActive]}>Aylık</Text>
+          <Text className={`text-[12.5px] font-semibold ${viewMode === 'month' ? 'text-white' : 'text-gray-600'}`}>Aylık</Text>
         </Pressable>
       </View>
 
@@ -242,7 +248,7 @@ export default function CafeteriaMenuScreen() {
         <>
           {days.length > 0 && (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View className="flex-row gap-2">
                 {days.map((d, idx) => {
                   const { day, num } = formatDayLabel(d.date);
                   const isSelected = d.date === selectedDate;
@@ -250,11 +256,13 @@ export default function CafeteriaMenuScreen() {
                   return (
                     <Pressable
                       key={d.date}
-                      style={[styles.dayChip, isSelected && styles.dayChipActive, !dayHasMenu && !isSelected && styles.dayChipMuted]}
+                      className={`items-center rounded-xl px-4 py-2.5 min-w-[60px] border ${
+                        isSelected ? 'bg-brand border-brand' : !dayHasMenu ? 'bg-gray-100 border-gray-100' : 'bg-white border-gray-200'
+                      }`}
                       onPress={() => setSelectedDate(d.date)}
                     >
-                      <Text style={[styles.dayChipLabel, isSelected && styles.dayChipLabelActive]}>{idx === 0 ? 'Bugün' : day}</Text>
-                      <Text style={[styles.dayChipNum, isSelected && styles.dayChipLabelActive]}>{num}</Text>
+                      <Text className={`text-[11px] capitalize ${isSelected ? 'text-white' : 'text-gray-500'}`}>{idx === 0 ? 'Bugün' : day}</Text>
+                      <Text className={`text-base font-bold mt-0.5 ${isSelected ? 'text-white' : 'text-gray-900'}`}>{num}</Text>
                     </Pressable>
                   );
                 })}
@@ -262,16 +270,16 @@ export default function CafeteriaMenuScreen() {
             </ScrollView>
           )}
 
-          {!!selectedDay && <Text style={styles.selectedDayText}>{formatDayLabel(selectedDay.date).full}</Text>}
+          {!!selectedDay && <Text className="text-[12.5px] text-gray-500 mb-3 capitalize">{formatDayLabel(selectedDay.date).full}</Text>}
 
           {!hasMenu ? (
-            <View style={styles.emptyBox}>
+            <View className="items-center py-10 gap-2 bg-white rounded-[14px]">
               <CalendarX size={40} color="#d1d5db" />
-              <Text style={styles.emptyText}>Bu gün için menü bulunamadı.</Text>
-              <Text style={styles.emptyHint}>Hafta sonu / resmi tatil olabilir ya da menü henüz yayınlanmamış olabilir.</Text>
+              <Text className="text-sm text-gray-500">Bu gün için menü bulunamadı.</Text>
+              <Text className="text-[11.5px] text-gray-400 text-center px-5">Hafta sonu / resmi tatil olabilir ya da menü henüz yayınlanmamış olabilir.</Text>
             </View>
           ) : (
-            <View style={{ gap: 12 }}>
+            <View className="gap-3">
               {Object.keys(MEAL_LABELS).map((mealType) => (
                 <MealCard key={mealType} mealType={mealType} meal={selectedDay!.meals[mealType]} />
               ))}
@@ -282,11 +290,11 @@ export default function CafeteriaMenuScreen() {
 
       {viewMode === 'month' && (
         <>
-          <View style={styles.monthNavRow}>
+          <View className="flex-row items-center justify-between mb-3">
             <Pressable onPress={() => goMonth(-1)} hitSlop={8}>
               <ChevronLeft size={20} color="#6b7280" />
             </Pressable>
-            <Text style={styles.monthNavText}>
+            <Text className="text-[13.5px] font-bold text-gray-700 capitalize">
               {new Date(monthCursor.year, monthCursor.month - 1, 1).toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}
             </Text>
             <Pressable onPress={() => goMonth(1)} hitSlop={8}>
@@ -298,17 +306,17 @@ export default function CafeteriaMenuScreen() {
             <ActivityIndicator style={{ marginVertical: 24 }} color="#2F5755" />
           ) : (
             <>
-              <View style={styles.calendarCard}>
-                <View style={styles.weekdayRow}>
+              <View className="bg-white rounded-[14px] p-3 mb-3.5">
+                <View className="flex-row mb-1.5">
                   {WEEKDAY_LABELS.map((w) => (
-                    <Text key={w} style={styles.weekdayLabel}>
+                    <Text key={w} className="flex-1 text-center text-[10.5px] font-bold text-gray-400">
                       {w}
                     </Text>
                   ))}
                 </View>
-                <View style={styles.gridRow}>
+                <View className="flex-row flex-wrap">
                   {monthGrid.map((date, idx) => {
-                    if (!date) return <View key={`empty-${idx}`} style={styles.gridCell} />;
+                    if (!date) return <View key={`empty-${idx}`} style={{ width: `${100 / 7}%`, aspectRatio: 1, padding: 2 }} />;
                     const day = monthDaysByDate[date];
                     const status = dayStatus(day);
                     const isSelected = date === selectedMonthDate;
@@ -316,46 +324,45 @@ export default function CafeteriaMenuScreen() {
                     return (
                       <Pressable
                         key={date}
-                        style={[styles.gridCell, styles.gridDay, isSelected && styles.gridDaySelected, isToday && !isSelected && styles.gridDayToday]}
+                        style={{ width: `${100 / 7}%`, aspectRatio: 1, padding: 2 }}
+                        className={`items-center justify-center rounded-lg gap-0.5 ${isSelected ? 'bg-brand' : ''} ${isToday && !isSelected ? 'border border-brand' : ''}`}
                         onPress={() => setSelectedMonthDate(date)}
                       >
-                        <Text style={[styles.gridDayNum, isSelected && styles.gridDayNumActive]}>{parseInt(date.slice(8, 10), 10)}</Text>
+                        <Text className={`text-[12.5px] ${isSelected ? 'text-white font-bold' : 'text-gray-700'}`}>{parseInt(date.slice(8, 10), 10)}</Text>
                         {status !== 'none' && (
                           <View
-                            style={[
-                              styles.gridDot,
-                              { backgroundColor: status === 'ok' ? (isSelected ? '#fff' : '#10b981') : isSelected ? 'rgba(255,255,255,0.7)' : '#fbbf24' },
-                            ]}
+                            className="w-[5px] h-[5px] rounded-[2.5px]"
+                            style={{ backgroundColor: status === 'ok' ? (isSelected ? '#fff' : '#10b981') : isSelected ? 'rgba(255,255,255,0.7)' : '#fbbf24' }}
                           />
                         )}
                       </Pressable>
                     );
                   })}
                 </View>
-                <View style={styles.legendRow}>
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendDot, { backgroundColor: '#10b981' }]} />
-                    <Text style={styles.legendText}>Kesin menü</Text>
+                <View className="flex-row gap-4 mt-2.5 pt-2.5 border-t border-gray-100">
+                  <View className="flex-row items-center gap-1.5">
+                    <View className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#10b981' }} />
+                    <Text className="text-[11px] text-gray-600">Kesin menü</Text>
                   </View>
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendDot, { backgroundColor: '#fbbf24' }]} />
-                    <Text style={styles.legendText}>Önizleme</Text>
+                  <View className="flex-row items-center gap-1.5">
+                    <View className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#fbbf24' }} />
+                    <Text className="text-[11px] text-gray-600">Önizleme</Text>
                   </View>
                 </View>
               </View>
 
               {!!selectedMonthDate && (
                 <>
-                  <Text style={styles.selectedDayText}>{formatDayLabel(selectedMonthDate).full}</Text>
+                  <Text className="text-[12.5px] text-gray-500 mb-3 capitalize">{formatDayLabel(selectedMonthDate).full}</Text>
                   {dayStatus(selectedMonthDay) === 'none' ? (
-                    <View style={styles.emptyBox}>
+                    <View className="items-center py-10 gap-2 bg-white rounded-[14px]">
                       <CalendarX size={40} color="#d1d5db" />
-                      <Text style={styles.emptyText}>Bu gün için menü bulunamadı.</Text>
+                      <Text className="text-sm text-gray-500">Bu gün için menü bulunamadı.</Text>
                     </View>
                   ) : (
-                    <View style={{ gap: 12 }}>
+                    <View className="gap-3">
                       {Object.keys(MEAL_LABELS).map((mealType) => (
-                        <View key={mealType} style={{ gap: 12 }}>
+                        <View key={mealType} className="gap-3">
                           <MealCard mealType={mealType} meal={selectedMonthDay?.meals?.[mealType]} />
                           <MealPreviewCard mealType={mealType} meal={selectedMonthDay?.meals?.[mealType]} />
                         </View>
@@ -371,57 +378,3 @@ export default function CafeteriaMenuScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  content: { padding: 16, paddingBottom: 40 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  title: { fontSize: 22, fontWeight: '800', color: '#111827' },
-  subtitle: { fontSize: 12.5, color: '#6b7280', marginTop: 6, marginBottom: 14, lineHeight: 17 },
-  subtitleLink: { color: '#2F5755', textDecorationLine: 'underline' },
-  viewModeRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  viewModeBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9 },
-  viewModeBtnActive: { backgroundColor: '#2F5755' },
-  viewModeBtnText: { fontSize: 12.5, fontWeight: '600', color: '#4b5563' },
-  viewModeBtnTextActive: { color: '#fff' },
-  dayChip: { alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 10, minWidth: 60, borderWidth: 1, borderColor: '#e5e7eb' },
-  dayChipActive: { backgroundColor: '#2F5755', borderColor: '#2F5755' },
-  dayChipMuted: { backgroundColor: '#f3f4f6', borderColor: '#f3f4f6' },
-  dayChipLabel: { fontSize: 11, color: '#6b7280', textTransform: 'capitalize' },
-  dayChipNum: { fontSize: 16, fontWeight: '700', color: '#111827', marginTop: 2 },
-  dayChipLabelActive: { color: '#fff' },
-  selectedDayText: { fontSize: 12.5, color: '#6b7280', marginBottom: 12, textTransform: 'capitalize' },
-  emptyBox: { alignItems: 'center', paddingVertical: 40, gap: 8, backgroundColor: '#fff', borderRadius: 14 },
-  emptyText: { fontSize: 14, color: '#6b7280' },
-  emptyHint: { fontSize: 11.5, color: '#9ca3af', textAlign: 'center', paddingHorizontal: 20 },
-  mealCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#f3f4f6' },
-  previewCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, borderWidth: 1, borderColor: '#e5e7eb', borderStyle: 'dashed', marginTop: 10 },
-  mealCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  mealCardTitle: { fontSize: 14, fontWeight: '700', color: '#111827' },
-  mealCardCal: { fontSize: 11, color: '#ea580c', fontWeight: '600' },
-  mealItemRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  mealItemCategory: { fontSize: 9.5, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: 0.3 },
-  mealItemName: { fontSize: 13, color: '#1f2937', fontWeight: '500' },
-  mealItemCal: { fontSize: 11, color: '#9ca3af' },
-  previewLabel: { fontSize: 11, color: '#9ca3af' },
-  previewItemName: { fontSize: 12.5, color: '#6b7280', marginBottom: 4 },
-  previewHint: { fontSize: 10.5, color: '#9ca3af', marginTop: 4 },
-  monthNavRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  monthNavText: { fontSize: 13.5, fontWeight: '700', color: '#374151', textTransform: 'capitalize' },
-  calendarCard: { backgroundColor: '#fff', borderRadius: 14, padding: 12, marginBottom: 14 },
-  weekdayRow: { flexDirection: 'row', marginBottom: 6 },
-  weekdayLabel: { flex: 1, textAlign: 'center', fontSize: 10.5, fontWeight: '700', color: '#9ca3af' },
-  gridRow: { flexDirection: 'row', flexWrap: 'wrap' },
-  gridCell: { width: `${100 / 7}%`, aspectRatio: 1, padding: 2 },
-  gridDay: { alignItems: 'center', justifyContent: 'center', borderRadius: 8, gap: 2 },
-  gridDaySelected: { backgroundColor: '#2F5755' },
-  gridDayToday: { borderWidth: 1, borderColor: '#2F5755' },
-  gridDayNum: { fontSize: 12.5, color: '#374151' },
-  gridDayNumActive: { color: '#fff', fontWeight: '700' },
-  gridDot: { width: 5, height: 5, borderRadius: 2.5 },
-  legendRow: { flexDirection: 'row', gap: 16, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  legendDot: { width: 6, height: 6, borderRadius: 3 },
-  legendText: { fontSize: 11, color: '#6b7280' },
-});

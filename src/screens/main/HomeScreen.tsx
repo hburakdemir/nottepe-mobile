@@ -5,7 +5,6 @@ import {
   Modal,
   Pressable,
   RefreshControl,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -16,6 +15,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowRight, ChevronDown, HeartHandshake, Search, X } from 'lucide-react-native';
 import { noteRequestAPI, postsAPI } from '../../lib/api';
 import PostCard from '../../components/PostCard';
+import DepartmentQuickNav from '../../components/home/DepartmentQuickNav';
 import { faculties as ALL_FACULTIES } from '../../data/departments';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
@@ -24,6 +24,14 @@ interface PostsPage {
   posts: Post[];
   total: number;
 }
+
+const SHADOW_MD = {
+  shadowColor: '#000',
+  shadowOpacity: 0.1,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 3 },
+  elevation: 3,
+};
 
 export default function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -89,50 +97,59 @@ export default function HomeScreen() {
 
   const filterBar = (
     <View>
-      <Pressable style={styles.noteRequestCta} onPress={() => navigation.navigate('NoteRequests')}>
-        <View style={styles.noteRequestIconWrap}>
+      <Text className="text-2xl font-extrabold text-gray-900 mb-1">Tüm Notlar</Text>
+      <Text className="text-[13px] text-gray-500 mb-4">Öğrenciler tarafından paylaşılan ders notlarını inceleyin</Text>
+
+      <DepartmentQuickNav />
+
+      <Pressable
+        className="flex-row items-center gap-3 bg-white rounded-lg p-3.5 mb-3"
+        style={SHADOW_MD}
+        onPress={() => navigation.navigate('NoteRequests')}
+      >
+        <View className="w-[38px] h-[38px] rounded-[10px] bg-brand/10 items-center justify-center">
           <HeartHandshake size={18} color="#2F5755" />
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.noteRequestTitle}>Not İstekleri</Text>
-          <Text style={styles.noteRequestSubtitle}>Aradığın notu bulamadın mı? İste, elinde olan karşılasın.</Text>
+        <View className="flex-1">
+          <Text className="text-[13.5px] font-bold text-gray-900">Not İstekleri</Text>
+          <Text className="text-[11px] text-gray-500 mt-0.5">Aradığın notu bulamadın mı? İste, elinde olan karşılasın.</Text>
         </View>
-        <View style={styles.noteRequestLinkRow}>
-          <Text style={styles.noteRequestLinkText}>
+        <View className="flex-row items-center gap-1">
+          <Text className="text-[11.5px] font-semibold text-brand">
             {openRequestCount !== null && openRequestCount > 0 ? `${openRequestCount} açık istek` : 'Panoya git'}
           </Text>
           <ArrowRight size={14} color="#2F5755" />
         </View>
       </Pressable>
 
-      <View style={styles.filterCard}>
-      <Text style={styles.pageTitle}>Tüm Notlar</Text>
-      <Text style={styles.pageSubtitle}>Öğrenciler tarafından paylaşılan ders notlarını inceleyin</Text>
+      <View className="bg-white rounded-lg p-4 mb-3.5" style={SHADOW_MD}>
+        <View className="flex-row items-center gap-2 bg-gray-50 border border-gray-200 rounded-[10px] px-3 mb-2.5">
+          <Search size={16} color="#5A9690" />
+          <TextInput
+            className="flex-1 py-2.5 text-[13.5px] text-gray-900"
+            value={searchInput}
+            onChangeText={setSearchInput}
+            placeholder="Başlık, açıklama veya bölüm ara..."
+            placeholderTextColor="#9ca3af"
+          />
+        </View>
 
-      <View style={styles.searchRow}>
-        <Search size={16} color="#4f7d7a" />
-        <TextInput
-          style={styles.searchInput}
-          value={searchInput}
-          onChangeText={setSearchInput}
-          placeholder="Başlık, açıklama veya bölüm ara..."
-          placeholderTextColor="#9ca3af"
-        />
-      </View>
-
-      <Pressable style={styles.facultyRow} onPress={() => setShowFacultyPicker(true)}>
-        <Text style={[styles.facultyText, !faculty && styles.facultyPlaceholder]}>
-          {faculty || 'Tüm Fakülteler'}
-        </Text>
-        <ChevronDown size={16} color="#6b7280" />
-      </Pressable>
+        <Pressable
+          className="flex-row items-center justify-between border border-gray-200 rounded-[10px] px-3 py-2.5"
+          onPress={() => setShowFacultyPicker(true)}
+        >
+          <Text className={`text-[13.5px] ${faculty ? 'text-gray-900' : 'text-gray-500'}`}>
+            {faculty || 'Tüm Fakülteler'}
+          </Text>
+          <ChevronDown size={16} color="#6b7280" />
+        </Pressable>
       </View>
     </View>
   );
 
   if (isLoading) {
     return (
-      <View style={styles.center}>
+      <View className="flex-1 items-center justify-center py-16">
         <ActivityIndicator size="large" color="#2F5755" />
       </View>
     );
@@ -140,17 +157,17 @@ export default function HomeScreen() {
 
   if (isError) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>Notlar yüklenemedi.</Text>
+      <View className="flex-1 items-center justify-center py-16">
+        <Text className="text-gray-500 text-sm">Notlar yüklenemedi.</Text>
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f9fafb' }}>
+    <View className="flex-1 bg-primary">
       <FlatList
-        style={styles.list}
-        contentContainerStyle={styles.listContent}
+        className="flex-1"
+        contentContainerStyle={{ padding: 12, flexGrow: 1 }}
         data={posts}
         keyExtractor={(item) => String(item.id ?? item.post_id)}
         renderItem={({ item }) => <PostCard post={item} />}
@@ -164,12 +181,12 @@ export default function HomeScreen() {
           isFetchingNextPage ? (
             <ActivityIndicator style={{ marginVertical: 16 }} color="#2F5755" />
           ) : !hasMore && posts.length > 0 ? (
-            <Text style={styles.footerText}>Tüm notlar yüklendi ({total} not)</Text>
+            <Text className="text-center text-[12.5px] text-gray-400 py-5">Tüm notlar yüklendi ({total} not)</Text>
           ) : null
         }
         ListEmptyComponent={
-          <View style={styles.center}>
-            <Text style={styles.errorText}>
+          <View className="flex-1 items-center justify-center py-16">
+            <Text className="text-gray-500 text-sm">
               {search || faculty ? 'Arama sonucu bulunamadı.' : 'Henüz not paylaşılmamış.'}
             </Text>
           </View>
@@ -177,10 +194,10 @@ export default function HomeScreen() {
       />
 
       <Modal visible={showFacultyPicker} transparent animationType="fade" onRequestClose={() => setShowFacultyPicker(false)}>
-        <Pressable style={styles.overlay} onPress={() => setShowFacultyPicker(false)}>
-          <View style={styles.sheet}>
-            <View style={styles.sheetHeaderRow}>
-              <Text style={styles.sheetTitle}>Fakülte seç</Text>
+        <Pressable className="flex-1 bg-black/50 justify-end" onPress={() => setShowFacultyPicker(false)}>
+          <View className="bg-white rounded-t-[18px] max-h-[70%] p-4">
+            <View className="flex-row items-center justify-between mb-2">
+              <Text className="text-base font-bold text-gray-900">Fakülte seç</Text>
               <Pressable onPress={() => setShowFacultyPicker(false)} hitSlop={8}>
                 <X size={20} color="#6b7280" />
               </Pressable>
@@ -190,13 +207,13 @@ export default function HomeScreen() {
               keyExtractor={(item) => item || 'all'}
               renderItem={({ item }) => (
                 <Pressable
-                  style={styles.optionRow}
+                  className="py-3 border-b border-gray-100"
                   onPress={() => {
                     setFaculty(item);
                     setShowFacultyPicker(false);
                   }}
                 >
-                  <Text style={[styles.optionText, faculty === item && styles.optionTextActive]}>
+                  <Text className={`text-sm ${faculty === item ? 'text-brand font-bold' : 'text-gray-700'}`}>
                     {item || 'Tüm Fakülteler'}
                   </Text>
                 </Pressable>
@@ -208,66 +225,3 @@ export default function HomeScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  list: { flex: 1 },
-  listContent: { padding: 12, flexGrow: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
-  errorText: { color: '#6b7280', fontSize: 14 },
-  noteRequestCta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
-  },
-  noteRequestIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: '#2F575519',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  noteRequestTitle: { fontSize: 13.5, fontWeight: '700', color: '#111827' },
-  noteRequestSubtitle: { fontSize: 11, color: '#6b7280', marginTop: 2 },
-  noteRequestLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  noteRequestLinkText: { fontSize: 11.5, fontWeight: '600', color: '#2F5755' },
-  filterCard: { backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 14 },
-  pageTitle: { fontSize: 21, fontWeight: '800', color: '#111827' },
-  pageSubtitle: { fontSize: 12.5, color: '#6b7280', marginTop: 4, marginBottom: 14 },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#f9fafb',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    marginBottom: 10,
-  },
-  searchInput: { flex: 1, paddingVertical: 10, fontSize: 13.5, color: '#111827' },
-  facultyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  facultyText: { fontSize: 13.5, color: '#111827' },
-  facultyPlaceholder: { color: '#6b7280' },
-  footerText: { textAlign: 'center', fontSize: 12.5, color: '#9ca3af', paddingVertical: 20 },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 18, borderTopRightRadius: 18, maxHeight: '70%', padding: 16 },
-  sheetHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  sheetTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
-  optionRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  optionText: { fontSize: 14, color: '#374151' },
-  optionTextActive: { color: '#2F5755', fontWeight: '700' },
-});

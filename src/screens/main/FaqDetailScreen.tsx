@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { HelpCircle, ThumbsDown, ThumbsUp } from 'lucide-react-native';
 import { Pressable } from 'react-native';
@@ -101,7 +101,7 @@ export default function FaqDetailScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color="#2F5755" />
       </View>
     );
@@ -109,38 +109,44 @@ export default function FaqDetailScreen() {
 
   if (!entry) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.notFoundText}>Kayıt bulunamadı.</Text>
+      <View className="flex-1 items-center justify-center">
+        <Text className="text-gray-500 text-sm">Kayıt bulunamadı.</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.card}>
-        <View style={{ flexDirection: 'row', gap: 10 }}>
+    <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4 pb-10">
+      <View className="bg-white rounded-2xl p-4 mb-3.5">
+        <View className="flex-row gap-2.5">
           <HelpCircle size={20} color="#2F5755" style={{ marginTop: 2 }} />
-          <Text style={styles.question}>{entry.question}</Text>
+          <Text className="flex-1 text-lg font-bold text-gray-900 leading-6">{entry.question}</Text>
         </View>
-        <Text style={styles.answer}>{entry.answer}</Text>
-        <View style={styles.voteRow}>
-          <Pressable style={[styles.voteBtn, entry.my_vote === 1 && styles.voteBtnUp]} onPress={() => handleVoteAnswer(1)}>
+        <Text className="text-sm text-gray-700 mt-3 leading-5">{entry.answer}</Text>
+        <View className="flex-row gap-2 mt-3">
+          <Pressable
+            className={`flex-row items-center gap-[5px] border rounded-lg px-2.5 py-1.5 ${entry.my_vote === 1 ? 'border-brand' : 'border-gray-200'}`}
+            onPress={() => handleVoteAnswer(1)}
+          >
             <ThumbsUp size={14} color={entry.my_vote === 1 ? '#2F5755' : '#6b7280'} />
-            <Text style={[styles.voteText, entry.my_vote === 1 && { color: '#2F5755' }]}>{entry.upvotes || 0}</Text>
+            <Text className={`text-xs font-semibold ${entry.my_vote === 1 ? 'text-brand' : 'text-gray-500'}`}>{entry.upvotes || 0}</Text>
           </Pressable>
-          <Pressable style={[styles.voteBtn, entry.my_vote === -1 && styles.voteBtnDown]} onPress={() => handleVoteAnswer(-1)}>
+          <Pressable
+            className={`flex-row items-center gap-[5px] border rounded-lg px-2.5 py-1.5 ${entry.my_vote === -1 ? 'border-red-600' : 'border-gray-200'}`}
+            onPress={() => handleVoteAnswer(-1)}
+          >
             <ThumbsDown size={14} color={entry.my_vote === -1 ? '#dc2626' : '#6b7280'} />
-            <Text style={[styles.voteText, entry.my_vote === -1 && { color: '#dc2626' }]}>{entry.downvotes || 0}</Text>
+            <Text className={`text-xs font-semibold ${entry.my_vote === -1 ? 'text-red-600' : 'text-gray-500'}`}>{entry.downvotes || 0}</Text>
           </Pressable>
         </View>
         {!!entry.author_name && (
-          <Text style={styles.authorText}>
+          <Text className="text-[11px] text-gray-400 mt-3">
             {entry.author_name} tarafından {formatDate(entry.created_at)}
           </Text>
         )}
       </View>
 
-      <View style={styles.card}>
+      <View className="bg-white rounded-2xl p-4 mb-3.5">
         <ForumCommentList
           comments={comments}
           loading={commentsLoading}
@@ -153,19 +159,3 @@ export default function FaqDetailScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  content: { padding: 16, paddingBottom: 40 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  notFoundText: { color: '#6b7280', fontSize: 14 },
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 14 },
-  question: { flex: 1, fontSize: 18, fontWeight: '700', color: '#111827', lineHeight: 24 },
-  answer: { fontSize: 14, color: '#374151', marginTop: 12, lineHeight: 20 },
-  voteRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
-  voteBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6 },
-  voteBtnUp: { borderColor: '#2F5755' },
-  voteBtnDown: { borderColor: '#dc2626' },
-  voteText: { fontSize: 12, color: '#6b7280', fontWeight: '600' },
-  authorText: { fontSize: 11, color: '#9ca3af', marginTop: 12 },
-});

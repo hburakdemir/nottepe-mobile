@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronRight, Inbox, Lightbulb, MessageSquare, Send } from 'lucide-react-native';
@@ -63,16 +63,17 @@ export default function SuggestionsScreen() {
   };
 
   const header = (
-    <View style={styles.headerBlock}>
-      <View style={styles.titleRow}>
+    <View className="mb-3.5">
+      <View className="flex-row items-center gap-2.5">
         <Lightbulb size={22} color="#2F5755" />
-        <Text style={styles.title}>Öneriler</Text>
+        <Text className="text-[22px] font-extrabold text-gray-900">Öneriler</Text>
       </View>
-      <Text style={styles.subtitle}>Nottepe'yi nasıl daha iyi yapabiliriz? Önerini paylaş, tartışalım.</Text>
+      <Text className="text-[12.5px] text-gray-500 mt-1.5">Nottepe'yi nasıl daha iyi yapabiliriz? Önerini paylaş, tartışalım.</Text>
 
-      <View style={styles.formCard}>
+      <View className="bg-white rounded-2xl p-3.5 mt-3.5">
         <TextInput
-          style={styles.textArea}
+          className="border border-gray-300 rounded-[10px] px-3 py-2.5 text-[13.5px] text-gray-900 min-h-[70px]"
+          style={{ textAlignVertical: 'top' }}
           value={text}
           onChangeText={setText}
           maxLength={4000}
@@ -80,51 +81,55 @@ export default function SuggestionsScreen() {
           placeholder="Önerini yaz..."
           placeholderTextColor="#9ca3af"
         />
-        <Pressable style={[styles.submitBtn, (submitting || !text.trim()) && { opacity: 0.6 }]} onPress={handleSubmit} disabled={submitting || !text.trim()}>
+        <Pressable
+          className={`flex-row items-center justify-center gap-2 bg-brand rounded-[10px] py-[11px] mt-2.5 self-end px-[18px] ${submitting || !text.trim() ? 'opacity-60' : ''}`}
+          onPress={handleSubmit}
+          disabled={submitting || !text.trim()}
+        >
           <Send size={14} color="#fff" />
-          <Text style={styles.submitBtnText}>Paylaş</Text>
+          <Text className="text-white text-[13px] font-bold">Paylaş</Text>
         </Pressable>
       </View>
     </View>
   );
 
   return (
-    <View style={styles.container}>
+    <View className="flex-1 bg-gray-50">
       {loading ? (
-        <View style={styles.center}>
+        <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#2F5755" />
         </View>
       ) : (
         <FlatList
-          contentContainerStyle={styles.listContent}
+          contentContainerClassName="p-4 pb-10"
           data={suggestions}
           keyExtractor={(item) => String(item.id)}
           ListHeaderComponent={header}
           renderItem={({ item }) => (
-            <Pressable style={styles.entryCard} onPress={() => navigation.navigate('SuggestionDetail', { id: item.id })}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.entryContent} numberOfLines={3}>
+            <Pressable className="flex-row items-start gap-2.5 bg-white rounded-xl p-3.5 mb-2.5" onPress={() => navigation.navigate('SuggestionDetail', { id: item.id })}>
+              <View className="flex-1">
+                <Text className="text-[13.5px] text-gray-800 leading-[19px]" numberOfLines={3}>
                   {item.content}
                 </Text>
-                <View style={styles.entryMetaRow}>
-                  <Text style={styles.entryMetaText}>{item.full_name}</Text>
+                <View className="flex-row items-center gap-[5px] mt-2">
+                  <Text className="text-[11px] text-gray-400">{item.full_name}</Text>
                   <MessageSquare size={12} color="#9ca3af" />
-                  <Text style={styles.entryMetaText}>{item.comment_count} yorum</Text>
+                  <Text className="text-[11px] text-gray-400">{item.comment_count} yorum</Text>
                 </View>
               </View>
               <ChevronRight size={18} color="#d1d5db" />
             </Pressable>
           )}
           ListEmptyComponent={
-            <View style={styles.emptyBox}>
+            <View className="items-center py-[50px] gap-2.5">
               <Inbox size={40} color="#d1d5db" />
-              <Text style={styles.emptyText}>Henüz öneri paylaşılmamış.</Text>
+              <Text className="text-gray-400 text-[13.5px]">Henüz öneri paylaşılmamış.</Text>
             </View>
           }
           ListFooterComponent={
             hasMore ? (
-              <Pressable style={styles.loadMoreBtn} onPress={() => fetchSuggestions(page + 1)} disabled={loadingMore}>
-                {loadingMore ? <ActivityIndicator color="#2F5755" /> : <Text style={styles.loadMoreText}>Daha Fazla Göster</Text>}
+              <Pressable className="items-center border border-brand rounded-[10px] py-3 mt-2" onPress={() => fetchSuggestions(page + 1)} disabled={loadingMore}>
+                {loadingMore ? <ActivityIndicator color="#2F5755" /> : <Text className="text-brand text-[13px] font-semibold">Daha Fazla Göster</Text>}
               </Pressable>
             ) : null
           }
@@ -133,25 +138,3 @@ export default function SuggestionsScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  listContent: { padding: 16, paddingBottom: 40 },
-  headerBlock: { marginBottom: 14 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  title: { fontSize: 22, fontWeight: '800', color: '#111827' },
-  subtitle: { fontSize: 12.5, color: '#6b7280', marginTop: 6 },
-  formCard: { backgroundColor: '#fff', borderRadius: 14, padding: 14, marginTop: 14 },
-  textArea: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13.5, color: '#111827', minHeight: 70, textAlignVertical: 'top' },
-  submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#2F5755', borderRadius: 10, paddingVertical: 11, marginTop: 10, alignSelf: 'flex-end', paddingHorizontal: 18 },
-  submitBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  entryCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10 },
-  entryContent: { fontSize: 13.5, color: '#1f2937', lineHeight: 19 },
-  entryMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
-  entryMetaText: { fontSize: 11, color: '#9ca3af' },
-  emptyBox: { alignItems: 'center', paddingVertical: 50, gap: 10 },
-  emptyText: { color: '#9ca3af', fontSize: 13.5 },
-  loadMoreBtn: { alignItems: 'center', borderWidth: 1, borderColor: '#2F5755', borderRadius: 10, paddingVertical: 12, marginTop: 8 },
-  loadMoreText: { color: '#2F5755', fontSize: 13, fontWeight: '600' },
-});

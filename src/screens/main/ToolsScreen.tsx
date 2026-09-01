@@ -1,34 +1,71 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Calculator, CalendarDays, ChevronRight, HeartHandshake, HelpCircle, Lightbulb, ListChecks, MessageCircleQuestion, Trophy, UtensilsCrossed } from 'lucide-react-native';
+import {
+  Calculator,
+  CalendarDays,
+  HeartHandshake,
+  HelpCircle,
+  Lightbulb,
+  ListChecks,
+  MessageCircleQuestion,
+  Trophy,
+  UtensilsCrossed,
+  Wrench,
+} from 'lucide-react-native';
 import type { RootStackParamList } from '../../navigation/types';
 
+const SHADOW_MD = {
+  shadowColor: '#000',
+  shadowOpacity: 0.1,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 3 },
+  elevation: 3,
+};
+
+// Web'de "Araçlar" iki yerde var: /araclar hub sayfası (6 kart, bkz.
+// ToolsHubPage.jsx — kart tasarımının kaynağı burası) ve masaüstü Navbar'ın
+// Araçlar dropdown'u (9 link — SSS/Öneriler/Yardım da orada). Mobilde ayrı bir
+// dropdown olmadığından ikisi tek ekranda birleşti (9 link), ama kart görseli
+// (ikon kutusu üstte, başlık altında, açıklama altında — 24px iç boşluk,
+// rounded-xl+shadow-md) hub sayfasınınkiyle birebir aynı.
 const TOOLS = [
+  {
+    key: 'AktsCalculator' as const,
+    icon: Calculator,
+    title: 'AKTS / GANO Hesaplama',
+    desc: "Derslerini gir veya Excel'den aktar; GANO'nu, dönem ortalamalarını, not senaryolarını ve hedef GANO planını hesapla.",
+  },
+  {
+    key: 'CafeteriaMenu' as const,
+    icon: UtensilsCrossed,
+    title: 'Yemek Listesi',
+    desc: 'Hacettepe yemekhanesinin günlük ve haftalık menüsü — kaloriler ve alerjen bilgileriyle birlikte.',
+  },
   {
     key: 'Checklists' as const,
     icon: ListChecks,
     title: 'Checklistler',
-    desc: 'Kayıt dönemi, mezuniyet ve daha fazlası için yapılacaklar listeleri.',
-  },
-  {
-    key: 'AktsCalculator' as const,
-    icon: Calculator,
-    title: 'AKTS / GANO Hesapla',
-    desc: 'Derslerini gir, ortalamanı ve kredi durumunu anında gör.',
+    desc: 'Kayıt dönemi, mezuniyet ve daha fazlası için hazırlanmış checklistler. İşaretlediklerin hesabında saklanır.',
   },
   {
     key: 'Schedule' as const,
     icon: CalendarDays,
     title: 'Ders Programı',
-    desc: 'Haftalık ders programını oluştur, düzenle.',
+    desc: 'Haftalık ders programını oluştur; çakışmaları anında gör.',
   },
   {
     key: 'NoteRequests' as const,
     icon: HeartHandshake,
     title: 'Not İstekleri',
-    desc: 'Aradığın notu bulamadın mı? İste, elinde olan karşılasın.',
+    desc: 'Aradığın notu bulamadın mı? İstek aç — elinde olan karşılasın. İsteği karşılayanlar rozet kazanır.',
+  },
+  {
+    key: 'Leaderboard' as const,
+    icon: Trophy,
+    title: 'Liderlik Tablosu',
+    desc: 'En yüksek seriye, en çok onaylı nota ve en çok rozete sahip öğrenciler kimler — sıralamada yerini gör.',
   },
   {
     key: 'Faq' as const,
@@ -43,18 +80,6 @@ const TOOLS = [
     desc: "Nottepe'yi nasıl daha iyi yapabiliriz?",
   },
   {
-    key: 'CafeteriaMenu' as const,
-    icon: UtensilsCrossed,
-    title: 'Yemek Listesi',
-    desc: 'Hacettepe yemekhanesinin günlük ve haftalık menüsü.',
-  },
-  {
-    key: 'Leaderboard' as const,
-    icon: Trophy,
-    title: 'Liderlik Tablosu',
-    desc: 'En yüksek seri, en çok onaylı not ve rozete sahip öğrenciler.',
-  },
-  {
     key: 'Help' as const,
     icon: MessageCircleQuestion,
     title: 'Yardım ve İletişim',
@@ -66,46 +91,29 @@ export default function ToolsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.header}>Araçlar</Text>
-      <View style={{ gap: 12 }}>
+    <ScrollView className="flex-1 bg-primary" contentContainerClassName="p-4 pt-6">
+      <View className="flex-row items-center gap-3">
+        <Wrench size={32} color="#2F5755" />
+        <Text className="text-3xl font-bold text-gray-900">Araçlar</Text>
+      </View>
+      <Text className="text-sm text-gray-500 mt-2 mb-6">Öğrenci hayatını kolaylaştıran Nottepe araçları</Text>
+
+      <View className="gap-6">
         {TOOLS.map(({ key, icon: Icon, title, desc }) => (
-          <Pressable key={key} style={styles.card} onPress={() => navigation.navigate(key as any)}>
-            <View style={styles.iconWrap}>
-              <Icon size={22} color="#2F5755" />
+          <Pressable
+            key={key}
+            className="bg-white rounded-xl p-6"
+            style={SHADOW_MD}
+            onPress={() => navigation.navigate(key as any)}
+          >
+            <View className="w-12 h-12 rounded-lg bg-brand/10 items-center justify-center mb-4">
+              <Icon size={24} color="#2F5755" />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.cardTitle}>{title}</Text>
-              <Text style={styles.cardDesc}>{desc}</Text>
-            </View>
-            <ChevronRight size={18} color="#9ca3af" />
+            <Text className="text-lg font-semibold text-gray-900 mb-2">{title}</Text>
+            <Text className="text-sm text-gray-600 leading-5">{desc}</Text>
           </Pressable>
         ))}
       </View>
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  content: { padding: 16 },
-  header: { fontSize: 22, fontWeight: '700', color: '#111827', marginBottom: 16 },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 16,
-  },
-  iconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: '#2F575519',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: '#111827' },
-  cardDesc: { fontSize: 12.5, color: '#6b7280', marginTop: 2, lineHeight: 17 },
-});

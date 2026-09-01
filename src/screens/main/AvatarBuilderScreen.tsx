@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import Svg, { Rect as SvgRect } from 'react-native-svg';
 import { Check, Dice5, ShieldOff } from 'lucide-react-native';
 import { avatarAPI } from '../../lib/api';
@@ -32,17 +32,15 @@ import {
 
 function ColorRow({ colors, activeIdx, onChange }: { colors: string[]; activeIdx: number; onChange: (i: number) => void }) {
   return (
-    <View style={styles.colorRow}>
+    <View className="flex-row flex-wrap gap-2">
       {colors.map((c, i) => (
         <Pressable
           key={i}
           onPress={() => onChange(i)}
-          style={[
-            styles.colorSwatch,
-            { backgroundColor: c },
-            c === '#ffffff' && styles.colorSwatchWhiteBorder,
-            i === activeIdx && styles.colorSwatchActive,
-          ]}
+          className={`w-[26px] h-[26px] rounded-[13px] border-2 ${
+            i === activeIdx ? 'border-brand scale-110' : c === '#ffffff' ? 'border-gray-300' : 'border-transparent'
+          }`}
+          style={{ backgroundColor: c }}
         />
       ))}
     </View>
@@ -77,7 +75,9 @@ function OptButton({
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={[styles.optButton, active && styles.optButtonActive, disabled && styles.optButtonDisabled]}
+      className={`w-[38px] h-[38px] rounded-lg border-2 items-center justify-center overflow-hidden ${
+        active ? 'border-brand bg-brand/10' : 'border-gray-200 bg-gray-50'
+      } ${disabled ? 'opacity-30' : ''}`}
     >
       <MiniSvg rects={rects} skin={skin} />
     </Pressable>
@@ -86,8 +86,8 @@ function OptButton({
 
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionLabel}>{label}</Text>
+    <View className="mt-4">
+      <Text className="text-[11px] font-bold text-gray-400 tracking-[0.5px] mb-2 uppercase">{label}</Text>
       {children}
     </View>
   );
@@ -133,17 +133,17 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
   const skin = SKIN_COLORS[cfg.skin] || SKIN_COLORS[0];
 
   return (
-    <View style={styles.container}>
-      <View style={styles.previewBox}>
-        <View style={styles.previewCircle}>
+    <View className="flex-1 bg-primary">
+      <View className="items-center py-4 border-b border-gray-100">
+        <View className="w-[150px] h-[150px] rounded-[30px] overflow-hidden border-[3px] border-beige">
           <AvatarSVG config={cfg} size={140} />
         </View>
-        <View style={styles.previewActions}>
-          <Pressable style={styles.diceBtn} onPress={handleRandomize}>
+        <View className="flex-row gap-2.5 mt-3">
+          <Pressable className="w-10 h-10 rounded-[10px] bg-brand items-center justify-center" onPress={handleRandomize}>
             <Dice5 size={20} color="#fff" />
           </Pressable>
           <Pressable
-            style={[styles.saveBtn, saved && styles.saveBtnSaved, saving && { opacity: 0.6 }]}
+            className={`flex-row items-center gap-1.5 px-4 h-10 rounded-[10px] ${saved ? 'bg-green-500' : 'bg-brand'} ${saving ? 'opacity-60' : ''}`}
             onPress={handleSave}
             disabled={saving || saved}
           >
@@ -152,13 +152,13 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
             ) : saved ? (
               <Check size={16} color="#fff" />
             ) : null}
-            <Text style={styles.saveBtnText}>{saving ? 'Kaydediliyor...' : saved ? 'Kaydedildi!' : 'Kaydet'}</Text>
+            <Text className="text-white text-[13px] font-bold">{saving ? 'Kaydediliyor...' : saved ? 'Kaydedildi!' : 'Kaydet'}</Text>
           </Pressable>
         </View>
-        {!!error && <Text style={styles.errorText}>{error}</Text>}
+        {!!error && <Text className="text-red-600 text-[11.5px] mt-2 text-center max-w-[220px]">{error}</Text>}
       </View>
 
-      <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView className="flex-1 px-4" contentContainerStyle={{ paddingBottom: 40 }}>
         <Section label="Arka plan">
           <ColorRow colors={BG_COLORS} activeIdx={cfg.bg} onChange={(v) => set('bg', v)} />
         </Section>
@@ -168,7 +168,7 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
         </Section>
 
         <Section label="Yüz şekli">
-          <View style={styles.optGrid}>
+          <View className="flex-row flex-wrap gap-2">
             {FACES.map((rects, i) => (
               <OptButton key={i} rects={rects} skin={skin} active={cfg.face === i} onPress={() => set('face', i)} />
             ))}
@@ -176,7 +176,7 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
         </Section>
 
         <Section label="Saç Stili">
-          <View style={styles.optGrid}>
+          <View className="flex-row flex-wrap gap-2">
             {HAIR_STYLES.map((style, i) => (
               <OptButton
                 key={i}
@@ -194,7 +194,7 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
         </Section>
 
         <Section label="Göz">
-          <View style={styles.optGrid}>
+          <View className="flex-row flex-wrap gap-2">
             {EYE_STYLES.map((fn, i) => (
               <OptButton
                 key={i}
@@ -212,7 +212,7 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
         </Section>
 
         <Section label="Kaş">
-          <View style={styles.optGrid}>
+          <View className="flex-row flex-wrap gap-2">
             {BROW_STYLES.map((fn, i) => (
               <OptButton
                 key={i}
@@ -234,7 +234,7 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
         </Section>
 
         <Section label="Sakal">
-          <View style={styles.optGrid}>
+          <View className="flex-row flex-wrap gap-2">
             {BEARD_STYLES.map((fn, i) => (
               <OptButton
                 key={i}
@@ -252,7 +252,7 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
         </Section>
 
         <Section label="Kıyafet">
-          <View style={styles.optGrid}>
+          <View className="flex-row flex-wrap gap-2">
             {OUTFIT_STYLES.map((fn, i) => (
               <OptButton
                 key={i}
@@ -264,7 +264,7 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
               />
             ))}
           </View>
-          {!!cfg.jersey && <Text style={styles.hintText}>Forma seçiliyken kıyafet değiştirilemez.</Text>}
+          {!!cfg.jersey && <Text className="text-[11px] text-gray-400 mt-1.5">Forma seçiliyken kıyafet değiştirilemez.</Text>}
         </Section>
 
         {!cfg.jersey && (
@@ -286,7 +286,7 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
 
         {isStaff && (
           <Section label="Forma (admin/moderatör)">
-            <View style={styles.optGrid}>
+            <View className="flex-row flex-wrap gap-2">
               {JERSEYS.map((team) => (
                 <OptButton
                   key={team.id}
@@ -298,79 +298,19 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
               ))}
             </View>
             {!!cfg.jersey && (
-              <Pressable style={styles.removeJerseyBtn} onPress={() => set('jersey', null)}>
+              <Pressable className="flex-row items-center gap-1.5 mt-2" onPress={() => set('jersey', null)}>
                 <ShieldOff size={14} color="#6b7280" />
-                <Text style={styles.removeJerseyText}>Formayı kaldır</Text>
+                <Text className="text-xs text-gray-500 font-semibold">Formayı kaldır</Text>
               </Pressable>
             )}
-            <Text style={styles.hintText}>Forma seçiliyken renkler sabittir.</Text>
+            <Text className="text-[11px] text-gray-400 mt-1.5">Forma seçiliyken renkler sabittir.</Text>
           </Section>
         )}
       </ScrollView>
 
-      <Pressable style={styles.closeBtn} onPress={onClose}>
-        <Text style={styles.closeBtnText}>Kapat</Text>
+      <Pressable className="items-center py-3.5 border-t border-gray-100" onPress={onClose}>
+        <Text className="text-sm font-bold text-gray-700">Kapat</Text>
       </Pressable>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  previewBox: { alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  previewCircle: {
-    width: 150,
-    height: 150,
-    borderRadius: 30,
-    overflow: 'hidden',
-    borderWidth: 3,
-    borderColor: '#E0D9D9',
-  },
-  previewActions: { flexDirection: 'row', gap: 10, marginTop: 12 },
-  diceBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: '#2F5755',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  saveBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 16,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: '#2F5755',
-  },
-  saveBtnSaved: { backgroundColor: '#22c55e' },
-  saveBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  errorText: { color: '#dc2626', fontSize: 11.5, marginTop: 8, textAlign: 'center', maxWidth: 220 },
-  scroll: { flex: 1, paddingHorizontal: 16 },
-  section: { marginTop: 16 },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.5, marginBottom: 8, textTransform: 'uppercase' },
-  colorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  colorSwatch: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, borderColor: 'transparent' },
-  colorSwatchWhiteBorder: { borderColor: '#d1d5db' },
-  colorSwatchActive: { borderColor: '#2F5755', transform: [{ scale: 1.1 }] },
-  optGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  optButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#e5e7eb',
-    backgroundColor: '#f9fafb',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  optButtonActive: { borderColor: '#2F5755', backgroundColor: '#2F575519' },
-  optButtonDisabled: { opacity: 0.3 },
-  hintText: { fontSize: 11, color: '#9ca3af', marginTop: 6 },
-  removeJerseyBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
-  removeJerseyText: { fontSize: 12, color: '#6b7280', fontWeight: '600' },
-  closeBtn: { alignItems: 'center', paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#f3f4f6' },
-  closeBtnText: { fontSize: 14, fontWeight: '700', color: '#374151' },
-});

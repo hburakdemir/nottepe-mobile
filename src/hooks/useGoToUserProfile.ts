@@ -10,7 +10,7 @@ export function useGoToUserProfile() {
   return (username?: string) => {
     if (!username) return;
     if (user && user.username === username) {
-      navigation.navigate('MainTabs', { screen: 'Profile' } as any);
+      navigation.navigate('Profile');
       return;
     }
     navigation.navigate('UserProfile', { username });

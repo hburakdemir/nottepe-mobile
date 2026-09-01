@@ -53,8 +53,37 @@ export function formatGpa(value: number | null): string {
   return value === null || value === undefined ? '—' : value.toFixed(2);
 }
 
+// 100'lük not → harf notu dönüşüm aralıkları (min dahil, max dahil).
+export const SCORE_RANGES: { min: number; max: number; grade: string }[] = [
+  { min: 95, max: 100, grade: 'A1' },
+  { min: 90, max: 94, grade: 'A2' },
+  { min: 85, max: 89, grade: 'A3' },
+  { min: 80, max: 84, grade: 'B1' },
+  { min: 75, max: 79, grade: 'B2' },
+  { min: 70, max: 74, grade: 'B3' },
+  { min: 65, max: 69, grade: 'C1' },
+  { min: 60, max: 64, grade: 'C2' },
+  { min: 55, max: 59, grade: 'C3' },
+  { min: 50, max: 54, grade: 'D1' },
+  { min: 0, max: 49, grade: 'F3' },
+];
+
+export function scoreToGrade(score: string | number | null | undefined): string | null {
+  if (score === null || score === undefined || String(score).trim() === '') return null;
+  const value = Number(score);
+  if (!Number.isFinite(value)) return null;
+  const range = SCORE_RANGES.find((r) => value >= r.min && value <= r.max);
+  return range ? range.grade : null;
+}
+
+export function gradeToScoreRange(grade: string): string | null {
+  const range = SCORE_RANGES.find((r) => r.grade === grade);
+  return range ? `${range.min}-${range.max}` : null;
+}
+
 export interface Course {
   id: string;
+  code?: string;
   name: string;
   semester: number;
   akts: number | string;
@@ -75,8 +104,16 @@ export interface Totals {
   gano: number | null;
 }
 
+export type Overrides = Record<string, string>;
+
+// Senaryo varsa senaryodaki notu, yoksa dersin gerçek notunu döner.
+export function effectiveGrade(course: Course, overrides: Overrides = {}): string {
+  const override = overrides[course.id];
+  return isValidGrade(override) ? override : course.grade;
+}
+
 // GANO = Σ(AKTS × katsayı) / Σ(kredili AKTS). Kredisiz dersler (G/K/H/M) orana girmez.
-export function computeTotals(courses: Course[]): Totals {
+export function computeTotals(courses: Course[], overrides: Overrides = {}): Totals {
   let creditedAkts = 0;
   let qualityPoints = 0;
   let totalAkts = 0;
@@ -85,7 +122,7 @@ export function computeTotals(courses: Course[]): Totals {
 
   for (const course of courses) {
     const akts = parseAkts(course);
-    const grade = course.grade;
+    const grade = effectiveGrade(course, overrides);
     if (akts === null || !isValidGrade(grade)) continue;
 
     totalAkts += akts;
@@ -115,7 +152,7 @@ export interface SemesterRow {
   gano: number | null;
 }
 
-export function computeSemesterRows(courses: Course[]): SemesterRow[] {
+export function computeSemesterRows(courses: Course[], overrides: Overrides = {}): SemesterRow[] {
   const bySemester = new Map<number, Course[]>();
   for (const course of courses) {
     const semester = Number(course.semester);
@@ -127,22 +164,135 @@ export function computeSemesterRows(courses: Course[]): SemesterRow[] {
   return [...bySemester.entries()]
     .sort(([a], [b]) => a - b)
     .map(([semester, semesterCourses]) => {
-      const totals = computeTotals(semesterCourses);
+      const totals = computeTotals(semesterCourses, overrides);
       return { semester, courseCount: semesterCourses.length, totalAkts: totals.totalAkts, gano: totals.gano };
     });
 }
 
+export interface Stats {
+  totalCourses: number;
+  passedCourses: number;
+  failedCourses: number;
+  successRate: number | null;
+  avgAktsPerSemester: number | null;
+  semesterRows: SemesterRow[];
+  gradeDistribution: Record<string, number>;
+}
+
+// İstatistik kutuları: ders sayıları, başarı oranı, dönem başına ortalama AKTS.
+export function computeStats(courses: Course[], overrides: Overrides = {}): Stats {
+  const semesterRows = computeSemesterRows(courses, overrides);
+  let totalCourses = 0;
+  let passedCourses = 0;
+  let failedCourses = 0;
+  const gradeDistribution: Record<string, number> = {};
+
+  for (const course of courses) {
+    const grade = effectiveGrade(course, overrides);
+    if (parseAkts(course) === null || !isValidGrade(grade)) continue;
+    totalCourses += 1;
+    if (isPassGrade(grade)) passedCourses += 1;
+    if (isFailGrade(grade)) failedCourses += 1;
+    gradeDistribution[grade] = (gradeDistribution[grade] || 0) + 1;
+  }
+
+  const judgedCourses = passedCourses + failedCourses;
+  const totalAkts = semesterRows.reduce((sum, row) => sum + row.totalAkts, 0);
+
+  return {
+    totalCourses,
+    passedCourses,
+    failedCourses,
+    successRate: judgedCourses > 0 ? (passedCourses / judgedCourses) * 100 : null,
+    avgAktsPerSemester: semesterRows.length > 0 ? totalAkts / semesterRows.length : null,
+    semesterRows,
+    gradeDistribution,
+  };
+}
+
+// Hızlı tahmin: "GANO'm X, şu derslerden şu notları alırsam ortalamam kaç olur?"
+export function projectGano({
+  currentGano,
+  currentAkts,
+  newCourses,
+}: {
+  currentGano: string | number;
+  currentAkts: string | number;
+  newCourses: { akts: string | number; coefficient: number | null }[];
+}): { newGano: number; addedAkts: number } | null {
+  const gano = Number(currentGano);
+  const akts = Number(currentAkts);
+  if (!Number.isFinite(gano) || gano < 0 || gano > GPA_SCALE_MAX) return null;
+  if (!Number.isFinite(akts) || akts < 0) return null;
+
+  let addedAkts = 0;
+  let addedPoints = 0;
+  for (const course of newCourses) {
+    const courseAkts = Number(course.akts);
+    const coefficient = Number(course.coefficient);
+    if (!Number.isFinite(courseAkts) || courseAkts <= 0) continue;
+    if (!Number.isFinite(coefficient)) continue;
+    addedAkts += courseAkts;
+    addedPoints += courseAkts * coefficient;
+  }
+
+  const totalAkts = akts + addedAkts;
+  if (totalAkts <= 0 || addedAkts <= 0) return null;
+  return {
+    newGano: (gano * akts + addedPoints) / totalAkts,
+    addedAkts,
+  };
+}
+
+export interface TargetPlan {
+  achieved: boolean;
+  neededByGrade: { grade: string; coefficient: number | null; count: number | null }[];
+}
+
+// Hedef GANO planı: mevcut (senaryo dahil) toplamların üzerine, her biri
+// plannedAkts AKTS'lik kaç yeni ders gerektiğini not bazında çözer.
+export function computeTargetPlan({
+  totals,
+  targetGpa,
+  plannedAkts,
+  planGrades,
+}: {
+  totals: Totals;
+  targetGpa: string | number;
+  plannedAkts: string | number;
+  planGrades: string[];
+}): TargetPlan | null {
+  const target = Number(targetGpa);
+  const akts = Number(plannedAkts);
+  if (!Number.isFinite(target) || target <= 0 || target > GPA_SCALE_MAX) return null;
+  if (!Number.isFinite(akts) || akts <= 0) return null;
+
+  const achieved = totals.gano !== null && totals.gano >= target;
+  const deficit = target * totals.creditedAkts - totals.qualityPoints;
+
+  const neededByGrade = planGrades.map((grade) => {
+    const coefficient = getCoefficient(grade);
+    if (coefficient === null || coefficient <= target) {
+      return { grade, coefficient, count: null };
+    }
+    const count = Math.max(0, Math.ceil(deficit / (akts * (coefficient - target))));
+    return { grade, coefficient, count };
+  });
+
+  return { achieved, neededByGrade };
+}
+
 export interface AktsServerData {
-  semesters: { name: string; courses: { name: string; akts: number; grade: string }[] }[];
+  semesters: { name: string; courses: { code?: string; name: string; akts: number; grade: string }[] }[];
 }
 
 // Düz liste → sunucu formatı (dönem numarasına göre gruplanır) — /api/akts'nin beklediği şekil.
 export function coursesToServerData(courses: Course[]): AktsServerData {
-  const bySemester = new Map<number, { name: string; akts: number; grade: string }[]>();
+  const bySemester = new Map<number, { code?: string; name: string; akts: number; grade: string }[]>();
   for (const course of courses) {
     const semester = Number(course.semester) > 0 ? Math.trunc(Number(course.semester)) : 1;
     if (!bySemester.has(semester)) bySemester.set(semester, []);
-    bySemester.get(semester)!.push({ name: course.name, akts: Number(course.akts), grade: course.grade });
+    bySemester.get(semester)!.push({ code: course.code, name: course.name, akts: Number(course.akts), grade: course.grade });
   }
   return {
     semesters: [...bySemester.entries()]
@@ -171,10 +321,11 @@ export function serverDataToCourses(data: AktsServerData | null | undefined): { 
     const semesterNumber = semesterNumberFromName(sem?.name, index);
     (Array.isArray(sem?.courses) ? sem.courses : []).forEach((raw) => {
       const name = String(raw?.name ?? '').trim();
+      const code = String(raw?.code ?? '').trim();
       const akts = Number(raw?.akts);
       const grade = String(raw?.grade ?? '').trim().toUpperCase();
       if (name && Number.isFinite(akts) && akts > 0 && isValidGrade(grade)) {
-        courses.push({ id: makeCourseId(), name, semester: semesterNumber, akts, grade });
+        courses.push({ id: makeCourseId(), code: code || undefined, name, semester: semesterNumber, akts, grade });
       } else if (name) {
         skipped += 1;
       }

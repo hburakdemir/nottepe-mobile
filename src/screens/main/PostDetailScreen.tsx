@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Bookmark, Calendar, ExternalLink, FileText, Star, Trash2, User } from 'lucide-react-native';
@@ -71,7 +71,7 @@ export default function PostDetailScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color="#1d4ed8" />
       </View>
     );
@@ -79,8 +79,8 @@ export default function PostDetailScreen() {
 
   if (error || !post) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>{error || 'Gönderi bulunamadı.'}</Text>
+      <View className="flex-1 items-center justify-center">
+        <Text className="text-gray-500 text-sm">{error || 'Gönderi bulunamadı.'}</Text>
       </View>
     );
   }
@@ -90,139 +90,106 @@ export default function PostDetailScreen() {
   const ratingCount = post.rating_count || 0;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.titleRow}>
-        <Text style={styles.title}>{post.title}</Text>
-        <View style={{ flexDirection: 'row', gap: 14 }}>
-          {isAuthenticated && (
-            <Pressable onPress={() => toggleSavePost(postId)} hitSlop={8}>
-              <Bookmark size={20} color={isSaved ? '#003161' : '#111827'} fill={isSaved ? '#003161' : 'none'} />
-            </Pressable>
-          )}
-          {isOwner && (
-            <Pressable onPress={handleDeletePost} hitSlop={8}>
-              <Trash2 size={20} color="#dc2626" />
-            </Pressable>
-          )}
-        </View>
-      </View>
-
-      <View style={styles.chipRow}>
-        <View style={[styles.chip, styles.chipBrand]}>
-          <Text style={styles.chipText}>{post.faculty}</Text>
-        </View>
-        <View style={[styles.chip, styles.chipBrandLight]}>
-          <Text style={styles.chipText}>{post.department}</Text>
-        </View>
-      </View>
-
-      <View style={styles.metaRow}>
-        <Pressable style={styles.metaItem} onPress={() => goToUserProfile(post.username)}>
-          <View style={styles.avatarFallback}>
-            <User size={14} color="#6b7280" />
-          </View>
-          <Text style={styles.metaText}>{post.username || 'Anonim'}</Text>
-        </Pressable>
-        <View style={styles.metaItem}>
-          <Calendar size={13} color="#6b7280" />
-          <Text style={styles.metaText}>{formatDate(post.created_at)}</Text>
-        </View>
-      </View>
-
-      <View style={styles.ratingRow}>
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Star
-            key={star}
-            size={16}
-            color={avgRating >= star ? '#eab308' : '#d1d5db'}
-            fill={avgRating >= star ? '#eab308' : 'none'}
-          />
-        ))}
-        <Text style={styles.ratingText}>
-          {ratingCount > 0 ? `${avgRating.toFixed(1)}/5 · ${ratingCount} puan` : 'Henüz puan yok'}
-        </Text>
-      </View>
-
-      <Text style={styles.body}>{post.content}</Text>
-
-      {post.link ? (
-        <Pressable style={styles.linkRow} onPress={() => Linking.openURL(post.link!)}>
-          <ExternalLink size={15} color="#1d4ed8" />
-          <Text style={styles.linkText}>Linki aç</Text>
-        </Pressable>
-      ) : null}
-
-      {post.file_urls && post.file_urls.length > 0 && (
-        <View style={styles.filesBlock}>
-          <Text style={styles.filesLabel}>DOSYALAR</Text>
-          <View style={{ gap: 8 }}>
-            {post.file_urls.map((fileName, index) => (
-              <Pressable
-                key={index}
-                style={styles.fileRow}
-                onPress={() => Linking.openURL(getFileUrl(fileName))}
-              >
-                <FileText size={15} color="#374151" />
-                <Text style={styles.fileText}>{fileName}</Text>
+    <ScrollView className="flex-1 bg-primary" contentContainerClassName="px-4 py-6">
+      <View className="bg-white rounded-2xl p-6" style={SHADOW_MD}>
+        <View className="flex-row items-start justify-between gap-3">
+          <Text className="flex-1 text-2xl font-bold text-gray-900 leading-[33px]">{post.title}</Text>
+          <View className="flex-row gap-3.5">
+            {isAuthenticated && (
+              <Pressable onPress={() => toggleSavePost(postId)} hitSlop={8}>
+                <Bookmark size={20} color={isSaved ? '#003161' : '#6b7280'} fill={isSaved ? '#003161' : 'none'} />
               </Pressable>
-            ))}
+            )}
+            {isOwner && (
+              <Pressable onPress={handleDeletePost} hitSlop={8}>
+                <Trash2 size={20} color="#f87171" />
+              </Pressable>
+            )}
           </View>
         </View>
-      )}
 
-      <View style={styles.divider} />
+        <View className="flex-row flex-wrap gap-2 mt-5">
+          <View className="px-3 py-1 rounded-full bg-brand">
+            <Text className="text-white text-xs font-medium">{post.faculty}</Text>
+          </View>
+          <View className="px-3 py-1 rounded-full bg-brand-light">
+            <Text className="text-white text-xs font-medium">{post.department}</Text>
+          </View>
+        </View>
 
-      <CommentSection
-        postId={postId}
-        postOwnerId={post.user_id}
-        isAdmin={user?.role === 'admin' || user?.role === 'moderator'}
-        onRatingChange={({ avg_rating, rating_count }) =>
-          setPost((prev) => (prev ? { ...prev, avg_rating, rating_count } : prev))
-        }
-      />
+        <View className="flex-row items-center gap-4 mt-5">
+          <Pressable className="flex-row items-center gap-1.5" onPress={() => goToUserProfile(post.username)}>
+            <View className="w-7 h-7 rounded-full bg-gray-100 items-center justify-center">
+              <User size={16} color="#6b7280" />
+            </View>
+            <Text className="text-sm text-gray-500">{post.username || 'Anonim'}</Text>
+          </Pressable>
+          <View className="flex-row items-center gap-1.5">
+            <Calendar size={16} color="#6b7280" />
+            <Text className="text-sm text-gray-500">{formatDate(post.created_at)}</Text>
+          </View>
+        </View>
+
+        <View className="flex-row items-center gap-1.5 mt-5">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <Star
+              key={star}
+              size={16}
+              color={avgRating >= star ? '#eab308' : '#d1d5db'}
+              fill={avgRating >= star ? '#eab308' : 'none'}
+            />
+          ))}
+          <Text className="text-sm text-gray-500 ml-1">
+            {ratingCount > 0 ? `${avgRating.toFixed(1)}/5 · ${ratingCount} puan` : 'Henüz puan yok'}
+          </Text>
+        </View>
+
+        <Text className="text-sm text-gray-700 leading-[23px] mt-5">{post.content}</Text>
+
+        {post.link ? (
+          <Pressable className="flex-row items-center gap-1.5 mt-5" onPress={() => Linking.openURL(post.link!)}>
+            <ExternalLink size={16} color="#1d4ed8" />
+            <Text className="text-blue-700 text-sm font-normal">Linki aç</Text>
+          </Pressable>
+        ) : null}
+
+        {post.file_urls && post.file_urls.length > 0 && (
+          <View className="mt-5">
+            <Text className="text-xs font-medium text-gray-500 tracking-[0.3px] mb-1.5">DOSYALAR</Text>
+            <View className="flex-row flex-wrap gap-2">
+              {post.file_urls.map((fileName, index) => (
+                <Pressable
+                  key={index}
+                  className="flex-row items-center gap-1.5 bg-gray-100 rounded-lg px-3 py-1.5"
+                  onPress={() => Linking.openURL(getFileUrl(fileName))}
+                >
+                  <FileText size={16} color="#374151" />
+                  <Text className="text-sm text-gray-700">{fileName}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        )}
+
+        <View className="h-px bg-gray-100 mt-5" />
+
+        <CommentSection
+          postId={postId}
+          postOwnerId={post.user_id}
+          isAdmin={user?.role === 'admin' || user?.role === 'moderator'}
+          onRatingChange={({ avg_rating, rating_count }) =>
+            setPost((prev) => (prev ? { ...prev, avg_rating, rating_count } : prev))
+          }
+        />
+      </View>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { padding: 16, paddingBottom: 40 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  errorText: { color: '#6b7280', fontSize: 14 },
-  titleRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
-  title: { flex: 1, fontSize: 20, fontWeight: '700', color: '#111827', lineHeight: 26 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
-  chip: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 100 },
-  chipBrand: { backgroundColor: '#2F5755' },
-  chipBrandLight: { backgroundColor: '#4f7d7a' },
-  chipText: { color: '#fff', fontSize: 11, fontWeight: '600' },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 14 },
-  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  avatarFallback: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#f3f4f6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  metaText: { fontSize: 13, color: '#6b7280' },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 14 },
-  ratingText: { fontSize: 12.5, color: '#6b7280', marginLeft: 6 },
-  body: { fontSize: 14.5, color: '#1f2937', lineHeight: 22, marginTop: 16 },
-  linkRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 },
-  linkText: { color: '#1d4ed8', fontSize: 13.5, fontWeight: '600' },
-  filesBlock: { marginTop: 18 },
-  filesLabel: { fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.5, marginBottom: 8 },
-  fileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#f9fafb',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  fileText: { fontSize: 13, color: '#374151' },
-  divider: { height: 1, backgroundColor: '#f3f4f6', marginTop: 20 },
-});
+const SHADOW_MD = {
+  shadowColor: '#000',
+  shadowOpacity: 0.1,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 3 },
+  elevation: 3,
+};

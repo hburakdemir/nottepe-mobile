@@ -2,11 +2,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Modal,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -16,6 +14,7 @@ import * as ImagePicker from 'expo-image-picker';
 import {
   Bell,
   BellOff,
+  Bookmark,
   Calculator,
   CalendarDays,
   Camera,
@@ -82,8 +81,8 @@ interface ForumItem {
 }
 
 const TABS = [
-  { key: 'posts', label: 'Notlarım', icon: FileText },
-  { key: 'saved', label: 'Kaydedilenler', icon: FileText },
+  { key: 'posts', label: 'Postlar', icon: FileText },
+  { key: 'saved', label: 'Kayıtlı', icon: Bookmark },
   { key: 'lists', label: 'Checklistler', icon: ListChecks },
   { key: 'akts', label: 'AKTS', icon: Calculator },
   { key: 'schedule', label: 'Program', icon: CalendarDays },
@@ -279,58 +278,71 @@ export default function ProfileScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color="#2F5755" />
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f9fafb' }}>
+    <View className="flex-1 bg-primary">
       <ScrollView>
-        <View style={styles.headerCard}>
-          <View style={styles.headerTop}>
-            <View style={styles.avatarWrap}>
-              <View style={styles.avatarCircle}>
+        <View className="bg-white p-4 m-4 mb-5 rounded-lg" style={SHADOW_MD}>
+          <View className="flex-row gap-3.5">
+            <View className="w-20 h-20">
+              <View className="w-20 h-20 rounded-[20px] bg-brand items-center justify-center overflow-hidden">
                 {avatar ? <AvatarDisplay avatar={avatar} size={80} /> : <UserIcon size={32} color="#fff" />}
               </View>
-              <Pressable style={styles.paletteBtn} onPress={() => setShowAvatarBuilder(true)}>
+              <Pressable
+                className="absolute -bottom-[3px] -right-[3px] w-[22px] h-[22px] rounded-[11px] bg-indigo-600 items-center justify-center"
+                onPress={() => setShowAvatarBuilder(true)}
+              >
                 <Palette size={12} color="#fff" />
               </Pressable>
-              <Pressable style={styles.cameraBtn} onPress={handlePickPhoto} disabled={photoUploading}>
+              <Pressable
+                className="absolute -bottom-[3px] -left-[3px] w-[22px] h-[22px] rounded-[11px] bg-brand items-center justify-center"
+                onPress={handlePickPhoto}
+                disabled={photoUploading}
+              >
                 {photoUploading ? <ActivityIndicator size="small" color="#fff" /> : <Camera size={12} color="#fff" />}
               </Pressable>
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.username}>{user?.username}</Text>
-              <Text style={styles.fullName}>{user?.full_name}</Text>
-              <Text style={styles.email}>{user?.email}</Text>
-              {!!user?.phone && <Text style={styles.meta}>{user.phone}</Text>}
+            <View className="flex-1">
+              <Text className="text-[19px] font-extrabold text-gray-900">{user?.username}</Text>
+              <Text className="text-[13px] text-gray-600 mt-0.5">{user?.full_name}</Text>
+              <Text className="text-[12.5px] text-gray-500 mt-px">{user?.email}</Text>
+              {!!user?.phone && <Text className="text-xs text-gray-400 mt-0.5">{user.phone}</Text>}
               {!!user?.department && (
-                <Text style={styles.meta}>
+                <Text className="text-xs text-gray-400 mt-0.5">
                   {user.department}
                   {user.faculty ? ` · ${user.faculty}` : ''}
                 </Text>
               )}
-              {!!user?.bio && <Text style={styles.bio}>{user.bio}</Text>}
+              {!!user?.bio && <Text className="text-[12.5px] text-gray-600 mt-1.5 leading-[17px]">{user.bio}</Text>}
             </View>
           </View>
 
-          <View style={styles.badgeRow}>
+          <View className="flex-row flex-wrap gap-2 mt-3.5">
             {badges.filter((b) => b.is_visible !== false).length === 0 ? (
-              <Text style={styles.noBadgeText}>Henüz rozet yok — not paylaşarak rozet kazanabilirsin!</Text>
+              <Text className="text-[11.5px] text-gray-400">Henüz rozet yok — not paylaşarak rozet kazanabilirsin!</Text>
             ) : (
               badges.filter((b) => b.is_visible !== false).map((badge) => <BadgeChip key={badge.id} badge={badge} />)
             )}
           </View>
 
-          <Pressable style={styles.editBtn} onPress={() => setShowEditModal(true)}>
+          <Pressable className="flex-row items-center justify-center gap-1.5 bg-brand rounded-[10px] py-2.5 mt-3.5" onPress={() => setShowEditModal(true)}>
             <Edit2 size={15} color="#fff" />
-            <Text style={styles.editBtnText}>Düzenle</Text>
+            <Text className="text-white text-[13px] font-bold">Düzenle</Text>
           </Pressable>
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabBar} contentContainerStyle={{ paddingHorizontal: 12 }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          className="bg-white rounded-lg mx-4 mb-5"
+          style={SHADOW_MD}
+          contentContainerClassName="px-3"
+        >
           {TABS.map(({ key, label, icon: Icon }) => {
             const count =
               key === 'posts'
@@ -348,9 +360,13 @@ export default function ProfileScreen() {
                 : null;
             const active = activeTab === key;
             return (
-              <Pressable key={key} style={[styles.tabBtn, active && styles.tabBtnActive]} onPress={() => setActiveTab(key)}>
+              <Pressable
+                key={key}
+                className={`flex-row items-center gap-[5px] py-3 mr-[18px] border-b-2 ${active ? 'border-b-brand' : 'border-b-transparent'}`}
+                onPress={() => setActiveTab(key)}
+              >
                 <Icon size={14} color={active ? '#2F5755' : '#9ca3af'} />
-                <Text style={[styles.tabBtnText, active && styles.tabBtnTextActive]}>
+                <Text className={`text-[12.5px] font-semibold ${active ? 'text-brand' : 'text-gray-400'}`}>
                   {label}
                   {count !== null ? ` (${count})` : ''}
                 </Text>
@@ -359,7 +375,7 @@ export default function ProfileScreen() {
           })}
         </ScrollView>
 
-        <View style={styles.tabContent}>
+        <View className="px-4 gap-2.5">
           {activeTab === 'posts' &&
             (myPosts.length === 0 ? (
               <EmptyState icon={FileText} text="Henüz not paylaşmadınız." />
@@ -411,23 +427,23 @@ export default function ProfileScreen() {
                 const semesterCount = calc.data?.semesters?.length || 0;
                 const courseCount = calc.data?.semesters?.reduce((sum, s) => sum + (s.courses?.length || 0), 0) || 0;
                 return (
-                  <View key={calc.id} style={styles.rowCard}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.rowCardTitle} numberOfLines={1}>
+                  <View key={calc.id} className="flex-row items-center bg-white rounded-lg p-3.5 mb-3" style={SHADOW_SM}>
+                    <View className="flex-1">
+                      <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>
                         {calc.title}
                       </Text>
-                      <Text style={styles.rowCardMeta}>
+                      <Text className="text-[11.5px] text-gray-400 mt-0.5">
                         {semesterCount} dönem · {courseCount} ders · {formatDate(calc.updated_at)}
                       </Text>
                     </View>
-                    <View style={{ alignItems: 'center', marginRight: 10 }}>
-                      <Text style={styles.gpaValue}>{formatGpa(calc.gpa)}</Text>
-                      <Text style={styles.gpaLabel}>GANO</Text>
+                    <View className="items-center mr-2.5">
+                      <Text className="text-lg font-extrabold text-brand">{formatGpa(calc.gpa)}</Text>
+                      <Text className="text-[9px] text-gray-400 uppercase">GANO</Text>
                     </View>
-                    <Pressable style={styles.smallBtn} onPress={() => navigation.navigate('AktsCalculator', { loadId: calc.id })}>
-                      <Text style={styles.smallBtnText}>Düzenle</Text>
+                    <Pressable className="bg-brand rounded-lg px-2.5 py-[7px]" onPress={() => navigation.navigate('AktsCalculator', { loadId: calc.id })}>
+                      <Text className="text-white text-xs font-bold">Düzenle</Text>
                     </Pressable>
-                    <Pressable onPress={() => handleAktsDelete(calc.id)} hitSlop={8} style={{ marginLeft: 8 }}>
+                    <Pressable onPress={() => handleAktsDelete(calc.id)} hitSlop={8} className="ml-2">
                       <Trash2 size={17} color="#dc2626" />
                     </Pressable>
                   </View>
@@ -440,24 +456,24 @@ export default function ProfileScreen() {
               <EmptyState icon={CalendarDays} text="Henüz ders programı oluşturmadın." actionLabel="Ders Programı Oluştur" onAction={() => navigation.navigate('Schedule')} />
             ) : (
               <View>
-                <Pressable style={styles.editScheduleBtn} onPress={() => navigation.navigate('Schedule')}>
+                <Pressable className="flex-row self-end items-center gap-1.5 bg-brand rounded-lg px-3 py-2 mb-2.5" onPress={() => navigation.navigate('Schedule')}>
                   <Edit2 size={13} color="#fff" />
-                  <Text style={styles.editScheduleBtnText}>Düzenle</Text>
+                  <Text className="text-white text-xs font-bold">Düzenle</Text>
                 </Pressable>
                 {[1, 2, 3, 4, 5, 6].map((day) => {
                   const dayCourses = mySchedule.filter((c) => c.day === day).sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
                   if (dayCourses.length === 0) return null;
                   return (
-                    <View key={day} style={styles.dayCard}>
-                      <Text style={styles.dayTitle}>{DAY_NAMES[day]}</Text>
+                    <View key={day} className="bg-white rounded-lg p-3.5 mb-3" style={SHADOW_SM}>
+                      <Text className="text-[13px] font-bold text-gray-900 mb-2">{DAY_NAMES[day]}</Text>
                       {dayCourses.map((c) => (
-                        <View key={c.id} style={styles.courseRow}>
-                          <View style={[styles.colorBar, { backgroundColor: getCourseColor(c.colorIdx).hex }]} />
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.courseName} numberOfLines={1}>
+                        <View key={c.id} className="flex-row items-center gap-2 py-1.5">
+                          <View className="w-1 h-[26px] rounded-sm" style={{ backgroundColor: getCourseColor(c.colorIdx).hex }} />
+                          <View className="flex-1">
+                            <Text className="text-[12.5px] font-semibold text-gray-900" numberOfLines={1}>
                               {c.name}
                             </Text>
-                            <Text style={styles.courseMeta}>
+                            <Text className="text-[11px] text-gray-500 mt-px">
                               {c.start}–{c.end}
                               {c.location ? ` · ${c.location}` : ''}
                             </Text>
@@ -472,19 +488,19 @@ export default function ProfileScreen() {
 
           {activeTab === 'follows' &&
             (follows.length === 0 ? (
-              <EmptyState icon={Bell} text='Henüz bölüm takip etmiyorsun. Bölüm sayfasındaki "Takip Et" butonuyla haberdar olabilirsin.' actionLabel="Bölümlere Göz At" onAction={() => navigation.navigate('MainTabs', { screen: 'Departments' } as any)} />
+              <EmptyState icon={Bell} text='Henüz bölüm takip etmiyorsun. Bölüm sayfasındaki "Takip Et" butonuyla haberdar olabilirsin.' actionLabel="Bölümlere Göz At" onAction={() => navigation.navigate('Departments')} />
             ) : (
               follows.map((f) => (
-                <View key={`${f.faculty}-${f.department}`} style={styles.rowCard}>
-                  <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate('DepartmentDetail', { faculty: f.faculty, department: f.department })}>
-                    <Text style={styles.rowCardTitle} numberOfLines={1}>
+                <View key={`${f.faculty}-${f.department}`} className="flex-row items-center bg-white rounded-lg p-3.5 mb-3" style={SHADOW_SM}>
+                  <Pressable className="flex-1" onPress={() => navigation.navigate('DepartmentDetail', { faculty: f.faculty, department: f.department })}>
+                    <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>
                       {f.department}
                     </Text>
-                    <Text style={styles.rowCardMeta}>{f.faculty}</Text>
+                    <Text className="text-[11.5px] text-gray-400 mt-0.5">{f.faculty}</Text>
                   </Pressable>
-                  <Pressable style={styles.unfollowBtn} onPress={() => handleUnfollow(f.faculty, f.department)}>
+                  <Pressable className="flex-row items-center gap-[5px] border border-gray-200 rounded-lg px-2.5 py-[7px]" onPress={() => handleUnfollow(f.faculty, f.department)}>
                     <BellOff size={13} color="#6b7280" />
-                    <Text style={styles.unfollowBtnText}>Bırak</Text>
+                    <Text className="text-[11.5px] text-gray-500 font-semibold">Bırak</Text>
                   </Pressable>
                 </View>
               ))
@@ -499,7 +515,8 @@ export default function ProfileScreen() {
               forumItems.map((item) => (
                 <Pressable
                   key={item.key}
-                  style={styles.forumRow}
+                  className="flex-row gap-2 bg-white rounded-lg p-3.5 mb-3"
+                  style={SHADOW_SM}
                   onPress={() =>
                     item.kind === 'faq'
                       ? navigation.navigate('FaqDetail', { id: item.targetId })
@@ -507,22 +524,22 @@ export default function ProfileScreen() {
                   }
                 >
                   {item.kind === 'faq' ? <HelpCircle size={15} color="#2F5755" /> : <Lightbulb size={15} color="#2F5755" />}
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.forumTitle}>{item.title}</Text>
+                  <View className="flex-1">
+                    <Text className="text-[11.5px] font-semibold text-gray-500">{item.title}</Text>
                     {!!item.body && (
-                      <Text style={styles.forumBody} numberOfLines={2}>
+                      <Text className="text-sm text-gray-700 mt-[3px]" numberOfLines={2}>
                         {item.body}
                       </Text>
                     )}
-                    <Text style={styles.forumDate}>{formatDate(item.created_at)}</Text>
+                    <Text className="text-[10.5px] text-gray-400 mt-1">{formatDate(item.created_at)}</Text>
                   </View>
                 </Pressable>
               ))
             ))}
         </View>
 
-        <Pressable style={styles.logoutBtn} onPress={logout}>
-          <Text style={styles.logoutText}>Çıkış Yap</Text>
+        <Pressable className="items-center py-4 mt-2 mb-[30px]" onPress={logout}>
+          <Text className="text-red-600 text-[13.5px] font-bold">Çıkış Yap</Text>
         </Pressable>
       </ScrollView>
 
@@ -571,103 +588,30 @@ function EmptyState({
   onAction?: () => void;
 }) {
   return (
-    <View style={styles.emptyBox}>
+    <View className="items-center py-[50px] gap-2.5">
       <Icon size={40} color="#d1d5db" />
-      <Text style={styles.emptyText}>{text}</Text>
+      <Text className="text-gray-400 text-[13.5px] text-center px-[30px]">{text}</Text>
       {!!actionLabel && (
-        <Pressable style={styles.emptyActionBtn} onPress={onAction}>
-          <Text style={styles.emptyActionText}>{actionLabel}</Text>
+        <Pressable className="bg-brand rounded-[10px] px-[18px] py-2.5 mt-1" onPress={onAction}>
+          <Text className="text-white text-[13px] font-bold">{actionLabel}</Text>
         </Pressable>
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  headerCard: { backgroundColor: '#fff', padding: 16 },
-  headerTop: { flexDirection: 'row', gap: 14 },
-  avatarWrap: { width: 80, height: 80 },
-  avatarCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    backgroundColor: '#2F5755',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  paletteBtn: {
-    position: 'absolute',
-    bottom: -3,
-    right: -3,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#4f46e5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cameraBtn: {
-    position: 'absolute',
-    bottom: -3,
-    left: -3,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#2F5755',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  username: { fontSize: 19, fontWeight: '800', color: '#111827' },
-  fullName: { fontSize: 13, color: '#4b5563', marginTop: 2 },
-  email: { fontSize: 12.5, color: '#6b7280', marginTop: 1 },
-  meta: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
-  bio: { fontSize: 12.5, color: '#4b5563', marginTop: 6, lineHeight: 17 },
-  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
-  noBadgeText: { fontSize: 11.5, color: '#9ca3af' },
-  editBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#2F5755',
-    borderRadius: 10,
-    paddingVertical: 10,
-    marginTop: 14,
-  },
-  editBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  tabBar: { backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f3f4f6' },
-  tabBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 12, marginRight: 18, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabBtnActive: { borderBottomColor: '#2F5755' },
-  tabBtnText: { fontSize: 12.5, fontWeight: '600', color: '#9ca3af' },
-  tabBtnTextActive: { color: '#2F5755' },
-  tabContent: { padding: 12, gap: 10 },
-  emptyBox: { alignItems: 'center', paddingVertical: 50, gap: 10 },
-  emptyText: { color: '#9ca3af', fontSize: 13.5, textAlign: 'center', paddingHorizontal: 30 },
-  emptyActionBtn: { backgroundColor: '#2F5755', borderRadius: 10, paddingHorizontal: 18, paddingVertical: 10, marginTop: 4 },
-  emptyActionText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  rowCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 4 },
-  rowCardTitle: { fontSize: 14, fontWeight: '700', color: '#111827' },
-  rowCardMeta: { fontSize: 11.5, color: '#9ca3af', marginTop: 2 },
-  gpaValue: { fontSize: 18, fontWeight: '800', color: '#2F5755' },
-  gpaLabel: { fontSize: 9, color: '#9ca3af', textTransform: 'uppercase' },
-  smallBtn: { backgroundColor: '#2F5755', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
-  smallBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  unfollowBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
-  unfollowBtnText: { fontSize: 11.5, color: '#6b7280', fontWeight: '600' },
-  editScheduleBtn: { flexDirection: 'row', alignSelf: 'flex-end', alignItems: 'center', gap: 6, backgroundColor: '#2F5755', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginBottom: 10 },
-  editScheduleBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  dayCard: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 8 },
-  dayTitle: { fontSize: 13, fontWeight: '700', color: '#111827', marginBottom: 8 },
-  courseRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
-  colorBar: { width: 4, height: 26, borderRadius: 2 },
-  courseName: { fontSize: 12.5, fontWeight: '600', color: '#111827' },
-  courseMeta: { fontSize: 11, color: '#6b7280', marginTop: 1 },
-  forumRow: { flexDirection: 'row', gap: 8, backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 4 },
-  forumTitle: { fontSize: 11.5, fontWeight: '600', color: '#6b7280' },
-  forumBody: { fontSize: 13, color: '#374151', marginTop: 3 },
-  forumDate: { fontSize: 10.5, color: '#9ca3af', marginTop: 4 },
-  logoutBtn: { alignItems: 'center', paddingVertical: 16, marginTop: 8, marginBottom: 30 },
-  logoutText: { color: '#dc2626', fontSize: 13.5, fontWeight: '700' },
-});
+const SHADOW_MD = {
+  shadowColor: '#000',
+  shadowOpacity: 0.1,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 3 },
+  elevation: 3,
+};
+
+const SHADOW_SM = {
+  shadowColor: '#000',
+  shadowOpacity: 0.06,
+  shadowRadius: 6,
+  shadowOffset: { width: 0, height: 2 },
+  elevation: 2,
+};

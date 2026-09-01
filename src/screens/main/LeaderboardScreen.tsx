@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { Award, Flame, FileText, Trophy, User } from 'lucide-react-native';
 import { leaderboardAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
@@ -37,11 +37,14 @@ function LeaderboardRow({ entry, metric, isMe }: { entry: LeaderboardEntry; metr
   const rankColor = RANK_COLORS[entry.rank];
 
   return (
-    <Pressable style={[styles.row, isMe && styles.rowMe]} onPress={() => goToUserProfile(entry.username)}>
-      <View style={[styles.rankBadge, rankColor && { backgroundColor: rankColor.bg }]}>
-        <Text style={[styles.rankText, rankColor && { color: rankColor.text }]}>{entry.rank}</Text>
+    <Pressable
+      className={`flex-row items-center gap-2.5 bg-white rounded-xl p-2.5 ${isMe ? 'bg-brand/10 border border-brand/20' : ''}`}
+      onPress={() => goToUserProfile(entry.username)}
+    >
+      <View className="w-[30px] h-[30px] rounded-[15px] bg-gray-100 items-center justify-center" style={rankColor ? { backgroundColor: rankColor.bg } : undefined}>
+        <Text className="text-[13px] font-bold text-gray-600" style={rankColor ? { color: rankColor.text } : undefined}>{entry.rank}</Text>
       </View>
-      <View style={styles.avatarWrap}>
+      <View className="w-[34px] h-[34px] rounded-[17px] bg-brand/10 items-center justify-center overflow-hidden">
         {entry.avatar_config ? (
           <AvatarDisplay
             avatar={{ config: entry.avatar_config as any, photo_path: entry.avatar_photo_path, display_mode: entry.avatar_display_mode }}
@@ -51,22 +54,22 @@ function LeaderboardRow({ entry, metric, isMe }: { entry: LeaderboardEntry; metr
           <User size={17} color="#2F5755" />
         )}
       </View>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Text style={styles.username} numberOfLines={1}>
+      <View className="flex-1 min-w-0">
+        <View className="flex-row items-center gap-1.5">
+          <Text className="text-[13.5px] font-semibold text-gray-900 flex-shrink" numberOfLines={1}>
             {entry.username}
           </Text>
-          {isMe && <Text style={styles.meText}>(sen)</Text>}
+          {isMe && <Text className="text-[11px] text-brand font-semibold">(sen)</Text>}
         </View>
         {!!entry.badges?.length && (
-          <View style={{ flexDirection: 'row', gap: 3, marginTop: 3 }}>
+          <View className="flex-row gap-[3px] mt-[3px]">
             {entry.badges.map((b) => (
               <BadgeChip key={b.id} badge={b} compact />
             ))}
           </View>
         )}
       </View>
-      <Text style={styles.metric}>{metric}</Text>
+      <Text className="text-[13px] font-bold text-brand">{metric}</Text>
     </Pressable>
   );
 }
@@ -94,18 +97,22 @@ export default function LeaderboardScreen() {
   const meInTop = me && entries.some((e) => e.id === me.id);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.titleRow}>
+    <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4 pb-10">
+      <View className="flex-row items-center gap-2.5">
         <Trophy size={22} color="#2F5755" />
-        <Text style={styles.title}>Liderlik Tablosu</Text>
+        <Text className="text-[22px] font-extrabold text-gray-900">Liderlik Tablosu</Text>
       </View>
-      <Text style={styles.subtitle}>Not paylaşan, seri yapan ve rozet kazanan öğrenciler.</Text>
+      <Text className="text-[12.5px] text-gray-500 mt-1.5 mb-3.5">Not paylaşan, seri yapan ve rozet kazanan öğrenciler.</Text>
 
-      <View style={styles.sortRow}>
+      <View className="flex-row gap-2 mb-3.5">
         {SORTS.map(({ key, label, icon: Icon }) => (
-          <Pressable key={key} style={[styles.sortBtn, sort === key && styles.sortBtnActive]} onPress={() => setSort(key)}>
+          <Pressable
+            key={key}
+            className={`flex-row items-center gap-1.5 rounded-[10px] px-3 py-[9px] ${sort === key ? 'bg-brand' : 'bg-white'}`}
+            onPress={() => setSort(key)}
+          >
             <Icon size={14} color={sort === key ? '#fff' : '#4b5563'} />
-            <Text style={[styles.sortBtnText, sort === key && styles.sortBtnTextActive]}>{label}</Text>
+            <Text className={`text-xs font-semibold ${sort === key ? 'text-white' : 'text-gray-600'}`}>{label}</Text>
           </Pressable>
         ))}
       </View>
@@ -113,11 +120,11 @@ export default function LeaderboardScreen() {
       {loading ? (
         <ActivityIndicator style={{ marginTop: 30 }} size="large" color="#2F5755" />
       ) : entries.length === 0 ? (
-        <View style={styles.emptyBox}>
-          <Text style={styles.emptyText}>Henüz kimse bu kategoride sıralamaya girmedi. İlk sen ol!</Text>
+        <View className="items-center py-10 bg-white rounded-[14px]">
+          <Text className="text-gray-400 text-[13.5px] text-center px-6">Henüz kimse bu kategoride sıralamaya girmedi. İlk sen ol!</Text>
         </View>
       ) : (
-        <View style={{ gap: 6 }}>
+        <View className="gap-1.5">
           {entries.map((entry) => (
             <LeaderboardRow key={entry.id} entry={entry} metric={activeSort.metric(entry)} isMe={entry.id === user?.id} />
           ))}
@@ -126,10 +133,10 @@ export default function LeaderboardScreen() {
 
       {!loading && me && !meInTop && (
         <>
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>senin sıran</Text>
-            <View style={styles.dividerLine} />
+          <View className="flex-row items-center gap-2.5 my-3.5">
+            <View className="flex-1 h-px bg-gray-200" />
+            <Text className="text-[11px] text-gray-400">senin sıran</Text>
+            <View className="flex-1 h-px bg-gray-200" />
           </View>
           <LeaderboardRow entry={me} metric={activeSort.metric(me)} isMe />
         </>
@@ -137,29 +144,3 @@ export default function LeaderboardScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  content: { padding: 16, paddingBottom: 40 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  title: { fontSize: 22, fontWeight: '800', color: '#111827' },
-  subtitle: { fontSize: 12.5, color: '#6b7280', marginTop: 6, marginBottom: 14 },
-  sortRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  sortBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 },
-  sortBtnActive: { backgroundColor: '#2F5755' },
-  sortBtnText: { fontSize: 12, fontWeight: '600', color: '#4b5563' },
-  sortBtnTextActive: { color: '#fff' },
-  emptyBox: { alignItems: 'center', paddingVertical: 40, backgroundColor: '#fff', borderRadius: 14 },
-  emptyText: { color: '#9ca3af', fontSize: 13.5, textAlign: 'center', paddingHorizontal: 24 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#fff', borderRadius: 12, padding: 10 },
-  rowMe: { backgroundColor: '#2F575519', borderWidth: 1, borderColor: '#2F575533' },
-  rankBadge: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#f3f4f6', alignItems: 'center', justifyContent: 'center' },
-  rankText: { fontSize: 13, fontWeight: '700', color: '#4b5563' },
-  avatarWrap: { width: 34, height: 34, borderRadius: 17, backgroundColor: '#2F575519', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  username: { fontSize: 13.5, fontWeight: '600', color: '#111827', flexShrink: 1 },
-  meText: { fontSize: 11, color: '#2F5755', fontWeight: '600' },
-  metric: { fontSize: 13, fontWeight: '700', color: '#2F5755' },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 14 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#e5e7eb' },
-  dividerText: { fontSize: 11, color: '#9ca3af' },
-});

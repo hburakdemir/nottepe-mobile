@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { Lightbulb } from 'lucide-react-native';
 import { suggestionAPI } from '../../lib/api';
@@ -90,7 +90,7 @@ export default function SuggestionDetailScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color="#2F5755" />
       </View>
     );
@@ -98,27 +98,27 @@ export default function SuggestionDetailScreen() {
 
   if (!suggestion) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.notFoundText}>Öneri bulunamadı.</Text>
+      <View className="flex-1 items-center justify-center">
+        <Text className="text-gray-500 text-sm">Öneri bulunamadı.</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.card}>
-        <View style={{ flexDirection: 'row', gap: 10 }}>
+    <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4 pb-10">
+      <View className="bg-white rounded-2xl p-4 mb-3.5">
+        <View className="flex-row gap-2.5">
           <Lightbulb size={20} color="#2F5755" style={{ marginTop: 2 }} />
-          <Text style={styles.contentText}>{suggestion.content}</Text>
+          <Text className="flex-1 text-[15.5px] text-gray-900 leading-[22px]">{suggestion.content}</Text>
         </View>
         <Pressable onPress={() => goToUserProfile(suggestion.username)}>
-          <Text style={styles.authorText}>
-            <Text style={styles.authorLink}>{suggestion.full_name}</Text> tarafından {formatDate(suggestion.created_at)}
+          <Text className="text-[11.5px] text-gray-400 mt-3.5">
+            <Text className="text-brand font-semibold">{suggestion.full_name}</Text> tarafından {formatDate(suggestion.created_at)}
           </Text>
         </Pressable>
       </View>
 
-      <View style={styles.card}>
+      <View className="bg-white rounded-2xl p-4 mb-3.5">
         <ForumCommentList
           comments={comments}
           loading={commentsLoading}
@@ -131,14 +131,3 @@ export default function SuggestionDetailScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  content: { padding: 16, paddingBottom: 40 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  notFoundText: { color: '#6b7280', fontSize: 14 },
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 14 },
-  contentText: { flex: 1, fontSize: 15.5, color: '#111827', lineHeight: 22 },
-  authorText: { fontSize: 11.5, color: '#9ca3af', marginTop: 14 },
-  authorLink: { color: '#2F5755', fontWeight: '600' },
-});

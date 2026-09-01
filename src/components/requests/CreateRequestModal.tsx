@@ -46,7 +46,7 @@ export default function CreateRequestModal({ onClose, onCreated }: Props) {
         <View style={styles.sheet}>
           <View style={styles.headerRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <HeartHandshake size={18} color="#2F5755" />
+              <HeartHandshake size={20} color="#2F5755" />
               <Text style={styles.title}>Not İsteği Oluştur</Text>
             </View>
             <Pressable onPress={onClose} hitSlop={8}>
@@ -141,17 +141,17 @@ export default function CreateRequestModal({ onClose, onCreated }: Props) {
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 16 },
-  sheet: { backgroundColor: '#fff', borderRadius: 16, padding: 20, maxHeight: '85%' },
+  sheet: { backgroundColor: '#fff', borderRadius: 12, padding: 24, maxHeight: '85%' },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: 17, fontWeight: '700', color: '#111827' },
-  label: { fontSize: 12.5, fontWeight: '600', color: '#374151', marginBottom: 6, marginTop: 14 },
-  input: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#111827' },
+  title: { fontSize: 20, fontWeight: '700', color: '#111827' },
+  label: { fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 4, marginTop: 14 },
+  input: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 9, fontSize: 14, color: '#111827' },
   textArea: { minHeight: 80, textAlignVertical: 'top' },
-  selectBox: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 12 },
+  selectBox: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 11 },
   selectText: { fontSize: 14, color: '#111827' },
   selectPlaceholder: { fontSize: 14, color: '#9ca3af' },
-  submitBtn: { backgroundColor: '#2F5755', borderRadius: 10, alignItems: 'center', paddingVertical: 13, marginTop: 16 },
-  submitBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  submitBtn: { backgroundColor: '#2F5755', borderRadius: 8, alignItems: 'center', paddingVertical: 10, marginTop: 16 },
+  submitBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   pickerSheet: { backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingVertical: 8, maxHeight: '70%' },
   pickerOption: { paddingHorizontal: 20, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },

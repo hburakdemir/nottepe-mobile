@@ -1,10 +1,18 @@
 import React, { useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronRight, Library, Search } from 'lucide-react-native';
 import { faculties, departments } from '../../data/departments';
 import type { RootStackParamList } from '../../navigation/types';
+
+const SHADOW_MD = {
+  shadowColor: '#000',
+  shadowOpacity: 0.1,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 3 },
+  elevation: 3,
+};
 
 export default function DepartmentsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -22,57 +30,59 @@ export default function DepartmentsScreen() {
   }, [searchTerm]);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Fakülteler ve Bölümler</Text>
-        <Text style={styles.subtitle}>Fakülte ve bölümlere göre notları inceleyin</Text>
+    <View className="flex-1 bg-primary">
+      <View className="px-4 pt-4">
+        <Text className="text-4xl font-bold text-gray-900 mb-4">Fakülteler ve Bölümler</Text>
+        <Text className="text-base font-normal text-gray-500">Fakülte ve bölümlere göre notları inceleyin</Text>
       </View>
 
-      <View style={styles.searchBox}>
-        <Search size={18} color="#4f7d7a" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Fakülte veya bölüm ara..."
-          placeholderTextColor="#9ca3af"
-          value={searchTerm}
-          onChangeText={setSearchTerm}
-        />
+      <View className="bg-white rounded-lg mx-4 mt-8 mb-1 p-6" style={SHADOW_MD}>
+        <View className="flex-row items-center gap-2 bg-white rounded-lg px-3 py-2.5 border border-gray-300">
+          <Search size={20} color="#5A9690" />
+          <TextInput
+            className="flex-1 text-sm text-gray-900"
+            placeholder="Fakülte veya bölüm ara..."
+            placeholderTextColor="#9ca3af"
+            value={searchTerm}
+            onChangeText={setSearchTerm}
+          />
+        </View>
       </View>
 
       <FlatList
-        style={styles.list}
-        contentContainerStyle={styles.listContent}
+        className="flex-1"
+        contentContainerStyle={{ padding: 16, gap: 10 }}
         data={filteredFaculties}
         keyExtractor={(item) => item}
-        ListEmptyComponent={<Text style={styles.empty}>Arama sonucu bulunamadı.</Text>}
+        ListEmptyComponent={<Text className="text-center text-gray-400 mt-10">Arama sonucu bulunamadı.</Text>}
         renderItem={({ item: faculty }) => {
           const isExpanded = expandedFaculty === faculty;
           return (
-            <View style={styles.facultyCard}>
+            <View className="bg-white rounded-lg mb-2.5 overflow-hidden" style={SHADOW_MD}>
               <Pressable
-                style={styles.facultyHeader}
+                className="flex-row items-center justify-between px-3.5 py-3.5"
                 onPress={() => setExpandedFaculty(isExpanded ? null : faculty)}
               >
-                <View style={styles.facultyHeaderLeft}>
-                  <Library size={20} color="#4f7d7a" />
-                  <Text style={styles.facultyTitle}>{faculty}</Text>
+                <View className="flex-row items-center gap-2.5 flex-1">
+                  <Library size={24} color="#5A9690" />
+                  <Text className="text-lg font-semibold text-gray-900 flex-shrink">{faculty}</Text>
                 </View>
                 <ChevronRight
-                  size={18}
+                  size={20}
                   color="#2F5755"
                   style={{ transform: [{ rotate: isExpanded ? '90deg' : '0deg' }] }}
                 />
               </Pressable>
 
               {isExpanded && (
-                <View style={styles.deptGrid}>
+                <View className="gap-2 px-3.5 pb-3.5 border-t border-gray-200 pt-3 bg-gray-50">
                   {departments[faculty]?.map((department) => (
                     <Pressable
                       key={department}
-                      style={styles.deptChip}
+                      className="bg-white border border-gray-400 rounded-lg p-3"
                       onPress={() => navigation.navigate('DepartmentDetail', { faculty, department })}
                     >
-                      <Text style={styles.deptChipText}>{department}</Text>
+                      <Text className="text-sm text-gray-700 font-medium">{department}</Text>
                     </Pressable>
                   ))}
                 </View>
@@ -84,64 +94,3 @@ export default function DepartmentsScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  header: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
-  title: { fontSize: 24, fontWeight: '700', color: '#111827' },
-  subtitle: { fontSize: 13.5, color: '#6b7280', marginTop: 4 },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 4,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  searchInput: { flex: 1, fontSize: 14, color: '#111827' },
-  list: { flex: 1 },
-  listContent: { padding: 16, gap: 10 },
-  empty: { textAlign: 'center', color: '#9ca3af', marginTop: 40 },
-  facultyCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 10,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#f3f4f6',
-  },
-  facultyHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-  },
-  facultyHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
-  facultyTitle: { fontSize: 15, fontWeight: '600', color: '#111827', flexShrink: 1 },
-  deptGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    paddingHorizontal: 14,
-    paddingBottom: 14,
-    borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
-    paddingTop: 12,
-  },
-  deptChip: {
-    backgroundColor: '#f9fafb',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  deptChipText: { fontSize: 12.5, color: '#374151', fontWeight: '500' },
-});

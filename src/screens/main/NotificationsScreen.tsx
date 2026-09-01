@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { ActivityIndicator, FlatList, Linking, Pressable, Text, View } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 import {
   Bell,
   BookOpen,
@@ -88,43 +89,43 @@ const ACTIVITY_TYPE_META: Record<string, { icon: any; label: (n: any) => string 
 
 function AnnouncementCard({ notif }: { notif: Announcement }) {
   return (
-    <View style={styles.card}>
-      <View style={styles.metaRow}>
-        <View style={[styles.badge, notif.is_viewed ? styles.badgeMuted : styles.badgeActive]}>
-          <Text style={[styles.badgeText, notif.is_viewed && styles.badgeTextMuted]}>
+    <View className="bg-white rounded-xl p-3.5 mb-2.5">
+      <View className="flex-row items-center flex-wrap gap-1.5 mb-2">
+        <View className={`px-2 py-[3px] rounded-full ${notif.is_viewed ? 'bg-gray-100' : 'bg-brand'}`}>
+          <Text className={`text-[10.5px] font-semibold ${notif.is_viewed ? 'text-gray-500' : 'text-white'}`}>
             {notif.is_viewed ? `Görüntüleme Tarihi${notif.viewed_at ? ` · ${formatDateTime(notif.viewed_at)}` : ''}` : 'Yeni'}
           </Text>
         </View>
         {!!notif.category_name && (
-          <View style={styles.categoryBadge}>
+          <View className="flex-row items-center gap-1 bg-brand-light rounded-full px-2 py-[3px]">
             <Tag size={11} color="#fff" />
-            <Text style={styles.categoryText}>{notif.category_name}</Text>
+            <Text className="text-[10.5px] font-semibold text-white">{notif.category_name}</Text>
           </View>
         )}
         {!!notif.creator_full_name && (
-          <View style={styles.creatorBadge}>
+          <View className="flex-row items-center gap-1 bg-gray-100 rounded-full px-2 py-[3px]">
             <User size={11} color="#4b5563" />
-            <Text style={styles.creatorText}>{notif.creator_full_name}</Text>
+            <Text className="text-[10.5px] font-semibold text-gray-600">{notif.creator_full_name}</Text>
             {!!notif.creator_role && (
-              <View style={[styles.roleBadge, notif.creator_role === 'admin' && styles.roleBadgeAdmin]}>
-                <Text style={[styles.roleBadgeText, notif.creator_role === 'admin' && styles.roleBadgeTextAdmin]}>
+              <View className={`rounded ml-0.5 px-1 ${notif.creator_role === 'admin' ? 'bg-blue-900' : 'bg-blue-100'}`}>
+                <Text className={`text-[9px] font-bold ${notif.creator_role === 'admin' ? 'text-yellow-300' : 'text-blue-700'}`}>
                   {notif.creator_role}
                 </Text>
               </View>
             )}
           </View>
         )}
-        <View style={styles.dateRow}>
+        <View className="flex-row items-center gap-1 ml-auto">
           <Calendar size={11} color="#9ca3af" />
-          <Text style={styles.dateText}>Duyuru Tarihi: {formatDate(notif.created_at)}</Text>
+          <Text className="text-[11px] text-gray-400">Duyuru Tarihi: {formatDate(notif.created_at)}</Text>
         </View>
       </View>
-      <Text style={styles.cardTitle}>{notif.title}</Text>
-      <Text style={styles.cardContent}>{notif.content}</Text>
+      <Text className="text-[15.5px] font-bold text-gray-900 mb-1.5">{notif.title}</Text>
+      <Text className="text-[13.5px] text-gray-600 leading-[19px]">{notif.content}</Text>
       {!!notif.link && (
-        <Pressable style={styles.linkRow} onPress={() => Linking.openURL(notif.link!)}>
+        <Pressable className="flex-row items-center gap-1.5 mt-2.5" onPress={() => Linking.openURL(notif.link!)}>
           <ExternalLink size={14} color="#1d4ed8" />
-          <Text style={styles.linkText}>Daha fazla bilgi</Text>
+          <Text className="text-[13px] text-blue-700 font-semibold">Daha fazla bilgi</Text>
         </Pressable>
       )}
     </View>
@@ -145,21 +146,22 @@ function ActivityCard({ notif }: { notif: any }) {
   };
 
   return (
-    <Pressable style={styles.activityCard} disabled={!canNavigate} onPress={handlePress}>
-      <View style={styles.activityIcon}>
+    <Pressable className="flex-row items-start gap-2.5 bg-white rounded-xl p-3 mb-2.5" disabled={!canNavigate} onPress={handlePress}>
+      <View className="w-[34px] h-[34px] rounded-[17px] bg-brand/10 items-center justify-center">
         <Icon size={16} color="#2F5755" />
       </View>
-      <View style={{ flex: 1 }}>
-        <Text style={styles.activityLabel}>{label}</Text>
-        <Text style={styles.dateText}>{formatDate(notif.created_at)}</Text>
+      <View className="flex-1">
+        <Text className="text-[13.5px] text-gray-700 leading-[19px]">{label}</Text>
+        <Text className="text-[11px] text-gray-400">{formatDate(notif.created_at)}</Text>
       </View>
-      {!notif.read_at && <View style={styles.dot} />}
+      {!notif.read_at && <View className="w-2 h-2 rounded-full bg-brand mt-1.5" />}
     </Pressable>
   );
 }
 
 export default function NotificationsScreen() {
-  const [tab, setTab] = useState<'duyurular' | 'aktivite'>('duyurular');
+  const route = useRoute<RouteProp<RootStackParamList, 'Notifications'>>();
+  const [tab, setTab] = useState<'duyurular' | 'aktivite'>(route.params?.initialTab ?? 'duyurular');
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategory, setActiveCategory] = useState('');
@@ -201,40 +203,46 @@ export default function NotificationsScreen() {
   }, [tab, activityLoaded]);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.tabRow}>
-        <Pressable style={[styles.tabBtn, tab === 'duyurular' && styles.tabBtnActive]} onPress={() => setTab('duyurular')}>
+    <View className="flex-1 bg-gray-50">
+      <View className="flex-row gap-2 p-3 pb-1">
+        <Pressable
+          className={`flex-row items-center gap-1.5 border border-brand rounded-[10px] px-3.5 py-2 ${tab === 'duyurular' ? 'bg-brand' : ''}`}
+          onPress={() => setTab('duyurular')}
+        >
           <Megaphone size={15} color={tab === 'duyurular' ? '#fff' : '#2F5755'} />
-          <Text style={[styles.tabBtnText, tab === 'duyurular' && styles.tabBtnTextActive]}>Duyurular</Text>
+          <Text className={`text-[13px] font-semibold ${tab === 'duyurular' ? 'text-white' : 'text-brand'}`}>Duyurular</Text>
         </Pressable>
-        <Pressable style={[styles.tabBtn, tab === 'aktivite' && styles.tabBtnActive]} onPress={() => setTab('aktivite')}>
+        <Pressable
+          className={`flex-row items-center gap-1.5 border border-brand rounded-[10px] px-3.5 py-2 ${tab === 'aktivite' ? 'bg-brand' : ''}`}
+          onPress={() => setTab('aktivite')}
+        >
           <Bell size={15} color={tab === 'aktivite' ? '#fff' : '#2F5755'} />
-          <Text style={[styles.tabBtnText, tab === 'aktivite' && styles.tabBtnTextActive]}>Aktivite</Text>
+          <Text className={`text-[13px] font-semibold ${tab === 'aktivite' ? 'text-white' : 'text-brand'}`}>Aktivite</Text>
         </Pressable>
       </View>
 
       {tab === 'duyurular' ? (
         <FlatList
-          contentContainerStyle={styles.listContent}
+          contentContainerClassName="p-3 flex-grow gap-2.5"
           data={announcements}
           keyExtractor={(item) => String(item.id)}
           renderItem={({ item }) => <AnnouncementCard notif={item} />}
           ListHeaderComponent={
             categories.length > 0 ? (
-              <View style={styles.categoryFilterRow}>
+              <View className="flex-row flex-wrap gap-2 mb-3">
                 <Pressable
-                  style={[styles.filterChip, activeCategory === '' && styles.filterChipActive]}
+                  className={`rounded-full px-3 py-1.5 border ${activeCategory === '' ? 'bg-brand border-brand' : 'bg-white border-gray-200'}`}
                   onPress={() => setActiveCategory('')}
                 >
-                  <Text style={[styles.filterChipText, activeCategory === '' && styles.filterChipTextActive]}>Tümü</Text>
+                  <Text className={`text-xs font-medium ${activeCategory === '' ? 'text-white' : 'text-gray-500'}`}>Tümü</Text>
                 </Pressable>
                 {categories.map((cat) => (
                   <Pressable
                     key={cat.id}
-                    style={[styles.filterChip, activeCategory === cat.slug && styles.filterChipActive]}
+                    className={`rounded-full px-3 py-1.5 border ${activeCategory === cat.slug ? 'bg-brand border-brand' : 'bg-white border-gray-200'}`}
                     onPress={() => setActiveCategory(cat.slug)}
                   >
-                    <Text style={[styles.filterChipText, activeCategory === cat.slug && styles.filterChipTextActive]}>
+                    <Text className={`text-xs font-medium ${activeCategory === cat.slug ? 'text-white' : 'text-gray-500'}`}>
                       {cat.name}
                     </Text>
                   </Pressable>
@@ -246,13 +254,13 @@ export default function NotificationsScreen() {
             loadingAnnouncements ? (
               <ActivityIndicator style={{ marginTop: 24 }} color="#1d4ed8" />
             ) : (
-              <Text style={styles.emptyText}>Henüz bildirim yok.</Text>
+              <Text className="text-center text-gray-400 mt-6">Henüz bildirim yok.</Text>
             )
           }
         />
       ) : (
         <FlatList
-          contentContainerStyle={styles.listContent}
+          contentContainerClassName="p-3 flex-grow gap-2.5"
           data={activity}
           keyExtractor={(item) => String(item.id)}
           renderItem={({ item }) => <ActivityCard notif={item} />}
@@ -260,7 +268,7 @@ export default function NotificationsScreen() {
             activityLoading ? (
               <ActivityIndicator style={{ marginTop: 24 }} color="#1d4ed8" />
             ) : (
-              <Text style={styles.emptyText}>Henüz aktivite bildirimi yok.</Text>
+              <Text className="text-center text-gray-400 mt-6">Henüz aktivite bildirimi yok.</Text>
             )
           }
         />
@@ -268,68 +276,3 @@ export default function NotificationsScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  tabRow: { flexDirection: 'row', gap: 8, padding: 12, paddingBottom: 4 },
-  tabBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderWidth: 1,
-    borderColor: '#2F5755',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  tabBtnActive: { backgroundColor: '#2F5755' },
-  tabBtnText: { fontSize: 13, fontWeight: '600', color: '#2F5755' },
-  tabBtnTextActive: { color: '#fff' },
-  listContent: { padding: 12, flexGrow: 1, gap: 10 },
-  categoryFilterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  filterChip: { backgroundColor: '#fff', borderRadius: 100, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: '#e5e7eb' },
-  filterChipActive: { backgroundColor: '#2F5755', borderColor: '#2F5755' },
-  filterChipText: { fontSize: 12, color: '#6b7280', fontWeight: '500' },
-  filterChipTextActive: { color: '#fff' },
-  emptyText: { textAlign: 'center', color: '#9ca3af', marginTop: 24 },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
-  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 100 },
-  badgeActive: { backgroundColor: '#2F5755' },
-  badgeMuted: { backgroundColor: '#f3f4f6' },
-  badgeText: { fontSize: 10.5, fontWeight: '600', color: '#fff' },
-  badgeTextMuted: { color: '#6b7280' },
-  categoryBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#4f7d7a', borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3 },
-  categoryText: { fontSize: 10.5, fontWeight: '600', color: '#fff' },
-  creatorBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#f3f4f6', borderRadius: 100, paddingHorizontal: 8, paddingVertical: 3 },
-  creatorText: { fontSize: 10.5, fontWeight: '600', color: '#4b5563' },
-  roleBadge: { backgroundColor: '#dbeafe', borderRadius: 4, paddingHorizontal: 4, marginLeft: 2 },
-  roleBadgeAdmin: { backgroundColor: '#1e3a8a' },
-  roleBadgeText: { fontSize: 9, fontWeight: '700', color: '#1d4ed8' },
-  roleBadgeTextAdmin: { color: '#fde047' },
-  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' },
-  dateText: { fontSize: 11, color: '#9ca3af' },
-  cardTitle: { fontSize: 15.5, fontWeight: '700', color: '#111827', marginBottom: 6 },
-  cardContent: { fontSize: 13.5, color: '#4b5563', lineHeight: 19 },
-  linkRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
-  linkText: { fontSize: 13, color: '#1d4ed8', fontWeight: '600' },
-  activityCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 10,
-  },
-  activityIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#2F575519',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  activityLabel: { fontSize: 13.5, color: '#374151', lineHeight: 19 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#2F5755', marginTop: 6 },
-});

@@ -114,6 +114,48 @@ Web'de bildirim sistemi DB tabanlı (`notificationRoutes.js`, in-app). Mobilde g
 - Splash/icon/store assets, EAS Build (iOS/Android), TestFlight + Play Internal Testing.
 - Analytics/crash reporting (Sentry — web'de yoksa mobilde ilk kurulacak izleme katmanı olabilir, ayrı karar).
 
+### Faz 5.1 — NativeWind'e geçiş + web'le piksel-birebir uyum (devam ediyor)
+
+Kullanıcı isteği: tüm CSS'i `StyleSheet.create`'ten NativeWind/Tailwind'e taşı, ve
+Playwright ile web'in gerçek mobil-genişlik responsive görünümünü referans alıp
+her ekranın her padding/spacing'ini birebir eşle. Web'de olup mobilde hiç
+olmayan iki parça da bu fazda eklendi: üstte sabit navbar+hamburger menü, ve
+alt tab bar'ın web'deki 5 sekmeli (Bildirimler yok, o hamburger'e taşındı)
+yapısı. Tek bilinçli mobil-özel sapma: web'de sadece "Ekle" hep yükseltilmiş
+kalırken, mobilde HANGİ sekme aktifse o dalga eğrisiyle yükseltilen oyuğa kayıyor.
+
+**Tamamlanan (bu oturumda):**
+- NativeWind v4 kuruldu (`babel.config.js`, `metro.config.js`, `tailwind.config.js`
+  — web'in `tailwind.config.js`'iyle birebir aynı `brand/beige/primary/secondary/
+  darktext/darkbgbutton/darkhover/darkbg` token'ları —, `global.css`,
+  `nativewind-env.d.ts`). `expo-env.d.ts` de eklendi (gitignore'da, `expo start`
+  her çalıştığında otomatik yeniden oluşuyor — normal davranış).
+- `src/context/ThemeContext.tsx`: web'deki gibi varsayılan "dark" tema,
+  AsyncStorage'da kalıcı, NativeWind `colorScheme` ile senkron.
+- `src/components/layout/AppHeader.tsx` + `HamburgerMenu.tsx`: web'in
+  `Navbar.jsx` mobil dalının birebir karşılığı (logo + hamburger; menüde Not
+  İstekleri/SSS/Öneriler/Bildirimler/Duyurular/Yardım/tema/Çıkış). Admin linki
+  bilinçli olarak yok (varsayım: yönetim paneli web'de kalıyor).
+- `src/components/layout/WaveTabBar.tsx`: `MainNavigator`'a özel `tabBar` —
+  5 sekme (Bildirimler tab'dan çıkıp `RootStackParamList`'e taşındı, artık
+  sadece hamburger'den `{ initialTab }` param'ıyla açılıyor), react-native-svg
+  ile çizilen kayan/oyuk (notch) arka plan + react-native-reanimated spring
+  animasyonuyla aktif sekmeye kayan yükseltilmiş ikon balonu. Emülatörde uçtan
+  uca test edildi (sekme geçişi, hamburger, Bildirimler routing) — çalışıyor.
+- `NotificationsScreen.tsx` zaten hem Duyurular hem Aktivite sekmelerini
+  içeriyormuş (ayrı bir ekran eklemeye gerek kalmadı) — sadece `route.params.
+  initialTab` okuyacak şekilde küçük bir değişiklik yeterli oldu.
+
+**Sırada:** Playwright ile web'in mobil görünümünü ekran ekran (Faz D — önce
+Home/Departments/Tools/Profile/AddPost, sonra detay ekranları, sonra auth
+ekranları) gezip her ekranın `StyleSheet.create` bloklarını NativeWind
+`className`'lerine çevirmek. Not: web tarafında canlı/authenticated Playwright
+ekran görüntüsü almak için önce yerel backend'in (`server/`) ayağa
+kaldırılması ve bir test hesabıyla giriş yapılması gerekiyor — bu oturumda
+yapılmadı (backend'e dokunmadan önce onay bekleniyor), bunun yerine web
+kaynak kodundaki (`Navbar.jsx`, `MobileTabBar.jsx` vb.) Tailwind class'ları
+birebir referans alındı.
+
 ---
 
 ## Store Deploy Süreci — Maliyet ve Şartlar

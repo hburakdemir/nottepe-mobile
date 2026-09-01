@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { ChevronDown, HeartHandshake, Inbox, Plus, X } from 'lucide-react-native';
 import { noteRequestAPI } from '../../lib/api';
 import { faculties, departments } from '../../data/departments';
@@ -120,71 +120,80 @@ export default function NoteRequestsScreen() {
   const hasMore = view === 'board' && requests.length < total;
 
   const header = (
-    <View style={styles.headerBlock}>
-      <View style={styles.titleRow}>
-        <HeartHandshake size={22} color="#2F5755" />
-        <Text style={styles.title}>Not İstekleri</Text>
+    <View className="mb-4">
+      <View className="flex-row items-center gap-2.5">
+        <HeartHandshake size={32} color="#2F5755" />
+        <Text className="text-3xl font-bold text-gray-900">Not İstekleri</Text>
       </View>
-      <Text style={styles.subtitle}>Aradığın notu bulamadın mı? İste — elinde olan varsa karşılasın.</Text>
+      <Text className="text-base text-gray-600 mt-2">Aradığın notu bulamadın mı? İste — elinde olan varsa karşılasın.</Text>
 
-      <Pressable style={styles.createBtn} onPress={() => setShowCreate(true)}>
-        <Plus size={16} color="#fff" />
-        <Text style={styles.createBtnText}>İstek Oluştur</Text>
+      <Pressable className="flex-row items-center justify-center gap-2 bg-brand rounded-lg px-5 py-2.5 mt-4 self-start" onPress={() => setShowCreate(true)}>
+        <Plus size={18} color="#fff" />
+        <Text className="text-white text-[15px] font-bold">İstek Oluştur</Text>
       </Pressable>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: 14 }}>
-        <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View className="flex-row gap-2">
           {[
             { value: 'open' as const, label: 'Açık İstekler' },
             { value: 'fulfilled' as const, label: 'Karşılananlar' },
-          ].map((t) => (
-            <Pressable
-              key={t.value}
-              style={[styles.filterChip, view === 'board' && status === t.value && styles.filterChipActive]}
-              onPress={() => {
-                setView('board');
-                setStatus(t.value);
-              }}
-            >
-              <Text style={[styles.filterChipText, view === 'board' && status === t.value && styles.filterChipTextActive]}>
-                {t.label}
-              </Text>
-            </Pressable>
-          ))}
-          <Pressable style={[styles.filterChip, view === 'mine' && styles.filterChipActive]} onPress={() => setView('mine')}>
-            <Text style={[styles.filterChipText, view === 'mine' && styles.filterChipTextActive]}>İsteklerim</Text>
+          ].map((t) => {
+            const active = view === 'board' && status === t.value;
+            return (
+              <Pressable
+                key={t.value}
+                className={`rounded-lg px-4 py-2 mr-2 ${active ? 'bg-brand' : 'bg-gray-100'}`}
+                onPress={() => {
+                  setView('board');
+                  setStatus(t.value);
+                }}
+              >
+                <Text className={`text-sm font-semibold ${active ? 'text-white' : 'text-gray-600'}`}>{t.label}</Text>
+              </Pressable>
+            );
+          })}
+          <Pressable className={`rounded-lg px-4 py-2 mr-2 ${view === 'mine' ? 'bg-brand' : 'bg-gray-100'}`} onPress={() => setView('mine')}>
+            <Text className={`text-sm font-semibold ${view === 'mine' ? 'text-white' : 'text-gray-600'}`}>İsteklerim</Text>
           </Pressable>
         </View>
       </ScrollView>
 
       {view === 'board' && (
         <>
-          <View style={styles.sortRow}>
+          <View className="flex-row gap-1 mt-3 bg-gray-100 rounded-lg p-1 self-end">
             {[
               { value: 'new' as const, label: 'En Yeni' },
               { value: 'top' as const, label: 'En Çok İstenen' },
-            ].map((s) => (
-              <Pressable key={s.value} style={[styles.sortBtn, sort === s.value && styles.sortBtnActive]} onPress={() => setSort(s.value)}>
-                <Text style={[styles.sortBtnText, sort === s.value && styles.sortBtnTextActive]}>{s.label}</Text>
-              </Pressable>
-            ))}
+            ].map((s) => {
+              const active = sort === s.value;
+              return (
+                <Pressable
+                  key={s.value}
+                  className="px-3 py-1.5 rounded-md"
+                  style={active ? SHADOW_SM : undefined}
+                  onPress={() => setSort(s.value)}
+                >
+                  <Text className={`text-xs font-semibold ${active ? 'text-brand' : 'text-gray-500'}`}>{s.label}</Text>
+                </Pressable>
+              );
+            })}
           </View>
 
-          <View style={styles.filterCard}>
-            <Pressable style={styles.selectBox} onPress={() => setShowFacultyPicker(true)}>
-              <Text style={faculty ? styles.selectText : styles.selectPlaceholder} numberOfLines={1}>
+          <View className="flex-col gap-3 mt-4 bg-white rounded-lg p-4" style={SHADOW_MD}>
+            <Pressable className="flex-row items-center justify-between bg-white border border-gray-300 rounded-lg px-4 py-2.5" onPress={() => setShowFacultyPicker(true)}>
+              <Text className={`text-sm flex-shrink ${faculty ? 'text-gray-900' : 'text-gray-400'}`} numberOfLines={1}>
                 {faculty || 'Tüm Fakülteler'}
               </Text>
-              <ChevronDown size={15} color="#6b7280" />
+              <ChevronDown size={16} color="#6b7280" />
             </Pressable>
             <Pressable
-              style={[styles.selectBox, !faculty && { opacity: 0.5 }]}
+              className={`flex-row items-center justify-between bg-white border border-gray-300 rounded-lg px-4 py-2.5 ${!faculty ? 'opacity-50' : ''}`}
               onPress={() => faculty && setShowDeptPicker(true)}
             >
-              <Text style={department ? styles.selectText : styles.selectPlaceholder} numberOfLines={1}>
+              <Text className={`text-sm flex-shrink ${department ? 'text-gray-900' : 'text-gray-400'}`} numberOfLines={1}>
                 {department || 'Tüm Bölümler'}
               </Text>
-              <ChevronDown size={15} color="#6b7280" />
+              <ChevronDown size={16} color="#6b7280" />
             </Pressable>
           </View>
         </>
@@ -193,14 +202,14 @@ export default function NoteRequestsScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View className="flex-1 bg-primary">
       {loading ? (
-        <View style={styles.center}>
+        <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#2F5755" />
         </View>
       ) : (
         <FlatList
-          contentContainerStyle={styles.listContent}
+          contentContainerClassName="p-4 pb-10"
           data={requests}
           keyExtractor={(item) => String(item.id)}
           ListHeaderComponent={header}
@@ -215,15 +224,15 @@ export default function NoteRequestsScreen() {
             />
           )}
           ListEmptyComponent={
-            <View style={styles.emptyBox}>
-              <Inbox size={40} color="#d1d5db" />
-              <Text style={styles.emptyText}>{view === 'mine' ? 'Henüz istek oluşturmadın.' : 'Bu filtrede istek bulunamadı.'}</Text>
+            <View className="items-center bg-white rounded-lg py-12 gap-4" style={SHADOW_MD}>
+              <Inbox size={64} color="#9ca3af" />
+              <Text className="text-gray-500 text-lg">{view === 'mine' ? 'Henüz istek oluşturmadın.' : 'Bu filtrede istek bulunamadı.'}</Text>
             </View>
           }
           ListFooterComponent={
             hasMore ? (
-              <Pressable style={styles.loadMoreBtn} onPress={() => fetchBoard(page + 1)} disabled={loadingMore}>
-                {loadingMore ? <ActivityIndicator color="#2F5755" /> : <Text style={styles.loadMoreText}>Daha Fazla Göster</Text>}
+              <Pressable className="items-center border border-brand rounded-lg py-2.5 mt-2" onPress={() => fetchBoard(page + 1)} disabled={loadingMore}>
+                {loadingMore ? <ActivityIndicator color="#2F5755" /> : <Text className="text-brand text-[13px] font-semibold">Daha Fazla Göster</Text>}
               </Pressable>
             ) : null
           }
@@ -234,36 +243,36 @@ export default function NoteRequestsScreen() {
       {fulfillTarget && <FulfillModal request={fulfillTarget} onClose={() => setFulfillTarget(null)} onFulfilled={refresh} />}
 
       <Modal visible={showFacultyPicker} transparent animationType="slide" onRequestClose={() => setShowFacultyPicker(false)}>
-        <Pressable style={styles.pickerOverlay} onPress={() => setShowFacultyPicker(false)}>
-          <View style={styles.pickerSheet}>
-            <View style={styles.pickerHeaderRow}>
-              <Text style={styles.pickerTitle}>Fakülte</Text>
+        <Pressable className="flex-1 bg-black/40 justify-end" onPress={() => setShowFacultyPicker(false)}>
+          <View className="bg-white rounded-t-2xl p-4 max-h-[75%]">
+            <View className="flex-row items-center justify-between mb-2.5">
+              <Text className="text-[15px] font-bold text-gray-900">Fakülte</Text>
               <Pressable onPress={() => setShowFacultyPicker(false)} hitSlop={8}>
                 <X size={20} color="#6b7280" />
               </Pressable>
             </View>
             <ScrollView>
               <Pressable
-                style={styles.pickerOption}
+                className="py-3 border-b border-gray-100"
                 onPress={() => {
                   setFaculty('');
                   setDepartment('');
                   setShowFacultyPicker(false);
                 }}
               >
-                <Text style={styles.pickerOptionText}>Tüm Fakülteler</Text>
+                <Text className="text-sm text-gray-700">Tüm Fakülteler</Text>
               </Pressable>
               {faculties.map((f) => (
                 <Pressable
                   key={f}
-                  style={styles.pickerOption}
+                  className="py-3 border-b border-gray-100"
                   onPress={() => {
                     setFaculty(f);
                     setDepartment('');
                     setShowFacultyPicker(false);
                   }}
                 >
-                  <Text style={styles.pickerOptionText}>{f}</Text>
+                  <Text className="text-sm text-gray-700">{f}</Text>
                 </Pressable>
               ))}
             </ScrollView>
@@ -272,34 +281,34 @@ export default function NoteRequestsScreen() {
       </Modal>
 
       <Modal visible={showDeptPicker} transparent animationType="slide" onRequestClose={() => setShowDeptPicker(false)}>
-        <Pressable style={styles.pickerOverlay} onPress={() => setShowDeptPicker(false)}>
-          <View style={styles.pickerSheet}>
-            <View style={styles.pickerHeaderRow}>
-              <Text style={styles.pickerTitle}>Bölüm</Text>
+        <Pressable className="flex-1 bg-black/40 justify-end" onPress={() => setShowDeptPicker(false)}>
+          <View className="bg-white rounded-t-2xl p-4 max-h-[75%]">
+            <View className="flex-row items-center justify-between mb-2.5">
+              <Text className="text-[15px] font-bold text-gray-900">Bölüm</Text>
               <Pressable onPress={() => setShowDeptPicker(false)} hitSlop={8}>
                 <X size={20} color="#6b7280" />
               </Pressable>
             </View>
             <ScrollView>
               <Pressable
-                style={styles.pickerOption}
+                className="py-3 border-b border-gray-100"
                 onPress={() => {
                   setDepartment('');
                   setShowDeptPicker(false);
                 }}
               >
-                <Text style={styles.pickerOptionText}>Tüm Bölümler</Text>
+                <Text className="text-sm text-gray-700">Tüm Bölümler</Text>
               </Pressable>
               {(departments[faculty] || []).map((d) => (
                 <Pressable
                   key={d}
-                  style={styles.pickerOption}
+                  className="py-3 border-b border-gray-100"
                   onPress={() => {
                     setDepartment(d);
                     setShowDeptPicker(false);
                   }}
                 >
-                  <Text style={styles.pickerOptionText}>{d}</Text>
+                  <Text className="text-sm text-gray-700">{d}</Text>
                 </Pressable>
               ))}
             </ScrollView>
@@ -310,46 +319,19 @@ export default function NoteRequestsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  listContent: { padding: 16, paddingBottom: 40 },
-  headerBlock: { marginBottom: 16 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  title: { fontSize: 22, fontWeight: '800', color: '#111827' },
-  subtitle: { fontSize: 12.5, color: '#6b7280', marginTop: 6 },
-  createBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#2F5755', borderRadius: 10, paddingVertical: 12, marginTop: 14 },
-  createBtnText: { color: '#fff', fontSize: 13.5, fontWeight: '700' },
-  filterChip: { backgroundColor: '#fff', borderRadius: 100, paddingHorizontal: 14, paddingVertical: 9, marginRight: 8 },
-  filterChipActive: { backgroundColor: '#2F5755' },
-  filterChipText: { fontSize: 12.5, fontWeight: '600', color: '#4b5563' },
-  filterChipTextActive: { color: '#fff' },
-  sortRow: { flexDirection: 'row', gap: 6, marginTop: 12, backgroundColor: '#fff', borderRadius: 10, padding: 4, alignSelf: 'flex-start' },
-  sortBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8 },
-  sortBtnActive: { backgroundColor: '#2F575519' },
-  sortBtnText: { fontSize: 11.5, fontWeight: '600', color: '#9ca3af' },
-  sortBtnTextActive: { color: '#2F5755' },
-  filterCard: { flexDirection: 'row', gap: 10, marginTop: 12 },
-  selectBox: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 11,
-  },
-  selectText: { fontSize: 12.5, color: '#111827', flexShrink: 1 },
-  selectPlaceholder: { fontSize: 12.5, color: '#9ca3af', flexShrink: 1 },
-  emptyBox: { alignItems: 'center', paddingVertical: 50, gap: 10 },
-  emptyText: { color: '#9ca3af', fontSize: 13.5 },
-  loadMoreBtn: { alignItems: 'center', borderWidth: 1, borderColor: '#2F5755', borderRadius: 10, paddingVertical: 12, marginTop: 8 },
-  loadMoreText: { color: '#2F5755', fontSize: 13, fontWeight: '600' },
-  pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  pickerSheet: { backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, maxHeight: '75%' },
-  pickerHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  pickerTitle: { fontSize: 15, fontWeight: '700', color: '#111827' },
-  pickerOption: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  pickerOptionText: { fontSize: 14, color: '#374151' },
-});
+const SHADOW_MD = {
+  shadowColor: '#000',
+  shadowOpacity: 0.1,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 3 },
+  elevation: 3,
+};
+
+const SHADOW_SM = {
+  backgroundColor: '#fff',
+  shadowColor: '#000',
+  shadowOpacity: 0.06,
+  shadowRadius: 2,
+  shadowOffset: { width: 0, height: 1 },
+  elevation: 1,
+};

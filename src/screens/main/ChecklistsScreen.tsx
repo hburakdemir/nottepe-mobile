@@ -5,7 +5,6 @@ import {
   FlatList,
   Modal,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -116,16 +115,36 @@ export default function ChecklistsScreen() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <View className="flex-1 items-center justify-center">
         <ActivityIndicator size="large" color="#1d4ed8" />
       </View>
     );
   }
 
+  const header = (
+    <View className="mb-6">
+      <View className="flex-row flex-wrap items-start justify-between gap-3">
+        <View className="flex-1">
+          <View className="flex-row items-center gap-2.5">
+            <ListChecks size={32} color="#2F5755" />
+            <Text className="text-3xl font-bold text-gray-900">Checklistler</Text>
+          </View>
+          <Text className="text-sm text-gray-600 mt-2">
+            Kayıt dönemi, mezuniyet ve daha fazlası — işaretlediklerin hesabında saklanır.
+          </Text>
+        </View>
+        <Pressable className="flex-row items-center gap-2 bg-brand rounded-lg px-4 py-2" onPress={openCreateModal}>
+          <Plus size={16} color="#fff" />
+          <Text className="text-white text-sm font-medium">Checklist Oluştur</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+
   return (
-    <View style={styles.container}>
+    <View className="flex-1 bg-primary">
       <FlatList
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 40, paddingBottom: 24, flexGrow: 1 }}
         data={checklists}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => (
@@ -139,18 +158,14 @@ export default function ChecklistsScreen() {
             canEdit={item.list_type === 'user' && item.created_by === user?.id && isWithinEditWindow(item)}
           />
         )}
+        ListHeaderComponent={header}
         ListEmptyComponent={
-          <View style={styles.emptyBox}>
-            <ListChecks size={40} color="#d1d5db" />
-            <Text style={styles.emptyText}>Henüz yayınlanmış bir checklist yok.</Text>
+          <View className="items-center gap-3 bg-white rounded-lg p-12" style={SHADOW_MD}>
+            <ListChecks size={64} color="#9ca3af" />
+            <Text className="text-gray-500 text-lg text-center">Henüz yayınlanmış bir checklist yok.</Text>
           </View>
         }
       />
-
-      <Pressable style={styles.fab} onPress={openCreateModal}>
-        <Plus size={20} color="#fff" />
-        <Text style={styles.fabText}>Checklist Oluştur</Text>
-      </Pressable>
 
       {statsChecklist && <ChecklistStatsModal checklist={statsChecklist} onClose={() => setStatsChecklist(null)} />}
       {editChecklist && (
@@ -162,22 +177,24 @@ export default function ChecklistsScreen() {
       )}
 
       <Modal visible={showCreate} transparent animationType="fade" onRequestClose={() => setShowCreate(false)}>
-        <View style={styles.overlay}>
-          <View style={styles.sheet}>
-            <View style={styles.headerRow}>
-              <Text style={styles.sheetTitle}>Yeni Checklist Oluştur</Text>
+        <View className="flex-1 bg-black/50 justify-center p-4">
+          <View className="bg-white rounded-xl p-6 max-h-[88%]">
+            <View className="flex-row items-center justify-between">
+              <Text className="text-xl font-bold text-gray-900 flex-1 pr-3">Yeni Checklist Oluştur</Text>
               <Pressable onPress={() => setShowCreate(false)} hitSlop={8}>
                 <X size={20} color="#6b7280" />
               </Pressable>
             </View>
-            <Text style={styles.sheetHint}>
+            <Text className="text-xs text-gray-400 mt-1 mb-5 leading-4">
               Checklistin admin onayına gönderilir; onaylanana kadar yalnızca sana görünür. Oluşturduktan sonra
               1 saat içinde düzenleyebilirsin.
             </Text>
 
-            <Text style={styles.label}>Başlık *</Text>
+            <Text className="text-sm font-medium text-gray-700 mb-1 mt-4">
+              Başlık <Text style={{ color: '#ef4444' }}>*</Text>
+            </Text>
             <TextInput
-              style={styles.input}
+              className="border border-gray-300 rounded-lg px-4 py-2 text-base text-gray-900"
               value={createTitle}
               onChangeText={setCreateTitle}
               maxLength={200}
@@ -185,21 +202,21 @@ export default function ChecklistsScreen() {
               placeholderTextColor="#9ca3af"
             />
 
-            <Text style={styles.label}>Açıklama</Text>
+            <Text className="text-sm font-medium text-gray-700 mb-1 mt-4">Açıklama</Text>
             <TextInput
-              style={styles.input}
+              className="border border-gray-300 rounded-lg px-4 py-2 text-base text-gray-900"
               value={createDesc}
               onChangeText={setCreateDesc}
               placeholder="Kısa açıklama (opsiyonel)"
               placeholderTextColor="#9ca3af"
             />
 
-            <Text style={styles.label}>Maddeler</Text>
-            <View style={{ gap: 8 }}>
+            <Text className="text-sm font-medium text-gray-700 mb-1 mt-4">Maddeler</Text>
+            <View className="gap-2">
               {createItems.map((item, idx) => (
-                <View key={idx} style={styles.itemRow}>
+                <View key={idx} className="flex-row items-center gap-2.5">
                   <TextInput
-                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                    className="flex-1 mb-0 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
                     value={item}
                     onChangeText={(text) =>
                       setCreateItems((prev) => prev.map((v, i) => (i === idx ? text : v)))
@@ -210,25 +227,29 @@ export default function ChecklistsScreen() {
                   />
                   {createItems.length > 1 && (
                     <Pressable onPress={() => setCreateItems((prev) => prev.filter((_, i) => i !== idx))} hitSlop={8}>
-                      <Trash2 size={17} color="#dc2626" />
+                      <Trash2 size={17} color="#660B05" />
                     </Pressable>
                   )}
                 </View>
               ))}
             </View>
             {createItems.length < 30 && (
-              <Pressable style={styles.addItemBtn} onPress={() => setCreateItems((prev) => [...prev, ''])}>
-                <Plus size={13} color="#1d4ed8" />
-                <Text style={styles.addItemText}>Madde ekle</Text>
+              <Pressable className="flex-row items-center gap-[5px] mt-2.5" onPress={() => setCreateItems((prev) => [...prev, ''])}>
+                <Plus size={14} color="#2F5755" />
+                <Text className="text-xs font-medium text-brand">Madde ekle</Text>
               </Pressable>
             )}
 
-            <View style={styles.actionsRow}>
-              <Pressable style={styles.cancelBtn} onPress={() => setShowCreate(false)}>
-                <Text style={styles.cancelText}>İptal</Text>
+            <View className="flex-row gap-3 mt-6">
+              <Pressable className="flex-1 items-center py-2 rounded-lg border border-gray-300" onPress={() => setShowCreate(false)}>
+                <Text className="text-gray-700 text-sm font-normal">İptal</Text>
               </Pressable>
-              <Pressable style={[styles.saveBtn, creating && { opacity: 0.6 }]} onPress={handleCreate} disabled={creating}>
-                <Text style={styles.saveText}>{creating ? 'Oluşturuluyor…' : 'Oluştur'}</Text>
+              <Pressable
+                className={`flex-1 items-center py-2 rounded-lg bg-brand ${creating ? 'opacity-60' : ''}`}
+                onPress={handleCreate}
+                disabled={creating}
+              >
+                <Text className="text-white text-sm font-medium">{creating ? 'Oluşturuluyor...' : 'Oluştur'}</Text>
               </Pressable>
             </View>
           </View>
@@ -238,58 +259,10 @@ export default function ChecklistsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  listContent: { padding: 16, paddingBottom: 90, flexGrow: 1 },
-  emptyBox: { alignItems: 'center', marginTop: 60, gap: 10 },
-  emptyText: { color: '#9ca3af', fontSize: 14 },
-  fab: {
-    position: 'absolute',
-    bottom: 20,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#2F5755',
-    borderRadius: 100,
-    paddingHorizontal: 20,
-    paddingVertical: 13,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 4,
-  },
-  fabText: { color: '#fff', fontSize: 13.5, fontWeight: '700' },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 16 },
-  sheet: { backgroundColor: '#fff', borderRadius: 16, padding: 20, maxHeight: '88%' },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#111827', flex: 1, paddingRight: 12 },
-  sheetHint: { fontSize: 11.5, color: '#9ca3af', marginTop: 8, marginBottom: 4, lineHeight: 16 },
-  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6, marginTop: 14 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    fontSize: 14,
-    color: '#111827',
-  },
-  itemRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  addItemBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 },
-  addItemText: { fontSize: 12.5, fontWeight: '600', color: '#1d4ed8' },
-  actionsRow: { flexDirection: 'row', gap: 10, marginTop: 18 },
-  cancelBtn: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 11,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  cancelText: { color: '#374151', fontSize: 13.5, fontWeight: '600' },
-  saveBtn: { flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 10, backgroundColor: '#2F5755' },
-  saveText: { color: '#fff', fontSize: 13.5, fontWeight: '700' },
-});
+const SHADOW_MD = {
+  shadowColor: '#000',
+  shadowOpacity: 0.1,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 3 },
+  elevation: 3,
+};

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronRight, HelpCircle, Inbox, MessageSquare, Plus, Send, X } from 'lucide-react-native';
@@ -66,57 +66,57 @@ export default function FaqScreen() {
   };
 
   const header = (
-    <View style={styles.headerBlock}>
-      <View style={styles.titleRow}>
+    <View className="mb-3.5">
+      <View className="flex-row items-center gap-2.5">
         <HelpCircle size={22} color="#2F5755" />
-        <Text style={styles.title}>Sık Sorulan Sorular</Text>
+        <Text className="text-[22px] font-extrabold text-gray-900">Sık Sorulan Sorular</Text>
       </View>
-      <Text style={styles.subtitle}>Merak edilenler ve Nottepelilerin bu konulardaki tartışmaları.</Text>
-      <Pressable style={styles.askBtn} onPress={() => setAskModalOpen(true)}>
+      <Text className="text-[12.5px] text-gray-500 mt-1.5">Merak edilenler ve Nottepelilerin bu konulardaki tartışmaları.</Text>
+      <Pressable className="flex-row items-center justify-center gap-2 bg-brand rounded-[10px] py-3 mt-3.5" onPress={() => setAskModalOpen(true)}>
         <Plus size={15} color="#fff" />
-        <Text style={styles.askBtnText}>Soru Sor</Text>
+        <Text className="text-white text-[13.5px] font-bold">Soru Sor</Text>
       </Pressable>
     </View>
   );
 
   return (
-    <View style={styles.container}>
+    <View className="flex-1 bg-gray-50">
       {loading ? (
-        <View style={styles.center}>
+        <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#2F5755" />
         </View>
       ) : (
         <FlatList
-          contentContainerStyle={styles.listContent}
+          contentContainerClassName="p-4 pb-10"
           data={entries}
           keyExtractor={(item) => String(item.id)}
           ListHeaderComponent={header}
           renderItem={({ item }) => (
-            <Pressable style={styles.entryCard} onPress={() => navigation.navigate('FaqDetail', { id: item.id })}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.entryQuestion}>{item.question}</Text>
-                <Text style={styles.entryAnswer} numberOfLines={2}>
+            <Pressable className="flex-row items-start gap-2.5 bg-white rounded-xl p-3.5 mb-2.5" onPress={() => navigation.navigate('FaqDetail', { id: item.id })}>
+              <View className="flex-1">
+                <Text className="text-[14.5px] font-bold text-gray-900">{item.question}</Text>
+                <Text className="text-[12.5px] text-gray-500 mt-1 leading-[17px]" numberOfLines={2}>
                   {item.answer}
                 </Text>
-                <View style={styles.entryMetaRow}>
+                <View className="flex-row items-center gap-[5px] mt-2">
                   <MessageSquare size={12} color="#9ca3af" />
-                  <Text style={styles.entryMetaText}>{item.comment_count} yorum</Text>
-                  {!!item.author_name && <Text style={styles.entryMetaText}>· {item.author_name}</Text>}
+                  <Text className="text-[11px] text-gray-400">{item.comment_count} yorum</Text>
+                  {!!item.author_name && <Text className="text-[11px] text-gray-400">· {item.author_name}</Text>}
                 </View>
               </View>
               <ChevronRight size={18} color="#d1d5db" />
             </Pressable>
           )}
           ListEmptyComponent={
-            <View style={styles.emptyBox}>
+            <View className="items-center py-[50px] gap-2.5">
               <Inbox size={40} color="#d1d5db" />
-              <Text style={styles.emptyText}>Henüz bir kayıt eklenmemiş.</Text>
+              <Text className="text-gray-400 text-[13.5px]">Henüz bir kayıt eklenmemiş.</Text>
             </View>
           }
           ListFooterComponent={
             hasMore ? (
-              <Pressable style={styles.loadMoreBtn} onPress={() => fetchEntries(page + 1)} disabled={loadingMore}>
-                {loadingMore ? <ActivityIndicator color="#2F5755" /> : <Text style={styles.loadMoreText}>Daha Fazla Göster</Text>}
+              <Pressable className="items-center border border-brand rounded-[10px] py-3 mt-2" onPress={() => fetchEntries(page + 1)} disabled={loadingMore}>
+                {loadingMore ? <ActivityIndicator color="#2F5755" /> : <Text className="text-brand text-[13px] font-semibold">Daha Fazla Göster</Text>}
               </Pressable>
             ) : null
           }
@@ -124,16 +124,17 @@ export default function FaqScreen() {
       )}
 
       <Modal visible={askModalOpen} transparent animationType="fade" onRequestClose={() => setAskModalOpen(false)}>
-        <View style={styles.overlay}>
-          <View style={styles.sheet}>
-            <View style={styles.sheetHeaderRow}>
-              <Text style={styles.sheetTitle}>Soru Sor</Text>
+        <View className="flex-1 bg-black/50 justify-center p-4">
+          <View className="bg-white rounded-2xl p-5">
+            <View className="flex-row items-center justify-between mb-3.5">
+              <Text className="text-[17px] font-bold text-gray-900">Soru Sor</Text>
               <Pressable onPress={() => setAskModalOpen(false)} hitSlop={8}>
                 <X size={20} color="#6b7280" />
               </Pressable>
             </View>
             <TextInput
-              style={styles.textArea}
+              className="border border-gray-300 rounded-[10px] px-3 py-2.5 text-sm text-gray-900 min-h-[90px]"
+              style={{ textAlignVertical: 'top' }}
               value={question}
               onChangeText={setQuestion}
               maxLength={500}
@@ -141,9 +142,13 @@ export default function FaqScreen() {
               placeholder="Merak ettiğin soruyu yaz..."
               placeholderTextColor="#9ca3af"
             />
-            <Pressable style={[styles.submitBtn, (asking || !question.trim()) && { opacity: 0.6 }]} onPress={handleAskSubmit} disabled={asking || !question.trim()}>
+            <Pressable
+              className={`flex-row items-center justify-center gap-2 bg-brand rounded-[10px] py-3 mt-3.5 ${asking || !question.trim() ? 'opacity-60' : ''}`}
+              onPress={handleAskSubmit}
+              disabled={asking || !question.trim()}
+            >
               <Send size={15} color="#fff" />
-              <Text style={styles.submitBtnText}>{asking ? 'Gönderiliyor...' : 'Gönder'}</Text>
+              <Text className="text-white text-sm font-bold">{asking ? 'Gönderiliyor...' : 'Gönder'}</Text>
             </Pressable>
           </View>
         </View>
@@ -151,31 +156,3 @@ export default function FaqScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  listContent: { padding: 16, paddingBottom: 40 },
-  headerBlock: { marginBottom: 14 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  title: { fontSize: 22, fontWeight: '800', color: '#111827' },
-  subtitle: { fontSize: 12.5, color: '#6b7280', marginTop: 6 },
-  askBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#2F5755', borderRadius: 10, paddingVertical: 12, marginTop: 14 },
-  askBtnText: { color: '#fff', fontSize: 13.5, fontWeight: '700' },
-  entryCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10 },
-  entryQuestion: { fontSize: 14.5, fontWeight: '700', color: '#111827' },
-  entryAnswer: { fontSize: 12.5, color: '#6b7280', marginTop: 4, lineHeight: 17 },
-  entryMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
-  entryMetaText: { fontSize: 11, color: '#9ca3af' },
-  emptyBox: { alignItems: 'center', paddingVertical: 50, gap: 10 },
-  emptyText: { color: '#9ca3af', fontSize: 13.5 },
-  loadMoreBtn: { alignItems: 'center', borderWidth: 1, borderColor: '#2F5755', borderRadius: 10, paddingVertical: 12, marginTop: 8 },
-  loadMoreText: { color: '#2F5755', fontSize: 13, fontWeight: '600' },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 16 },
-  sheet: { backgroundColor: '#fff', borderRadius: 16, padding: 20 },
-  sheetHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
-  sheetTitle: { fontSize: 17, fontWeight: '700', color: '#111827' },
-  textArea: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#111827', minHeight: 90, textAlignVertical: 'top' },
-  submitBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#2F5755', borderRadius: 10, paddingVertical: 12, marginTop: 14 },
-  submitBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
-});

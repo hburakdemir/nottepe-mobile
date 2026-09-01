@@ -1,6 +1,12 @@
 import axios from 'axios';
 import { API_URL } from './config';
-import { getAccessToken, clearAccessToken } from './tokenStore';
+import {
+  getAccessToken,
+  setAccessToken,
+  clearAccessToken,
+  getRefreshToken,
+  clearRefreshToken,
+} from './tokenStore';
 import { emitSessionExpired } from './authEvents';
 
 const ADMIN_POSTS_PAGE_LIMIT = 10;
@@ -20,12 +26,12 @@ const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
+    // Backend'e "cookie jar'ım yok, Bearer + refresh token akışı kullan" sinyali
+    // (bkz. server/controllers/loginController.js login() dallanması).
+    'X-Client-Type': 'mobile',
   },
 });
 
-// Backend şu an accessToken'ı yalnızca httpOnly cookie'de tutuyor; mobil için
-// Bearer header desteği eklenene kadar (bkz. PLAN.md Faz 0) bu interceptor
-// SecureStore'da token varsa gönderir, yoksa sessizce atlar.
 api.interceptors.request.use(async (requestConfig) => {
   const token = await getAccessToken();
   if (token) {
@@ -44,6 +50,30 @@ function isRequestAborted(error: any) {
   );
 }
 
+async function clearSessionTokens() {
+  await clearAccessToken();
+  await clearRefreshToken();
+}
+
+// Aynı anda birden çok istek 401 alırsa hepsi aynı refresh çağrısını paylaşsın
+// diye tek bir in-flight promise'ta biriktiriliyor.
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  const refreshToken = await getRefreshToken();
+  if (!refreshToken) return null;
+
+  try {
+    const response = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
+    const newAccessToken: string | undefined = response.data?.accessToken;
+    if (!newAccessToken) return null;
+    await setAccessToken(newAccessToken);
+    return newAccessToken;
+  } catch {
+    return null;
+  }
+}
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -52,13 +82,31 @@ api.interceptors.response.use(
     }
 
     const status = error.response?.status;
+    const url: string = error.config?.url || '';
     const isAuthEndpoint =
-      error.config?.url?.includes('/auth/login') ||
-      error.config?.url?.includes('/auth/register') ||
-      error.config?.url?.includes('/auth/logout');
+      url.includes('/auth/login') ||
+      url.includes('/auth/register') ||
+      url.includes('/auth/logout') ||
+      url.includes('/auth/refresh');
 
-    if (status === 401 && !isAuthEndpoint) {
-      await clearAccessToken();
+    if (status === 401 && !isAuthEndpoint && !error.config?._retried) {
+      if (!refreshPromise) {
+        refreshPromise = refreshAccessToken().finally(() => {
+          refreshPromise = null;
+        });
+      }
+      const newAccessToken = await refreshPromise;
+
+      if (newAccessToken) {
+        error.config._retried = true;
+        error.config.headers = {
+          ...error.config.headers,
+          Authorization: `Bearer ${newAccessToken}`,
+        };
+        return api.request(error.config);
+      }
+
+      await clearSessionTokens();
       emitSessionExpired();
     }
 
@@ -71,7 +119,10 @@ export const authAPI = {
   register: (userData: Record<string, unknown>) => api.post('/auth/register', userData),
   login: (credentials: { username: string; password: string }) =>
     api.post('/auth/login', credentials),
-  logout: () => api.post('/auth/logout'),
+  logout: async () => {
+    const refreshToken = await getRefreshToken();
+    return api.post('/auth/mobile-logout', { refreshToken });
+  },
   verifyEmail: (email: string, code: string) => api.post('/auth/verify-email', { email, code }),
   resendCode: (email: string) => api.post('/auth/resend-code', { email }),
 };

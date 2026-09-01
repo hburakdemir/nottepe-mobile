@@ -1,23 +1,21 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Modal,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as DocumentPicker from 'expo-document-picker';
 import { AlertCircle, CheckCircle, FileText, HeartHandshake, Upload, X } from 'lucide-react-native';
 import { postsAPI } from '../../lib/api';
 import { faculties, departments } from '../../data/departments';
-import type { MainTabParamList } from '../../navigation/types';
+import type { RootStackParamList } from '../../navigation/types';
 
 const MAX_FILES = 5;
 const MAX_SIZE = 10 * 1024 * 1024;
@@ -38,6 +36,14 @@ interface PickedFile {
   size: number;
 }
 
+const SHADOW_MD = {
+  shadowColor: '#000',
+  shadowOpacity: 0.1,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 3 },
+  elevation: 3,
+};
+
 function PickerModal({
   visible,
   title,
@@ -53,22 +59,22 @@ function PickerModal({
 }) {
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <View style={styles.modalSheet}>
-          <Text style={styles.modalTitle}>{title}</Text>
+      <Pressable className="flex-1 bg-black/40 justify-end" onPress={onClose}>
+        <View className="bg-white rounded-t-2xl pt-4 pb-6 max-h-[70%]">
+          <Text className="text-base font-bold text-gray-900 px-[18px] mb-2">{title}</Text>
           <FlatList
             data={options}
             keyExtractor={(item) => item}
             style={{ maxHeight: 420 }}
             renderItem={({ item }) => (
               <Pressable
-                style={styles.modalOption}
+                className="px-[18px] py-[13px] border-b border-gray-100"
                 onPress={() => {
                   onSelect(item);
                   onClose();
                 }}
               >
-                <Text style={styles.modalOptionText}>{item}</Text>
+                <Text className="text-[14.5px] text-gray-700">{item}</Text>
               </Pressable>
             )}
           />
@@ -79,9 +85,9 @@ function PickerModal({
 }
 
 export default function AddPostScreen() {
-  const navigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<any>();
-  const noteRequest = (route.params as MainTabParamList['AddPost'])?.noteRequest;
+  const noteRequest = (route.params as RootStackParamList['AddPost'])?.noteRequest;
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -170,8 +176,8 @@ export default function AddPostScreen() {
       setFiles([]);
       setTimeout(() => {
         setSuccess(false);
-        navigation.navigate('Home');
-      }, 1200);
+        navigation.navigate('Profile');
+      }, 2000);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Not paylaşılırken bir hata oluştu');
     } finally {
@@ -180,36 +186,37 @@ export default function AddPostScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Not Paylaş</Text>
+    <ScrollView className="flex-1 bg-primary" contentContainerClassName="px-4 py-8">
+      <View className="bg-white rounded-lg p-8" style={SHADOW_MD}>
+        <Text className="text-3xl font-bold text-gray-900 mb-6">Not Paylaş</Text>
 
-      {!!noteRequest && (
-        <View style={styles.requestBanner}>
-          <HeartHandshake size={16} color="#2F5755" style={{ marginTop: 1 }} />
-          <Text style={styles.requestBannerText}>
-            <Text style={{ fontWeight: '700' }}>"{noteRequest.course_name}"</Text> isteği için not yüklüyorsun. Notun
-            onaylanınca istek otomatik olarak karşılanmış sayılır ve isteyen kullanıcıya haber verilir.
-          </Text>
-        </View>
-      )}
+        {!!noteRequest && (
+          <View className="flex-row gap-2 bg-brand/10 border border-brand/30 rounded-lg p-4 mb-6">
+            <HeartHandshake size={20} color="#2F5755" style={{ marginTop: 1 }} />
+            <Text className="flex-1 text-sm text-brand leading-5">
+              <Text style={{ fontWeight: '700' }}>"{noteRequest.course_name}"</Text> isteği için not yüklüyorsun. Notun
+              onaylanınca istek otomatik olarak karşılanmış sayılır ve isteyen kullanıcıya haber verilir.
+            </Text>
+          </View>
+        )}
 
-      {!!error && (
-        <View style={styles.alertError}>
-          <AlertCircle size={16} color="#b91c1c" />
-          <Text style={styles.alertErrorText}>{error}</Text>
-        </View>
-      )}
-      {success && (
-        <View style={styles.alertSuccess}>
-          <CheckCircle size={16} color="#15803d" />
-          <Text style={styles.alertSuccessText}>Not başarıyla paylaşıldı!</Text>
-        </View>
-      )}
+        {!!error && (
+          <View className="flex-row items-center gap-2 bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <AlertCircle size={20} color="#b91c1c" />
+            <Text className="text-red-700 text-sm flex-1">{error}</Text>
+          </View>
+        )}
+        {success && (
+          <View className="flex-row items-center gap-2 bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+            <CheckCircle size={20} color="#15803d" />
+            <Text className="text-green-700 text-sm flex-1">Not başarıyla paylaşıldı! Yönlendiriliyorsunuz...</Text>
+          </View>
+        )}
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Başlık *</Text>
+        <View className="mb-6">
+        <Text className="text-sm font-medium text-gray-700 mb-2">Başlık *</Text>
         <TextInput
-          style={styles.input}
+          className="border border-gray-300 rounded-lg px-4 py-2 text-base text-gray-900"
           value={title}
           onChangeText={setTitle}
           placeholder="Örn: Matematik 101 Final Soruları"
@@ -217,10 +224,11 @@ export default function AddPostScreen() {
         />
       </View>
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Açıklama *</Text>
+      <View className="mb-6">
+        <Text className="text-sm font-medium text-gray-700 mb-2">Açıklama *</Text>
         <TextInput
-          style={[styles.input, styles.textArea]}
+          className="border border-gray-300 rounded-lg px-4 py-2 text-base text-gray-900 min-h-24"
+          style={{ textAlignVertical: 'top' }}
           value={content}
           onChangeText={setContent}
           placeholder="Notlar hakkında kısa bir açıklama yazın..."
@@ -229,10 +237,13 @@ export default function AddPostScreen() {
         />
       </View>
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Link</Text>
+      {/* Web kaynağında Link alanı .input-field yerine ayrı, tutarsız class'larla
+          yazılmış (soluk border, küçük radius, az padding) — birebir aynı görünmesi
+          için burada da bilerek farklı. */}
+      <View className="mb-6">
+        <Text className="text-sm font-normal text-gray-700 mb-2">Link</Text>
         <TextInput
-          style={styles.input}
+          className="border border-gray-200 rounded px-2 py-2 text-base text-gray-900"
           value={link}
           onChangeText={setLink}
           placeholder="Ders notu link ise (ex: https://...)"
@@ -242,58 +253,65 @@ export default function AddPostScreen() {
         />
       </View>
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Fakülte *</Text>
-        <Pressable style={styles.selectBox} onPress={() => setFacultyModalOpen(true)}>
-          <Text style={faculty ? styles.selectText : styles.selectPlaceholder}>
+      <View className="mb-6">
+        <Text className="text-sm font-medium text-gray-700 mb-2">Fakülte *</Text>
+        <Pressable className="border border-gray-300 rounded-lg px-4 py-2 justify-center min-h-[40px]" onPress={() => setFacultyModalOpen(true)}>
+          <Text className={`text-base ${faculty ? 'text-gray-900' : 'text-gray-400'}`}>
             {faculty || 'Fakülte Seçin'}
           </Text>
         </Pressable>
       </View>
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Bölüm *</Text>
+      <View className="mb-6">
+        <Text className="text-sm font-medium text-gray-700 mb-2">Bölüm *</Text>
         <Pressable
-          style={[styles.selectBox, !faculty && styles.selectBoxDisabled]}
+          className={`border border-gray-300 rounded-lg px-4 py-2 justify-center min-h-[40px] ${!faculty ? 'opacity-50' : ''}`}
           onPress={() => faculty && setDepartmentModalOpen(true)}
         >
-          <Text style={department ? styles.selectText : styles.selectPlaceholder}>
+          <Text className={`text-base ${department ? 'text-gray-900' : 'text-gray-400'}`}>
             {department || 'Bölüm Seçin'}
           </Text>
         </Pressable>
       </View>
 
-      <View style={styles.field}>
-        <Text style={styles.label}>Dosya Yükle (Opsiyonel, Max 5, her biri 10MB)</Text>
-        <Pressable style={styles.uploadBox} onPress={handlePickFiles}>
-          <Upload size={28} color="#9ca3af" />
-          <Text style={styles.uploadText}>Dosya seçin</Text>
-          <Text style={styles.uploadHint}>PDF, DOC, PPT, JPG (max. 10MB her biri)</Text>
+      <View className="mb-6">
+        <Text className="text-sm font-medium text-gray-700 mb-2">Dosya Yükle (Opsiyonel, Max 5, her biri 10MB)</Text>
+        <Pressable className="border-2 border-gray-300 border-dashed rounded-lg pt-5 pb-6 px-6 items-center gap-1" onPress={handlePickFiles}>
+          <Upload size={48} color="#9ca3af" />
+          <Text className="text-sm text-green-600 font-medium mt-2">Dosya seçin</Text>
+          <Text className="text-xs text-gray-500">PDF, DOC, PPT, JPG (max. 10MB her biri)</Text>
         </Pressable>
         {files.length > 0 && (
-          <View style={{ marginTop: 10, gap: 8 }}>
+          <View className="mt-4 gap-2">
             {files.map((file, index) => (
-              <View key={index} style={styles.fileRow}>
-                <FileText size={15} color="#15803d" />
-                <Text style={styles.fileName} numberOfLines={1}>
+              <View key={index} className="flex-row items-center justify-center gap-2">
+                <FileText size={20} color="#16a34a" />
+                <Text className="flex-shrink text-sm text-green-600" numberOfLines={1}>
                   {file.name}
                 </Text>
                 <Pressable onPress={() => removeFile(index)} hitSlop={8}>
-                  <X size={16} color="#dc2626" />
+                  <X size={16} color="#ef4444" />
                 </Pressable>
               </View>
             ))}
+            <Text className="text-xs text-gray-500 text-center mt-1">{files.length} dosya seçildi</Text>
           </View>
         )}
       </View>
 
-      <Pressable
-        style={[styles.submitBtn, loading && { opacity: 0.6 }]}
-        onPress={handleSubmit}
-        disabled={loading}
-      >
-        {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Paylaş</Text>}
-      </Pressable>
+      <View className="flex-row justify-end gap-4 mt-2">
+        <Pressable onPress={() => navigation.goBack()} className="py-2 px-4 rounded-lg">
+          <Text className="text-gray-800 text-base font-medium">İptal</Text>
+        </Pressable>
+        <Pressable
+          className={`bg-brand rounded-lg py-2 px-4 items-center justify-center min-w-[84px] ${loading ? 'opacity-50' : ''}`}
+          onPress={handleSubmit}
+          disabled={loading}
+        >
+          {loading ? <ActivityIndicator color="#fff" /> : <Text className="text-white text-base font-medium">Paylaş</Text>}
+        </Pressable>
+      </View>
+      </View>
 
       <PickerModal
         visible={facultyModalOpen}
@@ -315,105 +333,3 @@ export default function AddPostScreen() {
     </ScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { padding: 16, paddingBottom: 60, gap: 4 },
-  title: { fontSize: 24, fontWeight: '700', color: '#111827', marginBottom: 12 },
-  requestBanner: {
-    flexDirection: 'row',
-    gap: 8,
-    backgroundColor: '#2F575519',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 14,
-  },
-  requestBannerText: { flex: 1, fontSize: 12.5, color: '#2F5755', lineHeight: 18 },
-  alertError: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#fef2f2',
-    borderWidth: 1,
-    borderColor: '#fecaca',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 14,
-  },
-  alertErrorText: { color: '#b91c1c', fontSize: 13, flex: 1 },
-  alertSuccess: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#f0fdf4',
-    borderWidth: 1,
-    borderColor: '#bbf7d0',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 14,
-  },
-  alertSuccessText: { color: '#15803d', fontSize: 13, flex: 1 },
-  field: { marginBottom: 16 },
-  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
-  input: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    color: '#111827',
-  },
-  textArea: { minHeight: 90, textAlignVertical: 'top' },
-  selectBox: {
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  selectBoxDisabled: { opacity: 0.5 },
-  selectText: { fontSize: 14, color: '#111827' },
-  selectPlaceholder: { fontSize: 14, color: '#9ca3af' },
-  uploadBox: {
-    borderWidth: 2,
-    borderColor: '#d1d5db',
-    borderStyle: 'dashed',
-    borderRadius: 12,
-    paddingVertical: 24,
-    alignItems: 'center',
-    gap: 4,
-  },
-  uploadText: { fontSize: 13.5, color: '#15803d', fontWeight: '600', marginTop: 4 },
-  uploadHint: { fontSize: 11.5, color: '#9ca3af' },
-  fileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#f0fdf4',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  fileName: { flex: 1, fontSize: 12.5, color: '#15803d' },
-  submitBtn: {
-    backgroundColor: '#2F5755',
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  submitText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  modalSheet: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingTop: 16,
-    paddingBottom: 24,
-    maxHeight: '70%',
-  },
-  modalTitle: { fontSize: 16, fontWeight: '700', color: '#111827', paddingHorizontal: 18, marginBottom: 8 },
-  modalOption: { paddingHorizontal: 18, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  modalOptionText: { fontSize: 14.5, color: '#374151' },
-});

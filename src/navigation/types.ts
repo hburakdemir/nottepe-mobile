@@ -13,17 +13,15 @@ export interface NoteRequestSummary {
   course_name: string;
 }
 
-export type MainTabParamList = {
+// Web'de Layout.jsx her rotayı (Ana Sayfa dahil, Ekle dahil) aynı Navbar+
+// MobileTabBar ile sarmalıyor — burada da tek düz stack, AppHeader/WaveTabBar
+// her ekranda AppShell üzerinden sabit kalıyor (bkz. RootNavigator.tsx).
+// Ayrı bir Tab.Navigator yok artık.
+export type RootStackParamList = {
   Home: undefined;
   Departments: undefined;
-  AddPost: { noteRequest?: NoteRequestSummary } | undefined;
   Tools: undefined;
-  Notifications: undefined;
-  Profile: undefined;
-};
-
-export type RootStackParamList = {
-  MainTabs: undefined;
+  AddPost: { noteRequest?: NoteRequestSummary } | undefined;
   PostDetail: { postId: number };
   DepartmentDetail: { faculty: string; department: string };
   SavedPosts: undefined;
@@ -39,4 +37,9 @@ export type RootStackParamList = {
   CafeteriaMenu: undefined;
   Leaderboard: undefined;
   Help: undefined;
+  // Web'de "/notifications" ve "/duyurular" aynı NotificationsPage'i farklı
+  // initialTab ile açıyor (bkz. App.jsx) — mobilde de tek ekran, iki giriş noktası.
+  Notifications: { initialTab?: 'duyurular' | 'aktivite' } | undefined;
+  Menu: undefined;
+  Profile: undefined;
 };

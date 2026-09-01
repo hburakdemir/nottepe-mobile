@@ -58,7 +58,7 @@ export default function RequestCard({ request, onFulfill, onSupport, onClose, on
       department: request.department,
       course_name: request.course_name,
     };
-    navigation.navigate('MainTabs', { screen: 'AddPost', params: { noteRequest } } as any);
+    navigation.navigate('AddPost', { noteRequest });
   };
 
   return (
@@ -75,7 +75,7 @@ export default function RequestCard({ request, onFulfill, onSupport, onClose, on
         </View>
         {supporterCount > 0 && (
           <View style={styles.supportBadge}>
-            <Users size={11} color="#92400e" />
+            <Users size={12} color="#92400e" />
             <Text style={styles.supportBadgeText}>{supporterCount} kişi istiyor</Text>
           </View>
         )}
@@ -85,7 +85,7 @@ export default function RequestCard({ request, onFulfill, onSupport, onClose, on
       {!!request.description && <Text style={styles.description}>{request.description}</Text>}
 
       <View style={styles.metaRow}>
-        <User size={11} color="#9ca3af" />
+        <User size={12} color="#9ca3af" />
         <Text style={styles.metaText}>
           {request.requester_full_name || request.requester_username || 'Bir öğrenci'} · {formatDate(request.created_at)}
         </Text>
@@ -93,7 +93,7 @@ export default function RequestCard({ request, onFulfill, onSupport, onClose, on
 
       {request.status === 'fulfilled' && request.fulfilled_post_id && (
         <Pressable style={styles.fulfilledLink} onPress={() => navigation.navigate('PostDetail', { postId: request.fulfilled_post_id! })}>
-          <ExternalLink size={13} color="#2F5755" />
+          <ExternalLink size={15} color="#2F5755" />
           <Text style={styles.fulfilledLinkText} numberOfLines={1}>
             Karşılayan not: {request.fulfilled_post_title || 'Görüntüle'}
             {request.fulfiller_username ? ` (${request.fulfiller_username})` : ''}
@@ -108,15 +108,15 @@ export default function RequestCard({ request, onFulfill, onSupport, onClose, on
               <HeartHandshake size={14} color="#fff" />
               <Text style={styles.actionBtnPrimaryText}>Karşıla</Text>
             </Pressable>
-            <Pressable style={styles.actionBtnOutline} onPress={handleUpload}>
-              <Upload size={14} color="#2F5755" />
-              <Text style={styles.actionBtnOutlineText}>Not Yükle</Text>
+            <Pressable style={styles.actionBtnBrandOutline} onPress={handleUpload}>
+              <Upload size={15} color="#2F5755" />
+              <Text style={styles.actionBtnBrandOutlineText}>Not Yükle</Text>
             </Pressable>
             <Pressable
               style={[styles.actionBtnOutline, request.supported_by_me && styles.actionBtnSupported]}
               onPress={() => onSupport(request)}
             >
-              <ThumbsUp size={14} color={request.supported_by_me ? '#92400e' : '#6b7280'} />
+              <ThumbsUp size={15} color={request.supported_by_me ? '#92400e' : '#6b7280'} />
               <Text style={[styles.actionBtnOutlineText, request.supported_by_me && { color: '#92400e' }]}>
                 {request.supported_by_me ? 'İstiyorum ✓' : 'Ben de istiyorum'}
               </Text>
@@ -126,21 +126,21 @@ export default function RequestCard({ request, onFulfill, onSupport, onClose, on
 
         {isOwner && request.status === 'open' && (
           <Pressable style={styles.actionBtnOutline} onPress={() => onClose(request)}>
-            <XCircle size={14} color="#6b7280" />
+            <XCircle size={15} color="#6b7280" />
             <Text style={styles.actionBtnOutlineText}>Kapat</Text>
           </Pressable>
         )}
 
         {isOwner && request.status === 'fulfilled' && (
-          <Pressable style={styles.actionBtnOutline} onPress={() => onReopen(request)}>
-            <RotateCcw size={14} color="#2F5755" />
-            <Text style={styles.actionBtnOutlineText}>Yeniden Aç</Text>
+          <Pressable style={styles.actionBtnBrandOutline} onPress={() => onReopen(request)}>
+            <RotateCcw size={15} color="#2F5755" />
+            <Text style={styles.actionBtnBrandOutlineText}>Yeniden Aç</Text>
           </Pressable>
         )}
 
         {(isOwner || isStaff) && (
           <Pressable style={styles.actionBtnDanger} onPress={() => onDelete(request)}>
-            <Trash2 size={14} color="#dc2626" />
+            <Trash2 size={15} color="#ef4444" />
             <Text style={styles.actionBtnDangerText}>Sil</Text>
           </Pressable>
         )}
@@ -150,28 +150,40 @@ export default function RequestCard({ request, onFulfill, onSupport, onClose, on
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 12 },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
   badge: { borderRadius: 100, paddingHorizontal: 10, paddingVertical: 3 },
   badgeText: { fontSize: 10.5, fontWeight: '700' },
   chip: { borderRadius: 100, paddingHorizontal: 10, paddingVertical: 3 },
   chipBrand: { backgroundColor: '#2F5755' },
-  chipBrandLight: { backgroundColor: '#4f7d7a' },
+  chipBrandLight: { backgroundColor: '#5A9690' },
   chipText: { color: '#fff', fontSize: 10.5, fontWeight: '600' },
   supportBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#fef3c7', borderRadius: 100, paddingHorizontal: 9, paddingVertical: 3 },
   supportBadgeText: { fontSize: 10.5, fontWeight: '600', color: '#92400e' },
-  title: { fontSize: 15.5, fontWeight: '700', color: '#111827', marginBottom: 4 },
-  description: { fontSize: 13, color: '#4b5563', marginBottom: 8, lineHeight: 18 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 },
-  metaText: { fontSize: 11, color: '#9ca3af' },
-  fulfilledLink: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-  fulfilledLinkText: { fontSize: 12.5, color: '#2F5755', fontWeight: '600', flexShrink: 1 },
+  title: { fontSize: 17, fontWeight: '600', color: '#111827', marginBottom: 4 },
+  description: { fontSize: 14, color: '#4b5563', marginBottom: 12, lineHeight: 19 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 14 },
+  metaText: { fontSize: 12, color: '#9ca3af' },
+  fulfilledLink: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 },
+  fulfilledLinkText: { fontSize: 14, color: '#2F5755', fontWeight: '600', flexShrink: 1 },
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  actionBtnPrimary: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#2F5755', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
-  actionBtnPrimaryText: { color: '#fff', fontSize: 12, fontWeight: '600' },
-  actionBtnOutline: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
-  actionBtnOutlineText: { color: '#374151', fontSize: 12, fontWeight: '600' },
+  actionBtnPrimary: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#2F5755', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 9 },
+  actionBtnPrimaryText: { color: '#fff', fontSize: 13, fontWeight: '600' },
+  actionBtnOutline: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 9 },
+  actionBtnOutlineText: { color: '#4b5563', fontSize: 13, fontWeight: '600' },
+  actionBtnBrandOutline: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: '#2F5755', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 9 },
+  actionBtnBrandOutlineText: { color: '#2F5755', fontSize: 13, fontWeight: '600' },
   actionBtnSupported: { backgroundColor: '#fef3c7', borderColor: '#fcd34d' },
-  actionBtnDanger: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: '#fecaca', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
-  actionBtnDangerText: { color: '#dc2626', fontSize: 12, fontWeight: '600' },
+  actionBtnDanger: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: '#fca5a5', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 9 },
+  actionBtnDangerText: { color: '#ef4444', fontSize: 13, fontWeight: '600' },
 });

@@ -1,7 +1,13 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authAPI } from '../lib/api';
-import { getAccessToken, setAccessToken, clearAccessToken } from '../lib/tokenStore';
+import {
+  getAccessToken,
+  setAccessToken,
+  clearAccessToken,
+  setRefreshToken,
+  clearRefreshToken,
+} from '../lib/tokenStore';
 import { onSessionExpired } from '../lib/authEvents';
 import type { User } from '../types/user';
 
@@ -38,6 +44,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const clearSession = useCallback(async () => {
     await clearAccessToken();
+    await clearRefreshToken();
     await AsyncStorage.removeItem(STORAGE_KEY);
     setUser(null);
   }, []);
@@ -62,11 +69,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const login = async (credentials: { username: string; password: string }): Promise<LoginResult> => {
     try {
       const response = await authAPI.login(credentials);
-      const { user: userData, accessToken } = response.data;
-      // accessToken alanı backend'e Bearer desteği eklenene kadar gelmeyecek (bkz. PLAN.md Faz 0);
-      // geldiğinde otomatik SecureStore'a yazılır.
+      const { user: userData, accessToken, refreshToken } = response.data;
       if (accessToken) {
         await setAccessToken(accessToken);
+      }
+      if (refreshToken) {
+        await setRefreshToken(refreshToken);
       }
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(userData));
       setUser(userData);

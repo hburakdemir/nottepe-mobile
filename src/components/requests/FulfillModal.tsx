@@ -61,7 +61,7 @@ export default function FulfillModal({ request, onClose, onFulfilled }: Props) {
       department: request.department,
       course_name: request.course_name,
     };
-    navigation.navigate('MainTabs', { screen: 'AddPost', params: { noteRequest } } as any);
+    navigation.navigate('AddPost', { noteRequest });
   };
 
   return (
@@ -70,7 +70,7 @@ export default function FulfillModal({ request, onClose, onFulfilled }: Props) {
         <View style={styles.sheet}>
           <View style={styles.headerRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <HeartHandshake size={18} color="#2F5755" />
+              <HeartHandshake size={20} color="#2F5755" />
               <Text style={styles.title}>İsteği Karşıla</Text>
             </View>
             <Pressable onPress={onClose} hitSlop={8}>
@@ -90,7 +90,7 @@ export default function FulfillModal({ request, onClose, onFulfilled }: Props) {
 
           {mode === 'new' ? (
             <View style={styles.newModeBox}>
-              <Upload size={32} color="#2F5755" />
+              <Upload size={40} color="#2F5755" />
               <Text style={styles.newModeText}>
                 Bu istek için yeni bir not yükle. Fakülte ve bölüm bilgileri otomatik doldurulur; notun onaylanınca
                 istek otomatik olarak karşılanır.
@@ -126,7 +126,7 @@ export default function FulfillModal({ request, onClose, onFulfilled }: Props) {
                     const selected = selectedId === id;
                     return (
                       <Pressable key={id} style={[styles.postOption, selected && styles.postOptionSelected]} onPress={() => setSelectedId(id)}>
-                        <FileText size={15} color="#2F5755" />
+                        <FileText size={16} color="#2F5755" />
                         <View style={{ flex: 1 }}>
                           <Text style={styles.postOptionTitle} numberOfLines={1}>
                             {post.title}
@@ -153,24 +153,24 @@ export default function FulfillModal({ request, onClose, onFulfilled }: Props) {
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 16 },
-  sheet: { backgroundColor: '#fff', borderRadius: 16, padding: 20, maxHeight: '85%' },
+  sheet: { backgroundColor: '#fff', borderRadius: 12, padding: 24, maxHeight: '85%' },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: 17, fontWeight: '700', color: '#111827' },
-  subtitle: { fontSize: 12.5, color: '#6b7280', marginTop: 8, marginBottom: 14, lineHeight: 17 },
+  title: { fontSize: 20, fontWeight: '700', color: '#111827' },
+  subtitle: { fontSize: 14, color: '#6b7280', marginTop: 8, marginBottom: 14, lineHeight: 19 },
   tabRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  tabBtn: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 10, backgroundColor: '#f3f4f6' },
+  tabBtn: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 8, backgroundColor: '#f3f4f6' },
   tabBtnActive: { backgroundColor: '#2F5755' },
-  tabBtnText: { fontSize: 13, fontWeight: '600', color: '#6b7280' },
+  tabBtnText: { fontSize: 14, fontWeight: '500', color: '#4b5563' },
   tabBtnTextActive: { color: '#fff' },
   newModeBox: { alignItems: 'center', paddingVertical: 12, gap: 10 },
-  newModeText: { fontSize: 12.5, color: '#4b5563', textAlign: 'center', lineHeight: 18 },
+  newModeText: { fontSize: 14, color: '#4b5563', textAlign: 'center', lineHeight: 19 },
   emptyText: { fontSize: 13, color: '#9ca3af', textAlign: 'center', paddingVertical: 20 },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, paddingHorizontal: 12, marginBottom: 10 },
-  searchInput: { flex: 1, paddingVertical: 9, fontSize: 13.5, color: '#111827' },
-  postOption: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 10, marginBottom: 8 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, paddingHorizontal: 12, marginBottom: 10 },
+  searchInput: { flex: 1, paddingVertical: 9, fontSize: 14, color: '#111827' },
+  postOption: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 10, marginBottom: 8 },
   postOptionSelected: { borderColor: '#2F5755', backgroundColor: '#2F575519' },
-  postOptionTitle: { fontSize: 13, fontWeight: '600', color: '#111827' },
-  postOptionMeta: { fontSize: 11, color: '#9ca3af', marginTop: 2 },
-  submitBtn: { backgroundColor: '#2F5755', borderRadius: 10, alignItems: 'center', paddingVertical: 13, marginTop: 6, width: '100%' },
-  submitBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  postOptionTitle: { fontSize: 14, fontWeight: '600', color: '#111827' },
+  postOptionMeta: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+  submitBtn: { backgroundColor: '#2F5755', borderRadius: 8, alignItems: 'center', paddingVertical: 10, marginTop: 6, width: '100%' },
+  submitBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 });

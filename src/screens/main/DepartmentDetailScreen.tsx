@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -74,28 +74,28 @@ export default function DepartmentDetailScreen() {
   const total = data?.pages[0]?.total ?? 0;
 
   const header = (
-    <View style={styles.header}>
-      <View style={styles.headerRow}>
-        <Text style={styles.title}>{department}</Text>
+    <View className="pb-8">
+      <View className="flex-row items-center flex-wrap gap-3">
+        <Text className="text-4xl font-bold text-gray-900 flex-shrink">{department}</Text>
         <Pressable
-          style={[styles.followBtn, isFollowing && styles.followBtnActive]}
+          className={`flex-row items-center gap-2 rounded-lg px-4 py-2 ${isFollowing ? 'bg-transparent border border-brand' : 'bg-brand'}`}
           onPress={toggleFollow}
           disabled={followBusy}
         >
-          {isFollowing ? <BellOff size={14} color="#2F5755" /> : <Bell size={14} color="#fff" />}
-          <Text style={[styles.followBtnText, isFollowing && styles.followBtnTextActive]}>
+          {isFollowing ? <BellOff size={16} color="#2F5755" /> : <Bell size={16} color="#fff" />}
+          <Text className={`text-sm font-medium ${isFollowing ? 'text-brand' : 'text-white'}`}>
             {isFollowing ? 'Takibi Bırak' : 'Takip Et'}
           </Text>
         </Pressable>
       </View>
-      <Text style={styles.subtitle}>{faculty}</Text>
-      {total > 0 && <Text style={styles.count}>{total} not bulundu</Text>}
+      <Text className="text-base text-gray-600 mt-2">{faculty}</Text>
+      {total > 0 && <Text className="text-sm text-gray-400 mt-1">{total} not bulundu</Text>}
     </View>
   );
 
   if (isLoading) {
     return (
-      <View style={styles.center}>
+      <View className="flex-1 items-center justify-center py-[60px]">
         <ActivityIndicator size="large" color="#1d4ed8" />
       </View>
     );
@@ -103,16 +103,16 @@ export default function DepartmentDetailScreen() {
 
   if (isError) {
     return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>Notlar yüklenemedi.</Text>
+      <View className="flex-1 items-center justify-center py-[60px]">
+        <Text className="text-gray-500 text-sm">Notlar yüklenemedi.</Text>
       </View>
     );
   }
 
   return (
     <FlatList
-      style={styles.list}
-      contentContainerStyle={styles.listContent}
+      className="flex-1 bg-primary"
+      contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 32, paddingBottom: 16, flexGrow: 1 }}
       data={posts}
       keyExtractor={(item) => String(item.id ?? item.post_id)}
       renderItem={({ item }) => <PostCard post={item} />}
@@ -125,17 +125,17 @@ export default function DepartmentDetailScreen() {
         isFetchingNextPage ? (
           <ActivityIndicator style={{ marginVertical: 16 }} color="#1d4ed8" />
         ) : !hasNextPage && posts.length > 0 ? (
-          <Text style={styles.footerText}>Tüm notlar yüklendi ({total} not)</Text>
+          <Text className="text-center text-sm text-gray-400 py-6">Tüm notlar yüklendi ({total} not)</Text>
         ) : null
       }
       ListEmptyComponent={
-        <View style={styles.center}>
-          <Text style={styles.errorText}>Bu bölüm için henüz not paylaşılmamış.</Text>
+        <View className="bg-white rounded-lg p-12 items-center" style={SHADOW_MD}>
+          <Text className="text-gray-600 text-lg text-center mb-4">Bu bölüm için henüz not paylaşılmamış.</Text>
           <Pressable
-            style={styles.addPostBtn}
-            onPress={() => navigation.navigate('MainTabs', { screen: 'AddPost' } as any)}
+            className="bg-brand rounded-lg px-4 py-2"
+            onPress={() => navigation.navigate('AddPost')}
           >
-            <Text style={styles.addPostBtnText}>İlk Notu Siz Paylaşın</Text>
+            <Text className="text-white text-base font-medium">İlk Notu Siz Paylaşın</Text>
           </Pressable>
         </View>
       }
@@ -143,29 +143,10 @@ export default function DepartmentDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  list: { flex: 1, backgroundColor: '#f9fafb' },
-  listContent: { padding: 12, flexGrow: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
-  errorText: { color: '#6b7280', fontSize: 14 },
-  header: { paddingHorizontal: 4, paddingBottom: 14 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  title: { fontSize: 21, fontWeight: '700', color: '#111827', flexShrink: 1 },
-  subtitle: { fontSize: 13.5, color: '#6b7280', marginTop: 4 },
-  count: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
-  followBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#2F5755',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  followBtnActive: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#2F5755' },
-  followBtnText: { color: '#fff', fontSize: 12.5, fontWeight: '600' },
-  followBtnTextActive: { color: '#2F5755' },
-  footerText: { textAlign: 'center', fontSize: 12.5, color: '#9ca3af', paddingVertical: 20 },
-  addPostBtn: { backgroundColor: '#2F5755', borderRadius: 10, paddingHorizontal: 18, paddingVertical: 11, marginTop: 14 },
-  addPostBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-});
+const SHADOW_MD = {
+  shadowColor: '#000',
+  shadowOpacity: 0.1,
+  shadowRadius: 8,
+  shadowOffset: { width: 0, height: 3 },
+  elevation: 3,
+};
