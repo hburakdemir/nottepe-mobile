@@ -23,8 +23,7 @@
     },
     "plugins": [
       "expo-secure-store",
-      "expo-font",
-      "expo-sharing"
+      "expo-font"
     ]
   }
 }
