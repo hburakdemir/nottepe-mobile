@@ -1,0 +1,598 @@
+<title>Geyik Amblem Numuneleri</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Petrona:ital,wght@0,400;0,600;0,700;1,500&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+  :root {
+    --ink: #1c0a10;
+    --ink-2: #260d15;
+    --bordo: #7a2038;
+    --bordo-light: #9a3350;
+    --bordo-deep: #4a1220;
+    --cream: #f3ead9;
+    --cream-dim: #e8dcc4;
+    --brass: #b9925a;
+    --brass-dim: #8a6c42;
+    --rose: #d9b4b9;
+    --rose-dim: #a9848c;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ink);
+    color: var(--rose);
+    font-family: 'Work Sans', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet {
+    max-width: 1160px;
+    margin: 0 auto;
+    padding: 56px 32px 80px;
+  }
+
+  /* ---------- masthead ---------- */
+
+  .masthead {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 24px;
+    padding-bottom: 22px;
+    border-bottom: 1px solid var(--brass-dim);
+    margin-bottom: 30px;
+  }
+
+  .masthead-mark {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--brass);
+  }
+
+  h1 {
+    font-family: 'Petrona', Georgia, serif;
+    font-weight: 700;
+    font-size: clamp(30px, 4vw, 42px);
+    line-height: 1.08;
+    color: var(--cream);
+    margin: 8px 0 0;
+    text-wrap: balance;
+  }
+
+  .masthead-right {
+    text-align: right;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--rose-dim);
+    line-height: 1.7;
+  }
+
+  .masthead-right span { color: var(--brass); }
+
+  /* ---------- intro / research strip ---------- */
+
+  .brief {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 36px;
+    padding-bottom: 34px;
+    margin-bottom: 40px;
+    border-bottom: 1px solid var(--brass-dim);
+  }
+
+  .brief p {
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--rose);
+    max-width: 62ch;
+    margin: 0 0 12px;
+  }
+
+  .brief p:last-child { margin-bottom: 0; }
+
+  .brief .credit {
+    font-style: italic;
+    font-family: 'Petrona', Georgia, serif;
+    color: var(--rose-dim);
+    font-size: 13.5px;
+  }
+
+  .swatchbox {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--rose-dim);
+  }
+
+  .swatch-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px dashed var(--ink-2);
+  }
+
+  .swatch-row:first-of-type { padding-top: 0; }
+
+  .chip {
+    width: 26px;
+    height: 26px;
+    border-radius: 3px;
+    flex: none;
+    border: 1px solid rgba(0,0,0,0.25);
+  }
+
+  .swatch-label { color: var(--cream-dim); letter-spacing: 0.02em; }
+  .swatch-hex { margin-left: auto; color: var(--brass); }
+
+  /* ---------- specimen grid ---------- */
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+
+  .plate {
+    position: relative;
+    background: var(--cream);
+    border-radius: 4px;
+    padding: 22px 22px 20px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 20px;
+    align-items: center;
+  }
+
+  .plate::before, .plate::after,
+  .plate .tick-br, .plate .tick-bl {
+    content: '';
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border: 1px solid var(--brass-dim);
+  }
+  .plate::before { top: 8px; left: 8px; border-right: none; border-bottom: none; }
+  .plate::after  { top: 8px; right: 8px; border-left: none; border-bottom: none; }
+  .plate .tick-bl { bottom: 8px; left: 8px; border-right: none; border-top: none; }
+  .plate .tick-br { bottom: 8px; right: 8px; border-left: none; border-top: none; }
+
+  .previews {
+    display: flex;
+    gap: 10px;
+  }
+
+  .preview {
+    width: 76px;
+    height: 76px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+  }
+
+  .preview.square { border-radius: 20px; }
+  .preview.circle { border-radius: 50%; }
+
+  .preview svg { width: 62%; height: 62%; }
+
+  .on-cream { background: var(--cream-dim); border: 1px solid rgba(74,18,32,0.18); }
+  .on-bordo { background: var(--bordo); }
+  .on-bordo-deep { background: linear-gradient(155deg, var(--bordo-light), var(--bordo-deep)); }
+
+  .plate-meta {
+    min-width: 0;
+  }
+
+  .plate-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--brass-dim);
+    letter-spacing: 0.08em;
+  }
+
+  .plate-title {
+    font-family: 'Petrona', Georgia, serif;
+    font-weight: 600;
+    font-size: 18px;
+    color: var(--ink);
+    margin: 3px 0 6px;
+    line-height: 1.2;
+  }
+
+  .plate-tag {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--bordo);
+    border: 1px solid var(--bordo);
+    border-radius: 3px;
+    padding: 2px 6px;
+    margin-bottom: 8px;
+  }
+
+  .plate-note {
+    font-size: 12.5px;
+    line-height: 1.5;
+    color: #5a4a3c;
+    margin: 0;
+    max-width: 34ch;
+  }
+
+  footer {
+    margin-top: 46px;
+    padding-top: 18px;
+    border-top: 1px solid var(--brass-dim);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--rose-dim);
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  @media (max-width: 720px) {
+    .brief { grid-template-columns: 1fr; }
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+
+<!-- ============ shared mark definitions ============ -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <path id="deerMark" d="
+      M116,164 L122,140 L148,120 L124,114 L158,94 L128,96 L176,60 L138,68
+      L150,28 L126,42 L100,10 L74,42 L50,28 L72,68 L24,60 L72,96 L42,94
+      L76,114 L52,120 L78,140 L84,164 Q100,196 116,164 Z" />
+
+    <mask id="mNib">
+      <rect x="0" y="0" width="200" height="205" fill="#fff" />
+      <line x1="100" y1="10" x2="100" y2="58" stroke="#000" stroke-width="6" />
+      <circle cx="100" cy="42" r="6" fill="#000" />
+    </mask>
+
+    <mask id="mNRing">
+      <rect x="0" y="0" width="200" height="205" fill="#fff" />
+      <rect x="36" y="31" width="20" height="141" fill="#000" />
+      <rect x="144" y="31" width="20" height="141" fill="#000" />
+      <polygon points="54.17,25.23 162.17,166.23 145.83,177.77 37.83,36.77" fill="#000" />
+    </mask>
+
+    <mask id="mBook">
+      <rect x="0" y="0" width="200" height="205" fill="#fff" />
+      <path d="M100,108 C86,100 68,100 58,106 C68,146 86,150 100,160 Z" fill="#000" />
+      <path d="M100,108 C114,100 132,100 142,106 C132,146 114,150 100,160 Z" fill="#000" />
+    </mask>
+
+    <linearGradient id="badgeGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a8405c" />
+      <stop offset="1" stop-color="#3d0f1c" />
+    </linearGradient>
+  </defs>
+</svg>
+
+<div class="sheet">
+
+  <div class="masthead">
+    <div>
+      <div class="masthead-mark">HÜ Kurumsal Kimlik — Amblem Ön Çalışması</div>
+      <h1>Geyik Amblem Numuneleri</h1>
+    </div>
+    <div class="masthead-right">
+      Numune adedi: <span>10</span><br />
+      Metin içeriği: <span>yok</span><br />
+      Sürüm: <span>ön izleme</span>
+    </div>
+  </div>
+
+  <div class="brief">
+    <div>
+      <p>
+        Hacettepe Üniversitesi'nin kendi amblemi 1967'de Yücel Tanyeri tarafından
+        Alacahöyük'te bulunan Hitit dönemi bronz geyik heykelciğinden esinlenerek
+        çizildi ve soyutlanıp küçük "h" harfine benzer hale getirildi. Aşağıdaki
+        10 numune, aynı boynuzlu geyik başı silüetini tek bir temel motif olarak
+        alıp, Nottepe'nin kendi kimliğiyle (not tutma, ders paylaşımı) beş farklı
+        yönde harmanlıyor — her yön iki işleme stiliyle (çizgisel / dolu) gösteriliyor.
+        Amblemlerin hiçbirinde yazı yok; yalnızca form ve renk.
+      </p>
+      <p class="credit">
+        Kaynak: HÜ kurumsal tarihi (1967, Yücel Tanyeri) — Alacahöyük Hitit geyik
+        heykelciği. Kurumsal kimlik kılavuzundaki tam Pantone değeri bu ortamdan
+        doğrulanamadı; bordo referans aralığı kullanıldı.
+      </p>
+    </div>
+    <div class="swatchbox">
+      <div class="swatch-row">
+        <div class="chip" style="background:#7a2038"></div>
+        <div class="swatch-label">Bordo — birincil</div>
+        <div class="swatch-hex">#7A2038</div>
+      </div>
+      <div class="swatch-row">
+        <div class="chip" style="background:#4a1220"></div>
+        <div class="swatch-label">Bordo koyu</div>
+        <div class="swatch-hex">#4A1220</div>
+      </div>
+      <div class="swatch-row">
+        <div class="chip" style="background:#f3ead9"></div>
+        <div class="swatch-label">Krem — ikincil</div>
+        <div class="swatch-hex">#F3EAD9</div>
+      </div>
+      <div class="swatch-row">
+        <div class="chip" style="background:#b9925a"></div>
+        <div class="swatch-label">Pirinç — vurgu</div>
+        <div class="swatch-hex">#B9925A</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid">
+
+    <!-- 1 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square on-cream">
+          <svg viewBox="0 0 200 205"><use href="#deerMark" fill="none" stroke="#7a2038" stroke-width="7" stroke-linejoin="round" mask="url(#mNib)" /></svg>
+        </div>
+        <div class="preview circle on-cream">
+          <svg viewBox="0 0 200 205"><use href="#deerMark" fill="none" stroke="#7a2038" stroke-width="7" stroke-linejoin="round" mask="url(#mNib)" /></svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">01 / 10</div>
+        <div class="plate-title">Geyik + Kalem Ucu</div>
+        <span class="plate-tag">çizgisel</span>
+        <p class="plate-note">Boynuzun tepe noktası dolma kalem ucuna dönüşüyor — üniversite + not tutma bir arada.</p>
+      </div>
+    </div>
+
+    <!-- 2 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square on-cream">
+          <svg viewBox="0 0 200 205"><use href="#deerMark" fill="#7a2038" mask="url(#mNib)" /></svg>
+        </div>
+        <div class="preview circle on-bordo">
+          <svg viewBox="0 0 200 205"><use href="#deerMark" fill="#f3ead9" mask="url(#mNib)" /></svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">02 / 10</div>
+        <div class="plate-title">Geyik + Kalem Ucu</div>
+        <span class="plate-tag">dolu</span>
+        <p class="plate-note">Aynı fikrin dolu silüet hâli — kalem yarığı krem rengiyle boşluk bırakıyor.</p>
+      </div>
+    </div>
+
+    <!-- 3 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square on-cream">
+          <svg viewBox="0 0 200 205"><use href="#deerMark" fill="#7a2038" /></svg>
+        </div>
+        <div class="preview circle on-cream">
+          <svg viewBox="0 0 200 205"><use href="#deerMark" fill="#7a2038" /></svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">03 / 10</div>
+        <div class="plate-title">Alacahöyük Geyiği</div>
+        <span class="plate-tag">sade</span>
+        <p class="plate-note">Ek öge yok — motifin en saf hâli. HÜ camiasının en çok tanıyacağı, en "resmî" seçenek.</p>
+      </div>
+    </div>
+
+    <!-- 4 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square on-cream">
+          <svg viewBox="0 0 200 205">
+            <circle cx="100" cy="102" r="96" fill="none" stroke="#b9925a" stroke-width="4" />
+            <circle cx="100" cy="102" r="86" fill="none" stroke="#b9925a" stroke-width="1.5" />
+            <use href="#deerMark" fill="#7a2038" transform="translate(0,-4) scale(0.86)" transform-origin="100 102" />
+          </svg>
+        </div>
+        <div class="preview circle on-cream">
+          <svg viewBox="0 0 200 205">
+            <circle cx="100" cy="102" r="96" fill="none" stroke="#b9925a" stroke-width="4" />
+            <circle cx="100" cy="102" r="86" fill="none" stroke="#b9925a" stroke-width="1.5" />
+            <use href="#deerMark" fill="#7a2038" transform="translate(0,-4) scale(0.86)" transform-origin="100 102" />
+          </svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">04 / 10</div>
+        <div class="plate-title">Alacahöyük Geyiği</div>
+        <span class="plate-tag">madalyon</span>
+        <p class="plate-note">Aynı sade motif, çift pirinç halkalı madalyon çerçevesi içinde — rozet/mühür hissi.</p>
+      </div>
+    </div>
+
+    <!-- 5 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square on-cream">
+          <svg viewBox="0 0 200 205">
+            <g mask="url(#mNRing)">
+              <rect x="30" y="25" width="32" height="153" fill="#7a2038" />
+              <rect x="138" y="25" width="32" height="153" fill="#7a2038" />
+              <polygon points="59.07,15.77 167.07,168.77 140.93,187.23 32.93,34.23" fill="#7a2038" />
+            </g>
+            <line x1="46" y1="25" x2="32" y2="8" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="46" y1="25" x2="58" y2="12" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="142" y2="12" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="168" y2="8" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div class="preview circle on-cream">
+          <svg viewBox="0 0 200 205">
+            <g mask="url(#mNRing)">
+              <rect x="30" y="25" width="32" height="153" fill="#7a2038" />
+              <rect x="138" y="25" width="32" height="153" fill="#7a2038" />
+              <polygon points="59.07,15.77 167.07,168.77 140.93,187.23 32.93,34.23" fill="#7a2038" />
+            </g>
+            <line x1="46" y1="25" x2="32" y2="8" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="46" y1="25" x2="58" y2="12" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="142" y2="12" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="168" y2="8" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+          </svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">05 / 10</div>
+        <div class="plate-title">Belirgin "N"</div>
+        <span class="plate-tag">hatlı</span>
+        <p class="plate-note">Nottepe'nin "N"si artık amblemin kendisi — bordo bir halka/monogram. Uçlardaki iki ufak çatal, geyik boynuzuna göz kırpıyor.</p>
+      </div>
+    </div>
+
+    <!-- 6 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square on-cream">
+          <svg viewBox="0 0 200 205">
+            <rect x="30" y="25" width="32" height="153" fill="#7a2038" />
+            <rect x="138" y="25" width="32" height="153" fill="#7a2038" />
+            <polygon points="59.07,15.77 167.07,168.77 140.93,187.23 32.93,34.23" fill="#7a2038" />
+            <line x1="46" y1="25" x2="32" y2="8" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="46" y1="25" x2="58" y2="12" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="142" y2="12" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="168" y2="8" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div class="preview circle on-bordo">
+          <svg viewBox="0 0 200 205">
+            <rect x="30" y="25" width="32" height="153" fill="#f3ead9" />
+            <rect x="138" y="25" width="32" height="153" fill="#f3ead9" />
+            <polygon points="59.07,15.77 167.07,168.77 140.93,187.23 32.93,34.23" fill="#f3ead9" />
+            <line x1="46" y1="25" x2="32" y2="8" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+            <line x1="46" y1="25" x2="58" y2="12" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="142" y2="12" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="168" y2="8" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+          </svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">06 / 10</div>
+        <div class="plate-title">Belirgin "N"</div>
+        <span class="plate-tag">dolu</span>
+        <p class="plate-note">Aynı "N" bu kez tek parça dolu bordo/krem blok — uzaktan da, küçük ikon boyutunda da net okunuyor.</p>
+      </div>
+    </div>
+
+    <!-- 7 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square on-cream">
+          <svg viewBox="0 0 200 205">
+            <use href="#deerMark" fill="none" stroke="#7a2038" stroke-width="6" stroke-linejoin="round" />
+            <path d="M100,108 C86,100 68,100 58,106 C68,146 86,150 100,160" fill="none" stroke="#7a2038" stroke-width="3.5" />
+            <path d="M100,108 C114,100 132,100 142,106 C132,146 114,150 100,160" fill="none" stroke="#7a2038" stroke-width="3.5" />
+            <line x1="100" y1="108" x2="100" y2="160" stroke="#7a2038" stroke-width="3.5" />
+          </svg>
+        </div>
+        <div class="preview circle on-cream">
+          <svg viewBox="0 0 200 205">
+            <use href="#deerMark" fill="none" stroke="#7a2038" stroke-width="6" stroke-linejoin="round" />
+            <path d="M100,108 C86,100 68,100 58,106 C68,146 86,150 100,160" fill="none" stroke="#7a2038" stroke-width="3.5" />
+            <path d="M100,108 C114,100 132,100 142,106 C132,146 114,150 100,160" fill="none" stroke="#7a2038" stroke-width="3.5" />
+            <line x1="100" y1="108" x2="100" y2="160" stroke="#7a2038" stroke-width="3.5" />
+          </svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">07 / 10</div>
+        <div class="plate-title">Açık Kitap</div>
+        <span class="plate-tag">çizgisel</span>
+        <p class="plate-note">Yüz bölgesine yerleşen açık kitap sayfaları — akademik/ders notu vurgusu.</p>
+      </div>
+    </div>
+
+    <!-- 8 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square on-cream">
+          <svg viewBox="0 0 200 205"><use href="#deerMark" fill="#7a2038" mask="url(#mBook)" /></svg>
+        </div>
+        <div class="preview circle on-bordo">
+          <svg viewBox="0 0 200 205"><use href="#deerMark" fill="#f3ead9" mask="url(#mBook)" /></svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">08 / 10</div>
+        <div class="plate-title">Açık Kitap</div>
+        <span class="plate-tag">dolu</span>
+        <p class="plate-note">Aynı sayfalar bu kez dolu silüetten krem rengiyle oyuluyor, ortada ince bir sırt kalıyor.</p>
+      </div>
+    </div>
+
+    <!-- 9 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square on-cream">
+          <svg viewBox="0 0 200 205">
+            <use href="#deerMark" fill="#7a2038" />
+            <polygon points="100,10 150,28 126,42" fill="#000" opacity="0.16" />
+            <polygon points="100,10 74,42 50,28" fill="#fff" opacity="0.12" />
+            <polygon points="100,10 126,42 100,120 74,42" fill="#fff" opacity="0.08" />
+            <polygon points="84,164 100,196 116,164 100,120" fill="#000" opacity="0.14" />
+            <polygon points="176,60 138,68 128,96 158,94" fill="#000" opacity="0.12" />
+            <polygon points="24,60 72,68 72,96 42,94" fill="#fff" opacity="0.1" />
+          </svg>
+        </div>
+        <div class="preview circle on-cream">
+          <svg viewBox="0 0 200 205">
+            <use href="#deerMark" fill="#7a2038" />
+            <polygon points="100,10 150,28 126,42" fill="#000" opacity="0.16" />
+            <polygon points="100,10 74,42 50,28" fill="#fff" opacity="0.12" />
+            <polygon points="100,10 126,42 100,120 74,42" fill="#fff" opacity="0.08" />
+            <polygon points="84,164 100,196 116,164 100,120" fill="#000" opacity="0.14" />
+          </svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">09 / 10</div>
+        <div class="plate-title">Low-poly Geyik Başı</div>
+        <span class="plate-tag">faceted</span>
+        <p class="plate-note">Aynı silüet üstüne düşük-poligon yüzeyler — boynuz uçları tik işaretini andırıyor.</p>
+      </div>
+    </div>
+
+    <!-- 10 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square on-bordo-deep">
+          <svg viewBox="0 0 200 205">
+            <use href="#deerMark" fill="#f3ead9" />
+            <polygon points="100,10 150,28 126,42" fill="#000" opacity="0.14" />
+            <polygon points="100,10 74,42 50,28" fill="#fff" opacity="0.22" />
+            <polygon points="84,164 100,196 116,164 100,120" fill="#000" opacity="0.1" />
+          </svg>
+        </div>
+        <div class="preview circle on-bordo-deep">
+          <svg viewBox="0 0 200 205">
+            <use href="#deerMark" fill="#f3ead9" />
+            <polygon points="100,10 150,28 126,42" fill="#000" opacity="0.14" />
+            <polygon points="100,10 74,42 50,28" fill="#fff" opacity="0.22" />
+          </svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">10 / 10</div>
+        <div class="plate-title">Low-poly Geyik Başı</div>
+        <span class="plate-tag">rozet + gradient</span>
+        <p class="plate-note">Ters renk düzeni: koyu bordo-siyah gradyan zemin üstünde krem işaret — modern uygulama ikonu hissi.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    <span>10 numune · yazı yok · bordo + krem + pirinç</span>
+    <span>Nottepe — logo ön çalışması</span>
+  </footer>
+</div>

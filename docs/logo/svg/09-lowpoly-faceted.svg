@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 240 240">
+  <title>Low-poly Geyik Başı — faceted</title>
+  <defs>
+    <path id="deerMark" d="
+      M116,164 L122,140 L148,120 L124,114 L158,94 L128,96 L176,60 L138,68
+      L150,28 L126,42 L100,10 L74,42 L50,28 L72,68 L24,60 L72,96 L42,94
+      L76,114 L52,120 L78,140 L84,164 Q100,196 116,164 Z" />
+  </defs>
+  <rect width="240" height="240" fill="#f3ead9" />
+  <g transform="translate(40,38) scale(0.8)">
+    <use href="#deerMark" fill="#7a2038" />
+    <polygon points="100,10 150,28 126,42" fill="#000" opacity="0.16" />
+    <polygon points="100,10 74,42 50,28" fill="#fff" opacity="0.12" />
+    <polygon points="100,10 126,42 100,120 74,42" fill="#fff" opacity="0.08" />
+    <polygon points="84,164 100,196 116,164 100,120" fill="#000" opacity="0.14" />
+    <polygon points="176,60 138,68 128,96 158,94" fill="#000" opacity="0.12" />
+    <polygon points="24,60 72,68 72,96 42,94" fill="#fff" opacity="0.1" />
+  </g>
+</svg>

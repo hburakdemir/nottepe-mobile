@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 240 240">
+  <title>Geyik + Kalem Ucu — dolu</title>
+  <defs>
+    <path id="deerMark" d="
+      M116,164 L122,140 L148,120 L124,114 L158,94 L128,96 L176,60 L138,68
+      L150,28 L126,42 L100,10 L74,42 L50,28 L72,68 L24,60 L72,96 L42,94
+      L76,114 L52,120 L78,140 L84,164 Q100,196 116,164 Z" />
+    <mask id="mNib">
+      <rect x="0" y="0" width="200" height="205" fill="#fff" />
+      <line x1="100" y1="10" x2="100" y2="58" stroke="#000" stroke-width="6" />
+      <circle cx="100" cy="42" r="6" fill="#000" />
+    </mask>
+  </defs>
+  <rect width="240" height="240" fill="#f3ead9" />
+  <g transform="translate(40,38) scale(0.8)">
+    <use href="#deerMark" fill="#7a2038" mask="url(#mNib)" />
+  </g>
+</svg>
