@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 240 240">
+  <title>NH Monogramı — teal madalyon</title>
+  <defs>
+    <clipPath id="clipLeft"><rect x="0" y="0" width="100" height="205" /></clipPath>
+    <clipPath id="clipRight"><rect x="100" y="0" width="100" height="205" /></clipPath>
+  </defs>
+  <rect width="240" height="240" fill="#2F5755" />
+  <g transform="translate(40,38) scale(0.8)">
+    <circle cx="100" cy="102" r="96" fill="none" stroke="#7a2038" stroke-width="5" />
+    <g transform="translate(0,-4) scale(0.86)" transform-origin="100 102">
+      <rect x="10" y="25" width="24" height="153" fill="#f3ead9" />
+      <polygon points="36.26,17.73 114.26,170.73 85.74,185.27 7.74,32.27" fill="#f3ead9" />
+      <rect x="166" y="25" width="24" height="153" fill="#7a2038" />
+      <rect x="112" y="89.5" width="54" height="24" fill="#7a2038" />
+      <rect x="88" y="25" width="24" height="153" fill="#f3ead9" clip-path="url(#clipLeft)" />
+      <rect x="88" y="25" width="24" height="153" fill="#7a2038" clip-path="url(#clipRight)" />
+    </g>
+  </g>
+</svg>

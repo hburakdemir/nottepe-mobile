@@ -235,6 +235,11 @@
     letter-spacing: 0.04em;
   }
 
+  .bk-front { fill: var(--book-front, #7a2038); }
+  .bk-top { fill: var(--book-top, #f3ead9); }
+  .bk-side { fill: var(--book-side, #4a1220); }
+  .bk-ridge { stroke: var(--book-top, #f3ead9); stroke-width: 1.2; opacity: 0.45; }
+
   footer {
     margin-top: 46px;
     padding-top: 18px;
@@ -324,6 +329,17 @@
       <stop offset="1" stop-color="#7a2038" />
     </linearGradient>
 
+    <!-- tek bir "3B kitap" birimi: ön kapak + üst (sayfa) + yan (sırt) yüzü -->
+    <g id="bookUnit">
+      <polygon class="bk-top" points="0,0 26,0 34,-6 8,-6" />
+      <polygon class="bk-side" points="26,0 26,153 34,147 34,-6" />
+      <line class="bk-ridge" x1="26" y1="30" x2="34" y2="24" />
+      <line class="bk-ridge" x1="26" y1="66" x2="34" y2="60" />
+      <line class="bk-ridge" x1="26" y1="102" x2="34" y2="96" />
+      <line class="bk-ridge" x1="26" y1="138" x2="34" y2="132" />
+      <rect class="bk-front" x="0" y="0" width="26" height="153" />
+    </g>
+
     <linearGradient id="badgeGrad" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#a8405c" />
       <stop offset="1" stop-color="#3d0f1c" />
@@ -339,7 +355,7 @@
       <h1>Geyik Amblem Numuneleri</h1>
     </div>
     <div class="masthead-right">
-      Numune adedi: <span>20</span><br />
+      Numune adedi: <span>25</span><br />
       Metin içeriği: <span>yok</span><br />
       Sürüm: <span>ön izleme</span>
     </div>
@@ -997,8 +1013,202 @@
 
   </div>
 
+  <div class="section-break">
+    <div class="masthead-mark">Yeni Yön — 21 / 25 – 25 / 25</div>
+    <h2>3B Kitaplar N'i Kuruyor + Nottepe×Hacettepe Monogramı</h2>
+    <p>
+      Yeni talep: geyik tek başına pasif kalmasın; "N" artık üç boyutlu, sağdan
+      bakılmış, birbirine devrilen üç kitaptan kurulsun; iki üst köşeden geyik
+      boynuzu çıksın. Ayrıca Nottepe + Hacettepe'yi tek harfte birleştiren bir
+      "NH" monogramı — ortadaki gövdeyi paylaşan, yarı yarıya karışan bir
+      bitişik harf (N'in sağ bacağı = H'nin sol bacağı).
+    </p>
+  </div>
+
+  <div class="grid">
+
+    <!-- 21 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square on-cream">
+          <svg viewBox="0 0 200 205">
+            <use href="#bookUnit" transform="translate(20,25)" />
+            <use href="#bookUnit" transform="translate(154,25)" />
+            <use href="#bookUnit" transform="translate(40,26) rotate(-38.4) scale(1,1.242)" />
+            <line x1="40" y1="19" x2="26" y2="2" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="40" y1="19" x2="52" y2="6" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="175" y1="19" x2="161" y2="6" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="175" y1="19" x2="187" y2="2" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div class="preview circle on-cream">
+          <svg viewBox="0 0 200 205">
+            <use href="#bookUnit" transform="translate(20,25)" />
+            <use href="#bookUnit" transform="translate(154,25)" />
+            <use href="#bookUnit" transform="translate(40,26) rotate(-38.4) scale(1,1.242)" />
+            <line x1="40" y1="19" x2="26" y2="2" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="40" y1="19" x2="52" y2="6" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="175" y1="19" x2="161" y2="6" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="175" y1="19" x2="187" y2="2" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+          </svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">21 / 25</div>
+        <div class="plate-title">3 Kitap N</div>
+        <span class="plate-tag">tek renk</span>
+        <p class="plate-note">Sağdan bakılmış üç kitap; ikisi dik, biri devrilerek aralarında köprü kuruyor. Üst köşelerden geyik boynuzu.</p>
+      </div>
+    </div>
+
+    <!-- 22 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square on-cream">
+          <svg viewBox="0 0 200 205">
+            <use href="#bookUnit" transform="translate(20,25)" />
+            <use href="#bookUnit" transform="translate(154,25)" />
+            <use href="#bookUnit" transform="translate(40,26) rotate(-38.4) scale(1,1.242)" style="--book-front:#2F5755;--book-side:#1c3433;" />
+            <line x1="40" y1="19" x2="26" y2="2" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="40" y1="19" x2="52" y2="6" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="175" y1="19" x2="161" y2="6" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="175" y1="19" x2="187" y2="2" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div class="preview circle on-cream">
+          <svg viewBox="0 0 200 205">
+            <use href="#bookUnit" transform="translate(20,25)" />
+            <use href="#bookUnit" transform="translate(154,25)" />
+            <use href="#bookUnit" transform="translate(40,26) rotate(-38.4) scale(1,1.242)" style="--book-front:#2F5755;--book-side:#1c3433;" />
+            <line x1="40" y1="19" x2="26" y2="2" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="40" y1="19" x2="52" y2="6" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="175" y1="19" x2="161" y2="6" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="175" y1="19" x2="187" y2="2" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+          </svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">22 / 25</div>
+        <div class="plate-title">3 Kitap N</div>
+        <span class="plate-tag">bordo + teal</span>
+        <p class="plate-note">Dik iki kitap bordo, devrilen orta kitap teal — aynı N mantığı (dık=miras, köşegen=Nottepe) kitaplara taşındı.</p>
+      </div>
+    </div>
+
+    <!-- 23 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square on-cream">
+          <svg viewBox="0 0 200 205">
+            <rect x="10" y="25" width="24" height="153" fill="#2F5755" />
+            <polygon points="36.26,17.73 114.26,170.73 85.74,185.27 7.74,32.27" fill="#2F5755" />
+            <rect x="166" y="25" width="24" height="153" fill="#7a2038" />
+            <rect x="112" y="89.5" width="54" height="24" fill="#7a2038" />
+            <rect x="88" y="25" width="24" height="153" fill="#2F5755" clip-path="url(#clipLeft)" />
+            <rect x="88" y="25" width="24" height="153" fill="#7a2038" clip-path="url(#clipRight)" />
+          </svg>
+        </div>
+        <div class="preview circle on-cream">
+          <svg viewBox="0 0 200 205">
+            <rect x="10" y="25" width="24" height="153" fill="#2F5755" />
+            <polygon points="36.26,17.73 114.26,170.73 85.74,185.27 7.74,32.27" fill="#2F5755" />
+            <rect x="166" y="25" width="24" height="153" fill="#7a2038" />
+            <rect x="112" y="89.5" width="54" height="24" fill="#7a2038" />
+            <rect x="88" y="25" width="24" height="153" fill="#2F5755" clip-path="url(#clipLeft)" />
+            <rect x="88" y="25" width="24" height="153" fill="#7a2038" clip-path="url(#clipRight)" />
+          </svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">23 / 25</div>
+        <div class="plate-title">NH Monogramı</div>
+        <span class="plate-tag">bordo + teal</span>
+        <p class="plate-note">N'in sağ bacağı = H'nin sol bacağı: paylaşılan gövde tam ortadan teal/bordo bölünüyor — Nottepe × Hacettepe kelimenin tam anlamıyla birleşiyor.</p>
+      </div>
+    </div>
+
+    <!-- 24 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square" style="background:#2F5755">
+          <svg viewBox="0 0 200 205">
+            <circle cx="100" cy="102" r="96" fill="none" stroke="#7a2038" stroke-width="5" />
+            <g transform="translate(0,-4) scale(0.86)" transform-origin="100 102">
+              <rect x="10" y="25" width="24" height="153" fill="#f3ead9" />
+              <polygon points="36.26,17.73 114.26,170.73 85.74,185.27 7.74,32.27" fill="#f3ead9" />
+              <rect x="166" y="25" width="24" height="153" fill="#7a2038" />
+              <rect x="112" y="89.5" width="54" height="24" fill="#7a2038" />
+              <rect x="88" y="25" width="24" height="153" fill="#f3ead9" clip-path="url(#clipLeft)" />
+              <rect x="88" y="25" width="24" height="153" fill="#7a2038" clip-path="url(#clipRight)" />
+            </g>
+          </svg>
+        </div>
+        <div class="preview circle" style="background:#2F5755">
+          <svg viewBox="0 0 200 205">
+            <circle cx="100" cy="102" r="96" fill="none" stroke="#7a2038" stroke-width="5" />
+            <g transform="translate(0,-4) scale(0.86)" transform-origin="100 102">
+              <rect x="10" y="25" width="24" height="153" fill="#f3ead9" />
+              <polygon points="36.26,17.73 114.26,170.73 85.74,185.27 7.74,32.27" fill="#f3ead9" />
+              <rect x="166" y="25" width="24" height="153" fill="#7a2038" />
+              <rect x="112" y="89.5" width="54" height="24" fill="#7a2038" />
+              <rect x="88" y="25" width="24" height="153" fill="#f3ead9" clip-path="url(#clipLeft)" />
+              <rect x="88" y="25" width="24" height="153" fill="#7a2038" clip-path="url(#clipRight)" />
+            </g>
+          </svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">24 / 25</div>
+        <div class="plate-title">NH Monogramı</div>
+        <span class="plate-tag">teal madalyon</span>
+        <p class="plate-note">Aynı bitişik harf, ailenin madalyon diline (teal zemin + bordo halka) taşındı.</p>
+      </div>
+    </div>
+
+    <!-- 25 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square" style="background:#2F5755">
+          <svg viewBox="0 0 200 205">
+            <circle cx="100" cy="102" r="96" fill="none" stroke="#7a2038" stroke-width="5" />
+            <g transform="translate(0,-4) scale(0.86)" transform-origin="100 102">
+              <use href="#bookUnit" transform="translate(20,25)" style="--book-front:#f3ead9;--book-top:#fff8ec;--book-side:#c9b28a;" />
+              <use href="#bookUnit" transform="translate(154,25)" style="--book-front:#f3ead9;--book-top:#fff8ec;--book-side:#c9b28a;" />
+              <use href="#bookUnit" transform="translate(40,26) rotate(-38.4) scale(1,1.242)" style="--book-front:#f3ead9;--book-top:#fff8ec;--book-side:#c9b28a;" />
+              <line x1="40" y1="19" x2="26" y2="2" stroke="#b9925a" stroke-width="5" stroke-linecap="round" />
+              <line x1="40" y1="19" x2="52" y2="6" stroke="#b9925a" stroke-width="5" stroke-linecap="round" />
+              <line x1="175" y1="19" x2="161" y2="6" stroke="#b9925a" stroke-width="5" stroke-linecap="round" />
+              <line x1="175" y1="19" x2="187" y2="2" stroke="#b9925a" stroke-width="5" stroke-linecap="round" />
+            </g>
+          </svg>
+        </div>
+        <div class="preview circle" style="background:#2F5755">
+          <svg viewBox="0 0 200 205">
+            <circle cx="100" cy="102" r="96" fill="none" stroke="#7a2038" stroke-width="5" />
+            <g transform="translate(0,-4) scale(0.86)" transform-origin="100 102">
+              <use href="#bookUnit" transform="translate(20,25)" style="--book-front:#f3ead9;--book-top:#fff8ec;--book-side:#c9b28a;" />
+              <use href="#bookUnit" transform="translate(154,25)" style="--book-front:#f3ead9;--book-top:#fff8ec;--book-side:#c9b28a;" />
+              <use href="#bookUnit" transform="translate(40,26) rotate(-38.4) scale(1,1.242)" style="--book-front:#f3ead9;--book-top:#fff8ec;--book-side:#c9b28a;" />
+              <line x1="40" y1="19" x2="26" y2="2" stroke="#b9925a" stroke-width="5" stroke-linecap="round" />
+              <line x1="40" y1="19" x2="52" y2="6" stroke="#b9925a" stroke-width="5" stroke-linecap="round" />
+              <line x1="175" y1="19" x2="161" y2="6" stroke="#b9925a" stroke-width="5" stroke-linecap="round" />
+              <line x1="175" y1="19" x2="187" y2="2" stroke="#b9925a" stroke-width="5" stroke-linecap="round" />
+            </g>
+          </svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">25 / 25</div>
+        <div class="plate-title">3 Kitap N</div>
+        <span class="plate-tag">teal madalyon · bonus</span>
+        <p class="plate-note">İstenmedi ama denedim: kitap-N'i aile madalyonuna taşıyıp krem/pirinç tonlarıyla "eskitilmiş kağıt" hissi kattım.</p>
+      </div>
+    </div>
+
+  </div>
+
   <footer>
-    <span>20 numune · yazı yok · bordo + krem + pirinç + teal</span>
+    <span>25 numune · yazı yok · bordo + krem + pirinç + teal</span>
     <span>Nottepe — logo ön çalışması</span>
   </footer>
 </div>

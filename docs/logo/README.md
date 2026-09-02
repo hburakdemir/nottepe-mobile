@@ -42,6 +42,11 @@ Uygulama ikonu için yazısız, Hacettepe kimliğine uygun amblem arayışının
 | `18-n-kitap-bordo-teal.svg` | N + Kitap | bordo + teal |
 | `19-n-kitap-teal-madalyon.svg` | N + Kitap | teal madalyon |
 | `20-aktif-geyik-kalem-bordo-teal.svg` | Aktif Geyik + Kalem | bordo + teal |
+| `21-3-kitap-n-tek-renk.svg` | 3 Kitap N | tek renk |
+| `22-3-kitap-n-bordo-teal.svg` | 3 Kitap N | bordo + teal |
+| `23-nh-monogram-bordo-teal.svg` | NH Monogramı | bordo + teal |
+| `24-nh-monogram-teal-madalyon.svg` | NH Monogramı | teal madalyon |
+| `25-3-kitap-n-teal-madalyon-bonus.svg` | 3 Kitap N | teal madalyon (bonus) |
 
 11-16 numaralı dosyalar, Nottepe'nin kendi ekranlarında (HomeScreen,
 ProfileScreen vb.) zaten kullandığı site rengi olan teal'i (`#2F5755`)
@@ -51,6 +56,15 @@ Hacettepe bordo/krem paletiyle aynı markada birleştiriyor.
 "N"in köşegeni artık düz bir bant değil, tek noktadan açılan bir sayfa
 yelpazesi (kitap hissi); geyik tek başına durağan bulunduğu için boynuzun
 tepesi çok daha belirgin bir dolma kalem ucuna dönüştürüldü.
+
+**Üçüncü tur (21-25):** "N" artık üç boyutlu, sağdan bakılmış, birbirine
+devrilen üç kitaptan kuruluyor (ikisi dik, biri köprü gibi devrilmiş),
+üst iki köşeden geyik boynuzu çıkıyor. Ayrıca Nottepe + Hacettepe'yi tek
+harfte birleştiren bir "NH" bitişik monogramı eklendi — N'in sağ bacağı
+ile H'nin sol bacağı aynı gövdeyi paylaşıyor, paylaşılan gövde tam
+ortadan teal/bordo bölünerek iki ismin birleştiğini gösteriyor. 25
+numara istenmemiş bir bonus: kitap-N'in krem/pirinç tonlu madalyon
+versiyonu.
 
 ## Palet
 

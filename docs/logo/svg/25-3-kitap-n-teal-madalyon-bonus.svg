@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 240 240">
+  <title>3 Kitap N — teal madalyon (bonus)</title>
+  <defs>
+    <g id="bookUnit">
+      <polygon class="bk-top" points="0,0 26,0 34,-6 8,-6" />
+      <polygon class="bk-side" points="26,0 26,153 34,147 34,-6" />
+      <line class="bk-ridge" x1="26" y1="30" x2="34" y2="24" />
+      <line class="bk-ridge" x1="26" y1="66" x2="34" y2="60" />
+      <line class="bk-ridge" x1="26" y1="102" x2="34" y2="96" />
+      <line class="bk-ridge" x1="26" y1="138" x2="34" y2="132" />
+      <rect class="bk-front" x="0" y="0" width="26" height="153" />
+    </g>
+  </defs>
+  <style>
+    .bk-front { fill: var(--book-front, #7a2038); }
+    .bk-top { fill: var(--book-top, #f3ead9); }
+    .bk-side { fill: var(--book-side, #4a1220); }
+    .bk-ridge { stroke: var(--book-top, #f3ead9); stroke-width: 1.2; opacity: 0.45; }
+  </style>
+  <rect width="240" height="240" fill="#2F5755" />
+  <g transform="translate(40,38) scale(0.8)">
+    <circle cx="100" cy="102" r="96" fill="none" stroke="#7a2038" stroke-width="5" />
+    <g transform="translate(0,-4) scale(0.86)" transform-origin="100 102">
+      <use href="#bookUnit" transform="translate(20,25)" style="--book-front:#f3ead9;--book-top:#fff8ec;--book-side:#c9b28a;" />
+      <use href="#bookUnit" transform="translate(154,25)" style="--book-front:#f3ead9;--book-top:#fff8ec;--book-side:#c9b28a;" />
+      <use href="#bookUnit" transform="translate(40,26) rotate(-38.4) scale(1,1.242)" style="--book-front:#f3ead9;--book-top:#fff8ec;--book-side:#c9b28a;" />
+      <line x1="40" y1="19" x2="26" y2="2" stroke="#b9925a" stroke-width="5" stroke-linecap="round" />
+      <line x1="40" y1="19" x2="52" y2="6" stroke="#b9925a" stroke-width="5" stroke-linecap="round" />
+      <line x1="175" y1="19" x2="161" y2="6" stroke="#b9925a" stroke-width="5" stroke-linecap="round" />
+      <line x1="175" y1="19" x2="187" y2="2" stroke="#b9925a" stroke-width="5" stroke-linecap="round" />
+    </g>
+  </g>
+</svg>
