@@ -38,10 +38,19 @@ Uygulama ikonu için yazısız, Hacettepe kimliğine uygun amblem arayışının
 | `14-gradyan-rozet-n-teal-bordo.svg` | Gradyan Rozet + N | teal → bordo |
 | `15-bolunmus-n-bordo-teal.svg` | Bölünmüş N | bordo + teal |
 | `16-teal-zemin-bordo-halka.svg` | Teal Zemin, Bordo Halka | üç renk |
+| `17-n-kitap-tek-renk.svg` | N + Kitap | tek renk |
+| `18-n-kitap-bordo-teal.svg` | N + Kitap | bordo + teal |
+| `19-n-kitap-teal-madalyon.svg` | N + Kitap | teal madalyon |
+| `20-aktif-geyik-kalem-bordo-teal.svg` | Aktif Geyik + Kalem | bordo + teal |
 
 11-16 numaralı dosyalar, Nottepe'nin kendi ekranlarında (HomeScreen,
 ProfileScreen vb.) zaten kullandığı site rengi olan teal'i (`#2F5755`)
 Hacettepe bordo/krem paletiyle aynı markada birleştiriyor.
+
+**Geri bildirim sonrası (17-20):** gradyan numuneleri (13-14) elendi;
+"N"in köşegeni artık düz bir bant değil, tek noktadan açılan bir sayfa
+yelpazesi (kitap hissi); geyik tek başına durağan bulunduğu için boynuzun
+tepesi çok daha belirgin bir dolma kalem ucuna dönüştürüldü.
 
 ## Palet
 

@@ -223,6 +223,18 @@
     max-width: 34ch;
   }
 
+  .plate--out { opacity: 0.4; }
+
+  .plate--out .plate-title::after {
+    content: ' — elendi';
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--bordo);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
   footer {
     margin-top: 46px;
     padding-top: 18px;
@@ -295,6 +307,14 @@
     <clipPath id="clipLeft"><rect x="0" y="0" width="100" height="205" /></clipPath>
     <clipPath id="clipRight"><rect x="100" y="0" width="100" height="205" /></clipPath>
 
+    <mask id="mNibBig">
+      <rect x="0" y="0" width="200" height="205" fill="#fff" />
+      <line x1="100" y1="8" x2="95" y2="36" stroke="#000" stroke-width="5" stroke-linecap="round" />
+      <line x1="100" y1="8" x2="105" y2="36" stroke="#000" stroke-width="5" stroke-linecap="round" />
+      <circle cx="100" cy="47" r="9" fill="#000" />
+      <line x1="100" y1="56" x2="100" y2="66" stroke="#000" stroke-width="5" stroke-linecap="round" />
+    </mask>
+
     <linearGradient id="gradBT" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#7a2038" />
       <stop offset="1" stop-color="#2F5755" />
@@ -319,7 +339,7 @@
       <h1>Geyik Amblem Numuneleri</h1>
     </div>
     <div class="masthead-right">
-      Numune adedi: <span>16</span><br />
+      Numune adedi: <span>20</span><br />
       Metin içeriği: <span>yok</span><br />
       Sürüm: <span>ön izleme</span>
     </div>
@@ -697,7 +717,7 @@
     </div>
 
     <!-- 13 -->
-    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+    <div class="plate plate--out"><i class="tick-bl"></i><i class="tick-br"></i>
       <div class="previews">
         <div class="preview square" style="background:linear-gradient(135deg,#7a2038,#2F5755)">
           <svg viewBox="0 0 200 205"><use href="#deerMark" fill="#f3ead9" /></svg>
@@ -715,7 +735,7 @@
     </div>
 
     <!-- 14 -->
-    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+    <div class="plate plate--out"><i class="tick-bl"></i><i class="tick-br"></i>
       <div class="previews">
         <div class="preview square" style="background:linear-gradient(135deg,#2F5755,#7a2038)">
           <svg viewBox="0 0 200 205">
@@ -808,8 +828,177 @@
 
   </div>
 
+  <div class="section-break">
+    <div class="masthead-mark">Rötuşlar — 17 / 20 – 20 / 20</div>
+    <h2>Geri Bildirim Sonrası: Kitap N + Daha Aktif Geyik</h2>
+    <p>
+      Geri bildirim: gradyan (13-14) elendi, renk ailesi (bordo + krem + teal,
+      düz yüzeyler) beğenildi; geyik tek başına fazla durağan bulundu; "N"
+      artık bir kitap gibi okunmalı. Buna göre üç "N + Kitap" numunesi (N'in
+      köşegini artık tek bir düz bant değil, tek noktadan açılan sayfa
+      yelpazesi) ve geyiğin boynuzunu çok daha belirgin bir dolma kalem ucuna
+      dönüştüren, iki renkli bir "aktif geyik" numunesi eklendi.
+    </p>
+  </div>
+
+  <div class="grid">
+
+    <!-- 17 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square on-cream">
+          <svg viewBox="0 0 200 205">
+            <rect x="30" y="25" width="32" height="153" fill="#7a2038" />
+            <rect x="138" y="25" width="32" height="153" fill="#7a2038" />
+            <polygon points="59.07,15.77 167.07,168.77 140.93,187.23 32.93,34.23" fill="#7a2038" />
+            <path d="M50,26 Q90,110 130,170" fill="none" stroke="#f3ead9" stroke-width="2.6" stroke-linecap="round" />
+            <path d="M50,26 Q100,112 140,175" fill="none" stroke="#f3ead9" stroke-width="2.6" stroke-linecap="round" />
+            <path d="M50,26 Q112,114 150,180" fill="none" stroke="#f3ead9" stroke-width="2.6" stroke-linecap="round" />
+            <line x1="46" y1="25" x2="32" y2="8" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="46" y1="25" x2="58" y2="12" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="142" y2="12" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="168" y2="8" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div class="preview circle on-cream">
+          <svg viewBox="0 0 200 205">
+            <rect x="30" y="25" width="32" height="153" fill="#7a2038" />
+            <rect x="138" y="25" width="32" height="153" fill="#7a2038" />
+            <polygon points="59.07,15.77 167.07,168.77 140.93,187.23 32.93,34.23" fill="#7a2038" />
+            <path d="M50,26 Q90,110 130,170" fill="none" stroke="#f3ead9" stroke-width="2.6" stroke-linecap="round" />
+            <path d="M50,26 Q100,112 140,175" fill="none" stroke="#f3ead9" stroke-width="2.6" stroke-linecap="round" />
+            <path d="M50,26 Q112,114 150,180" fill="none" stroke="#f3ead9" stroke-width="2.6" stroke-linecap="round" />
+            <line x1="46" y1="25" x2="32" y2="8" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="46" y1="25" x2="58" y2="12" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="142" y2="12" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="168" y2="8" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+          </svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">17 / 20</div>
+        <div class="plate-title">N + Kitap</div>
+        <span class="plate-tag">tek renk</span>
+        <p class="plate-note">N'in köşegeni artık düz bir bant değil — tek bir menteşe noktasından açılan sayfa yelpazesi.</p>
+      </div>
+    </div>
+
+    <!-- 18 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square on-cream">
+          <svg viewBox="0 0 200 205">
+            <rect x="30" y="25" width="32" height="153" fill="#7a2038" />
+            <rect x="138" y="25" width="32" height="153" fill="#7a2038" />
+            <polygon points="59.07,15.77 167.07,168.77 140.93,187.23 32.93,34.23" fill="#2F5755" />
+            <path d="M50,26 Q90,110 130,170" fill="none" stroke="#f3ead9" stroke-width="2.6" stroke-linecap="round" />
+            <path d="M50,26 Q100,112 140,175" fill="none" stroke="#f3ead9" stroke-width="2.6" stroke-linecap="round" />
+            <path d="M50,26 Q112,114 150,180" fill="none" stroke="#f3ead9" stroke-width="2.6" stroke-linecap="round" />
+            <line x1="46" y1="25" x2="32" y2="8" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="46" y1="25" x2="58" y2="12" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="142" y2="12" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="168" y2="8" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div class="preview circle on-cream">
+          <svg viewBox="0 0 200 205">
+            <rect x="30" y="25" width="32" height="153" fill="#7a2038" />
+            <rect x="138" y="25" width="32" height="153" fill="#7a2038" />
+            <polygon points="59.07,15.77 167.07,168.77 140.93,187.23 32.93,34.23" fill="#2F5755" />
+            <path d="M50,26 Q90,110 130,170" fill="none" stroke="#f3ead9" stroke-width="2.6" stroke-linecap="round" />
+            <path d="M50,26 Q100,112 140,175" fill="none" stroke="#f3ead9" stroke-width="2.6" stroke-linecap="round" />
+            <path d="M50,26 Q112,114 150,180" fill="none" stroke="#f3ead9" stroke-width="2.6" stroke-linecap="round" />
+            <line x1="46" y1="25" x2="32" y2="8" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="46" y1="25" x2="58" y2="12" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="142" y2="12" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="168" y2="8" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+          </svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">18 / 20</div>
+        <div class="plate-title">N + Kitap</div>
+        <span class="plate-tag">bordo + teal</span>
+        <p class="plate-note">Aynı sayfa yelpazesi, bu kez köşegen teal — beğenilen iki renk burada da bir arada.</p>
+      </div>
+    </div>
+
+    <!-- 19 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square" style="background:#2F5755">
+          <svg viewBox="0 0 200 205">
+            <circle cx="100" cy="102" r="96" fill="none" stroke="#7a2038" stroke-width="5" />
+            <g transform="translate(0,-4) scale(0.86)" transform-origin="100 102">
+              <rect x="30" y="25" width="32" height="153" fill="#f3ead9" />
+              <rect x="138" y="25" width="32" height="153" fill="#f3ead9" />
+              <polygon points="59.07,15.77 167.07,168.77 140.93,187.23 32.93,34.23" fill="#f3ead9" />
+              <path d="M50,26 Q90,110 130,170" fill="none" stroke="#2F5755" stroke-width="3" stroke-linecap="round" />
+              <path d="M50,26 Q100,112 140,175" fill="none" stroke="#2F5755" stroke-width="3" stroke-linecap="round" />
+              <path d="M50,26 Q112,114 150,180" fill="none" stroke="#2F5755" stroke-width="3" stroke-linecap="round" />
+              <line x1="46" y1="25" x2="32" y2="8" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+              <line x1="46" y1="25" x2="58" y2="12" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+              <line x1="154" y1="25" x2="142" y2="12" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+              <line x1="154" y1="25" x2="168" y2="8" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+            </g>
+          </svg>
+        </div>
+        <div class="preview circle" style="background:#2F5755">
+          <svg viewBox="0 0 200 205">
+            <circle cx="100" cy="102" r="96" fill="none" stroke="#7a2038" stroke-width="5" />
+            <g transform="translate(0,-4) scale(0.86)" transform-origin="100 102">
+              <rect x="30" y="25" width="32" height="153" fill="#f3ead9" />
+              <rect x="138" y="25" width="32" height="153" fill="#f3ead9" />
+              <polygon points="59.07,15.77 167.07,168.77 140.93,187.23 32.93,34.23" fill="#f3ead9" />
+              <path d="M50,26 Q90,110 130,170" fill="none" stroke="#2F5755" stroke-width="3" stroke-linecap="round" />
+              <path d="M50,26 Q100,112 140,175" fill="none" stroke="#2F5755" stroke-width="3" stroke-linecap="round" />
+              <path d="M50,26 Q112,114 150,180" fill="none" stroke="#2F5755" stroke-width="3" stroke-linecap="round" />
+              <line x1="46" y1="25" x2="32" y2="8" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+              <line x1="46" y1="25" x2="58" y2="12" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+              <line x1="154" y1="25" x2="142" y2="12" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+              <line x1="154" y1="25" x2="168" y2="8" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+            </g>
+          </svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">19 / 20</div>
+        <div class="plate-title">N + Kitap</div>
+        <span class="plate-tag">teal madalyon</span>
+        <p class="plate-note">16 numaralı madalyonun üç rengiyle: teal zemin, bordo halka, krem N + kitap sayfaları.</p>
+      </div>
+    </div>
+
+    <!-- 20 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square on-cream">
+          <svg viewBox="0 0 200 205">
+            <use href="#deerMark" fill="#7a2038" clip-path="url(#clipLeft)" mask="url(#mNibBig)" />
+            <use href="#deerMark" fill="#2F5755" clip-path="url(#clipRight)" mask="url(#mNibBig)" />
+            <line x1="100" y1="66" x2="100" y2="194" stroke="#f3ead9" stroke-width="2" />
+          </svg>
+        </div>
+        <div class="preview circle on-cream">
+          <svg viewBox="0 0 200 205">
+            <use href="#deerMark" fill="#7a2038" clip-path="url(#clipLeft)" mask="url(#mNibBig)" />
+            <use href="#deerMark" fill="#2F5755" clip-path="url(#clipRight)" mask="url(#mNibBig)" />
+            <line x1="100" y1="66" x2="100" y2="194" stroke="#f3ead9" stroke-width="2" />
+          </svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">20 / 20</div>
+        <div class="plate-title">Aktif Geyik + Kalem</div>
+        <span class="plate-tag">bordo + teal</span>
+        <p class="plate-note">Artık ufak bir çentik değil: boynuzun tepesi büyük, net bir dolma kalem ucu — geyik tek başına değil, "not tutan" bir işaret.</p>
+      </div>
+    </div>
+
+  </div>
+
   <footer>
-    <span>16 numune · yazı yok · bordo + krem + pirinç + teal</span>
+    <span>20 numune · yazı yok · bordo + krem + pirinç + teal</span>
     <span>Nottepe — logo ön çalışması</span>
   </footer>
 </div>
