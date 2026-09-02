@@ -1,10 +1,17 @@
 import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createDrawerNavigator } from '@react-navigation/drawer';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import AuthNavigator from './AuthNavigator';
 import { withAppShell } from '../components/layout/AppShell';
+import BackButton from '../components/layout/BackButton';
+import MenuDrawerContent from '../components/layout/MenuDrawerContent';
+import PushableStack from '../components/layout/PushableStack';
+import { DRAWER_WIDTH } from './drawerConstants';
+import { getTabAnimationDirection } from './tabAnimationDirection';
 import HomeScreen from '../screens/main/HomeScreen';
 import DepartmentsScreen from '../screens/main/DepartmentsScreen';
 import AddPostScreen from '../screens/main/AddPostScreen';
@@ -25,16 +32,17 @@ import CafeteriaMenuScreen from '../screens/main/CafeteriaMenuScreen';
 import LeaderboardScreen from '../screens/main/LeaderboardScreen';
 import HelpScreen from '../screens/main/HelpScreen';
 import NotificationsScreen from '../screens/main/NotificationsScreen';
-import MenuScreen from '../screens/main/MenuScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
 import KvkkGateModal from '../components/onboarding/KvkkGateModal';
-import type { RootStackParamList } from './types';
+import type { RootDrawerParamList, RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const Drawer = createDrawerNavigator<RootDrawerParamList>();
 
 export default function RootNavigator() {
   const { isAuthenticated, loading, user } = useAuth();
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
 
   if (loading) {
     return (
@@ -56,13 +64,16 @@ export default function RootNavigator() {
   const headerBg = theme === 'dark' ? '#222831' : '#FFFFFF';
   const headerTint = theme === 'dark' ? '#DFD0B8' : '#111827';
 
-  return (
-    <>
-    {/* Web'de Navbar + MobileTabBar, Layout.jsx üzerinden HER rotada (Ana Sayfa,
-        Ekle, Profil, Faq — hepsi) sabit kalıyor. Burada artık ayrı bir
-        Tab.Navigator yok — tek düz bir stack, her ekran `withAppShell` ile
-        AppHeader+WaveTabBar'a sarmalanıyor (Menu hariç: o kendi sağdan kayan
-        panel tasarımını koruyor, aşağıda `presentation: 'transparentModal'`). */}
+  // Web'de Navbar + MobileTabBar, Layout.jsx üzerinden HER rotada (Ana Sayfa,
+  // Ekle, Profil, Faq — hepsi) sabit kalıyor. Burada artık ayrı bir
+  // Tab.Navigator yok — tek düz bir stack, her ekran `withAppShell` ile
+  // AppHeader+WaveTabBar'a sarmalanıyor. Menü artık bu stack'in bir route'u
+  // değil — X (Twitter) tarzı, mevcut sayfayı iten gerçek bir Drawer.Navigator
+  // (bkz. MenuDrawerContent.tsx + PushableStack.tsx). `drawerType: 'front'`
+  // içeriğe hiç dokunmuyor, itme/küçülme/köşe/gölge kartını PushableStack elle
+  // sürüyor — react-navigation'ın `back`/`slide` tipleri kendi sabit
+  // translateX'ini dayattığı için bu özel kart efektine izin vermiyordu.
+  const mainStack = (
     <Stack.Navigator
       initialRouteName="Home"
       screenOptions={{
@@ -70,12 +81,33 @@ export default function RootNavigator() {
         headerStyle: { backgroundColor: headerBg },
         headerTintColor: headerTint,
         headerShadowVisible: false,
+        headerLeft: (props) => <BackButton tintColor={props.tintColor} />,
       }}
     >
-      <Stack.Screen name="Home" component={withAppShell(HomeScreen)} options={{ headerShown: false }} />
-      <Stack.Screen name="Departments" component={withAppShell(DepartmentsScreen)} options={{ headerShown: false }} />
-      <Stack.Screen name="Tools" component={withAppShell(ToolsScreen)} options={{ headerShown: false }} />
-      <Stack.Screen name="AddPost" component={withAppShell(AddPostScreen)} options={{ headerShown: false }} />
+      {/* Bu 4 ekran WaveTabBar'ın sekmeleri — `options` bilinçli olarak fonksiyon:
+          statik obje her seferinde aynı animasyonu dondururdu, fonksiyon ise
+          her navigasyonda yeniden çağrılıp WaveTabBar'ın az önce yazdığı
+          güncel yönü (getTabAnimationDirection) okuyor. */}
+      <Stack.Screen
+        name="Home"
+        component={withAppShell(HomeScreen)}
+        options={() => ({ headerShown: false, animation: getTabAnimationDirection() })}
+      />
+      <Stack.Screen
+        name="Departments"
+        component={withAppShell(DepartmentsScreen)}
+        options={() => ({ headerShown: false, animation: getTabAnimationDirection() })}
+      />
+      <Stack.Screen
+        name="Tools"
+        component={withAppShell(ToolsScreen)}
+        options={() => ({ headerShown: false, animation: getTabAnimationDirection() })}
+      />
+      <Stack.Screen
+        name="AddPost"
+        component={withAppShell(AddPostScreen)}
+        options={() => ({ headerShown: false, animation: getTabAnimationDirection() })}
+      />
       <Stack.Screen name="PostDetail" component={withAppShell(PostDetailScreen)} options={{ title: 'Gönderi' }} />
       <Stack.Screen
         name="DepartmentDetail"
@@ -104,14 +136,61 @@ export default function RootNavigator() {
       <Stack.Screen name="Leaderboard" component={withAppShell(LeaderboardScreen)} options={{ title: 'Liderlik Tablosu' }} />
       <Stack.Screen name="Help" component={withAppShell(HelpScreen)} options={{ title: 'Yardım' }} />
       <Stack.Screen name="Notifications" component={withAppShell(NotificationsScreen)} options={{ title: 'Bildirimler' }} />
-      <Stack.Screen
-        name="Menu"
-        component={MenuScreen}
-        options={{ headerShown: false, presentation: 'transparentModal', animation: 'slide_from_right' }}
-      />
       <Stack.Screen name="Profile" component={withAppShell(ProfileScreen)} options={{ title: 'Profil' }} />
     </Stack.Navigator>
-    {needsOnboardingGate && <KvkkGateModal />}
-    </>
+  );
+
+  // PushableStack, itilen içeriğin sol-üst/sol-alt köşesini yuvarlarken küçük
+  // bir "çentik" açığa çıkarıyor — o çentiğin arkasında bizim renklendirdiğimiz
+  // hiçbir View yoksa Android'in varsayılan (beyaz) pencere arka planı görünüyor.
+  // Bu kök View, Drawer.Navigator'ın ardında her zaman temaya uygun bir zemin
+  // sağlayarak o çentiği (ve benzer boşlukları) doğru renkte tutuyor.
+  const rootBg = theme === 'dark' ? '#222831' : '#fff';
+
+  return (
+    <View style={{ flex: 1, backgroundColor: rootBg }}>
+      {/* Menü panelinin kendi kutusu (react-native-drawer-layout) durum çubuğu
+          şeridine kadar uzanmıyor — o şeritte hiçbir şey boyanmadığı için
+          PushableStack'in üst-sol köşe yuvarlaması altındaki "çentik" hep
+          rootBg'nin DEĞİL, Android'in kendi (temaya uymayan) zeminin görünmesine
+          yol açıyordu. Menü genişliği kadar, durum çubuğu + köşe payı kadar
+          yükseklikte sabit bir dolgu koyup o boşluğu kapatıyoruz. */}
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: DRAWER_WIDTH,
+          height: insets.top + 40,
+          backgroundColor: rootBg,
+        }}
+      />
+      <Drawer.Navigator
+        screenOptions={{
+          headerShown: false,
+          drawerType: 'front',
+          drawerPosition: 'left',
+          overlayColor: 'transparent',
+          // @react-navigation/drawer `drawerType: 'front'` iken kütüphane KENDİ
+          // varsayılan köşe yuvarlamasını (16dp, sağ köşeler) drawer paneline
+          // otomatik uyguluyor — biz PushableStack ile içeriği kendi yuvarlamamızla
+          // önde gösterdiğimiz için bu ikinci/çakışan yuvarlama, panelin sağ
+          // köşelerinde arkadaki (temaya uymayan gri) yüzeyi açığa çıkarıyordu.
+          // 0'a sıfırlayıp tek yuvarlama kaynağını PushableStack'te bırakıyoruz.
+          drawerStyle: {
+            width: DRAWER_WIDTH,
+            backgroundColor: 'transparent',
+            borderTopRightRadius: 0,
+            borderBottomRightRadius: 0,
+          },
+          swipeEdgeWidth: 56,
+        }}
+        drawerContent={(props) => <MenuDrawerContent {...props} />}
+      >
+        <Drawer.Screen name="Main">{() => <PushableStack>{mainStack}</PushableStack>}</Drawer.Screen>
+      </Drawer.Navigator>
+      {needsOnboardingGate && <KvkkGateModal />}
+    </View>
   );
 }

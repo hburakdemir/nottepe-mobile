@@ -10,9 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useFonts as useInterFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
-import { useFonts as useRobotoFonts, Roboto_400Regular, Roboto_500Medium, Roboto_700Bold } from '@expo-google-fonts/roboto';
-import { useFonts as useNotoSansFonts, NotoSans_400Regular, NotoSans_500Medium, NotoSans_600SemiBold, NotoSans_700Bold, NotoSans_800ExtraBold } from '@expo-google-fonts/noto-sans';
+import { useFonts as useSoraFonts, Sora_400Regular, Sora_500Medium, Sora_600SemiBold, Sora_700Bold, Sora_800ExtraBold } from '@expo-google-fonts/sora';
 import { AuthProvider } from './src/context/AuthContext';
 import { SavedPostsProvider } from './src/context/SavedPostContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
@@ -33,14 +31,7 @@ function ThemedStatusBar() {
 }
 
 export default function App() {
-  // Font A/B testi için: APP_FONT_FAMILY'nin (src/theme/typography.ts) hangi
-  // değeri kullanılırsa kullanılsın gerçek bileşenin hazır olması için üç aday
-  // ailenin de ana ağırlıkları önceden yükleniyor. Test bitince bu fontlar ve
-  // paketler kaldırılabilir; kalıcı font seçimi netleşince sadece o paket kalır.
-  const [interLoaded] = useInterFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold });
-  const [robotoLoaded] = useRobotoFonts({ Roboto_400Regular, Roboto_500Medium, Roboto_700Bold });
-  const [notoSansLoaded] = useNotoSansFonts({ NotoSans_400Regular, NotoSans_500Medium, NotoSans_600SemiBold, NotoSans_700Bold, NotoSans_800ExtraBold });
-  const fontsReady = interLoaded && robotoLoaded && notoSansLoaded;
+  const [fontsReady] = useSoraFonts({ Sora_400Regular, Sora_500Medium, Sora_600SemiBold, Sora_700Bold, Sora_800ExtraBold });
 
   if (!fontsReady) {
     return <View style={{ flex: 1, backgroundColor: '#fff' }} />;

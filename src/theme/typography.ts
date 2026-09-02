@@ -1,13 +1,11 @@
-// Uygulama genelindeki tek font tanımı. Test etmek için sadece bu satırı değiştir,
-// tüm ekranlardaki Text/TextInput otomatik güncellenir (bkz. applyGlobalFont.ts).
+// Uygulama genelindeki tek font tanımı. Değiştirmek için sadece bu satırı
+// güncelle, tüm ekranlardaki Text/TextInput otomatik güncellenir (bkz.
+// applyGlobalFont.ts). Inter/Roboto/Noto Sans karşılaştırması sonrası önce
+// Inter seçilmişti, sonra kalıcı seçim Sora'ya değişti — App.tsx sadece bu
+// ailenin ağırlıklarını yüklüyor.
 //
-// undefined = platformun sistem fontu (Android: Roboto, iOS: San Francisco) —
-// web'in kullandığı sistem font yığınına (`Segoe UI`, -apple-system, Roboto, ...)
-// en yakın karşılık, mevcut görünümü değiştirmez.
-//
-// Denemek için örnekler:
-//   Android yerleşik: 'sans-serif', 'sans-serif-medium', 'sans-serif-condensed', 'serif', 'monospace'
-//   iOS yerleşik: 'Avenir', 'Georgia', 'Helvetica Neue'
-//   Özel font: önce `npx expo install expo-font @expo-google-fonts/<isim>` ile fontu kur,
-//   App.tsx'te useFonts ile yükle, sonra buraya o fontun adını yaz.
-export const APP_FONT_FAMILY: string | undefined = undefined;
+// undefined verirsen platformun sistem fontuna (Android: Roboto, iOS: San
+// Francisco) döner. Başka bir Google Font denemek istersen: önce
+// `npx expo install @expo-google-fonts/<isim>` ile kur, App.tsx'teki
+// useSoraFonts çağrısını o ailenin ağırlıklarıyla değiştir, sonra buraya adını yaz.
+export const APP_FONT_FAMILY: string | undefined = 'Sora_400Regular';

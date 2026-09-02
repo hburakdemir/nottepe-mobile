@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -21,6 +21,7 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
 export default function LoginScreen({ navigation }: Props) {
   const { login } = useAuth();
+  const passwordRef = useRef<TextInput>(null);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -97,6 +98,9 @@ export default function LoginScreen({ navigation }: Props) {
             autoCapitalize="none"
             autoCorrect={false}
             value={username}
+            returnKeyType="next"
+            onSubmitEditing={() => passwordRef.current?.focus()}
+            blurOnSubmit={false}
             onChangeText={(t) => {
               setUsername(t);
               setError(null);
@@ -109,10 +113,13 @@ export default function LoginScreen({ navigation }: Props) {
         <View style={styles.inputRow}>
           <Lock size={18} color="#4f7d7a" />
           <TextInput
+            ref={passwordRef}
             style={styles.input}
             placeholder="•••••••"
             placeholderTextColor="#9ca3af"
             secureTextEntry={!showPassword}
+            returnKeyType="done"
+            onSubmitEditing={handleSubmit}
             value={password}
             onChangeText={(t) => {
               setPassword(t);

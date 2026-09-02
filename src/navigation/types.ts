@@ -40,6 +40,13 @@ export type RootStackParamList = {
   // Web'de "/notifications" ve "/duyurular" aynı NotificationsPage'i farklı
   // initialTab ile açıyor (bkz. App.jsx) — mobilde de tek ekran, iki giriş noktası.
   Notifications: { initialTab?: 'duyurular' | 'aktivite' } | undefined;
-  Menu: undefined;
-  Profile: undefined;
+  // Menüdeki "Notlarım" / "Kaydettiğim Notlarım" kısayolları Profile'ı ilgili
+  // sekmeyle açıyor (bkz. ProfileScreen.tsx TABS, MenuDrawerContent.tsx).
+  Profile: { initialTab?: 'posts' | 'saved' } | undefined;
+};
+
+// RootStackParamList'i saran tek gözlü Drawer.Navigator — menü artık ayrı bir
+// stack route değil, gerçek bir çekmece (bkz. RootNavigator.tsx, PushableStack.tsx).
+export type RootDrawerParamList = {
+  Main: undefined;
 };

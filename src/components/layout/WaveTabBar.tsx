@@ -3,10 +3,11 @@ import { Platform, Pressable, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { StackActions, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Home, Library, Plus, Wrench, type LucideIcon } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
+import { setTabAnimationDirection } from '../../navigation/tabAnimationDirection';
 import type { RootStackParamList } from '../../navigation/types';
 
 // Onaylanan "E · Instagram tarzı buzlu cam" mockup'ının RN karşılığı — kenarlardan
@@ -136,7 +137,18 @@ export default function WaveTabBar() {
 
               const onPress = () => {
                 if (!isFocused) {
-                  navigation.navigate(routeName as never);
+                  // Hangi yönde kayacağı, hedef sekmenin şu anki aktif sekmeye göre
+                  // solda mı sağda mı olduğuna bakılarak belirleniyor — sağdaki bir
+                  // sekmeden soldakine geçerken sayfa soldan, tersinde sağdan kayar
+                  // (bkz. tabAnimationDirection.ts, RootNavigator'daki 4 sekme options'ı).
+                  setTabAnimationDirection(index < activeIndex ? 'slide_from_left' : 'slide_from_right');
+                  // `navigate` bu route stack'te zaten varsa (örn. daha önce ziyaret
+                  // edilmiş bir sekme) push değil POP yapıyor — o zaman yeni animasyon
+                  // hiç oynamıyor, çünkü giren ekran zaten mount'lu, sadece üsttekiler
+                  // kapanıyor. `replace` her sekme geçişinde taze bir instance mount
+                  // ediyor, yön animasyonu her seferinde garantili çalışıyor; ayrıca alt
+                  // tab'ların stack'te sonsuza kadar birikmesini de engelliyor.
+                  navigation.dispatch(StackActions.replace(routeName));
                 }
               };
 

@@ -9,13 +9,14 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowRight, ChevronDown, HeartHandshake, Search, X } from 'lucide-react-native';
 import { noteRequestAPI, postsAPI } from '../../lib/api';
 import PostCard from '../../components/PostCard';
 import DepartmentQuickNav from '../../components/home/DepartmentQuickNav';
+import { useTheme } from '../../context/ThemeContext';
 import { faculties as ALL_FACULTIES } from '../../data/departments';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
@@ -35,6 +36,8 @@ const SHADOW_MD = {
 
 export default function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [faculty, setFaculty] = useState('');
@@ -89,6 +92,11 @@ export default function HomeScreen() {
       const loaded = allPages.reduce((sum, p) => sum + p.posts.length, 0);
       return loaded < lastPage.total ? allPages.length + 1 : undefined;
     },
+    // Arama/fakülte değişince queryKey değişiyor (search, faculty) — bu olmadan
+    // react-query önceki sonuçları anında boşaltıp `isLoading`'i true yapıyor,
+    // liste VE arama kutusu birlikte kocaman bir spinner'la değişiyordu. Önceki
+    // sonuçlar ekranda kalırken arka planda yenisi gelince yerini alıyor artık.
+    placeholderData: keepPreviousData,
   });
 
   const posts = useMemo(() => data?.pages.flatMap((p) => p.posts) ?? [], [data]);
@@ -97,36 +105,36 @@ export default function HomeScreen() {
 
   const filterBar = (
     <View>
-      <Text className="text-2xl font-extrabold text-gray-900 mb-1">Tüm Notlar</Text>
-      <Text className="text-[13px] text-gray-500 mb-4">Öğrenciler tarafından paylaşılan ders notlarını inceleyin</Text>
+      <Text className="text-2xl font-extrabold text-gray-900 dark:text-darktext mb-1">Tüm Notlar</Text>
+      <Text className="text-[13px] text-gray-500 dark:text-darktext mb-4">Öğrenciler tarafından paylaşılan ders notlarını inceleyin</Text>
 
       <DepartmentQuickNav />
 
       <Pressable
-        className="flex-row items-center gap-3 bg-white rounded-lg p-3.5 mb-3"
+        className="flex-row items-center gap-3 bg-primary dark:bg-darkbgbutton rounded-lg p-3.5 mb-3 border border-gray-100 dark:border-gray-700"
         style={SHADOW_MD}
         onPress={() => navigation.navigate('NoteRequests')}
       >
-        <View className="w-[38px] h-[38px] rounded-[10px] bg-brand/10 items-center justify-center">
-          <HeartHandshake size={18} color="#2F5755" />
+        <View className="w-[38px] h-[38px] rounded-[10px] bg-brand/10 dark:bg-brand-light/20 items-center justify-center">
+          <HeartHandshake size={18} color={isDark ? '#5A9690' : '#2F5755'} />
         </View>
         <View className="flex-1">
-          <Text className="text-[13.5px] font-bold text-gray-900">Not İstekleri</Text>
-          <Text className="text-[11px] text-gray-500 mt-0.5">Aradığın notu bulamadın mı? İste, elinde olan karşılasın.</Text>
+          <Text className="text-[13.5px] font-bold text-gray-900 dark:text-darktext">Not İstekleri</Text>
+          <Text className="text-[11px] text-gray-500 dark:text-darktext/80 mt-0.5">Aradığın notu bulamadın mı? İste, elinde olan karşılasın.</Text>
         </View>
         <View className="flex-row items-center gap-1">
-          <Text className="text-[11.5px] font-semibold text-brand">
+          <Text className="text-[11.5px] font-semibold text-brand dark:text-brand-light">
             {openRequestCount !== null && openRequestCount > 0 ? `${openRequestCount} açık istek` : 'Panoya git'}
           </Text>
-          <ArrowRight size={14} color="#2F5755" />
+          <ArrowRight size={14} color={isDark ? '#5A9690' : '#2F5755'} />
         </View>
       </Pressable>
 
-      <View className="bg-white rounded-lg p-4 mb-3.5" style={SHADOW_MD}>
-        <View className="flex-row items-center gap-2 bg-gray-50 border border-gray-200 rounded-[10px] px-3 mb-2.5">
+      <View className="bg-primary dark:bg-darkbgbutton rounded-lg p-4 mb-3.5" style={SHADOW_MD}>
+        <View className="flex-row items-center gap-2 bg-gray-50 dark:bg-darkbg border border-gray-200 dark:border-gray-600 rounded-[10px] px-3 mb-2.5">
           <Search size={16} color="#5A9690" />
           <TextInput
-            className="flex-1 py-2.5 text-[13.5px] text-gray-900"
+            className="flex-1 py-2.5 text-[13.5px] text-gray-900 dark:text-darktext"
             value={searchInput}
             onChangeText={setSearchInput}
             placeholder="Başlık, açıklama veya bölüm ara..."
@@ -135,13 +143,13 @@ export default function HomeScreen() {
         </View>
 
         <Pressable
-          className="flex-row items-center justify-between border border-gray-200 rounded-[10px] px-3 py-2.5"
+          className="flex-row items-center justify-between border border-gray-200 dark:border-gray-600 rounded-[10px] px-3 py-2.5"
           onPress={() => setShowFacultyPicker(true)}
         >
-          <Text className={`text-[13.5px] ${faculty ? 'text-gray-900' : 'text-gray-500'}`}>
+          <Text className={`text-[13.5px] ${faculty ? 'text-gray-900 dark:text-darktext' : 'text-gray-500 dark:text-gray-400'}`}>
             {faculty || 'Tüm Fakülteler'}
           </Text>
-          <ChevronDown size={16} color="#6b7280" />
+          <ChevronDown size={16} color={isDark ? '#9ca3af' : '#6b7280'} />
         </Pressable>
       </View>
     </View>
@@ -158,13 +166,13 @@ export default function HomeScreen() {
   if (isError) {
     return (
       <View className="flex-1 items-center justify-center py-16">
-        <Text className="text-gray-500 text-sm">Notlar yüklenemedi.</Text>
+        <Text className="text-gray-500 dark:text-gray-400 text-sm">Notlar yüklenemedi.</Text>
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-primary">
+    <View className="flex-1 bg-primary dark:bg-darkbgbutton">
       <FlatList
         className="flex-1"
         contentContainerStyle={{ padding: 12, flexGrow: 1 }}
@@ -181,12 +189,12 @@ export default function HomeScreen() {
           isFetchingNextPage ? (
             <ActivityIndicator style={{ marginVertical: 16 }} color="#2F5755" />
           ) : !hasMore && posts.length > 0 ? (
-            <Text className="text-center text-[12.5px] text-gray-400 py-5">Tüm notlar yüklendi ({total} not)</Text>
+            <Text className="text-center text-[12.5px] text-gray-400 dark:text-gray-500 py-5">Tüm notlar yüklendi ({total} not)</Text>
           ) : null
         }
         ListEmptyComponent={
           <View className="flex-1 items-center justify-center py-16">
-            <Text className="text-gray-500 text-sm">
+            <Text className="text-gray-500 dark:text-gray-400 text-sm">
               {search || faculty ? 'Arama sonucu bulunamadı.' : 'Henüz not paylaşılmamış.'}
             </Text>
           </View>
@@ -195,11 +203,11 @@ export default function HomeScreen() {
 
       <Modal visible={showFacultyPicker} transparent animationType="fade" onRequestClose={() => setShowFacultyPicker(false)}>
         <Pressable className="flex-1 bg-black/50 justify-end" onPress={() => setShowFacultyPicker(false)}>
-          <View className="bg-white rounded-t-[18px] max-h-[70%] p-4">
+          <View className="bg-primary dark:bg-darkbgbutton rounded-t-[18px] max-h-[70%] p-4">
             <View className="flex-row items-center justify-between mb-2">
-              <Text className="text-base font-bold text-gray-900">Fakülte seç</Text>
+              <Text className="text-base font-bold text-gray-900 dark:text-darktext">Fakülte seç</Text>
               <Pressable onPress={() => setShowFacultyPicker(false)} hitSlop={8}>
-                <X size={20} color="#6b7280" />
+                <X size={20} color={isDark ? '#9ca3af' : '#6b7280'} />
               </Pressable>
             </View>
             <FlatList
@@ -207,13 +215,13 @@ export default function HomeScreen() {
               keyExtractor={(item) => item || 'all'}
               renderItem={({ item }) => (
                 <Pressable
-                  className="py-3 border-b border-gray-100"
+                  className="py-3 border-b border-gray-100 dark:border-gray-700/40"
                   onPress={() => {
                     setFaculty(item);
                     setShowFacultyPicker(false);
                   }}
                 >
-                  <Text className={`text-sm ${faculty === item ? 'text-brand font-bold' : 'text-gray-700'}`}>
+                  <Text className={`text-sm ${faculty === item ? 'text-brand dark:text-brand-light font-bold' : 'text-gray-700 dark:text-darktext'}`}>
                     {item || 'Tüm Fakülteler'}
                   </Text>
                 </Pressable>

@@ -4,11 +4,16 @@ import { useColorScheme } from 'nativewind';
 
 const STORAGE_KEY = 'nottepe_theme';
 
+// Kullanıcının tercihi 3 değerli (Sistem/Açık/Koyu) — NativeWind'in kendi
+// `setColorScheme` API'si zaten 'system' değerini destekliyor ve OS temasını
+// canlı takip ediyor, elle bir Appearance listener yazmamıza gerek yok.
+export type ThemePreference = 'system' | 'light' | 'dark';
 type Theme = 'light' | 'dark';
 
 interface ThemeContextValue {
   theme: Theme;
-  toggleTheme: () => void;
+  themePreference: ThemePreference;
+  setThemePreference: (pref: ThemePreference) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -21,28 +26,33 @@ export const useTheme = () => {
   return context;
 };
 
-// Web'deki tema varsayılanı ("dark", bkz. Navbar.jsx `localStorage.getItem("theme") || "dark"")
-// ile birebir aynı davranış: kayıtlı tercih yoksa karanlık modla başlar.
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  const { setColorScheme } = useColorScheme();
-  const [theme, setTheme] = useState<Theme>('dark');
+  const { colorScheme, setColorScheme } = useColorScheme();
+  const [themePreference, setPreferenceState] = useState<ThemePreference>('light');
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((stored) => {
-      const next: Theme = stored === 'light' || stored === 'dark' ? stored : 'dark';
-      setTheme(next);
+      const next: ThemePreference = stored === 'system' || stored === 'light' || stored === 'dark' ? stored : 'light';
+      setPreferenceState(next);
       setColorScheme(next);
     });
   }, [setColorScheme]);
 
-  const toggleTheme = useCallback(() => {
-    setTheme((prev) => {
-      const next: Theme = prev === 'dark' ? 'light' : 'dark';
-      setColorScheme(next);
-      AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {});
-      return next;
-    });
-  }, [setColorScheme]);
+  const setThemePreference = useCallback(
+    (pref: ThemePreference) => {
+      setPreferenceState(pref);
+      setColorScheme(pref);
+      AsyncStorage.setItem(STORAGE_KEY, pref).catch(() => {});
+    },
+    [setColorScheme]
+  );
 
-  return <ThemeContext.Provider value={{ theme, toggleTheme }}>{children}</ThemeContext.Provider>;
+  // `colorScheme`, tercih 'system' iken NativeWind tarafından işletim
+  // sistemi temasına göre canlı çözümleniyor — bileşenlerin `theme === 'dark'`
+  // gibi koşullu render'ları için her zaman kesin 'light'/'dark' lazım.
+  const theme: Theme = colorScheme === 'dark' ? 'dark' : 'light';
+
+  return (
+    <ThemeContext.Provider value={{ theme, themePreference, setThemePreference }}>{children}</ThemeContext.Provider>
+  );
 };

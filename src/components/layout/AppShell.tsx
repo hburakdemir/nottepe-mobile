@@ -1,36 +1,15 @@
 import React from 'react';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { runOnJS } from 'react-native-reanimated';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import AppHeader from './AppHeader';
 import WaveTabBar from './WaveTabBar';
-import type { RootStackParamList } from '../../navigation/types';
 
 // Web'de Navbar + MobileTabBar, Layout.jsx üzerinden HER rotada (detay
-// sayfaları dahil) sabit kalıyor — artık burada da ayrı bir Tab.Navigator yok,
-// RootNavigator'daki her ekran bu kabukla sarmalanıyor (Menu hariç — o kendi
-// transparentModal panel tasarımını koruyor, bkz. RootNavigator.tsx).
-const EDGE_WIDTH = 56;
-
+// sayfaları dahil) sabit kalıyor — burada da her ekran bu kabukla sarmalanıyor.
+// Menü artık RootNavigator'daki bir Drawer.Navigator (bkz. o dosya) — soldan
+// kenar kaydırma jesti de Drawer'ın kendi `swipeEdgeWidth`'i tarafından
+// karşılanıyor, burada özel bir GestureDetector'a gerek kalmadı.
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const openMenu = () => navigation.navigate('Menu');
-
-  // Sağ kenardan sola kaydırınca Menu açılıyor — Android'in kendi sistem
-  // geri/ana-ekran kenar jestiyle çakışmaması için dar değil, 56px'lik makul
-  // bir şerit kullanıyoruz (gerçek cihazda test edilmeli, bkz. proje notları).
-  const edgeSwipe = Gesture.Pan()
-    .activeOffsetX(-10)
-    .failOffsetY([-20, 20])
-    .onEnd((e) => {
-      if (e.translationX < -40 && e.velocityX < -200) {
-        runOnJS(openMenu)();
-      }
-    });
-
   return (
     <View style={{ flex: 1 }}>
       {/* Web'de Navbar viewport'un en tepesine kadar aynı renkte uzanır (sticky,
@@ -43,9 +22,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       <View style={{ flex: 1 }}>
         {children}
-        <GestureDetector gesture={edgeSwipe}>
-          <View style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: EDGE_WIDTH }} />
-        </GestureDetector>
 
         {/* Tabbar artık içeriği ikiye bölen ayrı bir satır değil — ekranın en
             altında, içeriğin ÜZERİNDE yüzen mutlak konumlu bir katman. İçerik
