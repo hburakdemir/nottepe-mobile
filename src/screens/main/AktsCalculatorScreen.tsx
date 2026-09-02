@@ -37,6 +37,7 @@ import {
   XCircle,
 } from 'lucide-react-native';
 import { aktsAPI } from '../../lib/api';
+import { useTheme } from '../../context/ThemeContext';
 import type { RootStackParamList } from '../../navigation/types';
 import {
   ALL_GRADES,
@@ -106,6 +107,8 @@ function emptyQuickRow() {
 
 export default function AktsCalculatorScreen() {
   const route = useRoute<any>();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const loadId = (route.params as RootStackParamList['AktsCalculator'])?.loadId;
   const [title, setTitle] = useState('Hesaplamam');
   const [courses, setCourses] = useState<Course[]>([]);
@@ -491,47 +494,48 @@ export default function AktsCalculatorScreen() {
   const judgedAkts = baseTotals.passedAkts + baseTotals.failedAkts;
 
   return (
-    <ScrollView className="flex-1 bg-primary" contentContainerClassName="px-4 py-6 gap-4">
+    <ScrollView className="flex-1 bg-primary dark:bg-darkbgbutton" contentContainerClassName="px-4 py-6 gap-4">
       {/* Başlık */}
       <View className="gap-1">
         <View className="flex-row items-center gap-2.5">
-          <Calculator size={32} color="#2F5755" />
-          <Text className="text-3xl font-bold text-gray-900 flex-shrink">AKTS / GANO Hesaplama</Text>
+          <Calculator size={32} color={isDark ? '#5A9690' : '#2F5755'} />
+          <Text className="text-3xl font-extrabold text-gray-900 dark:text-darktext flex-shrink">AKTS / GANO Hesaplama</Text>
         </View>
-        <Text className="text-sm text-gray-600 mt-1">
+        <Text className="text-sm text-gray-600 dark:text-gray-400 mt-1">
           Derslerini gir veya dosyadan aktar; GANO'nu, senaryolarını ve hedefini hesapla. Taslağın bu cihazda saklanır.
         </Text>
 
         <View className="bg-brand rounded-xl px-5 py-3.5 items-center mt-3" style={SHADOW_MD}>
-          <Text className="text-[11px] text-white/80 uppercase tracking-[0.5px]">Genel Ortalama (GANO)</Text>
-          <Text className="text-[26px] font-bold text-white mt-0.5">{formatGpa(baseTotals.gano)}</Text>
-          <Text className="text-[11px] text-white/80">{baseTotals.creditedAkts} kredili AKTS</Text>
+          <Text className="text-xs text-white/80 uppercase tracking-[0.5px]">Genel Ortalama (GANO)</Text>
+          <Text className="text-2xl font-extrabold text-white mt-0.5">{formatGpa(baseTotals.gano)}</Text>
+          <Text className="text-xs text-white/80">{baseTotals.creditedAkts} kredili AKTS</Text>
         </View>
       </View>
 
       {/* Üst bilgi kartları */}
       <View className="flex-row flex-wrap gap-2.5">
-        <StatCard icon={Layers} label="Toplam AKTS" value={baseTotals.totalAkts.toLocaleString('tr-TR')} />
-        <StatCard icon={CheckCircle2} label="Başarılı AKTS" value={baseTotals.passedAkts.toLocaleString('tr-TR')} />
-        <StatCard icon={XCircle} label="Başarısız AKTS" value={baseTotals.failedAkts.toLocaleString('tr-TR')} />
+        <StatCard icon={Layers} label="Toplam AKTS" value={baseTotals.totalAkts.toLocaleString('tr-TR')} isDark={isDark} />
+        <StatCard icon={CheckCircle2} label="Başarılı AKTS" value={baseTotals.passedAkts.toLocaleString('tr-TR')} isDark={isDark} />
+        <StatCard icon={XCircle} label="Başarısız AKTS" value={baseTotals.failedAkts.toLocaleString('tr-TR')} isDark={isDark} />
         <StatCard
           icon={Sigma}
           label="Toplam Kalite Puanı"
           value={baseTotals.qualityPoints.toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+          isDark={isDark}
         />
         <View className="w-[47.5%] bg-brand rounded-lg p-4" style={SHADOW_MD}>
           <View className="flex-row items-center gap-1.5 mb-1">
             <GraduationCap size={16} color="#fff" />
             <Text className="text-xs font-medium text-white/90">GANO</Text>
           </View>
-          <Text className="text-2xl font-bold text-white">{formatGpa(baseTotals.gano)}</Text>
+          <Text className="text-2xl font-extrabold text-white">{formatGpa(baseTotals.gano)}</Text>
         </View>
       </View>
 
       {/* Kayıt adı + aksiyonlar */}
       <View className="flex-row gap-2.5">
         <TextInput
-          className="flex-1 bg-white border border-gray-300 rounded-lg px-4 py-2 text-base text-gray-900"
+          className="flex-1 bg-primary dark:bg-darkbgbutton border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-base text-gray-900 dark:text-darktext"
           value={title}
           onChangeText={setTitle}
           maxLength={120}
@@ -546,52 +550,52 @@ export default function AktsCalculatorScreen() {
           disabled={saving}
         >
           <Save size={16} color="#fff" />
-          <Text className="text-white text-sm font-medium">{saving ? 'Kaydediliyor...' : editingId ? 'Güncelle' : 'Profilime Kaydet'}</Text>
+          <Text className="text-white text-sm font-semibold">{saving ? 'Kaydediliyor...' : editingId ? 'Güncelle' : 'Profilime Kaydet'}</Text>
         </Pressable>
-        <Pressable className="flex-row items-center gap-2 border border-gray-300 rounded-lg px-4 py-2" onPress={openImportPicker}>
-          <FileUp size={16} color="#374151" />
-          <Text className="text-gray-700 text-sm font-normal">Dosyadan Aktar</Text>
+        <Pressable className="flex-row items-center gap-2 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2" onPress={openImportPicker}>
+          <FileUp size={16} color={isDark ? '#9ca3af' : '#374151'} />
+          <Text className="text-gray-700 dark:text-darktext text-sm font-semibold">Dosyadan Aktar</Text>
         </Pressable>
-        <Pressable className="flex-row items-center gap-2 border border-gray-300 rounded-lg px-4 py-2" onPress={handleExport}>
-          <FileDown size={16} color="#374151" />
-          <Text className="text-gray-700 text-sm font-normal">Excel'e Aktar</Text>
+        <Pressable className="flex-row items-center gap-2 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2" onPress={handleExport}>
+          <FileDown size={16} color={isDark ? '#9ca3af' : '#374151'} />
+          <Text className="text-gray-700 dark:text-darktext text-sm font-semibold">Excel'e Aktar</Text>
         </Pressable>
-        <Pressable className="flex-row items-center gap-2 border border-gray-300 rounded-lg px-4 py-2" onPress={handleClear}>
-          <RotateCcw size={16} color="#374151" />
-          <Text className="text-gray-700 text-sm font-normal">Temizle</Text>
+        <Pressable className="flex-row items-center gap-2 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2" onPress={handleClear}>
+          <RotateCcw size={16} color={isDark ? '#9ca3af' : '#374151'} />
+          <Text className="text-gray-700 dark:text-darktext text-sm font-semibold">Temizle</Text>
         </Pressable>
       </View>
 
       {editingId && (
-        <Text className="text-xs text-gray-500">
+        <Text className="text-xs text-gray-500 dark:text-gray-400">
           Profilindeki "{title}" kaydını düzenliyorsun.{' '}
-          <Text className="underline text-gray-700" onPress={() => setEditingId(null)}>
+          <Text className="underline text-gray-700 dark:text-darktext" onPress={() => setEditingId(null)}>
             Yeni kayıt olarak kaydet
           </Text>
         </Text>
       )}
 
-      <Pressable className="flex-row items-center justify-between bg-white rounded-lg px-3.5 py-3" style={SHADOW_MD} onPress={() => setShowSaved((v) => !v)}>
-        <Text className="text-[13px] font-semibold text-gray-700">Kayıtlı Hesaplamalarım ({savedCalcs.length})</Text>
-        <ChevronDown size={16} color="#6b7280" style={{ transform: [{ rotate: showSaved ? '180deg' : '0deg' }] }} />
+      <Pressable className="flex-row items-center justify-between bg-primary dark:bg-darkbgbutton rounded-lg px-3.5 py-3" style={SHADOW_MD} onPress={() => setShowSaved((v) => !v)}>
+        <Text className="text-sm font-semibold text-gray-700 dark:text-darktext">Kayıtlı Hesaplamalarım ({savedCalcs.length})</Text>
+        <ChevronDown size={16} color={isDark ? '#9ca3af' : '#6b7280'} style={{ transform: [{ rotate: showSaved ? '180deg' : '0deg' }] }} />
       </Pressable>
       {showSaved && (
         <View className="gap-2 mb-2">
           {loadingSaved ? (
-            <ActivityIndicator color="#2F5755" />
+            <ActivityIndicator color={isDark ? '#5A9690' : '#2F5755'} />
           ) : savedCalcs.length === 0 ? (
-            <Text className="text-gray-400 text-[13px] py-1">Henüz kayıtlı hesaplama yok.</Text>
+            <Text className="text-gray-400 dark:text-gray-500 text-sm py-1">Henüz kayıtlı hesaplama yok.</Text>
           ) : (
             savedCalcs.map((calc) => (
-              <View key={calc.id} className="flex-row items-center bg-white rounded-lg px-3.5 py-[11px]" style={SHADOW_MD}>
+              <View key={calc.id} className="flex-row items-center bg-primary dark:bg-darkbgbutton rounded-lg px-3.5 py-[11px]" style={SHADOW_MD}>
                 <Pressable className="flex-1" onPress={() => handleLoadSaved(calc)}>
-                  <Text className="text-[13px] font-semibold text-gray-900">{calc.title}</Text>
-                  <Text className="text-[11px] text-gray-400 mt-0.5">
+                  <Text className="text-sm font-semibold text-gray-900 dark:text-darktext">{calc.title}</Text>
+                  <Text className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                     GANO {formatGpa(calc.gpa)} · {formatDate(calc.updated_at)}
                   </Text>
                 </Pressable>
                 <Pressable onPress={() => handleDeleteSaved(calc)} hitSlop={8}>
-                  <Trash2 size={16} color="#dc2626" />
+                  <Trash2 size={16} color={isDark ? '#f87171' : '#dc2626'} />
                 </Pressable>
               </View>
             ))
@@ -600,51 +604,51 @@ export default function AktsCalculatorScreen() {
       )}
 
       {/* Ders Ekle */}
-      <View className="bg-white rounded-xl p-5 border border-gray-100" style={SHADOW_MD}>
+      <View className="bg-primary dark:bg-darkbgbutton rounded-xl p-5 border border-gray-100 dark:border-gray-700/40" style={SHADOW_MD}>
         <View className="flex-row items-center gap-2">
-          <Plus size={18} color="#2F5755" />
-          <Text className="text-base font-semibold text-gray-900">Ders Ekle</Text>
+          <Plus size={18} color={isDark ? '#5A9690' : '#2F5755'} />
+          <Text className="text-base font-semibold text-gray-900 dark:text-darktext">Ders Ekle</Text>
         </View>
         <Pressable className="flex-row items-center gap-1.5 bg-brand rounded-lg px-4 py-2 mt-3 self-start" onPress={openAddForm}>
           <Plus size={14} color="#fff" />
-          <Text className="text-white text-[13.5px] font-medium">Ders Ekle</Text>
+          <Text className="text-white text-sm font-semibold">Ders Ekle</Text>
         </Pressable>
       </View>
 
       {/* Not baremi */}
-      <Pressable className="bg-white rounded-xl p-5 border border-gray-100" style={SHADOW_MD} onPress={() => setGradeScaleOpen((v) => !v)}>
+      <Pressable className="bg-primary dark:bg-darkbgbutton rounded-xl p-5 border border-gray-100 dark:border-gray-700/40" style={SHADOW_MD} onPress={() => setGradeScaleOpen((v) => !v)}>
         <View className="flex-row items-center justify-between flex-wrap gap-2">
           <View className="flex-row items-center gap-2">
-            <ListOrdered size={18} color="#2F5755" />
-            <Text className="text-base font-semibold text-gray-900">Harf Notları ve Karşılıkları</Text>
+            <ListOrdered size={18} color={isDark ? '#5A9690' : '#2F5755'} />
+            <Text className="text-base font-semibold text-gray-900 dark:text-darktext">Harf Notları ve Karşılıkları</Text>
           </View>
           <View className="flex-row items-center gap-2">
             {baseTotals.gano !== null && (
               <View className="bg-brand rounded-full px-3 py-[5px]">
-                <Text className="text-white text-[12.5px] font-semibold">Genel Ortalama: {formatGpa(baseTotals.gano)}</Text>
+                <Text className="text-white text-xs font-semibold">Genel Ortalama: {formatGpa(baseTotals.gano)}</Text>
               </View>
             )}
-            <ChevronDown size={18} color="#6b7280" style={{ transform: [{ rotate: gradeScaleOpen ? '180deg' : '0deg' }] }} />
+            <ChevronDown size={18} color={isDark ? '#9ca3af' : '#6b7280'} style={{ transform: [{ rotate: gradeScaleOpen ? '180deg' : '0deg' }] }} />
           </View>
         </View>
         {gradeScaleOpen && (
           <View className="mt-3">
-            <View className="flex-row border-b border-gray-200 pb-1.5">
-              <Text className="text-[11px] font-semibold text-gray-600 uppercase flex-1">Not</Text>
-              <Text className="text-[11px] font-semibold text-gray-600 uppercase flex-1">Katsayı</Text>
-              <Text className="text-[11px] font-semibold text-gray-600 uppercase" style={{ flex: 1.4 }}>100'lük</Text>
+            <View className="flex-row border-b border-gray-200 dark:border-gray-600 pb-1.5">
+              <Text className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase flex-1">Not</Text>
+              <Text className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase flex-1">Katsayı</Text>
+              <Text className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase" style={{ flex: 1.4 }}>100'lük</Text>
             </View>
             {Object.entries(GRADE_COEFFICIENTS).map(([grade, coefficient]) => (
-              <View key={grade} className="flex-row py-1.5 border-b border-gray-100">
-                <Text className="text-[13.5px] font-semibold text-gray-800 flex-1">{grade}</Text>
-                <Text className="text-[13.5px] text-gray-800 flex-1">{coefficient.toFixed(2)}</Text>
-                <Text className="text-[13.5px] text-gray-500" style={{ flex: 1.4 }}>{scoreRangeByGrade[grade] ?? '—'}</Text>
+              <View key={grade} className="flex-row py-1.5 border-b border-gray-100 dark:border-gray-700/40">
+                <Text className="text-[13.5px] font-semibold text-gray-800 dark:text-darktext flex-1">{grade}</Text>
+                <Text className="text-[13.5px] text-gray-800 dark:text-darktext flex-1">{coefficient.toFixed(2)}</Text>
+                <Text className="text-[13.5px] text-gray-500 dark:text-gray-400" style={{ flex: 1.4 }}>{scoreRangeByGrade[grade] ?? '—'}</Text>
               </View>
             ))}
             <View className="mt-3 gap-1">
               {UNCREDITED_GRADES.map((g) => (
-                <Text key={g} className="text-[11.5px] text-gray-500 leading-[17px]">
-                  <Text className="font-bold text-gray-700">{g}</Text>: {UNCREDITED_LABELS[g]}
+                <Text key={g} className="text-[11.5px] text-gray-500 dark:text-gray-400 leading-[17px]">
+                  <Text className="font-bold text-gray-700 dark:text-darktext">{g}</Text>: {UNCREDITED_LABELS[g]}
                 </Text>
               ))}
             </View>
@@ -653,14 +657,14 @@ export default function AktsCalculatorScreen() {
       </Pressable>
 
       {/* Filtreler + ders listesi */}
-      <View className="bg-white rounded-xl p-5 border border-gray-100" style={SHADOW_MD}>
+      <View className="bg-primary dark:bg-darkbgbutton rounded-xl p-5 border border-gray-100 dark:border-gray-700/40" style={SHADOW_MD}>
         <View className="flex-row items-center justify-between">
-          <Text className="text-base font-semibold text-gray-900">
-            Ders Listesi <Text className="text-[13px] font-normal text-gray-500">({filteredCourses.length}/{courses.length})</Text>
+          <Text className="text-base font-semibold text-gray-900 dark:text-darktext">
+            Ders Listesi <Text className="text-sm font-normal text-gray-500 dark:text-gray-400">({filteredCourses.length}/{courses.length})</Text>
           </Text>
         </View>
         <View className="flex-row items-center gap-1.5 mt-3">
-          <Filter size={14} color="#6b7280" />
+          <Filter size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
             <FilterChip label="Tüm Dönemler" active={semesterFilter === 'all'} onPress={() => setSemesterFilter('all')} />
             {semesters.map((s) => (
@@ -675,25 +679,25 @@ export default function AktsCalculatorScreen() {
         </View>
 
         {filteredCourses.length === 0 ? (
-          <Text className="text-gray-400 text-[13px] py-1">Gösterilecek ders yok. Yukarıdan ders ekle veya dosyadan içe aktar.</Text>
+          <Text className="text-gray-400 dark:text-gray-500 text-sm py-1">Gösterilecek ders yok. Yukarıdan ders ekle veya dosyadan içe aktar.</Text>
         ) : groupedFiltered ? (
           groupedFiltered.map(([semKey, semCourses]) => {
             const semGano = computeTotals(semCourses).gano;
             const isOpen = !collapsedSemesters.has(semKey);
             return (
               <View key={String(semKey)} className="mt-3">
-                <Pressable className="flex-row items-center gap-1.5 bg-gray-50 rounded-md px-2.5 py-[7px]" onPress={() => toggleSemesterCollapse(semKey)}>
-                  <ChevronDown size={14} color="#2F5755" style={{ transform: [{ rotate: isOpen ? '180deg' : '0deg' }] }} />
-                  <Text className="text-xs font-semibold text-brand uppercase">
+                <Pressable className="flex-row items-center gap-1.5 bg-gray-50 dark:bg-darkbg rounded-md px-2.5 py-[7px]" onPress={() => toggleSemesterCollapse(semKey)}>
+                  <ChevronDown size={14} color={isDark ? '#5A9690' : '#2F5755'} style={{ transform: [{ rotate: isOpen ? '180deg' : '0deg' }] }} />
+                  <Text className="text-xs font-semibold text-brand dark:text-brand-light uppercase">
                     {semKey === 'diger' ? 'Diğer' : `${semKey}. Dönem`}{' '}
-                    <Text className="text-gray-400 font-normal normal-case">({semCourses.length} ders)</Text>
-                    {semGano !== null && <Text className="text-gray-400 font-normal normal-case"> · Dönem Ortalaması: {formatGpa(semGano)}</Text>}
+                    <Text className="text-gray-400 dark:text-gray-500 font-normal normal-case">({semCourses.length} ders)</Text>
+                    {semGano !== null && <Text className="text-gray-400 dark:text-gray-500 font-normal normal-case"> · Dönem Ortalaması: {formatGpa(semGano)}</Text>}
                   </Text>
                 </Pressable>
                 {isOpen && (
                   <View className="gap-1.5 mt-1.5">
                     {semCourses.map((course) => (
-                      <CourseRow key={course.id} course={course} onEdit={openEditForm} onDelete={handleDeleteCourse} />
+                      <CourseRow key={course.id} course={course} onEdit={openEditForm} onDelete={handleDeleteCourse} isDark={isDark} />
                     ))}
                   </View>
                 )}
@@ -703,24 +707,24 @@ export default function AktsCalculatorScreen() {
         ) : (
           <View className="gap-1.5 mt-3">
             {filteredCourses.map((course) => (
-              <CourseRow key={course.id} course={course} onEdit={openEditForm} onDelete={handleDeleteCourse} />
+              <CourseRow key={course.id} course={course} onEdit={openEditForm} onDelete={handleDeleteCourse} isDark={isDark} />
             ))}
           </View>
         )}
       </View>
 
       {/* Senaryo hesaplama */}
-      <View className="bg-white rounded-xl p-5 border border-gray-100" style={SHADOW_MD}>
+      <View className="bg-primary dark:bg-darkbgbutton rounded-xl p-5 border border-gray-100 dark:border-gray-700/40" style={SHADOW_MD}>
         <View className="flex-row items-center gap-2">
-          <FlaskConical size={18} color="#2F5755" />
-          <Text className="text-base font-semibold text-gray-900">Senaryo Hesaplama</Text>
+          <FlaskConical size={18} color={isDark ? '#5A9690' : '#2F5755'} />
+          <Text className="text-base font-semibold text-gray-900 dark:text-darktext">Senaryo Hesaplama</Text>
         </View>
-        <Text className="text-[13px] text-gray-600 mt-1">Bir dersten farklı not alsaydın GANO'n ne olurdu? Gerçek verin değişmez.</Text>
+        <Text className="text-sm text-gray-600 dark:text-gray-400 mt-1">Bir dersten farklı not alsaydın GANO'n ne olurdu? Gerçek verin değişmez.</Text>
 
-        <Text className="text-[13px] font-medium text-gray-700 mb-1.5 mt-3">Ders</Text>
+        <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-1.5 mt-3">Ders</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
           {availableScenarioCourses.length === 0 ? (
-            <Text className="text-gray-400 text-[13px] py-1">Uygun ders yok.</Text>
+            <Text className="text-gray-400 dark:text-gray-500 text-sm py-1">Uygun ders yok.</Text>
           ) : (
             availableScenarioCourses.map((c) => (
               <FilterChip
@@ -732,15 +736,15 @@ export default function AktsCalculatorScreen() {
             ))
           )}
         </ScrollView>
-        <Text className="text-[13px] font-medium text-gray-700 mb-1.5 mt-3">Yeni not</Text>
+        <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-1.5 mt-3">Yeni not</Text>
         <View className="flex-row flex-wrap gap-2">
           {ALL_GRADES.map((g) => (
             <Pressable
               key={g}
-              className={`border rounded-lg px-3 py-[7px] ${scenarioGrade === g ? 'bg-brand border-brand' : 'border-gray-300'}`}
+              className={`border rounded-lg px-3 py-[7px] ${scenarioGrade === g ? 'bg-brand border-brand' : 'border-gray-300 dark:border-gray-600'}`}
               onPress={() => setScenarioGrade(g)}
             >
-              <Text className={`text-[12.5px] font-semibold ${scenarioGrade === g ? 'text-white' : 'text-gray-700'}`}>{g}</Text>
+              <Text className={`text-[12.5px] font-semibold ${scenarioGrade === g ? 'text-white' : 'text-gray-700 dark:text-darktext'}`}>{g}</Text>
             </Pressable>
           ))}
         </View>
@@ -750,57 +754,57 @@ export default function AktsCalculatorScreen() {
           disabled={!scenarioCourseId || !scenarioGrade}
         >
           <Plus size={14} color="#fff" />
-          <Text className="text-white text-[13.5px] font-medium">Senaryoya Ekle</Text>
+          <Text className="text-white text-sm font-semibold">Senaryoya Ekle</Text>
         </Pressable>
 
         {hasScenario ? (
           <View className="gap-2 mt-3">
             {overrideEntries.map(({ course, grade }) => (
-              <View key={course.id} className="flex-row items-center gap-2 bg-gray-50 rounded-lg px-3 py-2.5">
-                <Text className="flex-1 text-[13px] font-semibold text-gray-800" numberOfLines={1}>
+              <View key={course.id} className="flex-row items-center gap-2 bg-gray-50 dark:bg-darkbg rounded-lg px-3 py-2.5">
+                <Text className="flex-1 text-sm font-semibold text-gray-800 dark:text-darktext" numberOfLines={1}>
                   {course.name}
                 </Text>
-                <Text className="text-[12.5px] text-gray-500">{course.grade}</Text>
-                <Text className="text-gray-400">→</Text>
-                <Text className="text-[12.5px] font-bold text-brand">{grade}</Text>
+                <Text className="text-[12.5px] text-gray-500 dark:text-gray-400">{course.grade}</Text>
+                <Text className="text-gray-400 dark:text-gray-500">→</Text>
+                <Text className="text-[12.5px] font-bold text-brand dark:text-brand-light">{grade}</Text>
                 <Pressable onPress={() => removeScenarioOverride(course.id)} hitSlop={8}>
-                  <X size={16} color="#660B05" />
+                  <X size={16} color={isDark ? '#f87171' : '#660B05'} />
                 </Pressable>
               </View>
             ))}
           </View>
         ) : (
-          <Text className="text-gray-400 text-[13px] py-1 mt-3">Henüz senaryo yok. Birden fazla dersi aynı anda değiştirebilirsin.</Text>
+          <Text className="text-gray-400 dark:text-gray-500 text-sm py-1 mt-3">Henüz senaryo yok. Birden fazla dersi aynı anda değiştirebilirsin.</Text>
         )}
 
         <View className="bg-brand rounded-xl p-5 items-center mt-4">
-          <Text className="text-[11px] text-white/80 uppercase tracking-[0.5px]">Yeni GANO</Text>
-          <Text className="text-[32px] font-bold text-white my-1">{hasScenario ? formatGpa(scenarioTotals.gano) : formatGpa(baseTotals.gano)}</Text>
+          <Text className="text-xs text-white/80 uppercase tracking-[0.5px]">Yeni GANO</Text>
+          <Text className="text-3xl font-extrabold text-white my-1">{hasScenario ? formatGpa(scenarioTotals.gano) : formatGpa(baseTotals.gano)}</Text>
           {scenarioDelta !== null ? (
-            <Text className="text-[13px] text-white/90">
+            <Text className="text-sm text-white/90">
               {scenarioDelta >= 0 ? '+' : ''}
               {scenarioDelta.toFixed(2)} (şu an {formatGpa(baseTotals.gano)})
             </Text>
           ) : (
-            !hasScenario && <Text className="text-[11px] text-white/70">Senaryo eklediğinde güncellenir</Text>
+            !hasScenario && <Text className="text-xs text-white/70">Senaryo eklediğinde güncellenir</Text>
           )}
         </View>
       </View>
 
       {/* Hedef GANO */}
-      <View className="bg-white rounded-xl p-5 border border-gray-100" style={SHADOW_MD}>
+      <View className="bg-primary dark:bg-darkbgbutton rounded-xl p-5 border border-gray-100 dark:border-gray-700/40" style={SHADOW_MD}>
         <View className="flex-row items-center gap-2">
-          <Target size={18} color="#2F5755" />
-          <Text className="text-base font-semibold text-gray-900">Hedef GANO</Text>
+          <Target size={18} color={isDark ? '#5A9690' : '#2F5755'} />
+          <Text className="text-base font-semibold text-gray-900 dark:text-darktext">Hedef GANO</Text>
         </View>
-        <Text className="text-[13px] text-gray-600 mt-1">
+        <Text className="text-sm text-gray-600 dark:text-gray-400 mt-1">
           Hedefine ulaşmak için gelecek dönemlerde yaklaşık kaç ders gerektiğini gör. Senaryoların varsa hesaba katılır.
         </Text>
         <View className="flex-row gap-3 mt-3">
           <View className="flex-1">
-            <Text className="text-[13px] font-medium text-gray-700 mb-1.5 mt-3">Hedef</Text>
+            <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-1.5 mt-3">Hedef</Text>
             <TextInput
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
+              className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-darktext"
               value={targetGpa}
               onChangeText={setTargetGpa}
               placeholder="3.00"
@@ -809,9 +813,9 @@ export default function AktsCalculatorScreen() {
             />
           </View>
           <View className="flex-1">
-            <Text className="text-[13px] font-medium text-gray-700 mb-1.5 mt-3">Ders başına AKTS</Text>
+            <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-1.5 mt-3">Ders başına AKTS</Text>
             <TextInput
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
+              className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-darktext"
               value={plannedAkts}
               onChangeText={setPlannedAkts}
               placeholderTextColor="#9ca3af"
@@ -821,25 +825,25 @@ export default function AktsCalculatorScreen() {
         </View>
 
         {!targetPlan ? (
-          <Text className="text-gray-400 text-[13px] py-1 mt-3">Geçerli bir hedef gir (0 - {GPA_SCALE_MAX} arası).</Text>
+          <Text className="text-gray-400 dark:text-gray-500 text-sm py-1 mt-3">Geçerli bir hedef gir (0 - {GPA_SCALE_MAX} arası).</Text>
         ) : targetPlan.achieved ? (
-          <Text className="text-sm font-medium text-brand mt-3">Tebrikler — mevcut GANO'n ({formatGpa(scenarioTotals.gano)}) hedefinin üzerinde.</Text>
+          <Text className="text-sm font-medium text-brand dark:text-brand-light mt-3">Tebrikler — mevcut GANO'n ({formatGpa(scenarioTotals.gano)}) hedefinin üzerinde.</Text>
         ) : (
           <View className="mt-3">
-            <Text className="text-[13px] text-gray-600 mt-1">
+            <Text className="text-sm text-gray-600 dark:text-gray-400 mt-1">
               Şu anki GANO {formatGpa(scenarioTotals.gano)}. Hedefe ulaşmak için yaklaşık olarak şunlardan birisi yeterli:
             </Text>
             <View className="flex-row flex-wrap gap-2 mt-2.5">
               {targetPlan.neededByGrade.map(({ grade, coefficient, count }) => (
-                <View key={grade} className="grow bg-gray-50 rounded-lg py-2.5 items-center" style={{ minWidth: '30%' }}>
-                  <Text className="text-[11.5px] text-gray-500">
+                <View key={grade} className="grow bg-gray-50 dark:bg-darkbg rounded-lg py-2.5 items-center" style={{ minWidth: '30%' }}>
+                  <Text className="text-[11.5px] text-gray-500 dark:text-gray-400">
                     {grade} ({coefficient?.toFixed(1)})
                   </Text>
-                  <Text className="text-base font-bold text-gray-900 mt-0.5">{count === null ? 'İnandın mı?' : `${count} ders`}</Text>
+                  <Text className="text-base font-bold text-gray-900 dark:text-darktext mt-0.5">{count === null ? 'İnandın mı?' : `${count} ders`}</Text>
                 </View>
               ))}
             </View>
-            <Text className="text-[11px] text-gray-400 mt-2.5">
+            <Text className="text-xs text-gray-400 dark:text-gray-500 mt-2.5">
               "İnandın mı?": o notun katsayısı hedefin altında olduğu için yalnızca o notla hedefe ulaşılamaz.
             </Text>
           </View>
@@ -847,19 +851,19 @@ export default function AktsCalculatorScreen() {
       </View>
 
       {/* Hızlı tahmin */}
-      <View className="bg-white rounded-xl p-5 border border-gray-100" style={SHADOW_MD}>
+      <View className="bg-primary dark:bg-darkbgbutton rounded-xl p-5 border border-gray-100 dark:border-gray-700/40" style={SHADOW_MD}>
         <View className="flex-row items-center gap-2">
-          <Sparkles size={18} color="#2F5755" />
-          <Text className="text-base font-semibold text-gray-900">Hızlı Tahmin — Ortalamam Kaç Olur?</Text>
+          <Sparkles size={18} color={isDark ? '#5A9690' : '#2F5755'} />
+          <Text className="text-base font-semibold text-gray-900 dark:text-darktext">Hızlı Tahmin — Ortalamam Kaç Olur?</Text>
         </View>
-        <Text className="text-[13px] text-gray-600 mt-1">
+        <Text className="text-sm text-gray-600 dark:text-gray-400 mt-1">
           Ders listesi girmene gerek yok: mevcut GANO'nu ve alacağın notları yaz, yeni ortalamanı gör.
         </Text>
         <View className="flex-row gap-3 mt-3">
           <View className="flex-1">
-            <Text className="text-[13px] font-medium text-gray-700 mb-1.5 mt-3">Mevcut GANO</Text>
+            <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-1.5 mt-3">Mevcut GANO</Text>
             <TextInput
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
+              className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-darktext"
               value={quickGano}
               onChangeText={setQuickGano}
               placeholder="3.34"
@@ -868,9 +872,9 @@ export default function AktsCalculatorScreen() {
             />
           </View>
           <View className="flex-1">
-            <Text className="text-[13px] font-medium text-gray-700 mb-1.5 mt-3">Mevcut kredili AKTS</Text>
+            <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-1.5 mt-3">Mevcut kredili AKTS</Text>
             <TextInput
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
+              className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-darktext"
               value={quickAkts}
               onChangeText={setQuickAkts}
               placeholder="120"
@@ -885,7 +889,7 @@ export default function AktsCalculatorScreen() {
           return (
             <View key={row.id} className="flex-row items-center gap-2 mt-2.5 flex-wrap">
               <TextInput
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
+                className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-darktext"
                 style={{ width: 70 }}
                 value={row.akts}
                 onChangeText={(v) => setQuickRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, akts: v } : r)))}
@@ -894,29 +898,29 @@ export default function AktsCalculatorScreen() {
                 keyboardType="number-pad"
               />
               <Pressable
-                className="border border-gray-300 rounded-lg px-2.5 py-[7px]"
+                className="border border-gray-300 dark:border-gray-600 rounded-lg px-2.5 py-[7px]"
                 onPress={() =>
                   setQuickRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, mode: r.mode === 'grade' ? 'score' : 'grade' } : r)))
                 }
               >
-                <Text className="text-xs font-medium text-gray-700">{row.mode === 'grade' ? 'Harf' : "100'lük"}</Text>
+                <Text className="text-xs font-medium text-gray-700 dark:text-darktext">{row.mode === 'grade' ? 'Harf' : "100'lük"}</Text>
               </Pressable>
               {row.mode === 'grade' ? (
                 <View className="flex-row flex-wrap gap-1 flex-1">
                   {CREDITED_GRADES.map((g) => (
                     <Pressable
                       key={g}
-                      className={`border rounded-md px-2 py-1 ${row.grade === g ? 'bg-brand border-brand' : 'border-gray-300'}`}
+                      className={`border rounded-md px-2 py-1 ${row.grade === g ? 'bg-brand border-brand' : 'border-gray-300 dark:border-gray-600'}`}
                       onPress={() => setQuickRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, grade: g } : r)))}
                     >
-                      <Text className={`text-[11px] font-semibold ${row.grade === g ? 'text-white' : 'text-gray-700'}`}>{g}</Text>
+                      <Text className={`text-[11px] font-semibold ${row.grade === g ? 'text-white' : 'text-gray-700 dark:text-darktext'}`}>{g}</Text>
                     </Pressable>
                   ))}
                 </View>
               ) : (
                 <>
                   <TextInput
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
+                    className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-darktext"
                     style={{ width: 60 }}
                     value={row.score}
                     onChangeText={(v) => setQuickRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, score: v } : r)))}
@@ -925,62 +929,62 @@ export default function AktsCalculatorScreen() {
                     keyboardType="number-pad"
                   />
                   {rowGrade && (
-                    <View className="bg-brand/10 rounded-full px-2 py-1">
-                      <Text className="text-[11px] font-bold text-brand">{rowGrade}</Text>
+                    <View className="bg-brand/10 dark:bg-brand-light/20 rounded-full px-2 py-1">
+                      <Text className="text-[11px] font-bold text-brand dark:text-brand-light">{rowGrade}</Text>
                     </View>
                   )}
                 </>
               )}
               {quickRows.length > 1 && (
                 <Pressable onPress={() => setQuickRows((prev) => prev.filter((r) => r.id !== row.id))} hitSlop={8}>
-                  <X size={16} color="#660B05" />
+                  <X size={16} color={isDark ? '#f87171' : '#660B05'} />
                 </Pressable>
               )}
             </View>
           );
         })}
         <Pressable className="flex-row items-center gap-[5px] mt-2" onPress={() => setQuickRows((prev) => [...prev, emptyQuickRow()])}>
-          <Plus size={14} color="#2F5755" />
-          <Text className="text-[13px] font-medium text-brand">Ders Ekle</Text>
+          <Plus size={14} color={isDark ? '#5A9690' : '#2F5755'} />
+          <Text className="text-sm font-medium text-brand dark:text-brand-light">Ders Ekle</Text>
         </Pressable>
 
         <View className="bg-brand rounded-xl p-5 items-center mt-4">
-          <Text className="text-[11px] text-white/80 uppercase tracking-[0.5px]">Tahmini Yeni GANO</Text>
-          <Text className="text-[32px] font-bold text-white my-1">{quickResult !== null ? formatGpa(quickResult.newGano) : '—'}</Text>
+          <Text className="text-xs text-white/80 uppercase tracking-[0.5px]">Tahmini Yeni GANO</Text>
+          <Text className="text-3xl font-extrabold text-white my-1">{quickResult !== null ? formatGpa(quickResult.newGano) : '—'}</Text>
           {quickResult !== null ? (
-            <Text className="text-[13px] text-white/90">
+            <Text className="text-sm text-white/90">
               {quickDelta! >= 0 ? '+' : ''}
               {quickDelta!.toFixed(2)} ({quickResult.addedAkts} yeni AKTS)
             </Text>
           ) : (
-            <Text className="text-[11px] text-white/70">GANO, AKTS ve en az bir ders gir</Text>
+            <Text className="text-xs text-white/70">GANO, AKTS ve en az bir ders gir</Text>
           )}
         </View>
       </View>
 
       {/* İstatistikler + grafikler */}
       <View className="flex-row flex-wrap gap-2.5">
-        <StatCard icon={FileSpreadsheet} label="Toplam Ders" value={String(stats.totalCourses)} />
-        <StatCard icon={CheckCircle2} label="Başarı Oranı" value={stats.successRate === null ? '—' : `%${stats.successRate.toFixed(0)}`} />
-        <StatCard icon={CheckCircle2} label="Başarılı Ders" value={String(stats.passedCourses)} />
-        <StatCard icon={XCircle} label="Başarısız Ders" value={String(stats.failedCourses)} />
-        <StatCard icon={Layers} label="Ort. AKTS / Dönem" value={stats.avgAktsPerSemester === null ? '—' : stats.avgAktsPerSemester.toFixed(1)} />
+        <StatCard icon={FileSpreadsheet} label="Toplam Ders" value={String(stats.totalCourses)} isDark={isDark} />
+        <StatCard icon={CheckCircle2} label="Başarı Oranı" value={stats.successRate === null ? '—' : `%${stats.successRate.toFixed(0)}`} isDark={isDark} />
+        <StatCard icon={CheckCircle2} label="Başarılı Ders" value={String(stats.passedCourses)} isDark={isDark} />
+        <StatCard icon={XCircle} label="Başarısız Ders" value={String(stats.failedCourses)} isDark={isDark} />
+        <StatCard icon={Layers} label="Ort. AKTS / Dönem" value={stats.avgAktsPerSemester === null ? '—' : stats.avgAktsPerSemester.toFixed(1)} isDark={isDark} />
       </View>
 
-      <View className="bg-white rounded-xl p-5 border border-gray-100" style={SHADOW_MD}>
-        <Text className="text-[13.5px] font-semibold text-gray-900 mb-3">Dönem Bazlı GANO</Text>
+      <View className="bg-primary dark:bg-darkbgbutton rounded-xl p-5 border border-gray-100 dark:border-gray-700/40" style={SHADOW_MD}>
+        <Text className="text-[13.5px] font-semibold text-gray-900 dark:text-darktext mb-3">Dönem Bazlı GANO</Text>
         {stats.semesterRows.length === 0 ? (
-          <Text className="text-gray-400 text-[13px] py-1">Veri yok.</Text>
+          <Text className="text-gray-400 dark:text-gray-500 text-sm py-1">Veri yok.</Text>
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View className="flex-row items-end gap-3.5 h-40 pr-2">
               {stats.semesterRows.map((row) => (
                 <View key={row.semester} className="items-center" style={{ width: 52 }}>
-                  <Text className="text-[11px] font-semibold text-gray-700 mb-1">{formatGpa(row.gano)}</Text>
+                  <Text className="text-[11px] font-semibold text-gray-700 dark:text-darktext mb-1">{formatGpa(row.gano)}</Text>
                   <View className="w-7 justify-end" style={{ height: 110 }}>
                     <View className="w-full bg-brand rounded-t" style={{ height: `${((row.gano ?? 0) / GPA_SCALE_MAX) * 100}%`, minHeight: 2 }} />
                   </View>
-                  <Text className="text-[10.5px] text-gray-500 mt-1.5 text-center">{row.semester}. Dönem</Text>
+                  <Text className="text-[10.5px] text-gray-500 dark:text-gray-400 mt-1.5 text-center">{row.semester}. Dönem</Text>
                 </View>
               ))}
             </View>
@@ -988,48 +992,48 @@ export default function AktsCalculatorScreen() {
         )}
       </View>
 
-      <View className="bg-white rounded-xl p-5 border border-gray-100" style={SHADOW_MD}>
-        <Text className="text-[13.5px] font-semibold text-gray-900 mb-3">Harf Notu Dağılımı (ders sayısı)</Text>
+      <View className="bg-primary dark:bg-darkbgbutton rounded-xl p-5 border border-gray-100 dark:border-gray-700/40" style={SHADOW_MD}>
+        <Text className="text-[13.5px] font-semibold text-gray-900 dark:text-darktext mb-3">Harf Notu Dağılımı (ders sayısı)</Text>
         {distributionRows.length === 0 ? (
-          <Text className="text-gray-400 text-[13px] py-1">Veri yok.</Text>
+          <Text className="text-gray-400 dark:text-gray-500 text-sm py-1">Veri yok.</Text>
         ) : (
           <View className="gap-2">
             {distributionRows.map(({ grade, count }) => (
               <View key={grade} className="flex-row items-center gap-2">
-                <Text className="w-[30px] text-xs font-semibold text-gray-700">{grade}</Text>
-                <View className="flex-1 h-4 bg-gray-100 rounded overflow-hidden">
+                <Text className="w-[30px] text-xs font-semibold text-gray-700 dark:text-darktext">{grade}</Text>
+                <View className="flex-1 h-4 bg-gray-100 dark:bg-gray-700/40 rounded overflow-hidden">
                   <View
-                    className={`h-full rounded ${isFailGrade(grade) ? 'bg-[#8C1007]' : isCreditedGrade(grade) ? 'bg-brand' : 'bg-gray-400'}`}
+                    className={`h-full rounded ${isFailGrade(grade) ? 'bg-[#8C1007] dark:bg-[#dc2626]' : isCreditedGrade(grade) ? 'bg-brand' : 'bg-gray-400 dark:bg-gray-500'}`}
                     style={{ width: `${(count / maxDistCount) * 100}%` }}
                   />
                 </View>
-                <Text className="w-[22px] text-xs text-gray-700 text-right">{count}</Text>
+                <Text className="w-[22px] text-xs text-gray-700 dark:text-darktext text-right">{count}</Text>
               </View>
             ))}
           </View>
         )}
       </View>
 
-      <View className="bg-white rounded-xl p-5 border border-gray-100" style={SHADOW_MD}>
-        <Text className="text-[13.5px] font-semibold text-gray-900 mb-3">Başarılı / Başarısız AKTS</Text>
+      <View className="bg-primary dark:bg-darkbgbutton rounded-xl p-5 border border-gray-100 dark:border-gray-700/40" style={SHADOW_MD}>
+        <Text className="text-[13.5px] font-semibold text-gray-900 dark:text-darktext mb-3">Başarılı / Başarısız AKTS</Text>
         {judgedAkts === 0 ? (
-          <Text className="text-gray-400 text-[13px] py-1">Veri yok.</Text>
+          <Text className="text-gray-400 dark:text-gray-500 text-sm py-1">Veri yok.</Text>
         ) : (
           <View>
             <View className="flex-row h-6 rounded-lg overflow-hidden gap-px">
               {baseTotals.passedAkts > 0 && <View className="bg-brand" style={{ flex: baseTotals.passedAkts }} />}
-              {baseTotals.failedAkts > 0 && <View className="bg-[#8C1007]" style={{ flex: baseTotals.failedAkts }} />}
+              {baseTotals.failedAkts > 0 && <View style={{ flex: baseTotals.failedAkts, backgroundColor: isDark ? '#dc2626' : '#8C1007' }} />}
             </View>
             <View className="flex-row flex-wrap gap-4 mt-3">
               <View className="flex-row items-center gap-1.5">
-                <View className="w-3 h-3 rounded-[3px]" style={{ backgroundColor: '#2F5755' }} />
-                <Text className="text-[13px] text-gray-700">
+                <View className="w-3 h-3 rounded-[3px]" style={{ backgroundColor: isDark ? '#5A9690' : '#2F5755' }} />
+                <Text className="text-sm text-gray-700 dark:text-darktext">
                   Başarılı: <Text className="font-bold">{baseTotals.passedAkts} AKTS</Text>
                 </Text>
               </View>
               <View className="flex-row items-center gap-1.5">
-                <View className="w-3 h-3 rounded-[3px]" style={{ backgroundColor: '#8C1007' }} />
-                <Text className="text-[13px] text-gray-700">
+                <View className="w-3 h-3 rounded-[3px]" style={{ backgroundColor: isDark ? '#dc2626' : '#8C1007' }} />
+                <Text className="text-sm text-gray-700 dark:text-darktext">
                   Başarısız: <Text className="font-bold">{baseTotals.failedAkts} AKTS</Text>
                 </Text>
               </View>
@@ -1038,7 +1042,7 @@ export default function AktsCalculatorScreen() {
         )}
       </View>
 
-      <Text className="text-[11px] text-gray-400 leading-4">
+      <Text className="text-xs text-gray-400 dark:text-gray-500 leading-4">
         GANO = Σ(AKTS × katsayı) / Σ(kredili AKTS), 2 ondalıkla gösterilir. Kredisiz notlar (G, K, H, M) ortalamaya
         katılmaz; G ve M başarılı, K başarısız AKTS'ye sayılır.
       </Text>
@@ -1046,26 +1050,26 @@ export default function AktsCalculatorScreen() {
       {/* Ders ekleme/düzenleme modalı */}
       <Modal visible={showForm} transparent animationType="fade" onRequestClose={() => setShowForm(false)}>
         <View className="flex-1 bg-black/50 justify-center p-4">
-          <View className="bg-white rounded-2xl p-5 max-h-[88%]">
+          <View className="bg-primary dark:bg-darkbgbutton rounded-2xl p-5 max-h-[88%]">
             <View className="flex-row items-center justify-between">
-              <Text className="text-[17px] font-bold text-gray-900 flex-1 pr-3">{editingCourseId ? 'Dersi Düzenle' : 'Ders Ekle'}</Text>
+              <Text className="text-xl font-bold text-gray-900 dark:text-darktext flex-1 pr-3">{editingCourseId ? 'Dersi Düzenle' : 'Ders Ekle'}</Text>
               <Pressable onPress={() => setShowForm(false)} hitSlop={8}>
-                <X size={20} color="#6b7280" />
+                <X size={20} color={isDark ? '#9ca3af' : '#6b7280'} />
               </Pressable>
             </View>
             <ScrollView style={{ marginTop: 12 }}>
-              <Text className="text-[13px] font-medium text-gray-700 mb-1.5 mt-3">Ders Adı *</Text>
+              <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-1.5 mt-3">Ders Adı *</Text>
               <TextInput
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
+                className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-darktext"
                 value={draft.name}
                 onChangeText={(v) => setDraft((d) => ({ ...d, name: v }))}
                 maxLength={120}
                 placeholder="Örn: Matematik I"
                 placeholderTextColor="#9ca3af"
               />
-              <Text className="text-[13px] font-medium text-gray-700 mb-1.5 mt-3">Ders Kodu (ops.)</Text>
+              <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-1.5 mt-3">Ders Kodu (ops.)</Text>
               <TextInput
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
+                className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-darktext"
                 value={draft.code}
                 onChangeText={(v) => setDraft((d) => ({ ...d, code: v }))}
                 maxLength={20}
@@ -1075,9 +1079,9 @@ export default function AktsCalculatorScreen() {
               />
               <View className="flex-row gap-2.5">
                 <View className="flex-1">
-                  <Text className="text-[13px] font-medium text-gray-700 mb-1.5 mt-3">Dönem</Text>
+                  <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-1.5 mt-3">Dönem</Text>
                   <TextInput
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
+                    className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-darktext"
                     value={draft.semester}
                     onChangeText={(v) => setDraft((d) => ({ ...d, semester: v.replace(/[^0-9]/g, '') }))}
                     keyboardType="number-pad"
@@ -1085,9 +1089,9 @@ export default function AktsCalculatorScreen() {
                   />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-[13px] font-medium text-gray-700 mb-1.5 mt-3">AKTS *</Text>
+                  <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-1.5 mt-3">AKTS *</Text>
                   <TextInput
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
+                    className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-darktext"
                     value={draft.akts}
                     onChangeText={(v) => setDraft((d) => ({ ...d, akts: v.replace(/[^0-9]/g, '') }))}
                     keyboardType="number-pad"
@@ -1098,40 +1102,40 @@ export default function AktsCalculatorScreen() {
 
               <View className="flex-row gap-2 mt-3">
                 <Pressable
-                  className={`flex-1 items-center py-2 rounded-lg border ${draft.mode === 'grade' ? 'bg-brand border-brand' : 'border-gray-300'}`}
+                  className={`flex-1 items-center py-2 rounded-lg border ${draft.mode === 'grade' ? 'bg-brand border-brand' : 'border-gray-300 dark:border-gray-600'}`}
                   onPress={() => setDraft((d) => ({ ...d, mode: 'grade' }))}
                 >
-                  <Text className={`text-[13px] font-medium ${draft.mode === 'grade' ? 'text-white' : 'text-gray-700'}`}>Harf Notu</Text>
+                  <Text className={`text-sm font-medium ${draft.mode === 'grade' ? 'text-white' : 'text-gray-700 dark:text-darktext'}`}>Harf Notu</Text>
                 </Pressable>
                 <Pressable
-                  className={`flex-1 items-center py-2 rounded-lg border ${draft.mode === 'score' ? 'bg-brand border-brand' : 'border-gray-300'}`}
+                  className={`flex-1 items-center py-2 rounded-lg border ${draft.mode === 'score' ? 'bg-brand border-brand' : 'border-gray-300 dark:border-gray-600'}`}
                   onPress={() => setDraft((d) => ({ ...d, mode: 'score' }))}
                 >
-                  <Text className={`text-[13px] font-medium ${draft.mode === 'score' ? 'text-white' : 'text-gray-700'}`}>100'lük Not</Text>
+                  <Text className={`text-sm font-medium ${draft.mode === 'score' ? 'text-white' : 'text-gray-700 dark:text-darktext'}`}>100'lük Not</Text>
                 </Pressable>
               </View>
 
               {draft.mode === 'grade' ? (
                 <>
-                  <Text className="text-[13px] font-medium text-gray-700 mb-1.5 mt-3">Not *</Text>
+                  <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-1.5 mt-3">Not *</Text>
                   <View className="flex-row flex-wrap gap-2">
                     {ALL_GRADES.map((g) => (
                       <Pressable
                         key={g}
-                        className={`border rounded-lg px-3 py-[7px] ${draft.grade === g ? 'bg-brand border-brand' : 'border-gray-300'}`}
+                        className={`border rounded-lg px-3 py-[7px] ${draft.grade === g ? 'bg-brand border-brand' : 'border-gray-300 dark:border-gray-600'}`}
                         onPress={() => setDraft((d) => ({ ...d, grade: g }))}
                       >
-                        <Text className={`text-[12.5px] font-semibold ${draft.grade === g ? 'text-white' : 'text-gray-700'}`}>{g}</Text>
+                        <Text className={`text-[12.5px] font-semibold ${draft.grade === g ? 'text-white' : 'text-gray-700 dark:text-darktext'}`}>{g}</Text>
                       </Pressable>
                     ))}
                   </View>
                 </>
               ) : (
                 <>
-                  <Text className="text-[13px] font-medium text-gray-700 mb-1.5 mt-3">100'lük Not *</Text>
+                  <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-1.5 mt-3">100'lük Not *</Text>
                   <View className="flex-row items-center gap-2.5">
                     <TextInput
-                      className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
+                      className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-darktext"
                       style={{ width: 90 }}
                       value={draft.score}
                       onChangeText={(v) => setDraft((d) => ({ ...d, score: v.replace(/[^0-9]/g, '') }))}
@@ -1141,8 +1145,8 @@ export default function AktsCalculatorScreen() {
                       placeholderTextColor="#9ca3af"
                     />
                     {effectiveDraftGrade && CREDITED_GRADES.includes(effectiveDraftGrade) && (
-                      <View className="bg-brand/10 rounded-full px-2 py-1">
-                        <Text className="text-[11px] font-bold text-brand">{effectiveDraftGrade}</Text>
+                      <View className="bg-brand/10 dark:bg-brand-light/20 rounded-full px-2 py-1">
+                        <Text className="text-[11px] font-bold text-brand dark:text-brand-light">{effectiveDraftGrade}</Text>
                       </View>
                     )}
                   </View>
@@ -1150,7 +1154,7 @@ export default function AktsCalculatorScreen() {
               )}
             </ScrollView>
             <Pressable className="bg-brand rounded-lg items-center py-3 mt-4" onPress={handleSaveDraft}>
-              <Text className="text-white text-sm font-medium">{editingCourseId ? 'Güncelle' : 'Ekle'}</Text>
+              <Text className="text-white text-sm font-semibold">{editingCourseId ? 'Güncelle' : 'Ekle'}</Text>
             </Pressable>
           </View>
         </View>
@@ -1159,37 +1163,37 @@ export default function AktsCalculatorScreen() {
       {/* İçe aktarma modalı */}
       <Modal visible={showImport} transparent animationType="fade" onRequestClose={() => setShowImport(false)}>
         <View className="flex-1 bg-black/50 justify-center p-4">
-          <View className="bg-white rounded-2xl p-5 max-h-[88%]">
+          <View className="bg-primary dark:bg-darkbgbutton rounded-2xl p-5 max-h-[88%]">
             <View className="flex-row items-center justify-between">
-              <Text className="text-[17px] font-bold text-gray-900 flex-1 pr-3">AKTS İçe Aktar (Excel / CSV)</Text>
+              <Text className="text-xl font-bold text-gray-900 dark:text-darktext flex-1 pr-3">AKTS İçe Aktar (Excel / CSV)</Text>
               <Pressable onPress={() => setShowImport(false)} hitSlop={8}>
-                <X size={20} color="#6b7280" />
+                <X size={20} color={isDark ? '#9ca3af' : '#6b7280'} />
               </Pressable>
             </View>
             <ScrollView style={{ marginTop: 12 }}>
-              <Text className="text-[13px] text-gray-600 mt-1">
+              <Text className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                 Beklenen kolonlar: Ders | Dönem | AKTS | Not (Kod isteğe bağlı; büyük/küçük harf fark etmez, ilk sayfa
                 okunur).
               </Text>
-              <Pressable className="border-2 border-gray-300 border-dashed rounded-xl py-6 items-center gap-2 mt-3" onPress={handleImportFile}>
-                <Upload size={22} color="#6b7280" />
-                <Text className="text-[13.5px] font-medium text-gray-700">{importParsing ? 'Okunuyor...' : 'xlsx / xls / csv dosyası seç'}</Text>
+              <Pressable className="border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-xl py-6 items-center gap-2 mt-3" onPress={handleImportFile}>
+                <Upload size={22} color={isDark ? '#9ca3af' : '#6b7280'} />
+                <Text className="text-[13.5px] font-medium text-gray-700 dark:text-darktext">{importParsing ? 'Okunuyor...' : 'xlsx / xls / csv dosyası seç'}</Text>
               </Pressable>
 
               {importPreview && (
                 <View className="mt-4 gap-2.5">
-                  <Text className="text-[13.5px] font-semibold text-gray-900">Aktarılacak dersler ({importPreview.valid.length})</Text>
+                  <Text className="text-[13.5px] font-semibold text-gray-900 dark:text-darktext">Aktarılacak dersler ({importPreview.valid.length})</Text>
                   {importPreview.valid.length === 0 ? (
-                    <Text className="text-gray-400 text-[13px] py-1">Geçerli satır yok.</Text>
+                    <Text className="text-gray-400 dark:text-gray-500 text-sm py-1">Geçerli satır yok.</Text>
                   ) : (
                     <View className="gap-1.5">
                       {importPreview.valid.map((c, i) => (
-                        <View key={i} className="bg-gray-50 rounded-lg px-3 py-2">
-                          <Text className="text-[13px] text-gray-800 font-medium" numberOfLines={1}>
+                        <View key={i} className="bg-gray-50 dark:bg-darkbg rounded-lg px-3 py-2">
+                          <Text className="text-sm text-gray-800 dark:text-darktext font-medium" numberOfLines={1}>
                             {c.code ? `${c.code} · ` : ''}
                             {c.lessonName}
                           </Text>
-                          <Text className="text-[11.5px] text-gray-500 mt-0.5">
+                          <Text className="text-[11.5px] text-gray-500 dark:text-gray-400 mt-0.5">
                             {c.semester}. Dönem · {c.akts} AKTS · {c.grade}
                           </Text>
                         </View>
@@ -1199,11 +1203,11 @@ export default function AktsCalculatorScreen() {
                   {importPreview.errors.length > 0 && (
                     <View>
                       <View className="flex-row items-center gap-1.5 mb-1.5">
-                        <AlertTriangle size={15} color="#8C1007" />
-                        <Text className="text-[13px] font-semibold text-[#8C1007]">Hatalı satırlar ({importPreview.errors.length})</Text>
+                        <AlertTriangle size={15} color={isDark ? '#dc2626' : '#8C1007'} />
+                        <Text className="text-sm font-semibold text-[#8C1007] dark:text-[#f87171]">Hatalı satırlar ({importPreview.errors.length})</Text>
                       </View>
                       {importPreview.errors.map((err, i) => (
-                        <Text key={i} className="text-[12.5px] text-gray-700 mb-1">
+                        <Text key={i} className="text-[12.5px] text-gray-700 dark:text-darktext mb-1">
                           Satır {err.rowNumber}
                           {err.lessonName ? ` (${err.lessonName})` : ''}: {err.message}
                         </Text>
@@ -1214,15 +1218,15 @@ export default function AktsCalculatorScreen() {
               )}
             </ScrollView>
             <View className="flex-row gap-2.5 mt-4">
-              <Pressable className="py-3 px-5 rounded-lg border border-gray-300 items-center" onPress={() => setShowImport(false)}>
-                <Text className="text-gray-700 text-sm font-normal">Vazgeç</Text>
+              <Pressable className="py-3 px-5 rounded-lg border border-gray-300 dark:border-gray-600 items-center" onPress={() => setShowImport(false)}>
+                <Text className="text-gray-700 dark:text-darktext text-sm font-semibold">Vazgeç</Text>
               </Pressable>
               <Pressable
                 className={`flex-1 items-center rounded-lg bg-brand py-3 ${!importPreview || importPreview.valid.length === 0 ? 'opacity-50' : ''}`}
                 onPress={handleConfirmImport}
                 disabled={!importPreview || importPreview.valid.length === 0}
               >
-                <Text className="text-white text-sm font-medium">Onayla ({importPreview?.valid.length ?? 0} ders)</Text>
+                <Text className="text-white text-sm font-semibold">Onayla ({importPreview?.valid.length ?? 0} ders)</Text>
               </Pressable>
             </View>
           </View>
@@ -1232,51 +1236,61 @@ export default function AktsCalculatorScreen() {
   );
 }
 
-function StatCard({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
+function StatCard({ icon: Icon, label, value, isDark }: { icon: any; label: string; value: string; isDark: boolean }) {
   return (
-    <View className="w-[47.5%] bg-white rounded-lg p-4" style={SHADOW_MD}>
+    <View className="w-[47.5%] bg-primary dark:bg-darkbgbutton rounded-lg p-4" style={SHADOW_MD}>
       <View className="flex-row items-center gap-1.5 mb-1">
-        <Icon size={16} color="#2F5755" />
-        <Text className="text-xs font-medium text-gray-600">{label}</Text>
+        <Icon size={16} color={isDark ? '#5A9690' : '#2F5755'} />
+        <Text className="text-xs font-medium text-gray-600 dark:text-gray-400">{label}</Text>
       </View>
-      <Text className="text-2xl font-bold text-gray-900">{value}</Text>
+      <Text className="text-2xl font-extrabold text-gray-900 dark:text-darktext">{value}</Text>
     </View>
   );
 }
 
 function FilterChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return (
-    <Pressable className={`px-3 py-1.5 rounded-lg ${active ? 'bg-brand' : 'bg-gray-100'}`} onPress={onPress}>
-      <Text className={`text-[12.5px] font-medium ${active ? 'text-white' : 'text-gray-600'}`}>{label}</Text>
+    <Pressable className={`px-3 py-1.5 rounded-lg ${active ? 'bg-brand' : 'bg-gray-100 dark:bg-gray-700/40'}`} onPress={onPress}>
+      <Text className={`text-[12.5px] font-medium ${active ? 'text-white' : 'text-gray-600 dark:text-gray-300'}`}>{label}</Text>
     </Pressable>
   );
 }
 
-function CourseRow({ course, onEdit, onDelete }: { course: Course; onEdit: (c: Course) => void; onDelete: (c: Course) => void }) {
+function CourseRow({
+  course,
+  onEdit,
+  onDelete,
+  isDark,
+}: {
+  course: Course;
+  onEdit: (c: Course) => void;
+  onDelete: (c: Course) => void;
+  isDark: boolean;
+}) {
   const coefficient = getCoefficient(course.grade);
   const qualityPoints = coefficient === null ? null : Number(course.akts) * coefficient;
   const failed = isFailGrade(course.grade);
   const credited = isCreditedGrade(course.grade);
   return (
-    <View className="flex-row items-center bg-white rounded-lg border border-gray-100 px-3 py-2.5">
+    <View className="flex-row items-center bg-primary dark:bg-darkbgbutton rounded-lg border border-gray-100 dark:border-gray-700/40 px-3 py-2.5">
       <Pressable className="flex-1" onPress={() => onEdit(course)}>
-        <Text className="text-[13.5px] font-semibold text-gray-900">
-          {course.code ? <Text className="text-gray-400 font-normal">{course.code} · </Text> : null}
+        <Text className="text-[13.5px] font-semibold text-gray-900 dark:text-darktext">
+          {course.code ? <Text className="text-gray-400 dark:text-gray-500 font-normal">{course.code} · </Text> : null}
           {course.name}
         </Text>
-        <Text className="text-[11px] text-gray-400 mt-[3px]">
+        <Text className="text-[11px] text-gray-400 dark:text-gray-500 mt-[3px]">
           {course.semester}. Dönem · {course.akts} AKTS · Katsayı {coefficient === null ? '—' : coefficient.toFixed(1)} · Kalite{' '}
           {qualityPoints === null ? '—' : qualityPoints.toLocaleString('tr-TR')} · 100'lük {gradeToScoreRange(course.grade) ?? '—'}
         </Text>
       </Pressable>
-      <View className={`rounded-full px-2.5 py-1 ${failed ? 'bg-[#8C1007]/10' : credited ? 'bg-brand/10' : 'bg-gray-200'}`}>
-        <Text className="text-xs font-bold text-gray-700">{course.grade}</Text>
+      <View className={`rounded-full px-2.5 py-1 ${failed ? 'bg-[#8C1007]/10 dark:bg-[#dc2626]/20' : credited ? 'bg-brand/10 dark:bg-brand-light/20' : 'bg-gray-200 dark:bg-gray-700/40'}`}>
+        <Text className="text-xs font-bold text-gray-700 dark:text-darktext">{course.grade}</Text>
       </View>
       <Pressable onPress={() => onEdit(course)} hitSlop={8} className="ml-2.5">
-        <Pencil size={16} color="#2F5755" />
+        <Pencil size={16} color={isDark ? '#5A9690' : '#2F5755'} />
       </Pressable>
       <Pressable onPress={() => onDelete(course)} hitSlop={8} className="ml-2.5">
-        <Trash2 size={16} color="#660B05" />
+        <Trash2 size={16} color={isDark ? '#f87171' : '#660B05'} />
       </Pressable>
     </View>
   );

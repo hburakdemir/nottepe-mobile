@@ -15,6 +15,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { AlertCircle, CheckCircle, FileText, HeartHandshake, Upload, X } from 'lucide-react-native';
 import { postsAPI } from '../../lib/api';
 import { faculties, departments } from '../../data/departments';
+import { useTheme } from '../../context/ThemeContext';
 import type { RootStackParamList } from '../../navigation/types';
 
 const MAX_FILES = 5;
@@ -60,21 +61,21 @@ function PickerModal({
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <Pressable className="flex-1 bg-black/40 justify-end" onPress={onClose}>
-        <View className="bg-white rounded-t-2xl pt-4 pb-6 max-h-[70%]">
-          <Text className="text-base font-bold text-gray-900 px-[18px] mb-2">{title}</Text>
+        <View className="bg-primary dark:bg-darkbgbutton rounded-t-2xl pt-4 pb-6 max-h-[70%]">
+          <Text className="text-base font-bold text-gray-900 dark:text-darktext px-[18px] mb-2">{title}</Text>
           <FlatList
             data={options}
             keyExtractor={(item) => item}
             style={{ maxHeight: 420 }}
             renderItem={({ item }) => (
               <Pressable
-                className="px-[18px] py-[13px] border-b border-gray-100"
+                className="px-[18px] py-[13px] border-b border-gray-100 dark:border-gray-700/40"
                 onPress={() => {
                   onSelect(item);
                   onClose();
                 }}
               >
-                <Text className="text-[14.5px] text-gray-700">{item}</Text>
+                <Text className="text-[14.5px] text-gray-700 dark:text-darktext">{item}</Text>
               </Pressable>
             )}
           />
@@ -87,6 +88,8 @@ function PickerModal({
 export default function AddPostScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<any>();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const noteRequest = (route.params as RootStackParamList['AddPost'])?.noteRequest;
 
   const [title, setTitle] = useState('');
@@ -186,14 +189,14 @@ export default function AddPostScreen() {
   };
 
   return (
-    <ScrollView className="flex-1 bg-primary" contentContainerClassName="px-4 py-8">
-      <View className="bg-white rounded-lg p-8" style={SHADOW_MD}>
-        <Text className="text-3xl font-bold text-gray-900 mb-6">Not Paylaş</Text>
+    <ScrollView className="flex-1 bg-primary dark:bg-darkbgbutton" contentContainerClassName="px-4 py-8">
+      <View className="bg-primary dark:bg-darkbgbutton rounded-lg p-8" style={SHADOW_MD}>
+        <Text className="text-3xl font-extrabold text-gray-900 dark:text-darktext mb-6">Not Paylaş</Text>
 
         {!!noteRequest && (
-          <View className="flex-row gap-2 bg-brand/10 border border-brand/30 rounded-lg p-4 mb-6">
-            <HeartHandshake size={20} color="#2F5755" style={{ marginTop: 1 }} />
-            <Text className="flex-1 text-sm text-brand leading-5">
+          <View className="flex-row gap-2 bg-brand/10 dark:bg-brand-light/20 border border-brand/30 dark:border-brand-light/40 rounded-lg p-4 mb-6">
+            <HeartHandshake size={20} color={isDark ? '#5A9690' : '#2F5755'} style={{ marginTop: 1 }} />
+            <Text className="flex-1 text-sm text-brand dark:text-brand-light leading-5">
               <Text style={{ fontWeight: '700' }}>"{noteRequest.course_name}"</Text> isteği için not yüklüyorsun. Notun
               onaylanınca istek otomatik olarak karşılanmış sayılır ve isteyen kullanıcıya haber verilir.
             </Text>
@@ -201,22 +204,22 @@ export default function AddPostScreen() {
         )}
 
         {!!error && (
-          <View className="flex-row items-center gap-2 bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-            <AlertCircle size={20} color="#b91c1c" />
-            <Text className="text-red-700 text-sm flex-1">{error}</Text>
+          <View className="flex-row items-center gap-2 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 rounded-lg p-4 mb-6">
+            <AlertCircle size={20} color={isDark ? '#f87171' : '#b91c1c'} />
+            <Text className="text-red-700 dark:text-red-400 text-sm flex-1">{error}</Text>
           </View>
         )}
         {success && (
-          <View className="flex-row items-center gap-2 bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-            <CheckCircle size={20} color="#15803d" />
-            <Text className="text-green-700 text-sm flex-1">Not başarıyla paylaşıldı! Yönlendiriliyorsunuz...</Text>
+          <View className="flex-row items-center gap-2 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800/60 rounded-lg p-4 mb-6">
+            <CheckCircle size={20} color={isDark ? '#4ade80' : '#15803d'} />
+            <Text className="text-green-700 dark:text-green-400 text-sm flex-1">Not başarıyla paylaşıldı! Yönlendiriliyorsunuz...</Text>
           </View>
         )}
 
         <View className="mb-6">
-        <Text className="text-sm font-medium text-gray-700 mb-2">Başlık *</Text>
+        <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-2">Başlık *</Text>
         <TextInput
-          className="border border-gray-300 rounded-lg px-4 py-2 text-base text-gray-900"
+          className="border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-base text-gray-900 dark:text-darktext"
           value={title}
           onChangeText={setTitle}
           placeholder="Örn: Matematik 101 Final Soruları"
@@ -225,9 +228,9 @@ export default function AddPostScreen() {
       </View>
 
       <View className="mb-6">
-        <Text className="text-sm font-medium text-gray-700 mb-2">Açıklama *</Text>
+        <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-2">Açıklama *</Text>
         <TextInput
-          className="border border-gray-300 rounded-lg px-4 py-2 text-base text-gray-900 min-h-24"
+          className="border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-base text-gray-900 dark:text-darktext min-h-24"
           style={{ textAlignVertical: 'top' }}
           value={content}
           onChangeText={setContent}
@@ -241,9 +244,9 @@ export default function AddPostScreen() {
           yazılmış (soluk border, küçük radius, az padding) — birebir aynı görünmesi
           için burada da bilerek farklı. */}
       <View className="mb-6">
-        <Text className="text-sm font-normal text-gray-700 mb-2">Link</Text>
+        <Text className="text-sm font-normal text-gray-700 dark:text-darktext mb-2">Link</Text>
         <TextInput
-          className="border border-gray-200 rounded px-2 py-2 text-base text-gray-900"
+          className="border border-gray-200 dark:border-gray-600 rounded px-2 py-2 text-base text-gray-900 dark:text-darktext"
           value={link}
           onChangeText={setLink}
           placeholder="Ders notu link ise (ex: https://...)"
@@ -254,54 +257,54 @@ export default function AddPostScreen() {
       </View>
 
       <View className="mb-6">
-        <Text className="text-sm font-medium text-gray-700 mb-2">Fakülte *</Text>
-        <Pressable className="border border-gray-300 rounded-lg px-4 py-2 justify-center min-h-[40px]" onPress={() => setFacultyModalOpen(true)}>
-          <Text className={`text-base ${faculty ? 'text-gray-900' : 'text-gray-400'}`}>
+        <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-2">Fakülte *</Text>
+        <Pressable className="border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 justify-center min-h-[40px]" onPress={() => setFacultyModalOpen(true)}>
+          <Text className={`text-base ${faculty ? 'text-gray-900 dark:text-darktext' : 'text-gray-400 dark:text-gray-500'}`}>
             {faculty || 'Fakülte Seçin'}
           </Text>
         </Pressable>
       </View>
 
       <View className="mb-6">
-        <Text className="text-sm font-medium text-gray-700 mb-2">Bölüm *</Text>
+        <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-2">Bölüm *</Text>
         <Pressable
-          className={`border border-gray-300 rounded-lg px-4 py-2 justify-center min-h-[40px] ${!faculty ? 'opacity-50' : ''}`}
+          className={`border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 justify-center min-h-[40px] ${!faculty ? 'opacity-50' : ''}`}
           onPress={() => faculty && setDepartmentModalOpen(true)}
         >
-          <Text className={`text-base ${department ? 'text-gray-900' : 'text-gray-400'}`}>
+          <Text className={`text-base ${department ? 'text-gray-900 dark:text-darktext' : 'text-gray-400 dark:text-gray-500'}`}>
             {department || 'Bölüm Seçin'}
           </Text>
         </Pressable>
       </View>
 
       <View className="mb-6">
-        <Text className="text-sm font-medium text-gray-700 mb-2">Dosya Yükle (Opsiyonel, Max 5, her biri 10MB)</Text>
-        <Pressable className="border-2 border-gray-300 border-dashed rounded-lg pt-5 pb-6 px-6 items-center gap-1" onPress={handlePickFiles}>
-          <Upload size={48} color="#9ca3af" />
-          <Text className="text-sm text-green-600 font-medium mt-2">Dosya seçin</Text>
-          <Text className="text-xs text-gray-500">PDF, DOC, PPT, JPG (max. 10MB her biri)</Text>
+        <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-2">Dosya Yükle (Opsiyonel, Max 5, her biri 10MB)</Text>
+        <Pressable className="border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg pt-5 pb-6 px-6 items-center gap-1" onPress={handlePickFiles}>
+          <Upload size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
+          <Text className="text-sm text-green-600 dark:text-green-400 font-medium mt-2">Dosya seçin</Text>
+          <Text className="text-xs text-gray-500 dark:text-gray-400">PDF, DOC, PPT, JPG (max. 10MB her biri)</Text>
         </Pressable>
         {files.length > 0 && (
           <View className="mt-4 gap-2">
             {files.map((file, index) => (
               <View key={index} className="flex-row items-center justify-center gap-2">
-                <FileText size={20} color="#16a34a" />
-                <Text className="flex-shrink text-sm text-green-600" numberOfLines={1}>
+                <FileText size={20} color={isDark ? '#4ade80' : '#16a34a'} />
+                <Text className="flex-shrink text-sm text-green-600 dark:text-green-400" numberOfLines={1}>
                   {file.name}
                 </Text>
                 <Pressable onPress={() => removeFile(index)} hitSlop={8}>
-                  <X size={16} color="#ef4444" />
+                  <X size={16} color={isDark ? '#f87171' : '#ef4444'} />
                 </Pressable>
               </View>
             ))}
-            <Text className="text-xs text-gray-500 text-center mt-1">{files.length} dosya seçildi</Text>
+            <Text className="text-xs text-gray-500 dark:text-gray-400 text-center mt-1">{files.length} dosya seçildi</Text>
           </View>
         )}
       </View>
 
       <View className="flex-row justify-end gap-4 mt-2">
         <Pressable onPress={() => navigation.goBack()} className="py-2 px-4 rounded-lg">
-          <Text className="text-gray-800 text-base font-medium">İptal</Text>
+          <Text className="text-gray-800 dark:text-darktext text-base font-medium">İptal</Text>
         </Pressable>
         <Pressable
           className={`bg-brand rounded-lg py-2 px-4 items-center justify-center min-w-[84px] ${loading ? 'opacity-50' : ''}`}

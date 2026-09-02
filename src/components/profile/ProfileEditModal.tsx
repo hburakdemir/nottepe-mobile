@@ -3,6 +3,7 @@ import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInpu
 import { AlertCircle, CheckCircle, Eye, EyeOff, Trash2, X } from 'lucide-react-native';
 import { profileupdateAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { faculties, departments } from '../../data/departments';
 import BadgeChip, { type Badge } from '../BadgeChip';
 
@@ -35,6 +36,10 @@ interface Props {
 
 export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onClose, onDeleteAccountRequest }: Props) {
   const { user, updateUser } = useAuth();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const mutedIconColor = isDark ? '#DFD0B8' : '#6b7280';
+  const dangerIconColor = isDark ? '#f87171' : '#dc2626';
   const [tab, setTab] = useState<'info' | 'visibility'>('info');
 
   const [fullName, setFullName] = useState(user?.full_name || '');
@@ -97,20 +102,38 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={styles.sheet}>
+        <View className="bg-primary dark:bg-darkbgbutton" style={styles.sheet}>
           <View style={styles.headerRow}>
-            <Text style={styles.title}>Profili Düzenle</Text>
+            <Text className="text-gray-900 dark:text-darktext" style={styles.title}>Profili Düzenle</Text>
             <Pressable onPress={onClose} hitSlop={8}>
-              <X size={20} color="#6b7280" />
+              <X size={20} color={mutedIconColor} />
             </Pressable>
           </View>
 
-          <View style={styles.tabRow}>
-            <Pressable style={[styles.tabBtn, tab === 'info' && styles.tabBtnActive]} onPress={() => setTab('info')}>
-              <Text style={[styles.tabBtnText, tab === 'info' && styles.tabBtnTextActive]}>Kişisel Bilgiler</Text>
+          <View className="border-gray-100 dark:border-gray-700/40" style={styles.tabRow}>
+            <Pressable
+              className={tab === 'info' ? 'border-brand dark:border-brand-light' : 'border-transparent'}
+              style={styles.tabBtn}
+              onPress={() => setTab('info')}
+            >
+              <Text
+                className={tab === 'info' ? 'text-brand dark:text-brand-light' : 'text-gray-500 dark:text-gray-400'}
+                style={styles.tabBtnText}
+              >
+                Kişisel Bilgiler
+              </Text>
             </Pressable>
-            <Pressable style={[styles.tabBtn, tab === 'visibility' && styles.tabBtnActive]} onPress={() => setTab('visibility')}>
-              <Text style={[styles.tabBtnText, tab === 'visibility' && styles.tabBtnTextActive]}>Görünürlük</Text>
+            <Pressable
+              className={tab === 'visibility' ? 'border-brand dark:border-brand-light' : 'border-transparent'}
+              style={styles.tabBtn}
+              onPress={() => setTab('visibility')}
+            >
+              <Text
+                className={tab === 'visibility' ? 'text-brand dark:text-brand-light' : 'text-gray-500 dark:text-gray-400'}
+                style={styles.tabBtnText}
+              >
+                Görünürlük
+              </Text>
             </Pressable>
           </View>
 
@@ -130,31 +153,60 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
           <ScrollView style={{ marginTop: 8 }}>
             {tab === 'info' ? (
               <>
-                <Text style={styles.label}>İsim Soyisim</Text>
-                <TextInput style={styles.input} value={fullName} onChangeText={setFullName} placeholder="İsim Soyisim" placeholderTextColor="#9ca3af" />
+                <Text className="text-gray-700 dark:text-darktext" style={styles.label}>İsim Soyisim</Text>
+                <TextInput
+                  className="border-gray-200 dark:border-gray-600 text-gray-900 dark:text-darktext"
+                  style={styles.input}
+                  value={fullName}
+                  onChangeText={setFullName}
+                  placeholder="İsim Soyisim"
+                  placeholderTextColor="#9ca3af"
+                />
 
-                <Text style={styles.label}>Kullanıcı Adı</Text>
-                <TextInput style={styles.input} value={username} onChangeText={setUsername} placeholder="Kullanıcı Adı" placeholderTextColor="#9ca3af" autoCapitalize="none" />
+                <Text className="text-gray-700 dark:text-darktext" style={styles.label}>Kullanıcı Adı</Text>
+                <TextInput
+                  className="border-gray-200 dark:border-gray-600 text-gray-900 dark:text-darktext"
+                  style={styles.input}
+                  value={username}
+                  onChangeText={setUsername}
+                  placeholder="Kullanıcı Adı"
+                  placeholderTextColor="#9ca3af"
+                  autoCapitalize="none"
+                />
 
-                <Text style={styles.label}>Telefon</Text>
-                <TextInput style={styles.input} value={phone} onChangeText={setPhone} placeholder="05551234567" placeholderTextColor="#9ca3af" keyboardType="phone-pad" />
+                <Text className="text-gray-700 dark:text-darktext" style={styles.label}>Telefon</Text>
+                <TextInput
+                  className="border-gray-200 dark:border-gray-600 text-gray-900 dark:text-darktext"
+                  style={styles.input}
+                  value={phone}
+                  onChangeText={setPhone}
+                  placeholder="05551234567"
+                  placeholderTextColor="#9ca3af"
+                  keyboardType="phone-pad"
+                />
 
-                <Text style={styles.label}>Fakülte</Text>
-                <Pressable style={styles.selectBox} onPress={() => setShowFacultyPicker(true)}>
-                  <Text style={faculty ? styles.selectText : styles.selectPlaceholder}>{faculty || 'Fakülte seçin...'}</Text>
+                <Text className="text-gray-700 dark:text-darktext" style={styles.label}>Fakülte</Text>
+                <Pressable className="border-gray-200 dark:border-gray-600" style={styles.selectBox} onPress={() => setShowFacultyPicker(true)}>
+                  <Text className={faculty ? 'text-gray-900 dark:text-darktext' : 'text-gray-500 dark:text-gray-400'} style={styles.selectText}>
+                    {faculty || 'Fakülte seçin...'}
+                  </Text>
                 </Pressable>
 
-                <Text style={styles.label}>Bölüm</Text>
+                <Text className="text-gray-700 dark:text-darktext" style={styles.label}>Bölüm</Text>
                 <Pressable
+                  className="border-gray-200 dark:border-gray-600"
                   style={[styles.selectBox, !faculty && { opacity: 0.5 }]}
                   onPress={() => faculty && setShowDeptPicker(true)}
                 >
-                  <Text style={department ? styles.selectText : styles.selectPlaceholder}>{department || 'Bölüm seçin...'}</Text>
+                  <Text className={department ? 'text-gray-900 dark:text-darktext' : 'text-gray-500 dark:text-gray-400'} style={styles.selectText}>
+                    {department || 'Bölüm seçin...'}
+                  </Text>
                 </Pressable>
-                <Text style={styles.hint}>Fakülte/bölüm herkese açık profilinde görünür.</Text>
+                <Text className="text-gray-500 dark:text-gray-400" style={styles.hint}>Fakülte/bölüm herkese açık profilinde görünür.</Text>
 
-                <Text style={styles.label}>Açıklama</Text>
+                <Text className="text-gray-700 dark:text-darktext" style={styles.label}>Açıklama</Text>
                 <TextInput
+                  className="border-gray-200 dark:border-gray-600 text-gray-900 dark:text-darktext"
                   style={[styles.input, styles.textArea]}
                   value={bio}
                   onChangeText={(t) => setBio(t.slice(0, 300))}
@@ -162,29 +214,29 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
                   placeholderTextColor="#9ca3af"
                   multiline
                 />
-                <Text style={styles.hintRight}>{bio.length}/300 — herkese açık profilinde görünür</Text>
+                <Text className="text-gray-500 dark:text-gray-400" style={styles.hintRight}>{bio.length}/300 — herkese açık profilinde görünür</Text>
 
-                <Text style={styles.label}>Email (Değiştirilemez)</Text>
-                <View style={[styles.input, styles.inputDisabled]}>
-                  <Text style={{ color: '#9ca3af' }}>{user?.email}</Text>
+                <Text className="text-gray-700 dark:text-darktext" style={styles.label}>Email (Değiştirilemez)</Text>
+                <View className="border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-700/40" style={styles.input}>
+                  <Text className="text-gray-500 dark:text-gray-400">{user?.email}</Text>
                 </View>
               </>
             ) : (
               <>
                 <View style={styles.switchRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.switchLabel}>Profilimi herkese açık yap</Text>
-                    <Text style={styles.hint}>Kapatırsan başkaları sadece adını, avatarını ve rozetlerini görür.</Text>
+                    <Text className="text-gray-700 dark:text-darktext" style={styles.switchLabel}>Profilimi herkese açık yap</Text>
+                    <Text className="text-gray-500 dark:text-gray-400" style={styles.hint}>Kapatırsan başkaları sadece adını, avatarını ve rozetlerini görür.</Text>
                   </View>
                   <Switch value={isPublic} onValueChange={setIsPublic} trackColor={{ true: '#2F5755' }} />
                 </View>
 
-                <Text style={styles.label}>Başkaları profilimde şunları görebilsin</Text>
-                <Text style={styles.hint}>Postların her zaman görünür. Gizlediğin bir sekme başkasının profilinde hiç görünmez.</Text>
-                <View style={styles.visibilityBox}>
+                <Text className="text-gray-700 dark:text-darktext" style={styles.label}>Başkaları profilimde şunları görebilsin</Text>
+                <Text className="text-gray-500 dark:text-gray-400" style={styles.hint}>Postların her zaman görünür. Gizlediğin bir sekme başkasının profilinde hiç görünmez.</Text>
+                <View className="border-gray-100 dark:border-gray-700/40" style={styles.visibilityBox}>
                   {SECTION_VISIBILITY_FIELDS.map(({ key, label }) => (
-                    <View key={key} style={styles.visibilityRow}>
-                      <Text style={styles.visibilityLabel}>{label}</Text>
+                    <View key={key} className="border-gray-100 dark:border-gray-700/40" style={styles.visibilityRow}>
+                      <Text className="text-gray-700 dark:text-darktext" style={styles.visibilityLabel}>{label}</Text>
                       <Switch
                         value={!!visibility[key]}
                         onValueChange={(v) => setVisibility((prev) => ({ ...prev, [key]: v }))}
@@ -194,19 +246,19 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
                   ))}
                 </View>
 
-                <Text style={styles.label}>Rozetlerim</Text>
-                <Text style={styles.hint}>Gizlediğin bir rozet profilinde görünmez. En az bir rozet görünür kalmalı.</Text>
+                <Text className="text-gray-700 dark:text-darktext" style={styles.label}>Rozetlerim</Text>
+                <Text className="text-gray-500 dark:text-gray-400" style={styles.hint}>Gizlediğin bir rozet profilinde görünmez. En az bir rozet görünür kalmalı.</Text>
                 {badges.length === 0 ? (
-                  <Text style={styles.hint}>Henüz rozet yok.</Text>
+                  <Text className="text-gray-500 dark:text-gray-400" style={styles.hint}>Henüz rozet yok.</Text>
                 ) : (
-                  <View style={styles.visibilityBox}>
+                  <View className="border-gray-100 dark:border-gray-700/40" style={styles.visibilityBox}>
                     {badges.map((badge) => (
-                      <View key={badge.id} style={styles.visibilityRow}>
+                      <View key={badge.id} className="border-gray-100 dark:border-gray-700/40" style={styles.visibilityRow}>
                         <View style={{ flex: 1, opacity: badge.is_visible ? 1 : 0.4 }}>
                           <BadgeChip badge={badge} />
                         </View>
                         <Pressable onPress={() => onToggleBadgeVisibility(badge)} hitSlop={8}>
-                          {badge.is_visible ? <Eye size={16} color="#6b7280" /> : <EyeOff size={16} color="#6b7280" />}
+                          {badge.is_visible ? <Eye size={16} color={mutedIconColor} /> : <EyeOff size={16} color={mutedIconColor} />}
                         </Pressable>
                       </View>
                     ))}
@@ -214,8 +266,8 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
                 )}
 
                 <View style={styles.dangerZone}>
-                  <Text style={styles.dangerLabel}>Tehlikeli Bölge</Text>
-                  <Text style={styles.hint}>
+                  <Text className="text-red-600 dark:text-red-400" style={styles.dangerLabel}>Tehlikeli Bölge</Text>
+                  <Text className="text-gray-500 dark:text-gray-400" style={styles.hint}>
                     Hesabını silersen tekrar giriş yapamazsın. Paylaştığın notlar, yorumlar ve listeler "Silinmiş
                     Kullanıcı" adıyla anonim olarak yayında kalmaya devam eder.
                   </Text>
@@ -226,8 +278,8 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
                       onDeleteAccountRequest();
                     }}
                   >
-                    <Trash2 size={14} color="#dc2626" />
-                    <Text style={styles.deleteAccountText}>Hesabımı Sil</Text>
+                    <Trash2 size={14} color={dangerIconColor} />
+                    <Text className="text-red-600 dark:text-red-400" style={styles.deleteAccountText}>Hesabımı Sil</Text>
                   </Pressable>
                 </View>
               </>
@@ -235,8 +287,8 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
           </ScrollView>
 
           <View style={styles.actionsRow}>
-            <Pressable style={styles.cancelBtn} onPress={onClose} disabled={loading}>
-              <Text style={styles.cancelText}>İptal</Text>
+            <Pressable className="border-gray-200 dark:border-gray-600" style={styles.cancelBtn} onPress={onClose} disabled={loading}>
+              <Text className="text-gray-700 dark:text-darktext" style={styles.cancelText}>İptal</Text>
             </Pressable>
             <Pressable style={[styles.saveBtn, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
               <Text style={styles.saveText}>{loading ? 'Güncelleniyor...' : 'Güncelle'}</Text>
@@ -247,11 +299,12 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
 
       <Modal visible={showFacultyPicker} transparent animationType="slide" onRequestClose={() => setShowFacultyPicker(false)}>
         <Pressable style={styles.pickerOverlay} onPress={() => setShowFacultyPicker(false)}>
-          <View style={styles.pickerSheet}>
+          <View className="bg-primary dark:bg-darkbgbutton" style={styles.pickerSheet}>
             <ScrollView>
               {faculties.map((f) => (
                 <Pressable
                   key={f}
+                  className="border-gray-100 dark:border-gray-700/40"
                   style={styles.pickerOption}
                   onPress={() => {
                     setFaculty(f);
@@ -259,7 +312,7 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
                     setShowFacultyPicker(false);
                   }}
                 >
-                  <Text style={styles.pickerOptionText}>{f}</Text>
+                  <Text className="text-gray-700 dark:text-darktext" style={styles.pickerOptionText}>{f}</Text>
                 </Pressable>
               ))}
             </ScrollView>
@@ -269,18 +322,19 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
 
       <Modal visible={showDeptPicker} transparent animationType="slide" onRequestClose={() => setShowDeptPicker(false)}>
         <Pressable style={styles.pickerOverlay} onPress={() => setShowDeptPicker(false)}>
-          <View style={styles.pickerSheet}>
+          <View className="bg-primary dark:bg-darkbgbutton" style={styles.pickerSheet}>
             <ScrollView>
               {(departments[faculty] || []).map((d) => (
                 <Pressable
                   key={d}
+                  className="border-gray-100 dark:border-gray-700/40"
                   style={styles.pickerOption}
                   onPress={() => {
                     setDepartment(d);
                     setShowDeptPicker(false);
                   }}
                 >
-                  <Text style={styles.pickerOptionText}>{d}</Text>
+                  <Text className="text-gray-700 dark:text-darktext" style={styles.pickerOptionText}>{d}</Text>
                 </Pressable>
               ))}
             </ScrollView>
@@ -293,30 +347,27 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 16 },
-  sheet: { backgroundColor: '#fff', borderRadius: 16, padding: 20, maxHeight: '90%' },
+  sheet: { borderRadius: 16, padding: 20, maxHeight: '90%' },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: 18, fontWeight: '700', color: '#111827' },
-  tabRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e5e7eb', marginTop: 12 },
-  tabBtn: { flex: 1, paddingBottom: 10, borderBottomWidth: 2, borderBottomColor: 'transparent', alignItems: 'center' },
-  tabBtnActive: { borderBottomColor: '#2F5755' },
-  tabBtnText: { fontSize: 13, fontWeight: '600', color: '#9ca3af' },
-  tabBtnTextActive: { color: '#2F5755' },
+  title: { fontSize: 20, fontWeight: '800' },
+  tabRow: { flexDirection: 'row', borderBottomWidth: 1, marginTop: 12 },
+  tabBtn: { flex: 1, paddingBottom: 10, borderBottomWidth: 2, alignItems: 'center' },
+  tabBtnText: { fontSize: 13, fontWeight: '600' },
   alertError: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fef2f2', borderRadius: 10, padding: 10, marginTop: 12 },
   alertErrorText: { color: '#b91c1c', fontSize: 12.5, flex: 1 },
   alertSuccess: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#f0fdf4', borderRadius: 10, padding: 10, marginTop: 12 },
   alertSuccessText: { color: '#15803d', fontSize: 12.5, flex: 1 },
-  label: { fontSize: 12.5, fontWeight: '600', color: '#374151', marginBottom: 6, marginTop: 14 },
-  input: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: '#111827' },
-  inputDisabled: { backgroundColor: '#f3f4f6' },
+  label: { fontSize: 12.5, fontWeight: '600', marginBottom: 6, marginTop: 14 },
+  input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
   textArea: { minHeight: 80, textAlignVertical: 'top' },
-  hint: { fontSize: 11, color: '#9ca3af', marginTop: 4, lineHeight: 15 },
-  hintRight: { fontSize: 11, color: '#9ca3af', marginTop: 4, textAlign: 'right' },
-  selectBox: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11 },
-  selectText: { fontSize: 14, color: '#111827' },
-  selectPlaceholder: { fontSize: 14, color: '#9ca3af' },
+  hint: { fontSize: 11, marginTop: 4, lineHeight: 15 },
+  hintRight: { fontSize: 11, marginTop: 4, textAlign: 'right' },
+  selectBox: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11 },
+  selectText: { fontSize: 14 },
+  selectPlaceholder: { fontSize: 14 },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 },
-  switchLabel: { fontSize: 13, fontWeight: '600', color: '#374151' },
-  visibilityBox: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, marginTop: 8, overflow: 'hidden' },
+  switchLabel: { fontSize: 13, fontWeight: '600' },
+  visibilityBox: { borderWidth: 1, borderRadius: 10, marginTop: 8, overflow: 'hidden' },
   visibilityRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -324,11 +375,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
   },
-  visibilityLabel: { fontSize: 13, color: '#374151' },
+  visibilityLabel: { fontSize: 13 },
   dangerZone: { marginTop: 20, paddingTop: 14, borderTopWidth: 1, borderTopColor: '#fecaca' },
-  dangerLabel: { fontSize: 13, fontWeight: '700', color: '#dc2626', marginBottom: 4 },
+  dangerLabel: { fontSize: 13, fontWeight: '700', marginBottom: 4 },
   deleteAccountBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -341,14 +391,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
     alignSelf: 'flex-start',
   },
-  deleteAccountText: { fontSize: 12.5, color: '#dc2626', fontWeight: '600' },
+  deleteAccountText: { fontSize: 12.5, fontWeight: '600' },
   actionsRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  cancelBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 10, borderWidth: 1, borderColor: '#e5e7eb' },
-  cancelText: { color: '#374151', fontSize: 13.5, fontWeight: '600' },
+  cancelBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 10, borderWidth: 1 },
+  cancelText: { fontSize: 13.5, fontWeight: '600' },
   saveBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 10, backgroundColor: '#2F5755' },
   saveText: { color: '#fff', fontSize: 13.5, fontWeight: '700' },
   pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  pickerSheet: { backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: '70%', paddingVertical: 8 },
-  pickerOption: { paddingHorizontal: 20, paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  pickerOptionText: { fontSize: 14.5, color: '#374151' },
+  pickerSheet: { borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: '70%', paddingVertical: 8 },
+  pickerOption: { paddingHorizontal: 20, paddingVertical: 13, borderBottomWidth: 1 },
+  pickerOptionText: { fontSize: 14.5 },
 });

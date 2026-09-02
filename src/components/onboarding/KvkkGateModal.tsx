@@ -3,6 +3,7 @@ import { Alert, FlatList, Linking, Modal, Pressable, StyleSheet, Text, TextInput
 import { ChevronDown, GraduationCap, ShieldCheck, X } from 'lucide-react-native';
 import { onboardingGateAPI, departmentFollowAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { API_BASE } from '../../lib/config';
 import { departmentOptions, facultyOptions, type DepartmentOption } from '../../utils/departmentOptions';
 
@@ -26,35 +27,44 @@ function SearchableSelect({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const mutedIconColor = isDark ? '#DFD0B8' : '#6b7280';
   const selected = options.find((o) => o.value === value) || null;
   const filtered = query ? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase())) : options;
 
   return (
     <View style={{ marginBottom: 14 }}>
-      <Text style={styles.fieldLabel}>{label}</Text>
+      <Text className="text-gray-700 dark:text-darktext" style={styles.fieldLabel}>{label}</Text>
       <Pressable
+        className="border-gray-200 dark:border-gray-600"
         style={styles.selectBox}
         onPress={() => {
           setQuery('');
           setOpen(true);
         }}
       >
-        <Text style={selected ? styles.selectText : styles.selectPlaceholder} numberOfLines={1}>
+        <Text
+          className={selected ? 'text-gray-900 dark:text-darktext' : 'text-gray-500 dark:text-gray-400'}
+          style={styles.selectText}
+          numberOfLines={1}
+        >
           {selected?.label || placeholder}
         </Text>
-        <ChevronDown size={16} color="#6b7280" />
+        <ChevronDown size={16} color={mutedIconColor} />
       </Pressable>
 
       <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
         <View style={styles.pickerOverlay}>
-          <View style={styles.pickerSheet}>
+          <View className="bg-primary dark:bg-darkbgbutton" style={styles.pickerSheet}>
             <View style={styles.pickerHeaderRow}>
-              <Text style={styles.pickerTitle}>{label}</Text>
+              <Text className="text-gray-900 dark:text-darktext" style={styles.pickerTitle}>{label}</Text>
               <Pressable onPress={() => setOpen(false)} hitSlop={8}>
-                <X size={20} color="#6b7280" />
+                <X size={20} color={mutedIconColor} />
               </Pressable>
             </View>
             <TextInput
+              className="border-gray-200 dark:border-gray-600 text-gray-900 dark:text-darktext"
               style={styles.searchInput}
               placeholder={placeholder}
               placeholderTextColor="#9ca3af"
@@ -66,16 +76,20 @@ function SearchableSelect({
               data={filtered.slice(0, 200)}
               keyExtractor={(item) => item.value}
               style={{ maxHeight: 380 }}
-              ListEmptyComponent={<Text style={styles.emptyText}>Sonuç bulunamadı</Text>}
+              ListEmptyComponent={<Text className="text-gray-500 dark:text-gray-400" style={styles.emptyText}>Sonuç bulunamadı</Text>}
               renderItem={({ item }) => (
                 <Pressable
+                  className="border-gray-100 dark:border-gray-700/40"
                   style={styles.pickerOption}
                   onPress={() => {
                     onChange(item.value);
                     setOpen(false);
                   }}
                 >
-                  <Text style={[styles.pickerOptionText, item.value === value && styles.pickerOptionTextActive]}>
+                  <Text
+                    className={item.value === value ? 'text-brand dark:text-brand-light' : 'text-gray-700 dark:text-darktext'}
+                    style={[styles.pickerOptionText, item.value === value && styles.pickerOptionTextActive]}
+                  >
                     {item.label}
                   </Text>
                 </Pressable>
@@ -93,6 +107,9 @@ function SearchableSelect({
 // tamamlanana kadar bunu her ekranın üstünde gösterir.
 export default function KvkkGateModal() {
   const { user, updateUser } = useAuth();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const brandIconColor = isDark ? '#5A9690' : '#2F5755';
 
   const hasValidPrefill = !!(user?.faculty && user?.department && user.department !== 'Fakülte Notu');
   const [selectedFaculty, setSelectedFaculty] = useState(hasValidPrefill ? user!.faculty! : '');
@@ -141,12 +158,12 @@ export default function KvkkGateModal() {
   return (
     <Modal visible transparent animationType="fade" onRequestClose={() => {}}>
       <View style={styles.overlay}>
-        <View style={styles.sheet}>
-          <View style={styles.iconCircle}>
-            <GraduationCap size={22} color="#2F5755" />
+        <View className="bg-primary dark:bg-darkbgbutton" style={styles.sheet}>
+          <View className="bg-brand/10 dark:bg-brand-light/20" style={styles.iconCircle}>
+            <GraduationCap size={22} color={brandIconColor} />
           </View>
-          <Text style={styles.title}>Hoş geldin! Devam etmeden önce</Text>
-          <Text style={styles.subtitle}>
+          <Text className="text-gray-900 dark:text-darktext" style={styles.title}>Hoş geldin! Devam etmeden önce</Text>
+          <Text className="text-gray-500 dark:text-gray-400" style={styles.subtitle}>
             Nottepe'yi kullanmaya başlamak için bölümünü seç ve KVKK Aydınlatma Metni'ni onayla. Bu adım yalnızca bir
             kez sorulur.
           </Text>
@@ -166,12 +183,15 @@ export default function KvkkGateModal() {
             onChange={handleFacultyChange}
           />
 
-          <View style={styles.divider} />
+          <View className="bg-gray-200 dark:bg-gray-700/40" style={styles.divider} />
 
           <Pressable style={styles.kvkkRow} onPress={() => setKvkkChecked((v) => !v)}>
-            <View style={[styles.checkbox, kvkkChecked && styles.checkboxChecked]} />
-            <Text style={styles.kvkkText}>
-              <Text style={styles.kvkkLink} onPress={() => Linking.openURL(`${API_BASE}/kvkk`)}>
+            <View
+              className={kvkkChecked ? undefined : 'border-gray-200 dark:border-gray-600'}
+              style={[styles.checkbox, kvkkChecked && styles.checkboxChecked]}
+            />
+            <Text className="text-gray-700 dark:text-darktext" style={styles.kvkkText}>
+              <Text className="text-brand dark:text-brand-light" style={styles.kvkkLink} onPress={() => Linking.openURL(`${API_BASE}/kvkk`)}>
                 KVKK Aydınlatma Metni
               </Text>
               'ni okudum, kişisel verilerimin belirtilen kapsamda işlenmesini kabul ediyorum.
@@ -190,29 +210,28 @@ export default function KvkkGateModal() {
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 16 },
-  sheet: { backgroundColor: '#fff', borderRadius: 18, padding: 22, maxHeight: '90%' },
-  iconCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#2F575519', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  title: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6 },
-  subtitle: { fontSize: 12.5, color: '#6b7280', lineHeight: 18, marginBottom: 18 },
-  fieldLabel: { fontSize: 12.5, fontWeight: '600', color: '#374151', marginBottom: 6 },
+  sheet: { borderRadius: 18, padding: 22, maxHeight: '90%' },
+  iconCircle: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  title: { fontSize: 20, fontWeight: '800', marginBottom: 6 },
+  subtitle: { fontSize: 12.5, lineHeight: 18, marginBottom: 18 },
+  fieldLabel: { fontSize: 12.5, fontWeight: '600', marginBottom: 6 },
   selectBox: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderWidth: 1,
-    borderColor: '#d1d5db',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
   },
-  selectText: { fontSize: 14, color: '#111827', flex: 1 },
-  selectPlaceholder: { fontSize: 14, color: '#9ca3af', flex: 1 },
-  divider: { height: 1, backgroundColor: '#e5e7eb', marginVertical: 8 },
+  selectText: { fontSize: 14, flex: 1 },
+  selectPlaceholder: { fontSize: 14, flex: 1 },
+  divider: { height: 1, marginVertical: 8 },
   kvkkRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 8 },
-  checkbox: { width: 18, height: 18, borderRadius: 5, borderWidth: 1.5, borderColor: '#d1d5db', marginTop: 1 },
+  checkbox: { width: 18, height: 18, borderRadius: 5, borderWidth: 1.5, marginTop: 1 },
   checkboxChecked: { backgroundColor: '#2F5755', borderColor: '#2F5755' },
-  kvkkText: { flex: 1, fontSize: 12.5, color: '#374151', lineHeight: 18 },
-  kvkkLink: { color: '#2F5755', fontWeight: '700', textDecorationLine: 'underline' },
+  kvkkText: { flex: 1, fontSize: 12.5, lineHeight: 18 },
+  kvkkLink: { fontWeight: '700', textDecorationLine: 'underline' },
   submitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -226,21 +245,19 @@ const styles = StyleSheet.create({
   submitBtnDisabled: { opacity: 0.5 },
   submitBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  pickerSheet: { backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, maxHeight: '75%' },
+  pickerSheet: { borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, maxHeight: '75%' },
   pickerHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  pickerTitle: { fontSize: 15, fontWeight: '700', color: '#111827' },
+  pickerTitle: { fontSize: 15, fontWeight: '700' },
   searchInput: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: '#111827',
     marginBottom: 8,
   },
-  emptyText: { textAlign: 'center', color: '#9ca3af', fontSize: 13, paddingVertical: 16 },
-  pickerOption: { paddingHorizontal: 8, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  pickerOptionText: { fontSize: 14, color: '#374151' },
-  pickerOptionTextActive: { color: '#2F5755', fontWeight: '700' },
+  emptyText: { textAlign: 'center', fontSize: 13, paddingVertical: 16 },
+  pickerOption: { paddingHorizontal: 8, paddingVertical: 12, borderBottomWidth: 1 },
+  pickerOptionText: { fontSize: 14 },
+  pickerOptionTextActive: { fontWeight: '700' },
 });

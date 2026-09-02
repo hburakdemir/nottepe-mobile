@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { AlertTriangle, CalendarDays, Trash2, X } from 'lucide-react-native';
 import { conflictsForCourse, COURSE_COLORS, DAY_NAMES, makeCourseId, toMinutes, type ScheduleCourse } from '../../utils/schedule';
+import { useTheme } from '../../context/ThemeContext';
 
 interface Props {
   initial: ScheduleCourse | null;
@@ -14,6 +15,12 @@ interface Props {
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export default function CourseFormModal({ initial, courses, onSave, onDelete, onClose }: Props) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const brandColor = isDark ? '#5A9690' : '#2F5755';
+  const mutedColor = isDark ? '#9ca3af' : '#6b7280';
+  const dangerColor = isDark ? '#f87171' : '#dc2626';
+  const placeholderColor = isDark ? '#6b7280' : '#9ca3af';
   const isEdit = !!initial;
   const [name, setName] = useState(initial?.name || '');
   const [day, setDay] = useState(initial?.day || 1);
@@ -46,91 +53,108 @@ export default function CourseFormModal({ initial, courses, onSave, onDelete, on
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={styles.sheet}>
+        <View className="bg-primary dark:bg-darkbgbutton" style={styles.sheet}>
           <View style={styles.headerRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <CalendarDays size={18} color="#2F5755" />
-              <Text style={styles.title}>{isEdit ? 'Dersi Düzenle' : 'Ders Ekle'}</Text>
+              <CalendarDays size={18} color={brandColor} />
+              <Text className="text-gray-900 dark:text-darktext" style={styles.title}>{isEdit ? 'Dersi Düzenle' : 'Ders Ekle'}</Text>
             </View>
             <Pressable onPress={onClose} hitSlop={8}>
-              <X size={20} color="#6b7280" />
+              <X size={20} color={mutedColor} />
             </Pressable>
           </View>
 
           <ScrollView style={{ marginTop: 14 }}>
-            <Text style={styles.label}>Ders adı *</Text>
+            <Text className="text-gray-500 dark:text-gray-400" style={styles.label}>Ders adı *</Text>
             <TextInput
+              className="border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-darkbg text-gray-900 dark:text-darktext"
               style={styles.input}
               value={name}
               onChangeText={setName}
               maxLength={80}
               placeholder="Örn: MAT123 Matematik I"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={placeholderColor}
             />
 
-            <Text style={styles.label}>Gün *</Text>
+            <Text className="text-gray-500 dark:text-gray-400" style={styles.label}>Gün *</Text>
             <View style={styles.dayGrid}>
-              {Object.entries(DAY_NAMES).map(([v, label]) => (
-                <Pressable
-                  key={v}
-                  style={[styles.dayChip, day === Number(v) && styles.dayChipActive]}
-                  onPress={() => setDay(Number(v))}
-                >
-                  <Text style={[styles.dayChipText, day === Number(v) && styles.dayChipTextActive]}>{label}</Text>
-                </Pressable>
-              ))}
+              {Object.entries(DAY_NAMES).map(([v, label]) => {
+                const active = day === Number(v);
+                return (
+                  <Pressable
+                    key={v}
+                    className="border-gray-200 dark:border-gray-600"
+                    style={[styles.dayChip, active && { backgroundColor: brandColor, borderColor: brandColor }]}
+                    onPress={() => setDay(Number(v))}
+                  >
+                    <Text
+                      className={active ? undefined : 'text-gray-500 dark:text-gray-400'}
+                      style={[styles.dayChipText, active && { color: '#fff' }]}
+                    >
+                      {label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
 
             <View style={{ flexDirection: 'row', gap: 10 }}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Başlangıç *</Text>
+                <Text className="text-gray-500 dark:text-gray-400" style={styles.label}>Başlangıç *</Text>
                 <TextInput
+                  className="border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-darkbg text-gray-900 dark:text-darktext"
                   style={styles.input}
                   value={start}
                   onChangeText={setStart}
                   placeholder="09:00"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={placeholderColor}
                   maxLength={5}
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Bitiş *</Text>
+                <Text className="text-gray-500 dark:text-gray-400" style={styles.label}>Bitiş *</Text>
                 <TextInput
+                  className="border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-darkbg text-gray-900 dark:text-darktext"
                   style={styles.input}
                   value={end}
                   onChangeText={setEnd}
                   placeholder="10:50"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={placeholderColor}
                   maxLength={5}
                 />
               </View>
             </View>
 
-            <Text style={styles.label}>Konum (isteğe bağlı)</Text>
+            <Text className="text-gray-500 dark:text-gray-400" style={styles.label}>Konum (isteğe bağlı)</Text>
             <TextInput
+              className="border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-darkbg text-gray-900 dark:text-darktext"
               style={styles.input}
               value={location}
               onChangeText={setLocation}
               maxLength={60}
               placeholder="Örn: Derslik B2-201"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={placeholderColor}
             />
 
-            <Text style={styles.label}>Renk</Text>
+            <Text className="text-gray-500 dark:text-gray-400" style={styles.label}>Renk</Text>
             <View style={styles.colorRow}>
               {COURSE_COLORS.map((c, i) => (
                 <Pressable
                   key={c.name}
                   onPress={() => setColorIdx(i)}
-                  style={[styles.swatch, { backgroundColor: c.hex }, colorIdx === i && styles.swatchActive]}
+                  style={[
+                    styles.swatch,
+                    { backgroundColor: c.hex },
+                    colorIdx === i && { opacity: 1, borderWidth: 2, borderColor: isDark ? '#DFD0B8' : '#111827' },
+                  ]}
                 />
               ))}
             </View>
 
             {conflicts.length > 0 && (
-              <View style={styles.conflictBox}>
-                <AlertTriangle size={15} color="#dc2626" />
-                <Text style={styles.conflictText}>
+              <View className="bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800/60" style={styles.conflictBox}>
+                <AlertTriangle size={15} color={dangerColor} />
+                <Text className="text-red-600 dark:text-red-400" style={styles.conflictText}>
                   Bu saatler şu derslerle çakışıyor: {conflicts.map((c) => c.name).join(', ')}. Yine de kaydedebilirsin.
                 </Text>
               </View>
@@ -138,11 +162,12 @@ export default function CourseFormModal({ initial, courses, onSave, onDelete, on
           </ScrollView>
 
           <View style={styles.actionsRow}>
-            <Pressable style={styles.saveBtn} onPress={handleSubmit}>
+            <Pressable className="bg-brand dark:bg-brand-light" style={styles.saveBtn} onPress={handleSubmit}>
               <Text style={styles.saveBtnText}>{isEdit ? 'Kaydet' : 'Ekle'}</Text>
             </Pressable>
             {isEdit && (
               <Pressable
+                className="border-red-200 dark:border-red-800/60"
                 style={styles.deleteBtn}
                 onPress={() => {
                   onDelete(initial!.id);
@@ -150,7 +175,7 @@ export default function CourseFormModal({ initial, courses, onSave, onDelete, on
                 }}
                 hitSlop={8}
               >
-                <Trash2 size={18} color="#dc2626" />
+                <Trash2 size={18} color={dangerColor} />
               </Pressable>
             )}
           </View>
@@ -162,47 +187,39 @@ export default function CourseFormModal({ initial, courses, onSave, onDelete, on
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 16 },
-  sheet: { backgroundColor: '#fff', borderRadius: 16, padding: 20, maxHeight: '88%' },
+  sheet: { borderRadius: 16, padding: 20, maxHeight: '88%' },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: 17, fontWeight: '700', color: '#111827' },
-  label: { fontSize: 12.5, fontWeight: '600', color: '#374151', marginBottom: 6, marginTop: 12 },
+  title: { fontSize: 20, fontWeight: '800' },
+  label: { fontSize: 12.5, fontWeight: '600', marginBottom: 6, marginTop: 12 },
   input: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 9,
     fontSize: 14,
-    color: '#111827',
   },
   dayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  dayChip: { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
-  dayChipActive: { backgroundColor: '#2F5755', borderColor: '#2F5755' },
-  dayChipText: { fontSize: 12, fontWeight: '600', color: '#374151' },
-  dayChipTextActive: { color: '#fff' },
+  dayChip: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 7 },
+  dayChipText: { fontSize: 12, fontWeight: '600' },
   colorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   swatch: { width: 30, height: 30, borderRadius: 15, opacity: 0.75 },
-  swatchActive: { opacity: 1, borderWidth: 2, borderColor: '#111827' },
   conflictBox: {
     flexDirection: 'row',
     gap: 8,
-    backgroundColor: '#fef2f2',
     borderWidth: 1,
-    borderColor: '#fecaca',
     borderRadius: 10,
     padding: 10,
     marginTop: 14,
   },
-  conflictText: { flex: 1, fontSize: 11.5, color: '#dc2626', lineHeight: 16 },
+  conflictText: { flex: 1, fontSize: 11.5, lineHeight: 16 },
   actionsRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  saveBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 10, backgroundColor: '#2F5755' },
-  saveBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  saveBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 10 },
+  saveBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
   deleteBtn: {
     width: 46,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#fecaca',
   },
 });

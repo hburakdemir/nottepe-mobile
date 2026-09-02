@@ -19,6 +19,7 @@ import {
   User as UserIcon,
 } from 'lucide-react-native';
 import { avatarAPI, badgeAPI, faqAPI, suggestionAPI, userAPI } from '../../lib/api';
+import { useTheme } from '../../context/ThemeContext';
 import PostCard from '../../components/PostCard';
 import BadgeChip, { type Badge } from '../../components/BadgeChip';
 import ChecklistCard from '../../components/ChecklistCard';
@@ -95,6 +96,8 @@ function formatDate(dateString: string): string {
 export default function UserProfileScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const { username } = route.params as RootStackParamList['UserProfile'];
 
   const [profile, setProfile] = useState<PublicProfile | null>(null);
@@ -243,26 +246,26 @@ export default function UserProfileScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center gap-3 px-8">
-        <ActivityIndicator size="large" color="#2F5755" />
+      <View className="flex-1 items-center justify-center gap-3 px-8 bg-primary dark:bg-darkbgbutton">
+        <ActivityIndicator size="large" color={isDark ? '#5A9690' : '#2F5755'} />
       </View>
     );
   }
 
   if (banned) {
     return (
-      <View className="flex-1 items-center justify-center gap-3 px-8">
+      <View className="flex-1 items-center justify-center gap-3 px-8 bg-primary dark:bg-darkbgbutton">
         <ShieldOff size={48} color="#f87171" />
-        <Text className="text-[15px] font-semibold text-gray-700 text-center">Profil görüntülemeniz admin tarafından yasaklanmıştır</Text>
+        <Text className="text-[15px] font-semibold text-gray-700 dark:text-darktext text-center">Profil görüntülemeniz admin tarafından yasaklanmıştır</Text>
       </View>
     );
   }
 
   if (notFound || !profile) {
     return (
-      <View className="flex-1 items-center justify-center gap-3 px-8">
-        <UserIcon size={48} color="#d1d5db" />
-        <Text className="text-[15px] font-semibold text-gray-700 text-center">Kullanıcı bulunamadı</Text>
+      <View className="flex-1 items-center justify-center gap-3 px-8 bg-primary dark:bg-darkbgbutton">
+        <UserIcon size={48} color={isDark ? '#4b5563' : '#d1d5db'} />
+        <Text className="text-[15px] font-semibold text-gray-700 dark:text-darktext text-center">Kullanıcı bulunamadı</Text>
       </View>
     );
   }
@@ -272,25 +275,25 @@ export default function UserProfileScreen() {
   const tabs = TAB_DEFS.filter((t) => t.sectionKey === null || sectionVisibility[t.sectionKey]);
 
   return (
-    <ScrollView className="flex-1 bg-primary" contentContainerClassName="px-4 py-8">
-      <View className="bg-white rounded-lg p-4 items-center mb-8" style={SHADOW_MD}>
-        <View className="w-20 h-20 rounded-3xl bg-brand border-2 border-darkbgbutton items-center justify-center overflow-hidden mb-2.5">
+    <ScrollView className="flex-1 bg-primary dark:bg-darkbgbutton" contentContainerClassName="px-4 py-8">
+      <View className="bg-primary dark:bg-darkbgbutton rounded-lg p-4 items-center mb-8" style={SHADOW_MD}>
+        <View className="w-20 h-20 rounded-3xl bg-brand border-2 border-darkbgbutton dark:border-darktext/30 items-center justify-center overflow-hidden mb-2.5">
           {avatar ? <AvatarDisplay avatar={avatar} size={80} /> : <UserIcon size={32} color="#fff" />}
         </View>
-        <Text className="text-2xl font-bold text-gray-900">{profile.username}</Text>
-        {!!profile.full_name && <Text className="text-base text-gray-600 mt-0.5">{profile.full_name}</Text>}
+        <Text className="text-2xl font-extrabold text-gray-900 dark:text-darktext">{profile.username}</Text>
+        {!!profile.full_name && <Text className="text-base text-gray-600 dark:text-gray-400 mt-0.5">{profile.full_name}</Text>}
         {!!profile.department && (
-          <Text className="text-xs text-gray-500 mt-1 text-center">
+          <Text className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
             {profile.department}
             {profile.faculty ? ` · ${profile.faculty}` : ''}
           </Text>
         )}
-        {typeof profile.post_count === 'number' && <Text className="text-sm text-gray-500 mt-1.5">{profile.post_count} onaylı not</Text>}
-        {!!profile.bio && <Text className="text-sm text-gray-600 mt-2 text-center leading-[21px]">{profile.bio}</Text>}
+        {typeof profile.post_count === 'number' && <Text className="text-sm text-gray-500 dark:text-gray-400 mt-1.5">{profile.post_count} onaylı not</Text>}
+        {!!profile.bio && <Text className="text-sm text-gray-600 dark:text-gray-400 mt-2 text-center leading-[21px]">{profile.bio}</Text>}
         {sectionVisibility.badges && (
           <View className="flex-row flex-wrap gap-2 mt-3 justify-center">
             {badges.length === 0 ? (
-              <Text className="text-xs text-gray-400">Henüz rozet yok.</Text>
+              <Text className="text-xs text-gray-400 dark:text-gray-500">Henüz rozet yok.</Text>
             ) : (
               badges.map((badge) => <BadgeChip key={badge.id} badge={badge} />)
             )}
@@ -299,15 +302,15 @@ export default function UserProfileScreen() {
       </View>
 
       {isPrivate ? (
-        <View className="items-center gap-2 py-8 px-[30px] bg-white rounded-lg" style={SHADOW_MD}>
-          <Lock size={48} color="#9ca3af" />
-          <Text className="text-lg text-gray-500 font-semibold">Bu profil gizli.</Text>
-          <Text className="text-sm text-gray-400 text-center">Kullanıcı postlarını ve listelerini yalnızca kendisi görebilir.</Text>
+        <View className="items-center gap-2 py-8 px-[30px] bg-primary dark:bg-darkbgbutton rounded-lg" style={SHADOW_MD}>
+          <Lock size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
+          <Text className="text-lg text-gray-500 dark:text-gray-400 font-semibold">Bu profil gizli.</Text>
+          <Text className="text-sm text-gray-400 dark:text-gray-500 text-center">Kullanıcı postlarını ve listelerini yalnızca kendisi görebilir.</Text>
         </View>
       ) : (
         <>
-          <View className="bg-white rounded-lg mb-8" style={SHADOW_MD}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="border-b border-gray-200" contentContainerStyle={{ paddingHorizontal: 16 }}>
+          <View className="bg-primary dark:bg-darkbgbutton rounded-lg mb-8" style={SHADOW_MD}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} className="border-b border-gray-200 dark:border-gray-700" contentContainerStyle={{ paddingHorizontal: 16 }}>
               {tabs.map(({ key, label, icon: Icon }) => {
                 const active = activeTab === key;
                 return (
@@ -316,8 +319,8 @@ export default function UserProfileScreen() {
                     className={`flex-row items-center gap-1.5 py-3 mr-5 border-b-2 ${active ? 'border-b-[#1e40af]' : 'border-b-transparent'}`}
                     onPress={() => setActiveTab(key)}
                   >
-                    <Icon size={16} color={active ? '#1e3a8a' : '#6b7280'} />
-                    <Text className={`text-xs font-medium ${active ? 'text-[#1e3a8a]' : 'text-gray-500'}`}>{label}</Text>
+                    <Icon size={16} color={active ? (isDark ? '#60a5fa' : '#1e3a8a') : isDark ? '#9ca3af' : '#6b7280'} />
+                    <Text className={`text-xs font-medium ${active ? 'text-[#1e3a8a] dark:text-[#60a5fa]' : 'text-gray-500 dark:text-gray-400'}`}>{label}</Text>
                   </Pressable>
                 );
               })}
@@ -327,9 +330,9 @@ export default function UserProfileScreen() {
           <View className="gap-3">
             {activeTab === 'posts' &&
               (postsLoading ? (
-                <ActivityIndicator style={{ marginTop: 24 }} color="#2F5755" />
+                <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
               ) : posts.length === 0 ? (
-                <EmptyState icon={FileText} text="Henüz onaylı not paylaşılmamış." />
+                <EmptyState icon={FileText} text="Henüz onaylı not paylaşılmamış." isDark={isDark} />
               ) : (
                 <>
                   {posts.map((post) => (
@@ -338,21 +341,21 @@ export default function UserProfileScreen() {
                   {postsTotal > POSTS_LIMIT && (
                     <View className="flex-row items-center justify-center gap-4 py-3.5">
                       <Pressable
-                        className={`w-[34px] h-[34px] rounded-[17px] bg-white items-center justify-center ${postsPage <= 1 ? 'opacity-50' : ''}`}
+                        className={`w-[34px] h-[34px] rounded-[17px] bg-primary dark:bg-darkbgbutton items-center justify-center ${postsPage <= 1 ? 'opacity-50' : ''}`}
                         disabled={postsPage <= 1}
                         onPress={() => setPostsPage((p) => Math.max(1, p - 1))}
                       >
-                        <ChevronLeft size={16} color={postsPage <= 1 ? '#d1d5db' : '#2F5755'} />
+                        <ChevronLeft size={16} color={postsPage <= 1 ? (isDark ? '#4b5563' : '#d1d5db') : isDark ? '#5A9690' : '#2F5755'} />
                       </Pressable>
-                      <Text className="text-[12.5px] text-gray-500 font-semibold">
+                      <Text className="text-[12.5px] text-gray-500 dark:text-gray-400 font-semibold">
                         Sayfa {postsPage} / {Math.ceil(postsTotal / POSTS_LIMIT)}
                       </Text>
                       <Pressable
-                        className={`w-[34px] h-[34px] rounded-[17px] bg-white items-center justify-center ${postsPage >= Math.ceil(postsTotal / POSTS_LIMIT) ? 'opacity-50' : ''}`}
+                        className={`w-[34px] h-[34px] rounded-[17px] bg-primary dark:bg-darkbgbutton items-center justify-center ${postsPage >= Math.ceil(postsTotal / POSTS_LIMIT) ? 'opacity-50' : ''}`}
                         disabled={postsPage >= Math.ceil(postsTotal / POSTS_LIMIT)}
                         onPress={() => setPostsPage((p) => p + 1)}
                       >
-                        <ChevronRight size={16} color={postsPage >= Math.ceil(postsTotal / POSTS_LIMIT) ? '#d1d5db' : '#2F5755'} />
+                        <ChevronRight size={16} color={postsPage >= Math.ceil(postsTotal / POSTS_LIMIT) ? (isDark ? '#4b5563' : '#d1d5db') : isDark ? '#5A9690' : '#2F5755'} />
                       </Pressable>
                     </View>
                   )}
@@ -361,18 +364,18 @@ export default function UserProfileScreen() {
 
             {activeTab === 'saved' &&
               (tabLoading && !loadedTabs.has('saved') ? (
-                <ActivityIndicator style={{ marginTop: 24 }} color="#2F5755" />
+                <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
               ) : savedPosts.length === 0 ? (
-                <EmptyState icon={Bookmark} text="Henüz not kaydetmemiş." />
+                <EmptyState icon={Bookmark} text="Henüz not kaydetmemiş." isDark={isDark} />
               ) : (
                 savedPosts.map((post) => <PostCard key={String(post.id ?? post.post_id)} post={post} showRating={false} />)
               ))}
 
             {activeTab === 'lists' &&
               (tabLoading && !loadedTabs.has('lists') ? (
-                <ActivityIndicator style={{ marginTop: 24 }} color="#2F5755" />
+                <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
               ) : checklists.length === 0 ? (
-                <EmptyState icon={ListChecks} text="Henüz bir checklist oluşturmamış." />
+                <EmptyState icon={ListChecks} text="Henüz bir checklist oluşturmamış." isDark={isDark} />
               ) : (
                 checklists.map((checklist) => (
                   <ChecklistCard
@@ -387,26 +390,26 @@ export default function UserProfileScreen() {
 
             {activeTab === 'akts' &&
               (tabLoading && !loadedTabs.has('akts') ? (
-                <ActivityIndicator style={{ marginTop: 24 }} color="#2F5755" />
+                <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
               ) : aktsCalcs.length === 0 ? (
-                <EmptyState icon={Calculator} text="Henüz kayıtlı bir AKTS hesaplaması yok." />
+                <EmptyState icon={Calculator} text="Henüz kayıtlı bir AKTS hesaplaması yok." isDark={isDark} />
               ) : (
                 aktsCalcs.map((calc) => {
                   const semesterCount = calc.data?.semesters?.length || 0;
                   const courseCount = calc.data?.semesters?.reduce((sum, s) => sum + (s.courses?.length || 0), 0) || 0;
                   return (
-                    <View key={calc.id} className="flex-row items-center justify-between bg-white rounded-lg p-5 mb-1" style={SHADOW_MD}>
+                    <View key={calc.id} className="flex-row items-center justify-between bg-primary dark:bg-darkbgbutton rounded-lg p-5 mb-1" style={SHADOW_MD}>
                       <View className="flex-1">
-                        <Text className="text-sm font-semibold text-gray-900" numberOfLines={1}>
+                        <Text className="text-sm font-semibold text-gray-900 dark:text-darktext" numberOfLines={1}>
                           {calc.title}
                         </Text>
-                        <Text className="text-sm text-gray-500 mt-0.5">
+                        <Text className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
                           {semesterCount} dönem · {courseCount} ders · {formatDate(calc.updated_at)}
                         </Text>
                       </View>
                       <View className="items-center">
-                        <Text className="text-2xl font-bold text-brand">{formatGpa(calc.gpa)}</Text>
-                        <Text className="text-[10px] text-gray-400 uppercase">GANO</Text>
+                        <Text className="text-2xl font-extrabold text-brand dark:text-brand-light">{formatGpa(calc.gpa)}</Text>
+                        <Text className="text-[10px] text-gray-400 dark:text-gray-500 uppercase">GANO</Text>
                       </View>
                     </View>
                   );
@@ -415,24 +418,24 @@ export default function UserProfileScreen() {
 
             {activeTab === 'schedule' &&
               (tabLoading && !loadedTabs.has('schedule') ? (
-                <ActivityIndicator style={{ marginTop: 24 }} color="#2F5755" />
+                <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
               ) : scheduleCourses.length === 0 ? (
-                <EmptyState icon={CalendarDays} text="Henüz ders programı oluşturmamış." />
+                <EmptyState icon={CalendarDays} text="Henüz ders programı oluşturmamış." isDark={isDark} />
               ) : (
                 [1, 2, 3, 4, 5, 6].map((day) => {
                   const dayCourses = scheduleCourses.filter((c) => c.day === day).sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
                   if (dayCourses.length === 0) return null;
                   return (
-                    <View key={day} className="bg-white rounded-lg p-3 mb-2" style={SHADOW_MD}>
-                      <Text className="text-[13px] font-bold text-gray-900 mb-2">{DAY_NAMES[day]}</Text>
+                    <View key={day} className="bg-primary dark:bg-darkbgbutton rounded-lg p-3 mb-2" style={SHADOW_MD}>
+                      <Text className="text-[13px] font-bold text-gray-900 dark:text-darktext mb-2">{DAY_NAMES[day]}</Text>
                       {dayCourses.map((c) => (
                         <View key={c.id} className="flex-row items-center gap-2 py-1.5">
                           <View className="w-1 h-[26px] rounded-sm" style={{ backgroundColor: getCourseColor(c.colorIdx).hex }} />
                           <View className="flex-1">
-                            <Text className="text-[12.5px] font-semibold text-gray-900" numberOfLines={1}>
+                            <Text className="text-[12.5px] font-semibold text-gray-900 dark:text-darktext" numberOfLines={1}>
                               {c.name}
                             </Text>
-                            <Text className="text-[11px] text-gray-500 mt-px">
+                            <Text className="text-[11px] text-gray-500 dark:text-gray-400 mt-px">
                               {c.start}–{c.end}
                               {c.location ? ` · ${c.location}` : ''}
                             </Text>
@@ -446,20 +449,20 @@ export default function UserProfileScreen() {
 
             {activeTab === 'follows' &&
               (tabLoading && !loadedTabs.has('follows') ? (
-                <ActivityIndicator style={{ marginTop: 24 }} color="#2F5755" />
+                <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
               ) : follows.length === 0 ? (
-                <EmptyState icon={Bell} text="Henüz bir bölüm takip etmiyor." />
+                <EmptyState icon={Bell} text="Henüz bir bölüm takip etmiyor." isDark={isDark} />
               ) : (
                 follows.map((f) => (
                   <Pressable
                     key={`${f.faculty}-${f.department}`}
-                    className="flex-row items-center justify-between bg-white rounded-lg p-5 mb-1"
+                    className="flex-row items-center justify-between bg-primary dark:bg-darkbgbutton rounded-lg p-5 mb-1"
                     style={SHADOW_MD}
                     onPress={() => navigation.navigate('DepartmentDetail', { faculty: f.faculty, department: f.department })}
                   >
                     <View>
-                      <Text className="text-sm font-semibold text-gray-900">{f.department}</Text>
-                      <Text className="text-sm text-gray-500 mt-0.5">{f.faculty}</Text>
+                      <Text className="text-sm font-semibold text-gray-900 dark:text-darktext">{f.department}</Text>
+                      <Text className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{f.faculty}</Text>
                     </View>
                   </Pressable>
                 ))
@@ -467,14 +470,14 @@ export default function UserProfileScreen() {
 
             {activeTab === 'forums' &&
               (forumItems === null ? (
-                <ActivityIndicator style={{ marginTop: 24 }} color="#2F5755" />
+                <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
               ) : forumItems.length === 0 ? (
-                <EmptyState icon={MessagesSquare} text="Henüz bir foruma katılmadı." />
+                <EmptyState icon={MessagesSquare} text="Henüz bir foruma katılmadı." isDark={isDark} />
               ) : (
                 forumItems.map((item) => (
                   <Pressable
                     key={item.key}
-                    className="flex-row gap-2 bg-white rounded-lg p-3 mb-1"
+                    className="flex-row gap-2 bg-primary dark:bg-darkbgbutton rounded-lg p-3 mb-1"
                     style={SHADOW_MD}
                     onPress={() =>
                       item.kind === 'faq'
@@ -482,15 +485,19 @@ export default function UserProfileScreen() {
                         : navigation.navigate('SuggestionDetail', { id: item.targetId })
                     }
                   >
-                    {item.kind === 'faq' ? <HelpCircle size={15} color="#2F5755" /> : <Lightbulb size={15} color="#2F5755" />}
+                    {item.kind === 'faq' ? (
+                      <HelpCircle size={15} color={isDark ? '#5A9690' : '#2F5755'} />
+                    ) : (
+                      <Lightbulb size={15} color={isDark ? '#5A9690' : '#2F5755'} />
+                    )}
                     <View className="flex-1">
-                      <Text className="text-[11.5px] font-semibold text-gray-500">{item.title}</Text>
+                      <Text className="text-[11.5px] font-semibold text-gray-500 dark:text-gray-400">{item.title}</Text>
                       {!!item.body && (
-                        <Text className="text-sm text-gray-700 mt-[3px]" numberOfLines={2}>
+                        <Text className="text-sm text-gray-700 dark:text-darktext mt-[3px]" numberOfLines={2}>
                           {item.body}
                         </Text>
                       )}
-                      <Text className="text-[10.5px] text-gray-400 mt-1">{formatDate(item.created_at)}</Text>
+                      <Text className="text-[10.5px] text-gray-400 dark:text-gray-500 mt-1">{formatDate(item.created_at)}</Text>
                     </View>
                   </Pressable>
                 ))
@@ -502,11 +509,11 @@ export default function UserProfileScreen() {
   );
 }
 
-function EmptyState({ icon: Icon, text }: { icon: any; text: string }) {
+function EmptyState({ icon: Icon, text, isDark }: { icon: any; text: string; isDark: boolean }) {
   return (
-    <View className="items-center py-8 gap-2.5 bg-white rounded-lg" style={SHADOW_MD}>
-      <Icon size={48} color="#9ca3af" />
-      <Text className="text-gray-500 text-base text-center px-[30px]">{text}</Text>
+    <View className="items-center py-8 gap-2.5 bg-primary dark:bg-darkbgbutton rounded-lg" style={SHADOW_MD}>
+      <Icon size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
+      <Text className="text-gray-500 dark:text-gray-400 text-base text-center px-[30px]">{text}</Text>
     </View>
   );
 }

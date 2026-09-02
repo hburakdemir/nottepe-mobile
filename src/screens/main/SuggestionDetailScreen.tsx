@@ -4,6 +4,7 @@ import { useRoute } from '@react-navigation/native';
 import { Lightbulb } from 'lucide-react-native';
 import { suggestionAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { useGoToUserProfile } from '../../hooks/useGoToUserProfile';
 import ForumCommentList, { type ForumComment } from '../../components/forum/ForumCommentList';
 import type { RootStackParamList } from '../../navigation/types';
@@ -24,6 +25,8 @@ export default function SuggestionDetailScreen() {
   const route = useRoute<any>();
   const { id } = route.params as RootStackParamList['SuggestionDetail'];
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const goToUserProfile = useGoToUserProfile();
   const canModerate = user?.role === 'admin' || user?.role === 'moderator';
 
@@ -91,7 +94,7 @@ export default function SuggestionDetailScreen() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color="#2F5755" />
+        <ActivityIndicator size="large" color={isDark ? '#5A9690' : '#2F5755'} />
       </View>
     );
   }
@@ -99,26 +102,26 @@ export default function SuggestionDetailScreen() {
   if (!suggestion) {
     return (
       <View className="flex-1 items-center justify-center">
-        <Text className="text-gray-500 text-sm">Öneri bulunamadı.</Text>
+        <Text className="text-gray-500 dark:text-gray-400 text-sm">Öneri bulunamadı.</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView className="flex-1 bg-gray-50" contentContainerClassName="p-4 pb-10">
-      <View className="bg-white rounded-2xl p-4 mb-3.5">
+    <ScrollView className="flex-1 bg-gray-50 dark:bg-darkbg" contentContainerClassName="p-4 pb-10">
+      <View className="bg-white dark:bg-darkbgbutton rounded-2xl p-4 mb-3.5">
         <View className="flex-row gap-2.5">
-          <Lightbulb size={20} color="#2F5755" style={{ marginTop: 2 }} />
-          <Text className="flex-1 text-[15.5px] text-gray-900 leading-[22px]">{suggestion.content}</Text>
+          <Lightbulb size={20} color={isDark ? '#5A9690' : '#2F5755'} style={{ marginTop: 2 }} />
+          <Text className="flex-1 text-[15.5px] text-gray-900 dark:text-darktext leading-[22px]">{suggestion.content}</Text>
         </View>
         <Pressable onPress={() => goToUserProfile(suggestion.username)}>
-          <Text className="text-[11.5px] text-gray-400 mt-3.5">
-            <Text className="text-brand font-semibold">{suggestion.full_name}</Text> tarafından {formatDate(suggestion.created_at)}
+          <Text className="text-[11.5px] text-gray-400 dark:text-gray-500 mt-3.5">
+            <Text className="text-brand dark:text-brand-light font-semibold">{suggestion.full_name}</Text> tarafından {formatDate(suggestion.created_at)}
           </Text>
         </Pressable>
       </View>
 
-      <View className="bg-white rounded-2xl p-4 mb-3.5">
+      <View className="bg-white dark:bg-darkbgbutton rounded-2xl p-4 mb-3.5">
         <ForumCommentList
           comments={comments}
           loading={commentsLoading}

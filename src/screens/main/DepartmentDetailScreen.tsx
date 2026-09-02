@@ -7,6 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Bell, BellOff } from 'lucide-react-native';
 import { postsAPI, departmentFollowAPI } from '../../lib/api';
 import PostCard from '../../components/PostCard';
+import { useTheme } from '../../context/ThemeContext';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
 
@@ -19,6 +20,8 @@ export default function DepartmentDetailScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { faculty, department } = route.params as RootStackParamList['DepartmentDetail'];
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
   const [isFollowing, setIsFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
@@ -76,27 +79,27 @@ export default function DepartmentDetailScreen() {
   const header = (
     <View className="pb-8">
       <View className="flex-row items-center flex-wrap gap-3">
-        <Text className="text-4xl font-bold text-gray-900 flex-shrink">{department}</Text>
+        <Text className="text-xl font-bold text-gray-900 dark:text-darktext flex-shrink">{department}</Text>
         <Pressable
-          className={`flex-row items-center gap-2 rounded-lg px-4 py-2 ${isFollowing ? 'bg-transparent border border-brand' : 'bg-brand'}`}
+          className={`flex-row items-center gap-2 rounded-lg px-4 py-2 ${isFollowing ? 'bg-transparent border border-brand dark:border-brand-light' : 'bg-brand'}`}
           onPress={toggleFollow}
           disabled={followBusy}
         >
-          {isFollowing ? <BellOff size={16} color="#2F5755" /> : <Bell size={16} color="#fff" />}
-          <Text className={`text-sm font-medium ${isFollowing ? 'text-brand' : 'text-white'}`}>
+          {isFollowing ? <BellOff size={16} color={isDark ? '#5A9690' : '#2F5755'} /> : <Bell size={16} color="#fff" />}
+          <Text className={`text-sm font-medium ${isFollowing ? 'text-brand dark:text-brand-light' : 'text-white'}`}>
             {isFollowing ? 'Takibi Bırak' : 'Takip Et'}
           </Text>
         </Pressable>
       </View>
-      <Text className="text-base text-gray-600 mt-2">{faculty}</Text>
-      {total > 0 && <Text className="text-sm text-gray-400 mt-1">{total} not bulundu</Text>}
+      <Text className="text-base text-gray-600 dark:text-gray-400 mt-2">{faculty}</Text>
+      {total > 0 && <Text className="text-sm text-gray-400 dark:text-gray-500 mt-1">{total} not bulundu</Text>}
     </View>
   );
 
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center py-[60px]">
-        <ActivityIndicator size="large" color="#1d4ed8" />
+        <ActivityIndicator size="large" color={isDark ? '#5A9690' : '#1d4ed8'} />
       </View>
     );
   }
@@ -104,14 +107,14 @@ export default function DepartmentDetailScreen() {
   if (isError) {
     return (
       <View className="flex-1 items-center justify-center py-[60px]">
-        <Text className="text-gray-500 text-sm">Notlar yüklenemedi.</Text>
+        <Text className="text-gray-500 dark:text-gray-400 text-sm">Notlar yüklenemedi.</Text>
       </View>
     );
   }
 
   return (
     <FlatList
-      className="flex-1 bg-primary"
+      className="flex-1 bg-primary dark:bg-darkbgbutton"
       contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 32, paddingBottom: 16, flexGrow: 1 }}
       data={posts}
       keyExtractor={(item) => String(item.id ?? item.post_id)}
@@ -123,14 +126,14 @@ export default function DepartmentDetailScreen() {
       }}
       ListFooterComponent={
         isFetchingNextPage ? (
-          <ActivityIndicator style={{ marginVertical: 16 }} color="#1d4ed8" />
+          <ActivityIndicator style={{ marginVertical: 16 }} color={isDark ? '#5A9690' : '#1d4ed8'} />
         ) : !hasNextPage && posts.length > 0 ? (
-          <Text className="text-center text-sm text-gray-400 py-6">Tüm notlar yüklendi ({total} not)</Text>
+          <Text className="text-center text-sm text-gray-400 dark:text-gray-500 py-6">Tüm notlar yüklendi ({total} not)</Text>
         ) : null
       }
       ListEmptyComponent={
-        <View className="bg-white rounded-lg p-12 items-center" style={SHADOW_MD}>
-          <Text className="text-gray-600 text-lg text-center mb-4">Bu bölüm için henüz not paylaşılmamış.</Text>
+        <View className="bg-primary dark:bg-darkbgbutton rounded-lg p-12 items-center" style={SHADOW_MD}>
+          <Text className="text-gray-600 dark:text-gray-400 text-lg text-center mb-4">Bu bölüm için henüz not paylaşılmamış.</Text>
           <Pressable
             className="bg-brand rounded-lg px-4 py-2"
             onPress={() => navigation.navigate('AddPost')}

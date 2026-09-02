@@ -7,6 +7,7 @@ import { postsAPI } from '../../lib/api';
 import { getFileUrl } from '../../lib/config';
 import { useAuth } from '../../context/AuthContext';
 import { useSavedPosts } from '../../context/SavedPostContext';
+import { useTheme } from '../../context/ThemeContext';
 import { useGoToUserProfile } from '../../hooks/useGoToUserProfile';
 import CommentSection from '../../components/CommentSection';
 import type { RootStackParamList } from '../../navigation/types';
@@ -25,6 +26,8 @@ export default function PostDetailScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user, isAuthenticated } = useAuth();
   const { savedPosts, toggleSavePost } = useSavedPosts();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const goToUserProfile = useGoToUserProfile();
   const { postId } = route.params as RootStackParamList['PostDetail'];
   const isSaved = savedPosts.includes(String(postId));
@@ -72,7 +75,7 @@ export default function PostDetailScreen() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color="#1d4ed8" />
+        <ActivityIndicator size="large" color={isDark ? '#60a5fa' : '#1d4ed8'} />
       </View>
     );
   }
@@ -80,7 +83,7 @@ export default function PostDetailScreen() {
   if (error || !post) {
     return (
       <View className="flex-1 items-center justify-center">
-        <Text className="text-gray-500 text-sm">{error || 'Gönderi bulunamadı.'}</Text>
+        <Text className="text-gray-500 dark:text-gray-400 text-sm">{error || 'Gönderi bulunamadı.'}</Text>
       </View>
     );
   }
@@ -90,14 +93,18 @@ export default function PostDetailScreen() {
   const ratingCount = post.rating_count || 0;
 
   return (
-    <ScrollView className="flex-1 bg-primary" contentContainerClassName="px-4 py-6">
-      <View className="bg-white rounded-2xl p-6" style={SHADOW_MD}>
+    <ScrollView className="flex-1 bg-primary dark:bg-darkbgbutton" contentContainerClassName="px-4 py-6">
+      <View className="bg-white dark:bg-darkbgbutton rounded-2xl p-6" style={SHADOW_MD}>
         <View className="flex-row items-start justify-between gap-3">
-          <Text className="flex-1 text-2xl font-bold text-gray-900 leading-[33px]">{post.title}</Text>
+          <Text className="flex-1 text-xl font-bold text-gray-900 dark:text-darktext leading-7">{post.title}</Text>
           <View className="flex-row gap-3.5">
             {isAuthenticated && (
               <Pressable onPress={() => toggleSavePost(postId)} hitSlop={8}>
-                <Bookmark size={20} color={isSaved ? '#003161' : '#6b7280'} fill={isSaved ? '#003161' : 'none'} />
+                <Bookmark
+                  size={20}
+                  color={isDark ? '#DFD0B8' : isSaved ? '#003161' : '#6b7280'}
+                  fill={isSaved ? (isDark ? '#DFD0B8' : '#003161') : 'none'}
+                />
               </Pressable>
             )}
             {isOwner && (
@@ -119,14 +126,14 @@ export default function PostDetailScreen() {
 
         <View className="flex-row items-center gap-4 mt-5">
           <Pressable className="flex-row items-center gap-1.5" onPress={() => goToUserProfile(post.username)}>
-            <View className="w-7 h-7 rounded-full bg-gray-100 items-center justify-center">
-              <User size={16} color="#6b7280" />
+            <View className="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700/40 items-center justify-center">
+              <User size={16} color={isDark ? '#DFD0B8' : '#6b7280'} />
             </View>
-            <Text className="text-sm text-gray-500">{post.username || 'Anonim'}</Text>
+            <Text className="text-sm text-gray-500 dark:text-gray-400">{post.username || 'Anonim'}</Text>
           </Pressable>
           <View className="flex-row items-center gap-1.5">
-            <Calendar size={16} color="#6b7280" />
-            <Text className="text-sm text-gray-500">{formatDate(post.created_at)}</Text>
+            <Calendar size={16} color={isDark ? '#9ca3af' : '#6b7280'} />
+            <Text className="text-sm text-gray-500 dark:text-gray-400">{formatDate(post.created_at)}</Text>
           </View>
         </View>
 
@@ -139,39 +146,39 @@ export default function PostDetailScreen() {
               fill={avgRating >= star ? '#eab308' : 'none'}
             />
           ))}
-          <Text className="text-sm text-gray-500 ml-1">
+          <Text className="text-sm text-gray-500 dark:text-gray-400 ml-1">
             {ratingCount > 0 ? `${avgRating.toFixed(1)}/5 · ${ratingCount} puan` : 'Henüz puan yok'}
           </Text>
         </View>
 
-        <Text className="text-sm text-gray-700 leading-[23px] mt-5">{post.content}</Text>
+        <Text className="text-sm text-gray-700 dark:text-darktext leading-[23px] mt-5">{post.content}</Text>
 
         {post.link ? (
           <Pressable className="flex-row items-center gap-1.5 mt-5" onPress={() => Linking.openURL(post.link!)}>
-            <ExternalLink size={16} color="#1d4ed8" />
-            <Text className="text-blue-700 text-sm font-normal">Linki aç</Text>
+            <ExternalLink size={16} color={isDark ? '#ffffff' : '#1e3a8a'} />
+            <Text className="text-blue-900 dark:text-primary text-sm font-normal">Linki aç</Text>
           </Pressable>
         ) : null}
 
         {post.file_urls && post.file_urls.length > 0 && (
           <View className="mt-5">
-            <Text className="text-xs font-medium text-gray-500 tracking-[0.3px] mb-1.5">DOSYALAR</Text>
+            <Text className="text-xs font-medium text-gray-500 dark:text-gray-400 tracking-[0.3px] mb-1.5">DOSYALAR</Text>
             <View className="flex-row flex-wrap gap-2">
               {post.file_urls.map((fileName, index) => (
                 <Pressable
                   key={index}
-                  className="flex-row items-center gap-1.5 bg-gray-100 rounded-lg px-3 py-1.5"
+                  className="flex-row items-center gap-1.5 bg-gray-100 dark:bg-gray-700/40 rounded-lg px-3 py-1.5"
                   onPress={() => Linking.openURL(getFileUrl(fileName))}
                 >
-                  <FileText size={16} color="#374151" />
-                  <Text className="text-sm text-gray-700">{fileName}</Text>
+                  <FileText size={16} color={isDark ? '#C5D3E8' : '#1e3a8a'} />
+                  <Text className="text-sm text-blue-900 dark:text-[#C5D3E8]">{fileName}</Text>
                 </Pressable>
               ))}
             </View>
           </View>
         )}
 
-        <View className="h-px bg-gray-100 mt-5" />
+        <View className="h-px bg-gray-100 dark:bg-gray-700/40 mt-5" />
 
         <CommentSection
           postId={postId}

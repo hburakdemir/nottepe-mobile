@@ -20,6 +20,7 @@ import * as Sharing from 'expo-sharing';
 import * as Clipboard from 'expo-clipboard';
 import { scheduleAPI } from '../../lib/api';
 import CourseFormModal from '../../components/schedule/CourseFormModal';
+import { useTheme } from '../../context/ThemeContext';
 import {
   DAY_NAMES,
   findConflictIds,
@@ -33,6 +34,8 @@ const DAYS = [1, 2, 3, 4, 5, 6];
 const SHARE_BASE = 'https://nottepe.com';
 
 export default function ScheduleScreen() {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const [courses, setCourses] = useState<ScheduleCourse[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalCourse, setModalCourse] = useState<ScheduleCourse | 'new' | null>(null);
@@ -171,14 +174,14 @@ export default function ScheduleScreen() {
   }
 
   return (
-    <View className="flex-1 bg-primary">
+    <View className="flex-1 bg-primary dark:bg-darkbgbutton">
       <ScrollView contentContainerClassName="px-4 py-6">
         <View className="mb-4">
           <View className="flex-row items-center gap-2.5">
-            <CalendarDays size={32} color="#2F5755" />
-            <Text className="text-3xl font-bold text-gray-900">Ders Programı</Text>
+            <CalendarDays size={32} color={isDark ? '#5A9690' : '#2F5755'} />
+            <Text className="text-2xl font-extrabold text-gray-900 dark:text-darktext">Ders Programı</Text>
           </View>
-          <Text className="text-sm text-gray-600 mt-2">
+          <Text className="text-sm text-gray-600 dark:text-darktext mt-2">
             Derslerini ekle, çakışmaları anında gör. Programın hesabına kaydedilir; profilinden de görüntüleyebilirsin.
           </Text>
         </View>
@@ -191,17 +194,17 @@ export default function ScheduleScreen() {
           {courses.length > 0 && (
             <>
               <Pressable className="flex-row items-center gap-2 border border-brand rounded-lg px-4 py-2.5" onPress={handleShare} disabled={sharing}>
-                <Share2 size={18} color="#2F5755" />
-                <Text className="text-brand text-sm font-medium">{sharing ? '...' : 'Paylaş'}</Text>
+                <Share2 size={18} color={isDark ? '#5A9690' : '#2F5755'} />
+                <Text className="text-brand dark:text-brand-light text-sm font-medium">{sharing ? '...' : 'Paylaş'}</Text>
               </Pressable>
               <Pressable
                 className="flex-row items-center gap-2 border border-brand rounded-lg px-4 py-2.5"
                 onPress={() => setDownloadOpen((v) => !v)}
                 disabled={downloading}
               >
-                <Download size={18} color="#2F5755" />
-                <Text className="text-brand text-sm font-medium">{downloading ? 'İndiriliyor...' : 'İndir'}</Text>
-                <ChevronDown size={14} color="#2F5755" style={{ transform: [{ rotate: downloadOpen ? '180deg' : '0deg' }] }} />
+                <Download size={18} color={isDark ? '#5A9690' : '#2F5755'} />
+                <Text className="text-brand dark:text-brand-light text-sm font-medium">{downloading ? 'İndiriliyor...' : 'İndir'}</Text>
+                <ChevronDown size={14} color={isDark ? '#5A9690' : '#2F5755'} style={{ transform: [{ rotate: downloadOpen ? '180deg' : '0deg' }] }} />
               </Pressable>
               <Pressable
                 className={`flex-row items-center gap-2 rounded-lg px-4 py-2.5 border ${confirmClear ? 'bg-[#ef4444] border-[#ef4444]' : 'border-[#fca5a5]'}`}
@@ -217,30 +220,30 @@ export default function ScheduleScreen() {
         </View>
 
         {downloadOpen && (
-          <View className="bg-white rounded-xl border border-gray-200 py-1.5 mb-3 self-start" style={SHADOW_MD}>
+          <View className="bg-white dark:bg-darkbgbutton rounded-xl border border-gray-200 dark:border-gray-600 py-1.5 mb-3 self-start" style={SHADOW_MD}>
             <Pressable className="flex-row items-center gap-2.5 px-4 py-2.5" onPress={() => handleDownload('png')}>
-              <ImageIcon size={16} color="#374151" />
-              <Text className="text-sm text-gray-700">PNG olarak indir</Text>
+              <ImageIcon size={16} color={isDark ? '#DFD0B8' : '#374151'} />
+              <Text className="text-sm text-gray-700 dark:text-darktext">PNG olarak indir</Text>
             </Pressable>
             <Pressable className="flex-row items-center gap-2.5 px-4 py-2.5" onPress={() => handleDownload('pdf')}>
-              <FileText size={16} color="#374151" />
-              <Text className="text-sm text-gray-700">PDF olarak indir</Text>
+              <FileText size={16} color={isDark ? '#DFD0B8' : '#374151'} />
+              <Text className="text-sm text-gray-700 dark:text-darktext">PDF olarak indir</Text>
             </Pressable>
           </View>
         )}
 
         {shareEnabled && shareUrl && (
-          <View className="flex-row items-center gap-2 bg-brand/5 border border-brand/30 rounded-lg p-3 mb-4">
-            <Share2 size={16} color="#2F5755" />
-            <Text className="text-sm text-gray-600">Program herkese açık:</Text>
-            <Text className="flex-1 text-sm text-brand underline" numberOfLines={1} onPress={handleCopyLink}>
+          <View className="flex-row items-center gap-2 bg-brand/5 dark:bg-brand-light/10 border border-brand/30 dark:border-brand-light/30 rounded-lg p-3 mb-4">
+            <Share2 size={16} color={isDark ? '#5A9690' : '#2F5755'} />
+            <Text className="text-sm text-gray-600 dark:text-darktext">Program herkese açık:</Text>
+            <Text className="flex-1 text-sm text-brand dark:text-brand-light underline" numberOfLines={1} onPress={handleCopyLink}>
               {shareUrl}
             </Text>
             <Pressable onPress={handleCopyLink} hitSlop={8}>
-              <Copy size={16} color="#6b7280" />
+              <Copy size={16} color={isDark ? '#9ca3af' : '#6b7280'} />
             </Pressable>
             <Pressable onPress={handleStopShare} hitSlop={8}>
-              <X size={16} color="#6b7280" />
+              <X size={16} color={isDark ? '#9ca3af' : '#6b7280'} />
             </Pressable>
           </View>
         )}
@@ -254,9 +257,9 @@ export default function ScheduleScreen() {
         )}
 
         {courses.length === 0 ? (
-          <View className="bg-white rounded-lg p-12 items-center gap-4" style={SHADOW_MD}>
-            <CalendarDays size={64} color="#9ca3af" />
-            <Text className="text-gray-500 text-lg text-center">Henüz ders eklemedin. "Ders Ekle" ile haftalık programını oluşturmaya başla.</Text>
+          <View className="bg-white dark:bg-darkbgbutton rounded-lg p-12 items-center gap-4" style={SHADOW_MD}>
+            <CalendarDays size={64} color={isDark ? '#6b7280' : '#9ca3af'} />
+            <Text className="text-gray-500 dark:text-gray-400 text-lg text-center">Henüz ders eklemedin. "Ders Ekle" ile haftalık programını oluşturmaya başla.</Text>
             <Pressable className="flex-row items-center gap-2 bg-brand rounded-lg px-5 py-2.5" onPress={() => setModalCourse('new')}>
               <Text className="text-white text-sm font-medium">İlk Dersini Ekle</Text>
             </Pressable>
@@ -311,7 +314,7 @@ export default function ScheduleScreen() {
                 );
               })}
             </ViewShot>
-            <Text className="text-xs text-gray-400 mt-3">Düzenlemek veya silmek için derse tıkla.</Text>
+            <Text className="text-xs text-gray-400 dark:text-gray-500 mt-3">Düzenlemek veya silmek için derse tıkla.</Text>
           </>
         )}
       </ScrollView>

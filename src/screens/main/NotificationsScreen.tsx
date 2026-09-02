@@ -16,6 +16,7 @@ import {
 } from 'lucide-react-native';
 import { notificationAPI, userNotificationAPI } from '../../lib/api';
 import type { RootStackParamList } from '../../navigation/types';
+import { useTheme } from '../../context/ThemeContext';
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('tr-TR', {
@@ -88,11 +89,13 @@ const ACTIVITY_TYPE_META: Record<string, { icon: any; label: (n: any) => string 
 };
 
 function AnnouncementCard({ notif }: { notif: Announcement }) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   return (
-    <View className="bg-white rounded-xl p-3.5 mb-2.5">
+    <View className="bg-white dark:bg-darkbgbutton rounded-xl p-3.5 mb-2.5">
       <View className="flex-row items-center flex-wrap gap-1.5 mb-2">
-        <View className={`px-2 py-[3px] rounded-full ${notif.is_viewed ? 'bg-gray-100' : 'bg-brand'}`}>
-          <Text className={`text-[10.5px] font-semibold ${notif.is_viewed ? 'text-gray-500' : 'text-white'}`}>
+        <View className={`px-2 py-[3px] rounded-full ${notif.is_viewed ? 'bg-gray-100 dark:bg-gray-700/40' : 'bg-brand'}`}>
+          <Text className={`text-[10.5px] font-semibold ${notif.is_viewed ? 'text-gray-500 dark:text-gray-400' : 'text-white'}`}>
             {notif.is_viewed ? `Görüntüleme Tarihi${notif.viewed_at ? ` · ${formatDateTime(notif.viewed_at)}` : ''}` : 'Yeni'}
           </Text>
         </View>
@@ -103,12 +106,12 @@ function AnnouncementCard({ notif }: { notif: Announcement }) {
           </View>
         )}
         {!!notif.creator_full_name && (
-          <View className="flex-row items-center gap-1 bg-gray-100 rounded-full px-2 py-[3px]">
-            <User size={11} color="#4b5563" />
-            <Text className="text-[10.5px] font-semibold text-gray-600">{notif.creator_full_name}</Text>
+          <View className="flex-row items-center gap-1 bg-gray-100 dark:bg-gray-700/40 rounded-full px-2 py-[3px]">
+            <User size={11} color={isDark ? '#9ca3af' : '#4b5563'} />
+            <Text className="text-[10.5px] font-semibold text-gray-600 dark:text-gray-300">{notif.creator_full_name}</Text>
             {!!notif.creator_role && (
-              <View className={`rounded ml-0.5 px-1 ${notif.creator_role === 'admin' ? 'bg-blue-900' : 'bg-blue-100'}`}>
-                <Text className={`text-[9px] font-bold ${notif.creator_role === 'admin' ? 'text-yellow-300' : 'text-blue-700'}`}>
+              <View className={`rounded ml-0.5 px-1 ${notif.creator_role === 'admin' ? 'bg-blue-900' : 'bg-blue-100 dark:bg-blue-900/40'}`}>
+                <Text className={`text-[9px] font-bold ${notif.creator_role === 'admin' ? 'text-yellow-300' : 'text-blue-700 dark:text-blue-300'}`}>
                   {notif.creator_role}
                 </Text>
               </View>
@@ -116,16 +119,16 @@ function AnnouncementCard({ notif }: { notif: Announcement }) {
           </View>
         )}
         <View className="flex-row items-center gap-1 ml-auto">
-          <Calendar size={11} color="#9ca3af" />
-          <Text className="text-[11px] text-gray-400">Duyuru Tarihi: {formatDate(notif.created_at)}</Text>
+          <Calendar size={11} color={isDark ? '#6b7280' : '#9ca3af'} />
+          <Text className="text-[11px] text-gray-400 dark:text-gray-500">Duyuru Tarihi: {formatDate(notif.created_at)}</Text>
         </View>
       </View>
-      <Text className="text-[15.5px] font-bold text-gray-900 mb-1.5">{notif.title}</Text>
-      <Text className="text-[13.5px] text-gray-600 leading-[19px]">{notif.content}</Text>
+      <Text className="text-[15.5px] font-bold text-gray-900 dark:text-darktext mb-1.5">{notif.title}</Text>
+      <Text className="text-[13.5px] text-gray-600 dark:text-darktext/80 leading-[19px]">{notif.content}</Text>
       {!!notif.link && (
         <Pressable className="flex-row items-center gap-1.5 mt-2.5" onPress={() => Linking.openURL(notif.link!)}>
-          <ExternalLink size={14} color="#1d4ed8" />
-          <Text className="text-[13px] text-blue-700 font-semibold">Daha fazla bilgi</Text>
+          <ExternalLink size={14} color={isDark ? '#60a5fa' : '#1d4ed8'} />
+          <Text className="text-[13px] text-blue-700 dark:text-blue-400 font-semibold">Daha fazla bilgi</Text>
         </Pressable>
       )}
     </View>
@@ -134,6 +137,8 @@ function AnnouncementCard({ notif }: { notif: Announcement }) {
 
 function ActivityCard({ notif }: { notif: any }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const meta = ACTIVITY_TYPE_META[notif.type];
   const Icon = meta?.icon || Bell;
   const label = meta ? meta.label(notif) : 'Yeni aktivite bildirimi';
@@ -146,13 +151,13 @@ function ActivityCard({ notif }: { notif: any }) {
   };
 
   return (
-    <Pressable className="flex-row items-start gap-2.5 bg-white rounded-xl p-3 mb-2.5" disabled={!canNavigate} onPress={handlePress}>
-      <View className="w-[34px] h-[34px] rounded-[17px] bg-brand/10 items-center justify-center">
-        <Icon size={16} color="#2F5755" />
+    <Pressable className="flex-row items-start gap-2.5 bg-white dark:bg-darkbgbutton rounded-xl p-3 mb-2.5" disabled={!canNavigate} onPress={handlePress}>
+      <View className="w-[34px] h-[34px] rounded-[17px] bg-brand/10 dark:bg-brand-light/20 items-center justify-center">
+        <Icon size={16} color={isDark ? '#5A9690' : '#2F5755'} />
       </View>
       <View className="flex-1">
-        <Text className="text-[13.5px] text-gray-700 leading-[19px]">{label}</Text>
-        <Text className="text-[11px] text-gray-400">{formatDate(notif.created_at)}</Text>
+        <Text className="text-[13.5px] text-gray-700 dark:text-darktext leading-[19px]">{label}</Text>
+        <Text className="text-[11px] text-gray-400 dark:text-gray-500">{formatDate(notif.created_at)}</Text>
       </View>
       {!notif.read_at && <View className="w-2 h-2 rounded-full bg-brand mt-1.5" />}
     </Pressable>
@@ -161,6 +166,8 @@ function ActivityCard({ notif }: { notif: any }) {
 
 export default function NotificationsScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'Notifications'>>();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const [tab, setTab] = useState<'duyurular' | 'aktivite'>(route.params?.initialTab ?? 'duyurular');
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -203,21 +210,21 @@ export default function NotificationsScreen() {
   }, [tab, activityLoaded]);
 
   return (
-    <View className="flex-1 bg-gray-50">
+    <View className="flex-1 bg-gray-50 dark:bg-darkbgbutton">
       <View className="flex-row gap-2 p-3 pb-1">
         <Pressable
           className={`flex-row items-center gap-1.5 border border-brand rounded-[10px] px-3.5 py-2 ${tab === 'duyurular' ? 'bg-brand' : ''}`}
           onPress={() => setTab('duyurular')}
         >
-          <Megaphone size={15} color={tab === 'duyurular' ? '#fff' : '#2F5755'} />
-          <Text className={`text-[13px] font-semibold ${tab === 'duyurular' ? 'text-white' : 'text-brand'}`}>Duyurular</Text>
+          <Megaphone size={15} color={tab === 'duyurular' ? '#fff' : isDark ? '#5A9690' : '#2F5755'} />
+          <Text className={`text-[13px] font-semibold ${tab === 'duyurular' ? 'text-white' : 'text-brand dark:text-brand-light'}`}>Duyurular</Text>
         </Pressable>
         <Pressable
           className={`flex-row items-center gap-1.5 border border-brand rounded-[10px] px-3.5 py-2 ${tab === 'aktivite' ? 'bg-brand' : ''}`}
           onPress={() => setTab('aktivite')}
         >
-          <Bell size={15} color={tab === 'aktivite' ? '#fff' : '#2F5755'} />
-          <Text className={`text-[13px] font-semibold ${tab === 'aktivite' ? 'text-white' : 'text-brand'}`}>Aktivite</Text>
+          <Bell size={15} color={tab === 'aktivite' ? '#fff' : isDark ? '#5A9690' : '#2F5755'} />
+          <Text className={`text-[13px] font-semibold ${tab === 'aktivite' ? 'text-white' : 'text-brand dark:text-brand-light'}`}>Aktivite</Text>
         </Pressable>
       </View>
 
@@ -231,18 +238,18 @@ export default function NotificationsScreen() {
             categories.length > 0 ? (
               <View className="flex-row flex-wrap gap-2 mb-3">
                 <Pressable
-                  className={`rounded-full px-3 py-1.5 border ${activeCategory === '' ? 'bg-brand border-brand' : 'bg-white border-gray-200'}`}
+                  className={`rounded-full px-3 py-1.5 border ${activeCategory === '' ? 'bg-brand border-brand' : 'bg-white dark:bg-darkbgbutton border-gray-200 dark:border-gray-600'}`}
                   onPress={() => setActiveCategory('')}
                 >
-                  <Text className={`text-xs font-medium ${activeCategory === '' ? 'text-white' : 'text-gray-500'}`}>Tümü</Text>
+                  <Text className={`text-xs font-medium ${activeCategory === '' ? 'text-white' : 'text-gray-500 dark:text-gray-400'}`}>Tümü</Text>
                 </Pressable>
                 {categories.map((cat) => (
                   <Pressable
                     key={cat.id}
-                    className={`rounded-full px-3 py-1.5 border ${activeCategory === cat.slug ? 'bg-brand border-brand' : 'bg-white border-gray-200'}`}
+                    className={`rounded-full px-3 py-1.5 border ${activeCategory === cat.slug ? 'bg-brand border-brand' : 'bg-white dark:bg-darkbgbutton border-gray-200 dark:border-gray-600'}`}
                     onPress={() => setActiveCategory(cat.slug)}
                   >
-                    <Text className={`text-xs font-medium ${activeCategory === cat.slug ? 'text-white' : 'text-gray-500'}`}>
+                    <Text className={`text-xs font-medium ${activeCategory === cat.slug ? 'text-white' : 'text-gray-500 dark:text-gray-400'}`}>
                       {cat.name}
                     </Text>
                   </Pressable>
@@ -254,7 +261,7 @@ export default function NotificationsScreen() {
             loadingAnnouncements ? (
               <ActivityIndicator style={{ marginTop: 24 }} color="#1d4ed8" />
             ) : (
-              <Text className="text-center text-gray-400 mt-6">Henüz bildirim yok.</Text>
+              <Text className="text-center text-gray-400 dark:text-gray-500 mt-6">Henüz bildirim yok.</Text>
             )
           }
         />
@@ -268,7 +275,7 @@ export default function NotificationsScreen() {
             activityLoading ? (
               <ActivityIndicator style={{ marginTop: 24 }} color="#1d4ed8" />
             ) : (
-              <Text className="text-center text-gray-400 mt-6">Henüz aktivite bildirimi yok.</Text>
+              <Text className="text-center text-gray-400 dark:text-gray-500 mt-6">Henüz aktivite bildirimi yok.</Text>
             )
           }
         />

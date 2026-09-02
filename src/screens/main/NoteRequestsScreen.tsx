@@ -6,6 +6,7 @@ import { faculties, departments } from '../../data/departments';
 import RequestCard, { type NoteRequest } from '../../components/requests/RequestCard';
 import CreateRequestModal from '../../components/requests/CreateRequestModal';
 import FulfillModal from '../../components/requests/FulfillModal';
+import { useTheme } from '../../context/ThemeContext';
 
 const PAGE_LIMIT = 10;
 
@@ -14,6 +15,8 @@ type Status = 'open' | 'fulfilled';
 type Sort = 'new' | 'top';
 
 export default function NoteRequestsScreen() {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const [view, setView] = useState<ViewMode>('board');
   const [status, setStatus] = useState<Status>('open');
   const [sort, setSort] = useState<Sort>('new');
@@ -122,10 +125,10 @@ export default function NoteRequestsScreen() {
   const header = (
     <View className="mb-4">
       <View className="flex-row items-center gap-2.5">
-        <HeartHandshake size={32} color="#2F5755" />
-        <Text className="text-3xl font-bold text-gray-900">Not İstekleri</Text>
+        <HeartHandshake size={32} color={isDark ? '#5A9690' : '#2F5755'} />
+        <Text className="text-2xl font-extrabold text-gray-900 dark:text-darktext">Not İstekleri</Text>
       </View>
-      <Text className="text-base text-gray-600 mt-2">Aradığın notu bulamadın mı? İste — elinde olan varsa karşılasın.</Text>
+      <Text className="text-sm text-gray-600 dark:text-darktext mt-2">Aradığın notu bulamadın mı? İste — elinde olan varsa karşılasın.</Text>
 
       <Pressable className="flex-row items-center justify-center gap-2 bg-brand rounded-lg px-5 py-2.5 mt-4 self-start" onPress={() => setShowCreate(true)}>
         <Plus size={18} color="#fff" />
@@ -142,25 +145,25 @@ export default function NoteRequestsScreen() {
             return (
               <Pressable
                 key={t.value}
-                className={`rounded-lg px-4 py-2 mr-2 ${active ? 'bg-brand' : 'bg-gray-100'}`}
+                className={`rounded-lg px-4 py-2 mr-2 ${active ? 'bg-brand' : 'bg-gray-100 dark:bg-gray-700/40'}`}
                 onPress={() => {
                   setView('board');
                   setStatus(t.value);
                 }}
               >
-                <Text className={`text-sm font-semibold ${active ? 'text-white' : 'text-gray-600'}`}>{t.label}</Text>
+                <Text className={`text-sm font-semibold ${active ? 'text-white' : 'text-gray-600 dark:text-gray-400'}`}>{t.label}</Text>
               </Pressable>
             );
           })}
-          <Pressable className={`rounded-lg px-4 py-2 mr-2 ${view === 'mine' ? 'bg-brand' : 'bg-gray-100'}`} onPress={() => setView('mine')}>
-            <Text className={`text-sm font-semibold ${view === 'mine' ? 'text-white' : 'text-gray-600'}`}>İsteklerim</Text>
+          <Pressable className={`rounded-lg px-4 py-2 mr-2 ${view === 'mine' ? 'bg-brand' : 'bg-gray-100 dark:bg-gray-700/40'}`} onPress={() => setView('mine')}>
+            <Text className={`text-sm font-semibold ${view === 'mine' ? 'text-white' : 'text-gray-600 dark:text-gray-400'}`}>İsteklerim</Text>
           </Pressable>
         </View>
       </ScrollView>
 
       {view === 'board' && (
         <>
-          <View className="flex-row gap-1 mt-3 bg-gray-100 rounded-lg p-1 self-end">
+          <View className="flex-row gap-1 mt-3 bg-gray-100 dark:bg-gray-700/40 rounded-lg p-1 self-end">
             {[
               { value: 'new' as const, label: 'En Yeni' },
               { value: 'top' as const, label: 'En Çok İstenen' },
@@ -170,30 +173,30 @@ export default function NoteRequestsScreen() {
                 <Pressable
                   key={s.value}
                   className="px-3 py-1.5 rounded-md"
-                  style={active ? SHADOW_SM : undefined}
+                  style={active ? (isDark ? SHADOW_SM_DARK : SHADOW_SM) : undefined}
                   onPress={() => setSort(s.value)}
                 >
-                  <Text className={`text-xs font-semibold ${active ? 'text-brand' : 'text-gray-500'}`}>{s.label}</Text>
+                  <Text className={`text-xs font-semibold ${active ? 'text-brand dark:text-brand-light' : 'text-gray-500 dark:text-gray-400'}`}>{s.label}</Text>
                 </Pressable>
               );
             })}
           </View>
 
-          <View className="flex-col gap-3 mt-4 bg-white rounded-lg p-4" style={SHADOW_MD}>
-            <Pressable className="flex-row items-center justify-between bg-white border border-gray-300 rounded-lg px-4 py-2.5" onPress={() => setShowFacultyPicker(true)}>
-              <Text className={`text-sm flex-shrink ${faculty ? 'text-gray-900' : 'text-gray-400'}`} numberOfLines={1}>
+          <View className="flex-col gap-3 mt-4 bg-white dark:bg-darkbgbutton rounded-lg p-4" style={SHADOW_MD}>
+            <Pressable className="flex-row items-center justify-between bg-white dark:bg-darkbg border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5" onPress={() => setShowFacultyPicker(true)}>
+              <Text className={`text-sm flex-shrink ${faculty ? 'text-gray-900 dark:text-darktext' : 'text-gray-400 dark:text-gray-500'}`} numberOfLines={1}>
                 {faculty || 'Tüm Fakülteler'}
               </Text>
-              <ChevronDown size={16} color="#6b7280" />
+              <ChevronDown size={16} color={isDark ? '#9ca3af' : '#6b7280'} />
             </Pressable>
             <Pressable
-              className={`flex-row items-center justify-between bg-white border border-gray-300 rounded-lg px-4 py-2.5 ${!faculty ? 'opacity-50' : ''}`}
+              className={`flex-row items-center justify-between bg-white dark:bg-darkbg border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2.5 ${!faculty ? 'opacity-50' : ''}`}
               onPress={() => faculty && setShowDeptPicker(true)}
             >
-              <Text className={`text-sm flex-shrink ${department ? 'text-gray-900' : 'text-gray-400'}`} numberOfLines={1}>
+              <Text className={`text-sm flex-shrink ${department ? 'text-gray-900 dark:text-darktext' : 'text-gray-400 dark:text-gray-500'}`} numberOfLines={1}>
                 {department || 'Tüm Bölümler'}
               </Text>
-              <ChevronDown size={16} color="#6b7280" />
+              <ChevronDown size={16} color={isDark ? '#9ca3af' : '#6b7280'} />
             </Pressable>
           </View>
         </>
@@ -202,7 +205,7 @@ export default function NoteRequestsScreen() {
   );
 
   return (
-    <View className="flex-1 bg-primary">
+    <View className="flex-1 bg-primary dark:bg-darkbgbutton">
       {loading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#2F5755" />
@@ -224,15 +227,15 @@ export default function NoteRequestsScreen() {
             />
           )}
           ListEmptyComponent={
-            <View className="items-center bg-white rounded-lg py-12 gap-4" style={SHADOW_MD}>
-              <Inbox size={64} color="#9ca3af" />
-              <Text className="text-gray-500 text-lg">{view === 'mine' ? 'Henüz istek oluşturmadın.' : 'Bu filtrede istek bulunamadı.'}</Text>
+            <View className="items-center bg-white dark:bg-darkbgbutton rounded-lg py-12 gap-4" style={SHADOW_MD}>
+              <Inbox size={64} color={isDark ? '#6b7280' : '#9ca3af'} />
+              <Text className="text-gray-500 dark:text-gray-400 text-lg">{view === 'mine' ? 'Henüz istek oluşturmadın.' : 'Bu filtrede istek bulunamadı.'}</Text>
             </View>
           }
           ListFooterComponent={
             hasMore ? (
               <Pressable className="items-center border border-brand rounded-lg py-2.5 mt-2" onPress={() => fetchBoard(page + 1)} disabled={loadingMore}>
-                {loadingMore ? <ActivityIndicator color="#2F5755" /> : <Text className="text-brand text-[13px] font-semibold">Daha Fazla Göster</Text>}
+                {loadingMore ? <ActivityIndicator color="#2F5755" /> : <Text className="text-brand dark:text-brand-light text-[13px] font-semibold">Daha Fazla Göster</Text>}
               </Pressable>
             ) : null
           }
@@ -244,35 +247,35 @@ export default function NoteRequestsScreen() {
 
       <Modal visible={showFacultyPicker} transparent animationType="slide" onRequestClose={() => setShowFacultyPicker(false)}>
         <Pressable className="flex-1 bg-black/40 justify-end" onPress={() => setShowFacultyPicker(false)}>
-          <View className="bg-white rounded-t-2xl p-4 max-h-[75%]">
+          <View className="bg-white dark:bg-darkbgbutton rounded-t-2xl p-4 max-h-[75%]">
             <View className="flex-row items-center justify-between mb-2.5">
-              <Text className="text-[15px] font-bold text-gray-900">Fakülte</Text>
+              <Text className="text-[15px] font-bold text-gray-900 dark:text-darktext">Fakülte</Text>
               <Pressable onPress={() => setShowFacultyPicker(false)} hitSlop={8}>
-                <X size={20} color="#6b7280" />
+                <X size={20} color={isDark ? '#9ca3af' : '#6b7280'} />
               </Pressable>
             </View>
             <ScrollView>
               <Pressable
-                className="py-3 border-b border-gray-100"
+                className="py-3 border-b border-gray-100 dark:border-gray-700/40"
                 onPress={() => {
                   setFaculty('');
                   setDepartment('');
                   setShowFacultyPicker(false);
                 }}
               >
-                <Text className="text-sm text-gray-700">Tüm Fakülteler</Text>
+                <Text className="text-sm text-gray-700 dark:text-darktext">Tüm Fakülteler</Text>
               </Pressable>
               {faculties.map((f) => (
                 <Pressable
                   key={f}
-                  className="py-3 border-b border-gray-100"
+                  className="py-3 border-b border-gray-100 dark:border-gray-700/40"
                   onPress={() => {
                     setFaculty(f);
                     setDepartment('');
                     setShowFacultyPicker(false);
                   }}
                 >
-                  <Text className="text-sm text-gray-700">{f}</Text>
+                  <Text className="text-sm text-gray-700 dark:text-darktext">{f}</Text>
                 </Pressable>
               ))}
             </ScrollView>
@@ -282,33 +285,33 @@ export default function NoteRequestsScreen() {
 
       <Modal visible={showDeptPicker} transparent animationType="slide" onRequestClose={() => setShowDeptPicker(false)}>
         <Pressable className="flex-1 bg-black/40 justify-end" onPress={() => setShowDeptPicker(false)}>
-          <View className="bg-white rounded-t-2xl p-4 max-h-[75%]">
+          <View className="bg-white dark:bg-darkbgbutton rounded-t-2xl p-4 max-h-[75%]">
             <View className="flex-row items-center justify-between mb-2.5">
-              <Text className="text-[15px] font-bold text-gray-900">Bölüm</Text>
+              <Text className="text-[15px] font-bold text-gray-900 dark:text-darktext">Bölüm</Text>
               <Pressable onPress={() => setShowDeptPicker(false)} hitSlop={8}>
-                <X size={20} color="#6b7280" />
+                <X size={20} color={isDark ? '#9ca3af' : '#6b7280'} />
               </Pressable>
             </View>
             <ScrollView>
               <Pressable
-                className="py-3 border-b border-gray-100"
+                className="py-3 border-b border-gray-100 dark:border-gray-700/40"
                 onPress={() => {
                   setDepartment('');
                   setShowDeptPicker(false);
                 }}
               >
-                <Text className="text-sm text-gray-700">Tüm Bölümler</Text>
+                <Text className="text-sm text-gray-700 dark:text-darktext">Tüm Bölümler</Text>
               </Pressable>
               {(departments[faculty] || []).map((d) => (
                 <Pressable
                   key={d}
-                  className="py-3 border-b border-gray-100"
+                  className="py-3 border-b border-gray-100 dark:border-gray-700/40"
                   onPress={() => {
                     setDepartment(d);
                     setShowDeptPicker(false);
                   }}
                 >
-                  <Text className="text-sm text-gray-700">{d}</Text>
+                  <Text className="text-sm text-gray-700 dark:text-darktext">{d}</Text>
                 </Pressable>
               ))}
             </ScrollView>
@@ -334,4 +337,9 @@ const SHADOW_SM = {
   shadowRadius: 2,
   shadowOffset: { width: 0, height: 1 },
   elevation: 1,
+};
+
+const SHADOW_SM_DARK = {
+  ...SHADOW_SM,
+  backgroundColor: '#222831',
 };

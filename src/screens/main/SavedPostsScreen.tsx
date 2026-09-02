@@ -37,7 +37,7 @@ export default function SavedPostsScreen() {
 
   return (
     <FlatList
-      className="flex-1 bg-primary"
+      className="flex-1 bg-primary dark:bg-darkbgbutton"
       contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 32, flexGrow: 1 }}
       data={posts}
       keyExtractor={(item) => String(item.id ?? item.post_id)}

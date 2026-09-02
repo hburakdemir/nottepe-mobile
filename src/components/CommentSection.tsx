@@ -16,6 +16,7 @@ import {
 } from 'lucide-react-native';
 import { adminCommentAPI, commentAPI } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { useGoToUserProfile } from '../hooks/useGoToUserProfile';
 import BadgeChip from './BadgeChip';
 import type { Comment } from '../types/comment';
@@ -73,6 +74,13 @@ interface CommentCardProps {
 function CommentCard({ comment, postOwnerId, isAdmin, onDelete, onRestore, onEdit, onEditRatingChange }: CommentCardProps) {
   const { user } = useAuth();
   const goToUserProfile = useGoToUserProfile();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const avatarIconColor = isDark ? '#DFD0B8' : '#6b7280';
+  const cancelIconColor = isDark ? '#DFD0B8' : '#6b7280';
+  const editIconColor = isDark ? '#60a5fa' : '#1d4ed8';
+  const deleteIconColor = isDark ? '#f87171' : '#dc2626';
+  const restoreIconColor = isDark ? '#4ade80' : '#16a34a';
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteReason, setDeleteReason] = useState('');
@@ -129,15 +137,18 @@ function CommentCard({ comment, postOwnerId, isAdmin, onDelete, onRestore, onEdi
   };
 
   return (
-    <View style={[styles.commentCard, isDeleted && styles.commentCardDeleted]}>
+    <View
+      className={isDeleted ? 'border-red-200 dark:border-red-900/40' : 'border-gray-100 dark:border-gray-700/40'}
+      style={styles.commentCard}
+    >
       <View style={styles.commentHeader}>
         <Pressable style={styles.commentUser} onPress={() => goToUserProfile(comment.username)}>
-          <View style={styles.avatarFallback}>
-            <User size={14} color="#6b7280" />
+          <View className="bg-gray-100 dark:bg-gray-700/40" style={styles.avatarFallback}>
+            <User size={14} color={avatarIconColor} />
           </View>
           <View style={{ flex: 1 }}>
             <View style={styles.usernameRow}>
-              <Text style={styles.username}>{comment.username || 'Anonim'}</Text>
+              <Text className="text-gray-900 dark:text-darktext" style={styles.username}>{comment.username || 'Anonim'}</Text>
               {!!comment.badges?.length && (
                 <View style={styles.badgeRow}>
                   {comment.badges.map((b) => (
@@ -151,7 +162,7 @@ function CommentCard({ comment, postOwnerId, isAdmin, onDelete, onRestore, onEdi
                 </View>
               )}
             </View>
-            <Text style={styles.date}>
+            <Text className="text-gray-500 dark:text-gray-400" style={styles.date}>
               {formatDateTime(comment.created_at)}
               {!!comment.updated_at && <Text style={styles.editedText}> · düzenlendi</Text>}
             </Text>
@@ -161,28 +172,30 @@ function CommentCard({ comment, postOwnerId, isAdmin, onDelete, onRestore, onEdi
           {!!comment.rating && !isEditing && <StarDisplay value={comment.rating} />}
           {canEdit && !isEditing && (
             <Pressable onPress={openEdit} hitSlop={6}>
-              <Pencil size={15} color="#1d4ed8" />
+              <Pencil size={15} color={editIconColor} />
             </Pressable>
           )}
           {isEditing && (
             <Pressable onPress={() => setIsEditing(false)} hitSlop={6}>
-              <X size={15} color="#6b7280" />
+              <X size={15} color={cancelIconColor} />
             </Pressable>
           )}
           {canDelete && !isEditing && (
             <Pressable onPress={() => setShowDeleteDialog(true)} hitSlop={6}>
-              <Trash2 size={16} color="#dc2626" />
+              <Trash2 size={16} color={deleteIconColor} />
             </Pressable>
           )}
           {canRestore && (
             <Pressable onPress={handleRestore} disabled={restoring} hitSlop={6}>
-              <RotateCcw size={16} color="#16a34a" />
+              <RotateCcw size={16} color={restoreIconColor} />
             </Pressable>
           )}
         </View>
       </View>
 
-      {!isEditing && !!comment.content && <Text style={styles.commentContent}>{comment.content}</Text>}
+      {!isEditing && !!comment.content && (
+        <Text className="text-gray-800 dark:text-darktext" style={styles.commentContent}>{comment.content}</Text>
+      )}
 
       {isEditing && (
         <View style={{ marginTop: 8, gap: 8 }}>
@@ -190,9 +203,10 @@ function CommentCard({ comment, postOwnerId, isAdmin, onDelete, onRestore, onEdi
             <Text style={styles.editWindowWarning}>Yorumu attıktan sonra 1 saat içinde güncelleme yapabilirsiniz.</Text>
           ) : (
             <>
-              <Text style={styles.editLabel}>Puan</Text>
+              <Text className="text-gray-500 dark:text-gray-400" style={styles.editLabel}>Puan</Text>
               <StarPicker value={editRating} onChange={setEditRating} />
               <TextInput
+                className="border-gray-200 dark:border-gray-600 text-gray-900 dark:text-darktext"
                 style={styles.editInput}
                 value={editContent}
                 onChangeText={(t) => setEditContent(t.slice(0, 300))}
@@ -200,7 +214,7 @@ function CommentCard({ comment, postOwnerId, isAdmin, onDelete, onRestore, onEdi
                 placeholder="Yorumunuz..."
                 placeholderTextColor="#9ca3af"
               />
-              {!!editError && <Text style={styles.errorText}>{editError}</Text>}
+              {!!editError && <Text className="text-red-600 dark:text-red-400" style={styles.errorText}>{editError}</Text>}
               <Pressable style={styles.editSubmitBtn} onPress={handleEditSubmit} disabled={editLoading}>
                 <Send size={13} color="#fff" />
                 <Text style={styles.editSubmitText}>{editLoading ? 'Güncelleniyor…' : 'Güncelle'}</Text>
@@ -212,10 +226,12 @@ function CommentCard({ comment, postOwnerId, isAdmin, onDelete, onRestore, onEdi
 
       {isDeleted && isAdmin && (
         <View style={styles.deletedInfo}>
-          <Text style={styles.deletedInfoText}>
+          <Text className="text-red-500 dark:text-red-400" style={styles.deletedInfoText}>
             🗑 Silen: {comment.deleted_by_username || `#${comment.deleted_by}`} · {formatDateTime(comment.deleted_at!)}
           </Text>
-          {!!comment.delete_reason && <Text style={styles.deletedInfoText}>Sebep: {comment.delete_reason}</Text>}
+          {!!comment.delete_reason && (
+            <Text className="text-red-500 dark:text-red-400" style={styles.deletedInfoText}>Sebep: {comment.delete_reason}</Text>
+          )}
         </View>
       )}
 
@@ -261,6 +277,9 @@ interface Props {
 
 export default function CommentSection({ postId, postOwnerId, isAdmin = false, defaultCollapsed = true, onRatingChange }: Props) {
   const { isAuthenticated } = useAuth();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const headerIconColor = isDark ? '#DFD0B8' : '#111827';
 
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [hasFetched, setHasFetched] = useState(false);
@@ -365,12 +384,12 @@ export default function CommentSection({ postId, postOwnerId, isAdmin = false, d
   return (
     <View style={styles.container}>
       <Pressable style={styles.toggleHeader} onPress={() => setCollapsed((c) => !c)}>
-        <MessageSquare size={16} color="#111827" />
-        <Text style={styles.toggleHeaderText}>Yorumlar</Text>
-        <View style={styles.countPill}>
-          <Text style={styles.countPillText}>{total}</Text>
+        <MessageSquare size={16} color={headerIconColor} />
+        <Text className="text-gray-900 dark:text-darktext" style={styles.toggleHeaderText}>Yorumlar</Text>
+        <View className="bg-brand/10 dark:bg-brand-light/20" style={styles.countPill}>
+          <Text className="text-brand dark:text-brand-light" style={styles.countPillText}>{total}</Text>
         </View>
-        {collapsed ? <ChevronDown size={16} color="#111827" /> : <ChevronUp size={16} color="#111827" />}
+        {collapsed ? <ChevronDown size={16} color={headerIconColor} /> : <ChevronUp size={16} color={headerIconColor} />}
       </Pressable>
 
       {!collapsed && (
@@ -378,7 +397,7 @@ export default function CommentSection({ postId, postOwnerId, isAdmin = false, d
           {loading ? (
             <ActivityIndicator style={{ marginVertical: 16 }} color="#1d4ed8" />
           ) : comments.length === 0 ? (
-            <Text style={styles.empty}>{isAdmin ? 'Henüz yorum yok.' : 'İlk yorumu sen bırak!'}</Text>
+            <Text className="text-gray-500 dark:text-gray-400" style={styles.empty}>{isAdmin ? 'Henüz yorum yok.' : 'İlk yorumu sen bırak!'}</Text>
           ) : (
             <View style={{ gap: 10, marginTop: 10 }}>
               {comments.map((c) => (
@@ -396,21 +415,23 @@ export default function CommentSection({ postId, postOwnerId, isAdmin = false, d
               {totalPages > 1 && (
                 <View style={styles.pagerRow}>
                   <Pressable
+                    className="border-gray-200 dark:border-gray-600"
                     style={[styles.pagerBtn, page <= 1 && styles.pagerBtnDisabled]}
                     disabled={page <= 1}
                     onPress={() => fetchPage(page - 1)}
                   >
-                    <ChevronLeft size={15} color={page <= 1 ? '#d1d5db' : '#2F5755'} />
+                    <ChevronLeft size={15} color={page <= 1 ? (isDark ? '#4b5563' : '#d1d5db') : (isDark ? '#5A9690' : '#2F5755')} />
                   </Pressable>
-                  <Text style={styles.pagerText}>
+                  <Text className="text-gray-500 dark:text-gray-400" style={styles.pagerText}>
                     {page} / {totalPages}
                   </Text>
                   <Pressable
+                    className="border-gray-200 dark:border-gray-600"
                     style={[styles.pagerBtn, page >= totalPages && styles.pagerBtnDisabled]}
                     disabled={page >= totalPages}
                     onPress={() => fetchPage(page + 1)}
                   >
-                    <ChevronRight size={15} color={page >= totalPages ? '#d1d5db' : '#2F5755'} />
+                    <ChevronRight size={15} color={page >= totalPages ? (isDark ? '#4b5563' : '#d1d5db') : (isDark ? '#5A9690' : '#2F5755')} />
                   </Pressable>
                 </View>
               )}
@@ -450,12 +471,11 @@ export default function CommentSection({ postId, postOwnerId, isAdmin = false, d
 const styles = StyleSheet.create({
   container: { marginTop: 16 },
   toggleHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  toggleHeaderText: { fontSize: 15, fontWeight: '700', color: '#111827' },
-  countPill: { backgroundColor: '#2F575519', borderRadius: 100, paddingHorizontal: 8, paddingVertical: 2 },
-  countPillText: { fontSize: 11.5, fontWeight: '700', color: '#2F5755' },
-  empty: { color: '#9ca3af', fontSize: 13, textAlign: 'center', paddingVertical: 16 },
-  commentCard: { borderWidth: 1, borderColor: '#f3f4f6', borderRadius: 10, padding: 10 },
-  commentCardDeleted: { borderColor: '#fecaca' },
+  toggleHeaderText: { fontSize: 15, fontWeight: '600' },
+  countPill: { borderRadius: 100, paddingHorizontal: 8, paddingVertical: 2 },
+  countPillText: { fontSize: 11.5, fontWeight: '700' },
+  empty: { fontSize: 13, textAlign: 'center', paddingVertical: 16 },
+  commentCard: { borderWidth: 1, borderRadius: 10, padding: 10 },
   commentHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   commentUser: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
   usernameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
@@ -463,27 +483,24 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: '#f3f4f6',
     alignItems: 'center',
     justifyContent: 'center',
   },
   badgeRow: { flexDirection: 'row', gap: 3 },
   roleBadge: { backgroundColor: '#ca8a04', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
   roleBadgeText: { fontSize: 9, fontWeight: '700', color: '#fff' },
-  username: { fontSize: 13, fontWeight: '600', color: '#111827' },
-  date: { fontSize: 10.5, color: '#9ca3af' },
+  username: { fontSize: 13, fontWeight: '600' },
+  date: { fontSize: 10.5 },
   editedText: { fontStyle: 'italic' },
-  commentContent: { fontSize: 13.5, color: '#374151', marginTop: 8, lineHeight: 19 },
+  commentContent: { fontSize: 13.5, marginTop: 8, lineHeight: 19 },
   starRow: { flexDirection: 'row', gap: 3 },
-  editLabel: { fontSize: 10.5, fontWeight: '700', color: '#9ca3af', textTransform: 'uppercase' },
+  editLabel: { fontSize: 10.5, fontWeight: '700', textTransform: 'uppercase' },
   editInput: {
     borderWidth: 1,
-    borderColor: '#111827',
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 8,
     fontSize: 13.5,
-    color: '#1f2937',
     minHeight: 60,
     textAlignVertical: 'top',
   },
@@ -500,9 +517,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   editSubmitText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  errorText: { color: '#dc2626', fontSize: 11.5 },
+  errorText: { fontSize: 11.5 },
   deletedInfo: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#fecaca' },
-  deletedInfoText: { fontSize: 11, color: '#ef4444' },
+  deletedInfoText: { fontSize: 11 },
   deleteDialog: { marginTop: 10, backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca', borderRadius: 10, padding: 10, gap: 8 },
   deleteDialogText: { fontSize: 12.5, fontWeight: '600', color: '#b91c1c' },
   deleteReasonInput: {
@@ -520,9 +537,9 @@ const styles = StyleSheet.create({
   deleteCancelBtn: { backgroundColor: '#e5e7eb', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
   deleteCancelText: { color: '#374151', fontSize: 11.5, fontWeight: '700' },
   pagerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, paddingVertical: 8 },
-  pagerBtn: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: '#e5e7eb', alignItems: 'center', justifyContent: 'center' },
+  pagerBtn: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   pagerBtnDisabled: { opacity: 0.4 },
-  pagerText: { fontSize: 12, color: '#6b7280', fontWeight: '600' },
+  pagerText: { fontSize: 12, fontWeight: '600' },
   form: { marginTop: 16, backgroundColor: '#2F5755', borderRadius: 12, padding: 14, gap: 10 },
   formLabel: { color: '#E0D9D9', fontSize: 12, fontWeight: '700' },
   input: {

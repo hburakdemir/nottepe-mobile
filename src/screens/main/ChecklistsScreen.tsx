@@ -18,11 +18,14 @@ import ChecklistStatsModal from '../../components/ChecklistStatsModal';
 import ChecklistEditModal from '../../components/ChecklistEditModal';
 import { isWithinEditWindow, type Checklist, type ChecklistItem } from '../../types/checklist';
 import type { RootStackParamList } from '../../navigation/types';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function ChecklistsScreen() {
   const route = useRoute<any>();
   const params = route.params as RootStackParamList['Checklists'];
   const { user } = useAuth();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
   const [checklists, setChecklists] = useState<Checklist[]>([]);
   const [loading, setLoading] = useState(true);
@@ -126,10 +129,10 @@ export default function ChecklistsScreen() {
       <View className="flex-row flex-wrap items-start justify-between gap-3">
         <View className="flex-1">
           <View className="flex-row items-center gap-2.5">
-            <ListChecks size={32} color="#2F5755" />
-            <Text className="text-3xl font-bold text-gray-900">Checklistler</Text>
+            <ListChecks size={32} color={isDark ? '#5A9690' : '#2F5755'} />
+            <Text className="text-2xl font-extrabold text-gray-900 dark:text-darktext">Checklistler</Text>
           </View>
-          <Text className="text-sm text-gray-600 mt-2">
+          <Text className="text-sm text-gray-600 dark:text-darktext mt-2">
             Kayıt dönemi, mezuniyet ve daha fazlası — işaretlediklerin hesabında saklanır.
           </Text>
         </View>
@@ -142,7 +145,7 @@ export default function ChecklistsScreen() {
   );
 
   return (
-    <View className="flex-1 bg-primary">
+    <View className="flex-1 bg-primary dark:bg-darkbgbutton">
       <FlatList
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 40, paddingBottom: 24, flexGrow: 1 }}
         data={checklists}
@@ -160,9 +163,9 @@ export default function ChecklistsScreen() {
         )}
         ListHeaderComponent={header}
         ListEmptyComponent={
-          <View className="items-center gap-3 bg-white rounded-lg p-12" style={SHADOW_MD}>
-            <ListChecks size={64} color="#9ca3af" />
-            <Text className="text-gray-500 text-lg text-center">Henüz yayınlanmış bir checklist yok.</Text>
+          <View className="items-center gap-3 bg-white dark:bg-darkbgbutton rounded-lg p-12" style={SHADOW_MD}>
+            <ListChecks size={64} color={isDark ? '#6b7280' : '#9ca3af'} />
+            <Text className="text-gray-500 dark:text-gray-400 text-lg text-center">Henüz yayınlanmış bir checklist yok.</Text>
           </View>
         }
       />
@@ -178,52 +181,52 @@ export default function ChecklistsScreen() {
 
       <Modal visible={showCreate} transparent animationType="fade" onRequestClose={() => setShowCreate(false)}>
         <View className="flex-1 bg-black/50 justify-center p-4">
-          <View className="bg-white rounded-xl p-6 max-h-[88%]">
+          <View className="bg-white dark:bg-darkbgbutton rounded-xl p-6 max-h-[88%]">
             <View className="flex-row items-center justify-between">
-              <Text className="text-xl font-bold text-gray-900 flex-1 pr-3">Yeni Checklist Oluştur</Text>
+              <Text className="text-xl font-bold text-gray-900 dark:text-darktext flex-1 pr-3">Yeni Checklist Oluştur</Text>
               <Pressable onPress={() => setShowCreate(false)} hitSlop={8}>
-                <X size={20} color="#6b7280" />
+                <X size={20} color={isDark ? '#9ca3af' : '#6b7280'} />
               </Pressable>
             </View>
-            <Text className="text-xs text-gray-400 mt-1 mb-5 leading-4">
+            <Text className="text-xs text-gray-400 dark:text-gray-500 mt-1 mb-5 leading-4">
               Checklistin admin onayına gönderilir; onaylanana kadar yalnızca sana görünür. Oluşturduktan sonra
               1 saat içinde düzenleyebilirsin.
             </Text>
 
-            <Text className="text-sm font-medium text-gray-700 mb-1 mt-4">
+            <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-1 mt-4">
               Başlık <Text style={{ color: '#ef4444' }}>*</Text>
             </Text>
             <TextInput
-              className="border border-gray-300 rounded-lg px-4 py-2 text-base text-gray-900"
+              className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-darkbg rounded-lg px-4 py-2 text-base text-gray-900 dark:text-darktext"
               value={createTitle}
               onChangeText={setCreateTitle}
               maxLength={200}
               placeholder='Örn: "Erasmus Başvuru Süreci"'
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
             />
 
-            <Text className="text-sm font-medium text-gray-700 mb-1 mt-4">Açıklama</Text>
+            <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-1 mt-4">Açıklama</Text>
             <TextInput
-              className="border border-gray-300 rounded-lg px-4 py-2 text-base text-gray-900"
+              className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-darkbg rounded-lg px-4 py-2 text-base text-gray-900 dark:text-darktext"
               value={createDesc}
               onChangeText={setCreateDesc}
               placeholder="Kısa açıklama (opsiyonel)"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
             />
 
-            <Text className="text-sm font-medium text-gray-700 mb-1 mt-4">Maddeler</Text>
+            <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-1 mt-4">Maddeler</Text>
             <View className="gap-2">
               {createItems.map((item, idx) => (
                 <View key={idx} className="flex-row items-center gap-2.5">
                   <TextInput
-                    className="flex-1 mb-0 border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
+                    className="flex-1 mb-0 border border-gray-300 dark:border-gray-600 bg-white dark:bg-darkbg rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-darktext"
                     value={item}
                     onChangeText={(text) =>
                       setCreateItems((prev) => prev.map((v, i) => (i === idx ? text : v)))
                     }
                     maxLength={300}
                     placeholder={`Madde ${idx + 1}`}
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
                   />
                   {createItems.length > 1 && (
                     <Pressable onPress={() => setCreateItems((prev) => prev.filter((_, i) => i !== idx))} hitSlop={8}>
@@ -235,14 +238,14 @@ export default function ChecklistsScreen() {
             </View>
             {createItems.length < 30 && (
               <Pressable className="flex-row items-center gap-[5px] mt-2.5" onPress={() => setCreateItems((prev) => [...prev, ''])}>
-                <Plus size={14} color="#2F5755" />
-                <Text className="text-xs font-medium text-brand">Madde ekle</Text>
+                <Plus size={14} color={isDark ? '#5A9690' : '#2F5755'} />
+                <Text className="text-xs font-medium text-brand dark:text-brand-light">Madde ekle</Text>
               </Pressable>
             )}
 
             <View className="flex-row gap-3 mt-6">
-              <Pressable className="flex-1 items-center py-2 rounded-lg border border-gray-300" onPress={() => setShowCreate(false)}>
-                <Text className="text-gray-700 text-sm font-normal">İptal</Text>
+              <Pressable className="flex-1 items-center py-2 rounded-lg border border-gray-300 dark:border-gray-600" onPress={() => setShowCreate(false)}>
+                <Text className="text-gray-700 dark:text-darktext text-sm font-normal">İptal</Text>
               </Pressable>
               <Pressable
                 className={`flex-1 items-center py-2 rounded-lg bg-brand ${creating ? 'opacity-60' : ''}`}

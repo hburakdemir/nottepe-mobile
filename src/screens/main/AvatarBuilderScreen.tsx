@@ -4,6 +4,7 @@ import Svg, { Rect as SvgRect } from 'react-native-svg';
 import { Check, Dice5, ShieldOff } from 'lucide-react-native';
 import { avatarAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { AvatarSVG } from '../../components/avatar/AvatarSVG';
 import {
   BEARD_COLORS,
@@ -38,7 +39,7 @@ function ColorRow({ colors, activeIdx, onChange }: { colors: string[]; activeIdx
           key={i}
           onPress={() => onChange(i)}
           className={`w-[26px] h-[26px] rounded-[13px] border-2 ${
-            i === activeIdx ? 'border-brand scale-110' : c === '#ffffff' ? 'border-gray-300' : 'border-transparent'
+            i === activeIdx ? 'border-brand dark:border-brand-light scale-110' : c === '#ffffff' ? 'border-gray-300 dark:border-gray-600' : 'border-transparent'
           }`}
           style={{ backgroundColor: c }}
         />
@@ -76,7 +77,7 @@ function OptButton({
       onPress={onPress}
       disabled={disabled}
       className={`w-[38px] h-[38px] rounded-lg border-2 items-center justify-center overflow-hidden ${
-        active ? 'border-brand bg-brand/10' : 'border-gray-200 bg-gray-50'
+        active ? 'border-brand dark:border-brand-light bg-brand/10 dark:bg-brand-light/20' : 'border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-darkbg'
       } ${disabled ? 'opacity-30' : ''}`}
     >
       <MiniSvg rects={rects} skin={skin} />
@@ -87,7 +88,7 @@ function OptButton({
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <View className="mt-4">
-      <Text className="text-[11px] font-bold text-gray-400 tracking-[0.5px] mb-2 uppercase">{label}</Text>
+      <Text className="text-[11px] font-bold text-gray-400 dark:text-gray-500 tracking-[0.5px] mb-2 uppercase">{label}</Text>
       {children}
     </View>
   );
@@ -101,6 +102,8 @@ interface Props {
 }
 
 export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, onClose }: Props) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const [cfg, setCfg] = useState<AvatarConfig>({ ...DEFAULT_AVATAR_CONFIG, ...initialConfig });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -133,8 +136,8 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
   const skin = SKIN_COLORS[cfg.skin] || SKIN_COLORS[0];
 
   return (
-    <View className="flex-1 bg-primary">
-      <View className="items-center py-4 border-b border-gray-100">
+    <View className="flex-1 bg-primary dark:bg-darkbgbutton">
+      <View className="items-center py-4 border-b border-gray-100 dark:border-gray-700/40">
         <View className="w-[150px] h-[150px] rounded-[30px] overflow-hidden border-[3px] border-beige">
           <AvatarSVG config={cfg} size={140} />
         </View>
@@ -264,7 +267,7 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
               />
             ))}
           </View>
-          {!!cfg.jersey && <Text className="text-[11px] text-gray-400 mt-1.5">Forma seçiliyken kıyafet değiştirilemez.</Text>}
+          {!!cfg.jersey && <Text className="text-[11px] text-gray-400 dark:text-gray-500 mt-1.5">Forma seçiliyken kıyafet değiştirilemez.</Text>}
         </Section>
 
         {!cfg.jersey && (
@@ -299,17 +302,17 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
             </View>
             {!!cfg.jersey && (
               <Pressable className="flex-row items-center gap-1.5 mt-2" onPress={() => set('jersey', null)}>
-                <ShieldOff size={14} color="#6b7280" />
-                <Text className="text-xs text-gray-500 font-semibold">Formayı kaldır</Text>
+                <ShieldOff size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
+                <Text className="text-xs text-gray-500 dark:text-gray-400 font-semibold">Formayı kaldır</Text>
               </Pressable>
             )}
-            <Text className="text-[11px] text-gray-400 mt-1.5">Forma seçiliyken renkler sabittir.</Text>
+            <Text className="text-[11px] text-gray-400 dark:text-gray-500 mt-1.5">Forma seçiliyken renkler sabittir.</Text>
           </Section>
         )}
       </ScrollView>
 
-      <Pressable className="items-center py-3.5 border-t border-gray-100" onPress={onClose}>
-        <Text className="text-sm font-bold text-gray-700">Kapat</Text>
+      <Pressable className="items-center py-3.5 border-t border-gray-100 dark:border-gray-700/40" onPress={onClose}>
+        <Text className="text-sm font-bold text-gray-700 dark:text-darktext">Kapat</Text>
       </Pressable>
     </View>
   );

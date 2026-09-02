@@ -3,6 +3,7 @@ import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View 
 import { Clock, Plus, Trash2, X } from 'lucide-react-native';
 import { checklistAPI } from '../lib/api';
 import type { Checklist } from '../types/checklist';
+import { useTheme } from '../context/ThemeContext';
 
 interface EditItem {
   id: number | null;
@@ -16,6 +17,11 @@ interface Props {
 }
 
 export default function ChecklistEditModal({ checklist, onClose, onSaved }: Props) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const mutedColor = isDark ? '#9ca3af' : '#6b7280';
+  const dangerColor = isDark ? '#f87171' : '#dc2626';
+  const linkColor = isDark ? '#60a5fa' : '#1d4ed8';
   const [title, setTitle] = useState(checklist.title);
   const [description, setDescription] = useState(checklist.description || '');
   const [items, setItems] = useState<EditItem[]>(checklist.items.map((i) => ({ id: i.id, content: i.content })));
@@ -69,30 +75,42 @@ export default function ChecklistEditModal({ checklist, onClose, onSaved }: Prop
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={styles.sheet}>
+        <View className="bg-primary dark:bg-darkbgbutton" style={styles.sheet}>
           <View style={styles.headerRow}>
-            <Text style={styles.title}>Checklisti Düzenle</Text>
+            <Text className="text-gray-900 dark:text-darktext" style={styles.title}>Checklisti Düzenle</Text>
             <Pressable onPress={onClose} hitSlop={8}>
-              <X size={20} color="#6b7280" />
+              <X size={20} color={mutedColor} />
             </Pressable>
           </View>
           <View style={styles.remainingRow}>
-            <Clock size={12} color="#9ca3af" />
-            <Text style={styles.remainingText}>Düzenleme için kalan süre: ~{remainingMinutes} dk</Text>
+            <Clock size={12} color={mutedColor} />
+            <Text className="text-gray-500 dark:text-gray-400" style={styles.remainingText}>Düzenleme için kalan süre: ~{remainingMinutes} dk</Text>
           </View>
 
           <ScrollView style={{ marginTop: 16 }}>
-            <Text style={styles.label}>Başlık *</Text>
-            <TextInput style={styles.input} value={title} onChangeText={setTitle} maxLength={200} />
+            <Text className="text-gray-500 dark:text-gray-400" style={styles.label}>Başlık *</Text>
+            <TextInput
+              className="border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-darkbg text-gray-900 dark:text-darktext"
+              style={styles.input}
+              value={title}
+              onChangeText={setTitle}
+              maxLength={200}
+            />
 
-            <Text style={styles.label}>Açıklama</Text>
-            <TextInput style={styles.input} value={description} onChangeText={setDescription} />
+            <Text className="text-gray-500 dark:text-gray-400" style={styles.label}>Açıklama</Text>
+            <TextInput
+              className="border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-darkbg text-gray-900 dark:text-darktext"
+              style={styles.input}
+              value={description}
+              onChangeText={setDescription}
+            />
 
-            <Text style={styles.label}>Maddeler</Text>
+            <Text className="text-gray-500 dark:text-gray-400" style={styles.label}>Maddeler</Text>
             <View style={{ gap: 8 }}>
               {items.map((item, idx) => (
                 <View key={item.id ?? `new-${idx}`} style={styles.itemRow}>
                   <TextInput
+                    className="border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-darkbg text-gray-900 dark:text-darktext"
                     style={[styles.input, { flex: 1, marginBottom: 0 }]}
                     value={item.content}
                     onChangeText={(text) =>
@@ -101,7 +119,7 @@ export default function ChecklistEditModal({ checklist, onClose, onSaved }: Prop
                     maxLength={300}
                   />
                   <Pressable onPress={() => handleRemoveItem(idx)} hitSlop={8}>
-                    <Trash2 size={17} color="#dc2626" />
+                    <Trash2 size={17} color={dangerColor} />
                   </Pressable>
                 </View>
               ))}
@@ -111,17 +129,17 @@ export default function ChecklistEditModal({ checklist, onClose, onSaved }: Prop
                 style={styles.addItemBtn}
                 onPress={() => setItems((prev) => [...prev, { id: null, content: '' }])}
               >
-                <Plus size={13} color="#1d4ed8" />
-                <Text style={styles.addItemText}>Madde ekle</Text>
+                <Plus size={13} color={linkColor} />
+                <Text style={[styles.addItemText, { color: linkColor }]}>Madde ekle</Text>
               </Pressable>
             )}
           </ScrollView>
 
           <View style={styles.actionsRow}>
-            <Pressable style={styles.cancelBtn} onPress={onClose}>
-              <Text style={styles.cancelText}>İptal</Text>
+            <Pressable className="border-gray-200 dark:border-gray-600" style={styles.cancelBtn} onPress={onClose}>
+              <Text className="text-gray-500 dark:text-gray-400" style={styles.cancelText}>İptal</Text>
             </Pressable>
-            <Pressable style={[styles.saveBtn, saving && { opacity: 0.6 }]} onPress={handleSave} disabled={saving}>
+            <Pressable className="bg-brand dark:bg-brand-light" style={[styles.saveBtn, saving && { opacity: 0.6 }]} onPress={handleSave} disabled={saving}>
               <Text style={styles.saveText}>{saving ? 'Kaydediliyor…' : 'Kaydet'}</Text>
             </Pressable>
           </View>
@@ -133,24 +151,22 @@ export default function ChecklistEditModal({ checklist, onClose, onSaved }: Prop
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 16 },
-  sheet: { backgroundColor: '#fff', borderRadius: 16, padding: 20, maxHeight: '88%' },
+  sheet: { borderRadius: 16, padding: 20, maxHeight: '88%' },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: 18, fontWeight: '700', color: '#111827' },
+  title: { fontSize: 18, fontWeight: '800' },
   remainingRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 4 },
-  remainingText: { fontSize: 11, color: '#9ca3af' },
-  label: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6, marginTop: 14 },
+  remainingText: { fontSize: 11 },
+  label: { fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 14 },
   input: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 9,
     fontSize: 14,
-    color: '#111827',
   },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   addItemBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 },
-  addItemText: { fontSize: 12.5, fontWeight: '600', color: '#1d4ed8' },
+  addItemText: { fontSize: 12.5, fontWeight: '600' },
   actionsRow: { flexDirection: 'row', gap: 10, marginTop: 16 },
   cancelBtn: {
     flex: 1,
@@ -158,9 +174,8 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
   },
-  cancelText: { color: '#374151', fontSize: 13.5, fontWeight: '600' },
-  saveBtn: { flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 10, backgroundColor: '#2F5755' },
-  saveText: { color: '#fff', fontSize: 13.5, fontWeight: '700' },
+  cancelText: { fontSize: 13.5, fontWeight: '600' },
+  saveBtn: { flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 10 },
+  saveText: { color: '#fff', fontSize: 13.5, fontWeight: '600' },
 });

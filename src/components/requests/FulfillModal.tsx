@@ -7,6 +7,7 @@ import { noteRequestAPI, postsAPI } from '../../lib/api';
 import type { RootStackParamList, NoteRequestSummary } from '../../navigation/types';
 import type { Post } from '../../types/post';
 import type { NoteRequest } from './RequestCard';
+import { useTheme } from '../../context/ThemeContext';
 
 interface Props {
   request: NoteRequest;
@@ -16,6 +17,10 @@ interface Props {
 
 export default function FulfillModal({ request, onClose, onFulfilled }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const brandColor = isDark ? '#5A9690' : '#2F5755';
+  const mutedColor = isDark ? '#9ca3af' : '#6b7280';
   const [mode, setMode] = useState<'existing' | 'new'>('existing');
   const [myPosts, setMyPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,71 +72,101 @@ export default function FulfillModal({ request, onClose, onFulfilled }: Props) {
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={styles.sheet}>
+        <View className="bg-primary dark:bg-darkbgbutton" style={styles.sheet}>
           <View style={styles.headerRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <HeartHandshake size={20} color="#2F5755" />
-              <Text style={styles.title}>İsteği Karşıla</Text>
+              <HeartHandshake size={20} color={brandColor} />
+              <Text className="text-gray-900 dark:text-darktext" style={styles.title}>İsteği Karşıla</Text>
             </View>
             <Pressable onPress={onClose} hitSlop={8}>
-              <X size={20} color="#6b7280" />
+              <X size={20} color={mutedColor} />
             </Pressable>
           </View>
-          <Text style={styles.subtitle}>"{request.course_name}" isteğini mevcut bir notunla karşıla veya yeni not yükle.</Text>
+          <Text className="text-gray-500 dark:text-gray-400" style={styles.subtitle}>"{request.course_name}" isteğini mevcut bir notunla karşıla veya yeni not yükle.</Text>
 
           <View style={styles.tabRow}>
-            <Pressable style={[styles.tabBtn, mode === 'existing' && styles.tabBtnActive]} onPress={() => setMode('existing')}>
-              <Text style={[styles.tabBtnText, mode === 'existing' && styles.tabBtnTextActive]}>Mevcut Not</Text>
+            <Pressable
+              className="bg-gray-100 dark:bg-gray-700/40"
+              style={[styles.tabBtn, mode === 'existing' && { backgroundColor: brandColor }]}
+              onPress={() => setMode('existing')}
+            >
+              <Text
+                className={mode === 'existing' ? undefined : 'text-gray-500 dark:text-gray-400'}
+                style={[styles.tabBtnText, mode === 'existing' && { color: '#fff' }]}
+              >
+                Mevcut Not
+              </Text>
             </Pressable>
-            <Pressable style={[styles.tabBtn, mode === 'new' && styles.tabBtnActive]} onPress={() => setMode('new')}>
-              <Text style={[styles.tabBtnText, mode === 'new' && styles.tabBtnTextActive]}>Yeni Not</Text>
+            <Pressable
+              className="bg-gray-100 dark:bg-gray-700/40"
+              style={[styles.tabBtn, mode === 'new' && { backgroundColor: brandColor }]}
+              onPress={() => setMode('new')}
+            >
+              <Text
+                className={mode === 'new' ? undefined : 'text-gray-500 dark:text-gray-400'}
+                style={[styles.tabBtnText, mode === 'new' && { color: '#fff' }]}
+              >
+                Yeni Not
+              </Text>
             </Pressable>
           </View>
 
           {mode === 'new' ? (
             <View style={styles.newModeBox}>
-              <Upload size={40} color="#2F5755" />
-              <Text style={styles.newModeText}>
+              <Upload size={40} color={brandColor} />
+              <Text className="text-gray-500 dark:text-gray-400" style={styles.newModeText}>
                 Bu istek için yeni bir not yükle. Fakülte ve bölüm bilgileri otomatik doldurulur; notun onaylanınca
                 istek otomatik olarak karşılanır.
               </Text>
-              <Pressable style={styles.submitBtn} onPress={handleUploadNew}>
+              <Pressable className="bg-brand dark:bg-brand-light" style={styles.submitBtn} onPress={handleUploadNew}>
                 <Text style={styles.submitBtnText}>Yeni Not Yükle</Text>
               </Pressable>
             </View>
           ) : loading ? (
-            <ActivityIndicator style={{ marginVertical: 24 }} color="#2F5755" />
+            <ActivityIndicator style={{ marginVertical: 24 }} color={brandColor} />
           ) : myPosts.length === 0 ? (
-            <Text style={styles.emptyText}>
+            <Text className="text-gray-500 dark:text-gray-400" style={styles.emptyText}>
               Henüz onaylı notun yok. "Yeni Not" sekmesinden bu istek için not yükleyebilirsin.
             </Text>
           ) : (
             <>
-              <View style={styles.searchRow}>
-                <Search size={15} color="#9ca3af" />
+              <View className="border-gray-200 dark:border-gray-600" style={styles.searchRow}>
+                <Search size={15} color={mutedColor} />
                 <TextInput
+                  className="text-gray-900 dark:text-darktext"
                   style={styles.searchInput}
                   value={search}
                   onChangeText={setSearch}
                   placeholder="Notlarında ara..."
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
                 />
               </View>
               <ScrollView style={{ maxHeight: 260 }}>
                 {filteredPosts.length === 0 ? (
-                  <Text style={styles.emptyText}>Aramanla eşleşen not bulunamadı.</Text>
+                  <Text className="text-gray-500 dark:text-gray-400" style={styles.emptyText}>Aramanla eşleşen not bulunamadı.</Text>
                 ) : (
                   filteredPosts.map((post) => {
                     const id = post.id ?? post.post_id!;
                     const selected = selectedId === id;
                     return (
-                      <Pressable key={id} style={[styles.postOption, selected && styles.postOptionSelected]} onPress={() => setSelectedId(id)}>
-                        <FileText size={16} color="#2F5755" />
+                      <Pressable
+                        key={id}
+                        className="border-gray-200 dark:border-gray-600"
+                        style={[
+                          styles.postOption,
+                          selected && {
+                            borderColor: brandColor,
+                            backgroundColor: isDark ? 'rgba(90,150,144,0.18)' : 'rgba(47,87,85,0.10)',
+                          },
+                        ]}
+                        onPress={() => setSelectedId(id)}
+                      >
+                        <FileText size={16} color={brandColor} />
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.postOptionTitle} numberOfLines={1}>
+                          <Text className="text-gray-900 dark:text-darktext" style={styles.postOptionTitle} numberOfLines={1}>
                             {post.title}
                           </Text>
-                          <Text style={styles.postOptionMeta}>
+                          <Text className="text-gray-500 dark:text-gray-400" style={styles.postOptionMeta}>
                             {post.faculty} · {post.department}
                           </Text>
                         </View>
@@ -140,7 +175,12 @@ export default function FulfillModal({ request, onClose, onFulfilled }: Props) {
                   })
                 )}
               </ScrollView>
-              <Pressable style={[styles.submitBtn, (!selectedId || saving) && { opacity: 0.6 }]} onPress={handleFulfill} disabled={!selectedId || saving}>
+              <Pressable
+                className="bg-brand dark:bg-brand-light"
+                style={[styles.submitBtn, (!selectedId || saving) && { opacity: 0.6 }]}
+                onPress={handleFulfill}
+                disabled={!selectedId || saving}
+              >
                 <Text style={styles.submitBtnText}>{saving ? 'Karşılanıyor...' : 'Seçili Notla Karşıla'}</Text>
               </Pressable>
             </>
@@ -153,24 +193,21 @@ export default function FulfillModal({ request, onClose, onFulfilled }: Props) {
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 16 },
-  sheet: { backgroundColor: '#fff', borderRadius: 12, padding: 24, maxHeight: '85%' },
+  sheet: { borderRadius: 12, padding: 24, maxHeight: '85%' },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  title: { fontSize: 20, fontWeight: '700', color: '#111827' },
-  subtitle: { fontSize: 14, color: '#6b7280', marginTop: 8, marginBottom: 14, lineHeight: 19 },
+  title: { fontSize: 20, fontWeight: '800' },
+  subtitle: { fontSize: 14, marginTop: 8, marginBottom: 14, lineHeight: 19 },
   tabRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  tabBtn: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 8, backgroundColor: '#f3f4f6' },
-  tabBtnActive: { backgroundColor: '#2F5755' },
-  tabBtnText: { fontSize: 14, fontWeight: '500', color: '#4b5563' },
-  tabBtnTextActive: { color: '#fff' },
+  tabBtn: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 8 },
+  tabBtnText: { fontSize: 14, fontWeight: '600' },
   newModeBox: { alignItems: 'center', paddingVertical: 12, gap: 10 },
-  newModeText: { fontSize: 14, color: '#4b5563', textAlign: 'center', lineHeight: 19 },
-  emptyText: { fontSize: 13, color: '#9ca3af', textAlign: 'center', paddingVertical: 20 },
-  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, paddingHorizontal: 12, marginBottom: 10 },
-  searchInput: { flex: 1, paddingVertical: 9, fontSize: 14, color: '#111827' },
-  postOption: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 8, padding: 10, marginBottom: 8 },
-  postOptionSelected: { borderColor: '#2F5755', backgroundColor: '#2F575519' },
-  postOptionTitle: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  postOptionMeta: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
-  submitBtn: { backgroundColor: '#2F5755', borderRadius: 8, alignItems: 'center', paddingVertical: 10, marginTop: 6, width: '100%' },
-  submitBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  newModeText: { fontSize: 14, textAlign: 'center', lineHeight: 19 },
+  emptyText: { fontSize: 13, textAlign: 'center', paddingVertical: 20 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, marginBottom: 10 },
+  searchInput: { flex: 1, paddingVertical: 9, fontSize: 14 },
+  postOption: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 8, padding: 10, marginBottom: 8 },
+  postOptionTitle: { fontSize: 14, fontWeight: '600' },
+  postOptionMeta: { fontSize: 12, marginTop: 2 },
+  submitBtn: { borderRadius: 8, alignItems: 'center', paddingVertical: 10, marginTop: 6, width: '100%' },
+  submitBtnText: { color: '#fff', fontSize: 14, fontWeight: '600' },
 });

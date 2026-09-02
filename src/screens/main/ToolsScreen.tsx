@@ -14,6 +14,7 @@ import {
   UtensilsCrossed,
   Wrench,
 } from 'lucide-react-native';
+import { useTheme } from '../../context/ThemeContext';
 import type { RootStackParamList } from '../../navigation/types';
 
 const SHADOW_MD = {
@@ -89,28 +90,30 @@ const TOOLS = [
 
 export default function ToolsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
   return (
-    <ScrollView className="flex-1 bg-primary" contentContainerClassName="p-4 pt-6">
+    <ScrollView className="flex-1 bg-primary dark:bg-darkbgbutton" contentContainerClassName="p-4 pt-6">
       <View className="flex-row items-center gap-3">
-        <Wrench size={32} color="#2F5755" />
-        <Text className="text-3xl font-bold text-gray-900">Araçlar</Text>
+        <Wrench size={32} color={isDark ? '#5A9690' : '#2F5755'} />
+        <Text className="text-3xl font-bold text-gray-900 dark:text-darktext">Araçlar</Text>
       </View>
-      <Text className="text-sm text-gray-500 mt-2 mb-6">Öğrenci hayatını kolaylaştıran Nottepe araçları</Text>
+      <Text className="text-sm text-gray-500 dark:text-gray-400 mt-2 mb-6">Öğrenci hayatını kolaylaştıran Nottepe araçları</Text>
 
       <View className="gap-6">
         {TOOLS.map(({ key, icon: Icon, title, desc }) => (
           <Pressable
             key={key}
-            className="bg-white rounded-xl p-6"
+            className="bg-primary dark:bg-darkbgbutton rounded-xl p-6"
             style={SHADOW_MD}
             onPress={() => navigation.navigate(key as any)}
           >
-            <View className="w-12 h-12 rounded-lg bg-brand/10 items-center justify-center mb-4">
-              <Icon size={24} color="#2F5755" />
+            <View className="w-12 h-12 rounded-lg bg-brand/10 dark:bg-brand-light/20 items-center justify-center mb-4">
+              <Icon size={24} color={isDark ? '#5A9690' : '#2F5755'} />
             </View>
-            <Text className="text-lg font-semibold text-gray-900 mb-2">{title}</Text>
-            <Text className="text-sm text-gray-600 leading-5">{desc}</Text>
+            <Text className="text-lg font-semibold text-gray-900 dark:text-darktext mb-2">{title}</Text>
+            <Text className="text-sm text-gray-600 dark:text-gray-400 leading-5">{desc}</Text>
           </Pressable>
         ))}
       </View>

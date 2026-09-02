@@ -9,6 +9,7 @@ import { postsAPI, ratingAPI } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
 import { useAuth } from '../context/AuthContext';
 import { useSavedPosts } from '../context/SavedPostContext';
+import { useTheme } from '../context/ThemeContext';
 import { useGoToUserProfile } from '../hooks/useGoToUserProfile';
 import BadgeChip from './BadgeChip';
 
@@ -37,6 +38,13 @@ const STATUS_BADGES: Record<string, { bg: string; text: string; label: string }>
 
 export default function PostCard({ post, showStatus = false, showRating = true, onDelete }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  // Web'in PostCard.jsx'indeki dark: token'larıyla birebir eşleşiyor —
+  // lucide ikonları className değil renk prop'u alıyor (bkz. MenuDrawerContent
+  // iconColor deseni), o yüzden burada da tema koşullu hex kullanılıyor.
+  const trashColor = isDark ? '#DFD0B8' : '#6b7280';
+  const fileIconColor = isDark ? '#C5D3E8' : '#1e3a8a';
   const { isAuthenticated, user } = useAuth();
   const isOwner = !!user && String(user.id) === String(post.user_id);
   const { savedPosts, toggleSavePost } = useSavedPosts();
@@ -90,6 +98,7 @@ export default function PostCard({ post, showStatus = false, showRating = true, 
 
   return (
     <Pressable
+      className="bg-primary dark:bg-darkbgbutton rounded-lg mb-3"
       style={styles.card}
       onPress={() => navigation.navigate('PostDetail', { postId })}
     >
@@ -99,28 +108,32 @@ export default function PostCard({ post, showStatus = false, showRating = true, 
         </View>
       )}
       <View style={styles.titleRow}>
-        <Text style={[styles.title, { flex: 1 }]}>{post.title}</Text>
+        <Text className="text-gray-900 dark:text-darktext" style={[styles.title, { flex: 1 }]}>{post.title}</Text>
         {isOwner && (
           <Pressable onPress={handleDelete} hitSlop={8}>
-            <Trash2 size={18} color="#6b7280" />
+            <Trash2 size={18} color={trashColor} />
           </Pressable>
         )}
         {isAuthenticated && (
           <Pressable onPress={() => toggleSavePost(postId)} hitSlop={8}>
-            <Bookmark size={19} color={isSaved ? '#003161' : '#111827'} fill={isSaved ? '#003161' : 'none'} />
+            <Bookmark
+              size={19}
+              color={isDark ? '#DFD0B8' : isSaved ? '#003161' : '#111827'}
+              fill={isSaved ? (isDark ? '#DFD0B8' : '#003161') : 'none'}
+            />
           </Pressable>
         )}
       </View>
-      <Text style={styles.content}>{displayText}</Text>
+      <Text className="text-gray-800 dark:text-darktext" style={styles.content}>{displayText}</Text>
       {isLong && (
         <Pressable onPress={() => setShowMore((v) => !v)}>
-          <Text style={styles.more}>{showMore ? 'Daha az göster' : 'Devamını oku'}</Text>
+          <Text className="text-blue-900 dark:text-primary" style={styles.more}>{showMore ? 'Daha az göster' : 'Devamını oku'}</Text>
         </Pressable>
       )}
 
       {post.link ? (
         <Pressable onPress={() => Linking.openURL(post.link!)}>
-          <Text style={styles.link}>🔗 Linki aç</Text>
+          <Text className="text-blue-900 dark:text-primary" style={styles.link}>🔗 Linki aç</Text>
         </Pressable>
       ) : null}
 
@@ -134,10 +147,10 @@ export default function PostCard({ post, showStatus = false, showRating = true, 
       </View>
 
       <Pressable style={styles.ownerRow} onPress={() => goToUserProfile(post.username)}>
-        <View style={styles.avatarFallback}>
-          <User size={16} color="#6b7280" />
+        <View className="bg-gray-100 dark:bg-gray-700/40" style={styles.avatarFallback}>
+          <User size={16} color={isDark ? '#DFD0B8' : '#6b7280'} />
         </View>
-        <Text style={styles.username}>{post.username || 'Anonim'}</Text>
+        <Text className="text-gray-700 dark:text-darktext" style={styles.username}>{post.username || 'Anonim'}</Text>
         {!!post.badges?.length && (
           <View style={styles.badgeRow}>
             {post.badges.map((badge) => (
@@ -155,8 +168,8 @@ export default function PostCard({ post, showStatus = false, showRating = true, 
               style={styles.fileRow}
               onPress={() => Linking.openURL(getFileUrl(fileName))}
             >
-              <FileText size={16} color="#1e3a8a" />
-              <Text style={styles.fileText}>Notu Gör</Text>
+              <FileText size={16} color={fileIconColor} />
+              <Text className="text-blue-900 dark:text-[#C5D3E8]" style={styles.fileText}>Notu Gör</Text>
             </Pressable>
           ))}
         </View>
@@ -169,23 +182,23 @@ export default function PostCard({ post, showStatus = false, showRating = true, 
               <Star size={16} color={avgRating >= star ? '#eab308' : '#d1d5db'} fill={avgRating >= star ? '#eab308' : 'none'} />
             </Pressable>
           ))}
-          <Text style={styles.ratingText}>
+          <Text className="text-gray-500 dark:text-gray-400" style={styles.ratingText}>
             ({ratingCount > 0 ? `${avgRating.toFixed(1)}/5` : '0.0/5'})
           </Text>
         </View>
       )}
 
-      <View style={styles.footer}>
+      <View className="border-gray-100 dark:border-gray-700/40" style={styles.footer}>
         <View style={styles.footerItem}>
-          <Calendar size={13} color="#6b7280" />
-          <Text style={styles.footerText}>{formatDate(post.created_at)}</Text>
+          <Calendar size={13} color={isDark ? '#9ca3af' : '#6b7280'} />
+          <Text className="text-gray-500 dark:text-gray-400" style={styles.footerText}>{formatDate(post.created_at)}</Text>
         </View>
         <Pressable style={styles.footerItem} onPress={() => navigation.navigate('PostDetail', { postId })}>
-          <MessageSquare size={13} color="#2F5755" />
-          <Text style={styles.footerLink}>Yorumları Gör</Text>
+          <MessageSquare size={13} color={isDark ? '#5A9690' : '#2F5755'} />
+          <Text className="text-brand dark:text-brand-light" style={styles.footerLink}>Yorumları Gör</Text>
           {!!post.comment_count && (
-            <View style={styles.commentPill}>
-              <Text style={styles.commentPillText}>{post.comment_count}</Text>
+            <View className="bg-brand/10 dark:bg-brand-light/20" style={styles.commentPill}>
+              <Text className="text-brand dark:text-brand-light" style={styles.commentPillText}>{post.comment_count}</Text>
             </View>
           )}
         </Pressable>
@@ -196,10 +209,8 @@ export default function PostCard({ post, showStatus = false, showRating = true, 
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
     borderRadius: 8,
     padding: 14,
-    marginBottom: 12,
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -209,10 +220,10 @@ const styles = StyleSheet.create({
   statusBadge: { alignSelf: 'flex-start', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 3, marginBottom: 8 },
   statusBadgeText: { fontSize: 10.5, fontWeight: '700' },
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 6 },
-  title: { fontSize: 17, fontWeight: '600', color: '#111827' },
-  content: { fontSize: 14, color: '#1f2937', lineHeight: 20 },
-  more: { color: '#1d4ed8', fontSize: 13, marginTop: 4 },
-  link: { color: '#1d4ed8', fontSize: 13, marginTop: 8, fontWeight: '500' },
+  title: { fontSize: 17, fontWeight: '600' },
+  content: { fontSize: 14, lineHeight: 20 },
+  more: { fontSize: 13, marginTop: 4 },
+  link: { fontSize: 13, marginTop: 8, fontWeight: '500' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12, marginBottom: 12 },
   chip: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 100 },
   chipBrand: { backgroundColor: '#2F5755' },
@@ -224,15 +235,14 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#f3f4f6',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  username: { fontSize: 13, color: '#374151', fontWeight: '500' },
+  username: { fontSize: 13, fontWeight: '500' },
   fileRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  fileText: { color: '#1e3a8a', fontSize: 13, fontWeight: '500' },
+  fileText: { fontSize: 13, fontWeight: '500' },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 2, marginTop: 8, justifyContent: 'flex-end' },
-  ratingText: { fontSize: 12, color: '#6b7280', marginLeft: 6 },
+  ratingText: { fontSize: 12, marginLeft: 6 },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -240,11 +250,10 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
   },
   footerItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  footerText: { fontSize: 12, color: '#6b7280' },
-  footerLink: { fontSize: 12, color: '#2F5755', fontWeight: '600' },
-  commentPill: { backgroundColor: '#2F575519', borderRadius: 100, paddingHorizontal: 6, paddingVertical: 1 },
-  commentPillText: { fontSize: 11, fontWeight: '700', color: '#2F5755' },
+  footerText: { fontSize: 12 },
+  footerLink: { fontSize: 12, fontWeight: '600' },
+  commentPill: { borderRadius: 100, paddingHorizontal: 6, paddingVertical: 1 },
+  commentPillText: { fontSize: 11, fontWeight: '700' },
 });

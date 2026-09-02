@@ -8,8 +8,9 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import {
   Bell,
@@ -57,6 +58,7 @@ import { DAY_NAMES, getCourseColor, toMinutes, type ScheduleCourse } from '../..
 import { formatGpa } from '../../utils/gano';
 import type { Post } from '../../types/post';
 import type { RootStackParamList } from '../../navigation/types';
+import { useTheme } from '../../context/ThemeContext';
 
 interface AktsCalc {
   id: number;
@@ -98,12 +100,15 @@ function formatDate(dateString: string): string {
 
 export default function ProfileScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'Profile'>>();
   const { user, logout } = useAuth();
   const isStaff = user?.role === 'admin' || user?.role === 'moderator';
   const { savedPosts, fetchSavedPosts } = useSavedPosts();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<TabKey>('posts');
+  const [activeTab, setActiveTab] = useState<TabKey>(route.params?.initialTab ?? 'posts');
 
   const [myPosts, setMyPosts] = useState<Post[]>([]);
   const [savedPostsData, setSavedPostsData] = useState<Post[]>([]);
@@ -285,9 +290,9 @@ export default function ProfileScreen() {
   }
 
   return (
-    <View className="flex-1 bg-primary">
+    <View className="flex-1 bg-primary dark:bg-darkbgbutton">
       <ScrollView>
-        <View className="bg-white p-4 m-4 mb-5 rounded-lg" style={SHADOW_MD}>
+        <View className="bg-white dark:bg-darkbgbutton p-4 m-4 mb-5 rounded-lg" style={SHADOW_MD}>
           <View className="flex-row gap-3.5">
             <View className="w-20 h-20">
               <View className="w-20 h-20 rounded-[20px] bg-brand items-center justify-center overflow-hidden">
@@ -308,23 +313,23 @@ export default function ProfileScreen() {
               </Pressable>
             </View>
             <View className="flex-1">
-              <Text className="text-[19px] font-extrabold text-gray-900">{user?.username}</Text>
-              <Text className="text-[13px] text-gray-600 mt-0.5">{user?.full_name}</Text>
-              <Text className="text-[12.5px] text-gray-500 mt-px">{user?.email}</Text>
-              {!!user?.phone && <Text className="text-xs text-gray-400 mt-0.5">{user.phone}</Text>}
+              <Text className="text-[19px] font-extrabold text-gray-900 dark:text-darktext">{user?.username}</Text>
+              <Text className="text-[13px] text-gray-600 dark:text-darktext mt-0.5">{user?.full_name}</Text>
+              <Text className="text-[12.5px] text-gray-500 dark:text-gray-400 mt-px">{user?.email}</Text>
+              {!!user?.phone && <Text className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{user.phone}</Text>}
               {!!user?.department && (
-                <Text className="text-xs text-gray-400 mt-0.5">
+                <Text className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                   {user.department}
                   {user.faculty ? ` · ${user.faculty}` : ''}
                 </Text>
               )}
-              {!!user?.bio && <Text className="text-[12.5px] text-gray-600 mt-1.5 leading-[17px]">{user.bio}</Text>}
+              {!!user?.bio && <Text className="text-[12.5px] text-gray-600 dark:text-darktext mt-1.5 leading-[17px]">{user.bio}</Text>}
             </View>
           </View>
 
           <View className="flex-row flex-wrap gap-2 mt-3.5">
             {badges.filter((b) => b.is_visible !== false).length === 0 ? (
-              <Text className="text-[11.5px] text-gray-400">Henüz rozet yok — not paylaşarak rozet kazanabilirsin!</Text>
+              <Text className="text-[11.5px] text-gray-400 dark:text-gray-500">Henüz rozet yok — not paylaşarak rozet kazanabilirsin!</Text>
             ) : (
               badges.filter((b) => b.is_visible !== false).map((badge) => <BadgeChip key={badge.id} badge={badge} />)
             )}
@@ -339,7 +344,7 @@ export default function ProfileScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          className="bg-white rounded-lg mx-4 mb-5"
+          className="bg-white dark:bg-darkbgbutton rounded-lg mx-4 mb-5"
           style={SHADOW_MD}
           contentContainerClassName="px-3"
         >
@@ -365,8 +370,8 @@ export default function ProfileScreen() {
                 className={`flex-row items-center gap-[5px] py-3 mr-[18px] border-b-2 ${active ? 'border-b-brand' : 'border-b-transparent'}`}
                 onPress={() => setActiveTab(key)}
               >
-                <Icon size={14} color={active ? '#2F5755' : '#9ca3af'} />
-                <Text className={`text-[12.5px] font-semibold ${active ? 'text-brand' : 'text-gray-400'}`}>
+                <Icon size={14} color={active ? (isDark ? '#5A9690' : '#2F5755') : '#9ca3af'} />
+                <Text className={`text-[12.5px] font-semibold ${active ? 'text-brand dark:text-brand-light' : 'text-gray-400 dark:text-gray-500'}`}>
                   {label}
                   {count !== null ? ` (${count})` : ''}
                 </Text>
@@ -427,18 +432,18 @@ export default function ProfileScreen() {
                 const semesterCount = calc.data?.semesters?.length || 0;
                 const courseCount = calc.data?.semesters?.reduce((sum, s) => sum + (s.courses?.length || 0), 0) || 0;
                 return (
-                  <View key={calc.id} className="flex-row items-center bg-white rounded-lg p-3.5 mb-3" style={SHADOW_SM}>
+                  <View key={calc.id} className="flex-row items-center bg-white dark:bg-darkbgbutton rounded-lg p-3.5 mb-3" style={SHADOW_SM}>
                     <View className="flex-1">
-                      <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>
+                      <Text className="text-sm font-bold text-gray-900 dark:text-darktext" numberOfLines={1}>
                         {calc.title}
                       </Text>
-                      <Text className="text-[11.5px] text-gray-400 mt-0.5">
+                      <Text className="text-[11.5px] text-gray-400 dark:text-gray-500 mt-0.5">
                         {semesterCount} dönem · {courseCount} ders · {formatDate(calc.updated_at)}
                       </Text>
                     </View>
                     <View className="items-center mr-2.5">
-                      <Text className="text-lg font-extrabold text-brand">{formatGpa(calc.gpa)}</Text>
-                      <Text className="text-[9px] text-gray-400 uppercase">GANO</Text>
+                      <Text className="text-lg font-extrabold text-brand dark:text-brand-light">{formatGpa(calc.gpa)}</Text>
+                      <Text className="text-xs text-gray-400 dark:text-gray-500 uppercase">GANO</Text>
                     </View>
                     <Pressable className="bg-brand rounded-lg px-2.5 py-[7px]" onPress={() => navigation.navigate('AktsCalculator', { loadId: calc.id })}>
                       <Text className="text-white text-xs font-bold">Düzenle</Text>
@@ -464,16 +469,16 @@ export default function ProfileScreen() {
                   const dayCourses = mySchedule.filter((c) => c.day === day).sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
                   if (dayCourses.length === 0) return null;
                   return (
-                    <View key={day} className="bg-white rounded-lg p-3.5 mb-3" style={SHADOW_SM}>
-                      <Text className="text-[13px] font-bold text-gray-900 mb-2">{DAY_NAMES[day]}</Text>
+                    <View key={day} className="bg-white dark:bg-darkbgbutton rounded-lg p-3.5 mb-3" style={SHADOW_SM}>
+                      <Text className="text-[13px] font-bold text-gray-900 dark:text-darktext mb-2">{DAY_NAMES[day]}</Text>
                       {dayCourses.map((c) => (
                         <View key={c.id} className="flex-row items-center gap-2 py-1.5">
                           <View className="w-1 h-[26px] rounded-sm" style={{ backgroundColor: getCourseColor(c.colorIdx).hex }} />
                           <View className="flex-1">
-                            <Text className="text-[12.5px] font-semibold text-gray-900" numberOfLines={1}>
+                            <Text className="text-[12.5px] font-semibold text-gray-900 dark:text-darktext" numberOfLines={1}>
                               {c.name}
                             </Text>
-                            <Text className="text-[11px] text-gray-500 mt-px">
+                            <Text className="text-[11px] text-gray-500 dark:text-gray-400 mt-px">
                               {c.start}–{c.end}
                               {c.location ? ` · ${c.location}` : ''}
                             </Text>
@@ -491,16 +496,16 @@ export default function ProfileScreen() {
               <EmptyState icon={Bell} text='Henüz bölüm takip etmiyorsun. Bölüm sayfasındaki "Takip Et" butonuyla haberdar olabilirsin.' actionLabel="Bölümlere Göz At" onAction={() => navigation.navigate('Departments')} />
             ) : (
               follows.map((f) => (
-                <View key={`${f.faculty}-${f.department}`} className="flex-row items-center bg-white rounded-lg p-3.5 mb-3" style={SHADOW_SM}>
+                <View key={`${f.faculty}-${f.department}`} className="flex-row items-center bg-white dark:bg-darkbgbutton rounded-lg p-3.5 mb-3" style={SHADOW_SM}>
                   <Pressable className="flex-1" onPress={() => navigation.navigate('DepartmentDetail', { faculty: f.faculty, department: f.department })}>
-                    <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>
+                    <Text className="text-sm font-bold text-gray-900 dark:text-darktext" numberOfLines={1}>
                       {f.department}
                     </Text>
-                    <Text className="text-[11.5px] text-gray-400 mt-0.5">{f.faculty}</Text>
+                    <Text className="text-[11.5px] text-gray-400 dark:text-gray-500 mt-0.5">{f.faculty}</Text>
                   </Pressable>
-                  <Pressable className="flex-row items-center gap-[5px] border border-gray-200 rounded-lg px-2.5 py-[7px]" onPress={() => handleUnfollow(f.faculty, f.department)}>
-                    <BellOff size={13} color="#6b7280" />
-                    <Text className="text-[11.5px] text-gray-500 font-semibold">Bırak</Text>
+                  <Pressable className="flex-row items-center gap-[5px] border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-[7px]" onPress={() => handleUnfollow(f.faculty, f.department)}>
+                    <BellOff size={13} color={isDark ? '#9ca3af' : '#6b7280'} />
+                    <Text className="text-[11.5px] text-gray-500 dark:text-gray-400 font-semibold">Bırak</Text>
                   </Pressable>
                 </View>
               ))
@@ -515,7 +520,7 @@ export default function ProfileScreen() {
               forumItems.map((item) => (
                 <Pressable
                   key={item.key}
-                  className="flex-row gap-2 bg-white rounded-lg p-3.5 mb-3"
+                  className="flex-row gap-2 bg-white dark:bg-darkbgbutton rounded-lg p-3.5 mb-3"
                   style={SHADOW_SM}
                   onPress={() =>
                     item.kind === 'faq'
@@ -523,15 +528,19 @@ export default function ProfileScreen() {
                       : navigation.navigate('SuggestionDetail', { id: item.targetId })
                   }
                 >
-                  {item.kind === 'faq' ? <HelpCircle size={15} color="#2F5755" /> : <Lightbulb size={15} color="#2F5755" />}
+                  {item.kind === 'faq' ? (
+                    <HelpCircle size={15} color={isDark ? '#5A9690' : '#2F5755'} />
+                  ) : (
+                    <Lightbulb size={15} color={isDark ? '#5A9690' : '#2F5755'} />
+                  )}
                   <View className="flex-1">
-                    <Text className="text-[11.5px] font-semibold text-gray-500">{item.title}</Text>
+                    <Text className="text-[11.5px] font-semibold text-gray-500 dark:text-gray-400">{item.title}</Text>
                     {!!item.body && (
-                      <Text className="text-sm text-gray-700 mt-[3px]" numberOfLines={2}>
+                      <Text className="text-sm text-gray-700 dark:text-darktext mt-[3px]" numberOfLines={2}>
                         {item.body}
                       </Text>
                     )}
-                    <Text className="text-[10.5px] text-gray-400 mt-1">{formatDate(item.created_at)}</Text>
+                    <Text className="text-[10.5px] text-gray-400 dark:text-gray-500 mt-1">{formatDate(item.created_at)}</Text>
                   </View>
                 </Pressable>
               ))
@@ -587,10 +596,12 @@ function EmptyState({
   actionLabel?: string;
   onAction?: () => void;
 }) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   return (
     <View className="items-center py-[50px] gap-2.5">
-      <Icon size={40} color="#d1d5db" />
-      <Text className="text-gray-400 text-[13.5px] text-center px-[30px]">{text}</Text>
+      <Icon size={40} color={isDark ? '#6b7280' : '#d1d5db'} />
+      <Text className="text-gray-400 dark:text-gray-500 text-[13.5px] text-center px-[30px]">{text}</Text>
       {!!actionLabel && (
         <Pressable className="bg-brand rounded-[10px] px-[18px] py-2.5 mt-1" onPress={onAction}>
           <Text className="text-white text-[13px] font-bold">{actionLabel}</Text>

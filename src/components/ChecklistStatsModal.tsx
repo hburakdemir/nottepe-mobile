@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BarChart2, Users, X } from 'lucide-react-native';
 import { checklistAPI } from '../lib/api';
+import { useTheme } from '../context/ThemeContext';
 import { useGoToUserProfile } from '../hooks/useGoToUserProfile';
 import type { Checklist } from '../types/checklist';
 
@@ -18,6 +19,11 @@ function formatDate(dateString: string): string {
 
 export default function ChecklistStatsModal({ checklist, onClose }: { checklist: Checklist; onClose: () => void }) {
   const goToUserProfile = useGoToUserProfile();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const mutedIconColor = isDark ? '#DFD0B8' : '#6b7280';
+  const brandIconColor = isDark ? '#5A9690' : '#2F5755';
+  const sectionIconColor = isDark ? '#DFD0B8' : '#374151';
   const [completers, setCompleters] = useState<Completer[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -54,45 +60,45 @@ export default function ChecklistStatsModal({ checklist, onClose }: { checklist:
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={styles.sheet}>
+        <View className="bg-primary dark:bg-darkbgbutton" style={styles.sheet}>
           <View style={styles.headerRow}>
-            <Text style={styles.title} numberOfLines={1}>
+            <Text className="text-gray-900 dark:text-darktext" style={styles.title} numberOfLines={1}>
               {checklist.title}
             </Text>
             <Pressable onPress={onClose} hitSlop={8}>
-              <X size={20} color="#6b7280" />
+              <X size={20} color={mutedIconColor} />
             </Pressable>
           </View>
-          <Text style={styles.subtitle}>Checklist istatistikleri</Text>
+          <Text className="text-gray-500 dark:text-gray-400" style={styles.subtitle}>Checklist istatistikleri</Text>
 
           <ScrollView style={{ marginTop: 12 }}>
-            <View style={styles.summaryBox}>
-              <Users size={22} color="#2F5755" />
+            <View className="bg-brand/10 dark:bg-brand-light/20" style={styles.summaryBox}>
+              <Users size={22} color={brandIconColor} />
               <View>
-                <Text style={styles.summaryCount}>
+                <Text className="text-brand dark:text-brand-light" style={styles.summaryCount}>
                   {checklist.completion?.completedCount ?? total} kişi
                 </Text>
-                <Text style={styles.summaryLabel}>checklistin tamamını işaretleyerek tamamladı</Text>
+                <Text className="text-gray-500 dark:text-gray-400" style={styles.summaryLabel}>checklistin tamamını işaretleyerek tamamladı</Text>
               </View>
             </View>
 
             <View style={styles.sectionHeaderRow}>
-              <BarChart2 size={15} color="#374151" />
-              <Text style={styles.sectionHeader}>Madde bazlı işaretlenme</Text>
+              <BarChart2 size={15} color={sectionIconColor} />
+              <Text className="text-gray-700 dark:text-darktext" style={styles.sectionHeader}>Madde bazlı işaretlenme</Text>
             </View>
             {items.length === 0 ? (
-              <Text style={styles.emptyText}>Bu checklistte henüz madde yok.</Text>
+              <Text className="text-gray-500 dark:text-gray-400" style={styles.emptyText}>Bu checklistte henüz madde yok.</Text>
             ) : (
               <View style={{ gap: 10, marginBottom: 16 }}>
                 {items.map((item) => (
                   <View key={item.id}>
                     <View style={styles.itemStatRow}>
-                      <Text style={styles.itemStatText} numberOfLines={1}>
+                      <Text className="text-gray-800 dark:text-darktext" style={styles.itemStatText} numberOfLines={1}>
                         {item.content}
                       </Text>
-                      <Text style={styles.itemStatCount}>{item.checkedCount}</Text>
+                      <Text className="text-gray-800 dark:text-darktext" style={styles.itemStatCount}>{item.checkedCount}</Text>
                     </View>
-                    <View style={styles.barTrack}>
+                    <View className="bg-gray-200 dark:bg-gray-700/40" style={styles.barTrack}>
                       <View style={[styles.barFill, { width: `${(item.checkedCount / maxChecked) * 100}%` }]} />
                     </View>
                   </View>
@@ -101,18 +107,19 @@ export default function ChecklistStatsModal({ checklist, onClose }: { checklist:
             )}
 
             <View style={styles.sectionHeaderRow}>
-              <Users size={15} color="#374151" />
-              <Text style={styles.sectionHeader}>Dolduranlar</Text>
+              <Users size={15} color={sectionIconColor} />
+              <Text className="text-gray-700 dark:text-darktext" style={styles.sectionHeader}>Dolduranlar</Text>
             </View>
             {loading ? (
               <ActivityIndicator style={{ marginVertical: 16 }} color="#1d4ed8" />
             ) : completers.length === 0 ? (
-              <Text style={styles.emptyText}>Bu checklisti henüz kimse tamamlamadı.</Text>
+              <Text className="text-gray-500 dark:text-gray-400" style={styles.emptyText}>Bu checklisti henüz kimse tamamlamadı.</Text>
             ) : (
               <View style={{ gap: 8 }}>
                 {completers.map((c) => (
                   <Pressable
                     key={c.id}
+                    className="bg-gray-50 dark:bg-gray-700/40 border-gray-100 dark:border-gray-700/40"
                     style={styles.completerRow}
                     onPress={() => {
                       onClose();
@@ -120,12 +127,12 @@ export default function ChecklistStatsModal({ checklist, onClose }: { checklist:
                     }}
                   >
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.completerName} numberOfLines={1}>
+                      <Text className="text-gray-900 dark:text-darktext" style={styles.completerName} numberOfLines={1}>
                         {c.full_name}
                       </Text>
-                      <Text style={styles.completerUsername}>@{c.username}</Text>
+                      <Text className="text-gray-500 dark:text-gray-400" style={styles.completerUsername}>@{c.username}</Text>
                     </View>
-                    <Text style={styles.completerDate}>{formatDate(c.completed_at)}</Text>
+                    <Text className="text-gray-500 dark:text-gray-400" style={styles.completerDate}>{formatDate(c.completed_at)}</Text>
                   </Pressable>
                 ))}
                 {hasMore && (
@@ -133,7 +140,7 @@ export default function ChecklistStatsModal({ checklist, onClose }: { checklist:
                     {loadingMore ? (
                       <ActivityIndicator color="#1d4ed8" />
                     ) : (
-                      <Text style={styles.loadMoreText}>Daha fazla göster</Text>
+                      <Text className="text-blue-700 dark:text-blue-400" style={styles.loadMoreText}>Daha fazla göster</Text>
                     )}
                   </Pressable>
                 )}
@@ -148,43 +155,40 @@ export default function ChecklistStatsModal({ checklist, onClose }: { checklist:
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 16 },
-  sheet: { backgroundColor: '#fff', borderRadius: 16, padding: 20, maxHeight: '85%' },
+  sheet: { borderRadius: 16, padding: 20, maxHeight: '85%' },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  title: { flex: 1, fontSize: 17, fontWeight: '700', color: '#111827' },
-  subtitle: { fontSize: 11.5, color: '#9ca3af', marginTop: 2 },
+  title: { flex: 1, fontSize: 20, fontWeight: '800' },
+  subtitle: { fontSize: 11.5, marginTop: 2 },
   summaryBox: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#2F575519',
     borderRadius: 12,
     padding: 14,
     marginBottom: 16,
   },
-  summaryCount: { fontSize: 17, fontWeight: '700', color: '#2F5755' },
-  summaryLabel: { fontSize: 11.5, color: '#6b7280', marginTop: 2 },
+  summaryCount: { fontSize: 17, fontWeight: '700' },
+  summaryLabel: { fontSize: 11.5, marginTop: 2 },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  sectionHeader: { fontSize: 13, fontWeight: '700', color: '#374151' },
-  emptyText: { fontSize: 12, color: '#9ca3af', marginBottom: 16 },
+  sectionHeader: { fontSize: 13, fontWeight: '700' },
+  emptyText: { fontSize: 12, marginBottom: 16 },
   itemStatRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginBottom: 4 },
-  itemStatText: { flex: 1, fontSize: 12, color: '#4b5563' },
-  itemStatCount: { fontSize: 12, fontWeight: '600', color: '#4b5563' },
-  barTrack: { height: 5, borderRadius: 100, backgroundColor: '#e5e7eb', overflow: 'hidden' },
+  itemStatText: { flex: 1, fontSize: 12 },
+  itemStatCount: { fontSize: 12, fontWeight: '600' },
+  barTrack: { height: 5, borderRadius: 100, overflow: 'hidden' },
   barFill: { height: '100%', backgroundColor: '#4f7d7a', borderRadius: 100 },
   completerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     borderWidth: 1,
-    borderColor: '#f3f4f6',
-    backgroundColor: '#f9fafb',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 9,
   },
-  completerName: { fontSize: 13, fontWeight: '600', color: '#111827' },
-  completerUsername: { fontSize: 11, color: '#6b7280' },
-  completerDate: { fontSize: 11, color: '#9ca3af' },
+  completerName: { fontSize: 13, fontWeight: '600' },
+  completerUsername: { fontSize: 11 },
+  completerDate: { fontSize: 11 },
   loadMore: { alignItems: 'center', paddingVertical: 10 },
-  loadMoreText: { color: '#1d4ed8', fontSize: 13, fontWeight: '600' },
+  loadMoreText: { fontSize: 13, fontWeight: '600' },
 });
