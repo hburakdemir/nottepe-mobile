@@ -32,15 +32,26 @@ Uygulama ikonu için yazısız, Hacettepe kimliğine uygun amblem arayışının
 | `08-acik-kitap-dolu.svg` | Açık Kitap | dolu |
 | `09-lowpoly-faceted.svg` | Low-poly Geyik Başı | faceted |
 | `10-lowpoly-rozet-gradient.svg` | Low-poly Geyik Başı | rozet + gradient |
+| `11-bolunmus-amblem-dolu.svg` | Bölünmüş Amblem | dolu (bordo+teal) |
+| `12-bolunmus-amblem-cizgisel.svg` | Bölünmüş Amblem | çizgisel (bordo+teal) |
+| `13-gradyan-rozet-bordo-teal.svg` | Gradyan Rozet | bordo → teal |
+| `14-gradyan-rozet-n-teal-bordo.svg` | Gradyan Rozet + N | teal → bordo |
+| `15-bolunmus-n-bordo-teal.svg` | Bölünmüş N | bordo + teal |
+| `16-teal-zemin-bordo-halka.svg` | Teal Zemin, Bordo Halka | üç renk |
+
+11-16 numaralı dosyalar, Nottepe'nin kendi ekranlarında (HomeScreen,
+ProfileScreen vb.) zaten kullandığı site rengi olan teal'i (`#2F5755`)
+Hacettepe bordo/krem paletiyle aynı markada birleştiriyor.
 
 ## Palet
 
 | Rol | Hex |
 |---|---|
-| Bordo (birincil) | `#7A2038` |
+| Bordo (birincil, Hacettepe) | `#7A2038` |
 | Bordo koyu | `#4A1220` |
 | Krem (ikincil) | `#F3EAD9` |
 | Pirinç (vurgu) | `#B9925A` |
+| Teal (Nottepe site rengi) | `#2F5755` |
 
 ## Sıradaki adım
 

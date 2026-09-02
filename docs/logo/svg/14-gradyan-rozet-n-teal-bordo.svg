@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 240 240">
+  <title>Gradyan Rozet + N — teal → bordo</title>
+  <defs>
+    <linearGradient id="gradTB" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2F5755" />
+      <stop offset="1" stop-color="#7a2038" />
+    </linearGradient>
+  </defs>
+  <rect width="240" height="240" fill="url(#gradTB)" />
+  <g transform="translate(40,38) scale(0.8)">
+    <rect x="30" y="25" width="32" height="153" fill="#f3ead9" />
+    <rect x="138" y="25" width="32" height="153" fill="#f3ead9" />
+    <polygon points="59.07,15.77 167.07,168.77 140.93,187.23 32.93,34.23" fill="#f3ead9" />
+    <line x1="46" y1="25" x2="32" y2="8" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+    <line x1="46" y1="25" x2="58" y2="12" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+    <line x1="154" y1="25" x2="142" y2="12" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+    <line x1="154" y1="25" x2="168" y2="8" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+  </g>
+</svg>

@@ -239,6 +239,30 @@
     .brief { grid-template-columns: 1fr; }
     .grid { grid-template-columns: 1fr; }
   }
+
+  .section-break {
+    margin: 44px 0 22px;
+    padding-top: 28px;
+    border-top: 1px solid var(--brass-dim);
+  }
+
+  .section-break .masthead-mark { margin-bottom: 6px; }
+
+  .section-break h2 {
+    font-family: 'Petrona', Georgia, serif;
+    font-weight: 600;
+    font-size: 24px;
+    color: var(--cream);
+    margin: 4px 0 10px;
+  }
+
+  .section-break p {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--rose);
+    max-width: 74ch;
+    margin: 0;
+  }
 </style>
 
 <!-- ============ shared mark definitions ============ -->
@@ -268,6 +292,18 @@
       <path d="M100,108 C114,100 132,100 142,106 C132,146 114,150 100,160 Z" fill="#000" />
     </mask>
 
+    <clipPath id="clipLeft"><rect x="0" y="0" width="100" height="205" /></clipPath>
+    <clipPath id="clipRight"><rect x="100" y="0" width="100" height="205" /></clipPath>
+
+    <linearGradient id="gradBT" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7a2038" />
+      <stop offset="1" stop-color="#2F5755" />
+    </linearGradient>
+    <linearGradient id="gradTB" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2F5755" />
+      <stop offset="1" stop-color="#7a2038" />
+    </linearGradient>
+
     <linearGradient id="badgeGrad" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#a8405c" />
       <stop offset="1" stop-color="#3d0f1c" />
@@ -283,7 +319,7 @@
       <h1>Geyik Amblem Numuneleri</h1>
     </div>
     <div class="masthead-right">
-      Numune adedi: <span>10</span><br />
+      Numune adedi: <span>16</span><br />
       Metin içeriği: <span>yok</span><br />
       Sürüm: <span>ön izleme</span>
     </div>
@@ -326,6 +362,11 @@
         <div class="chip" style="background:#b9925a"></div>
         <div class="swatch-label">Pirinç — vurgu</div>
         <div class="swatch-hex">#B9925A</div>
+      </div>
+      <div class="swatch-row">
+        <div class="chip" style="background:#2F5755"></div>
+        <div class="swatch-label">Nottepe teal — site rengi</div>
+        <div class="swatch-hex">#2F5755</div>
       </div>
     </div>
   </div>
@@ -591,8 +632,184 @@
 
   </div>
 
+  <div class="section-break">
+    <div class="masthead-mark">Ek Bölüm — 11 / 16 – 16 / 16</div>
+    <h2>Karma Palet: Hacettepe + Nottepe</h2>
+    <p>
+      Aynı bordo/krem aileye, Nottepe'nin kendi uygulamasında zaten kullandığı
+      site rengi olan koyu teal'i (<strong style="color:#8fbdb9">#2F5755</strong> —
+      HomeScreen, ProfileScreen ve diğer ekranlardaki asıl vurgu rengi) katan
+      6 numune. Amaç iki kimliği tek markada görünür şekilde birleştirmek:
+      miras (bordo) + uygulamanın bugünkü kendi rengi (teal).
+    </p>
+  </div>
+
+  <div class="grid">
+
+    <!-- 11 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square on-cream">
+          <svg viewBox="0 0 200 205">
+            <use href="#deerMark" fill="#7a2038" clip-path="url(#clipLeft)" />
+            <use href="#deerMark" fill="#2F5755" clip-path="url(#clipRight)" />
+            <line x1="100" y1="10" x2="100" y2="194" stroke="#f3ead9" stroke-width="2" />
+          </svg>
+        </div>
+        <div class="preview circle on-cream">
+          <svg viewBox="0 0 200 205">
+            <use href="#deerMark" fill="#7a2038" clip-path="url(#clipLeft)" />
+            <use href="#deerMark" fill="#2F5755" clip-path="url(#clipRight)" />
+            <line x1="100" y1="10" x2="100" y2="194" stroke="#f3ead9" stroke-width="2" />
+          </svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">11 / 16</div>
+        <div class="plate-title">Bölünmüş Amblem</div>
+        <span class="plate-tag">dolu</span>
+        <p class="plate-note">Simetrik silüet tam ortadan ikiye ayrılıyor: sol bordo (Hacettepe), sağ teal (Nottepe).</p>
+      </div>
+    </div>
+
+    <!-- 12 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square on-cream">
+          <svg viewBox="0 0 200 205">
+            <use href="#deerMark" fill="none" stroke="#7a2038" stroke-width="7" stroke-linejoin="round" clip-path="url(#clipLeft)" />
+            <use href="#deerMark" fill="none" stroke="#2F5755" stroke-width="7" stroke-linejoin="round" clip-path="url(#clipRight)" />
+          </svg>
+        </div>
+        <div class="preview circle on-cream">
+          <svg viewBox="0 0 200 205">
+            <use href="#deerMark" fill="none" stroke="#7a2038" stroke-width="7" stroke-linejoin="round" clip-path="url(#clipLeft)" />
+            <use href="#deerMark" fill="none" stroke="#2F5755" stroke-width="7" stroke-linejoin="round" clip-path="url(#clipRight)" />
+          </svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">12 / 16</div>
+        <div class="plate-title">Bölünmüş Amblem</div>
+        <span class="plate-tag">çizgisel</span>
+        <p class="plate-note">Aynı bölünme, bu kez ince hatlarla — daha sakin, rozet/kırtasiye kullanımına uygun.</p>
+      </div>
+    </div>
+
+    <!-- 13 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square" style="background:linear-gradient(135deg,#7a2038,#2F5755)">
+          <svg viewBox="0 0 200 205"><use href="#deerMark" fill="#f3ead9" /></svg>
+        </div>
+        <div class="preview circle" style="background:linear-gradient(135deg,#7a2038,#2F5755)">
+          <svg viewBox="0 0 200 205"><use href="#deerMark" fill="#f3ead9" /></svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">13 / 16</div>
+        <div class="plate-title">Gradyan Rozet</div>
+        <span class="plate-tag">bordo → teal</span>
+        <p class="plate-note">Amblem krem, zemin bordodan teal'e akan bir gradyan — iki rengin birbirine geçtiği tek bir yüzey.</p>
+      </div>
+    </div>
+
+    <!-- 14 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square" style="background:linear-gradient(135deg,#2F5755,#7a2038)">
+          <svg viewBox="0 0 200 205">
+            <rect x="30" y="25" width="32" height="153" fill="#f3ead9" />
+            <rect x="138" y="25" width="32" height="153" fill="#f3ead9" />
+            <polygon points="59.07,15.77 167.07,168.77 140.93,187.23 32.93,34.23" fill="#f3ead9" />
+            <line x1="46" y1="25" x2="32" y2="8" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+            <line x1="46" y1="25" x2="58" y2="12" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="142" y2="12" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="168" y2="8" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div class="preview circle" style="background:linear-gradient(135deg,#2F5755,#7a2038)">
+          <svg viewBox="0 0 200 205">
+            <rect x="30" y="25" width="32" height="153" fill="#f3ead9" />
+            <rect x="138" y="25" width="32" height="153" fill="#f3ead9" />
+            <polygon points="59.07,15.77 167.07,168.77 140.93,187.23 32.93,34.23" fill="#f3ead9" />
+            <line x1="46" y1="25" x2="32" y2="8" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+            <line x1="46" y1="25" x2="58" y2="12" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="142" y2="12" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="168" y2="8" stroke="#f3ead9" stroke-width="5" stroke-linecap="round" />
+          </svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">14 / 16</div>
+        <div class="plate-title">Gradyan Rozet + N</div>
+        <span class="plate-tag">teal → bordo</span>
+        <p class="plate-note">"Belirgin N" bu kez teal'den bordoya geçen zemin üstünde krem monogram olarak.</p>
+      </div>
+    </div>
+
+    <!-- 15 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square on-cream">
+          <svg viewBox="0 0 200 205">
+            <rect x="30" y="25" width="32" height="153" fill="#7a2038" />
+            <rect x="138" y="25" width="32" height="153" fill="#7a2038" />
+            <polygon points="59.07,15.77 167.07,168.77 140.93,187.23 32.93,34.23" fill="#2F5755" />
+            <line x1="46" y1="25" x2="32" y2="8" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="46" y1="25" x2="58" y2="12" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="142" y2="12" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="168" y2="8" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div class="preview circle on-cream">
+          <svg viewBox="0 0 200 205">
+            <rect x="30" y="25" width="32" height="153" fill="#7a2038" />
+            <rect x="138" y="25" width="32" height="153" fill="#7a2038" />
+            <polygon points="59.07,15.77 167.07,168.77 140.93,187.23 32.93,34.23" fill="#2F5755" />
+            <line x1="46" y1="25" x2="32" y2="8" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="46" y1="25" x2="58" y2="12" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="142" y2="12" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+            <line x1="154" y1="25" x2="168" y2="8" stroke="#7a2038" stroke-width="5" stroke-linecap="round" />
+          </svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">15 / 16</div>
+        <div class="plate-title">Bölünmüş N</div>
+        <span class="plate-tag">bordo + teal</span>
+        <p class="plate-note">N'in iki dikey çubuğu bordo, ortadaki köşegini teal — tek harfte iki rengi de taşıyor.</p>
+      </div>
+    </div>
+
+    <!-- 16 -->
+    <div class="plate"><i class="tick-bl"></i><i class="tick-br"></i>
+      <div class="previews">
+        <div class="preview square" style="background:#2F5755">
+          <svg viewBox="0 0 200 205">
+            <circle cx="100" cy="102" r="96" fill="none" stroke="#7a2038" stroke-width="5" />
+            <use href="#deerMark" fill="#f3ead9" transform="translate(0,-4) scale(0.86)" transform-origin="100 102" />
+          </svg>
+        </div>
+        <div class="preview circle" style="background:#2F5755">
+          <svg viewBox="0 0 200 205">
+            <circle cx="100" cy="102" r="96" fill="none" stroke="#7a2038" stroke-width="5" />
+            <use href="#deerMark" fill="#f3ead9" transform="translate(0,-4) scale(0.86)" transform-origin="100 102" />
+          </svg>
+        </div>
+      </div>
+      <div class="plate-meta">
+        <div class="plate-num">16 / 16</div>
+        <div class="plate-title">Teal Zemin, Bordo Halka</div>
+        <span class="plate-tag">üç renk</span>
+        <p class="plate-note">Uygulamanın kendi teal zemini, ince bordo çerçeve, krem amblem — üçü bir arada.</p>
+      </div>
+    </div>
+
+  </div>
+
   <footer>
-    <span>10 numune · yazı yok · bordo + krem + pirinç</span>
+    <span>16 numune · yazı yok · bordo + krem + pirinç + teal</span>
     <span>Nottepe — logo ön çalışması</span>
   </footer>
 </div>
