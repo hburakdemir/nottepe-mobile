@@ -16,8 +16,11 @@ const toQueryString = (params: Record<string, unknown> = {}) => {
   return serialized ? `?${serialized}` : '';
 };
 
+const REQUEST_TIMEOUT_MS = 15000;
+
 const api = axios.create({
   baseURL: API_URL,
+  timeout: REQUEST_TIMEOUT_MS,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -39,9 +42,16 @@ function isRequestAborted(error: any) {
   const code = error?.code || '';
   return (
     code === 'ERR_CANCELED' ||
-    code === 'ECONNABORTED' ||
     /abort|cancell?ed/i.test(msg)
   );
+}
+
+// İnternet yok ya da istek zaman aşımına uğradıysa (bkz. REQUEST_TIMEOUT_MS)
+// axios bir response üretmez; ekranlar bu durumu sunucu hatasından ayırıp
+// "bağlantı yok" mesajı gösterebilsin diye ayrı bir yardımcı fonksiyon.
+export function isNetworkError(error: any) {
+  const code = error?.code || '';
+  return !error?.response && (code === 'ECONNABORTED' || code === 'ERR_NETWORK' || !!error?.request);
 }
 
 api.interceptors.response.use(

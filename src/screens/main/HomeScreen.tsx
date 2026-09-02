@@ -16,6 +16,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowRight, ChevronDown, HeartHandshake, Search, X } from 'lucide-react-native';
 import { noteRequestAPI, postsAPI } from '../../lib/api';
 import PostCard from '../../components/PostCard';
+import ErrorState from '../../components/ErrorState';
 import { faculties as ALL_FACULTIES } from '../../data/departments';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
@@ -139,11 +140,7 @@ export default function HomeScreen() {
   }
 
   if (isError) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.errorText}>Notlar yüklenemedi.</Text>
-      </View>
-    );
+    return <ErrorState message="Notlar yüklenemedi." onRetry={refetch} />;
   }
 
   return (
