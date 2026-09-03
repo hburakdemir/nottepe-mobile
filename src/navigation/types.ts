@@ -35,6 +35,7 @@ export type RootStackParamList = {
   Suggestions: undefined;
   SuggestionDetail: { id: number };
   CafeteriaMenu: undefined;
+  Ego130Schedule: undefined;
   Leaderboard: undefined;
   Help: undefined;
   // Web'de "/notifications" ve "/duyurular" aynı NotificationsPage'i farklı

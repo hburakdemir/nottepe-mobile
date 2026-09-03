@@ -8,7 +8,7 @@ import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, NavigationContainer, type Theme } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts as useSoraFonts, Sora_400Regular, Sora_500Medium, Sora_600SemiBold, Sora_700Bold, Sora_800ExtraBold } from '@expo-google-fonts/sora';
 import { AuthProvider } from './src/context/AuthContext';
@@ -30,6 +30,22 @@ function ThemedStatusBar() {
   return <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />;
 }
 
+// react-navigation'in VARSAYILAN temasi acik ve arka plani rgb(242,242,242).
+// Konteynere hic tema verilmedigi icin, itilen sayfanin yuvarlatilmis
+// kose"lerinin ARKASINDA kalan bosluklarda (ust-sol ve alt-sol) tam da bu renk
+// goruluyordu — koyu temada beyaz bir centik gibi. Arka plani menu panelininkiyle
+// ayni yapiyoruz ki o bosluk menunun devami gibi dursun, centik kaybolsun.
+function ThemedNavigationContainer({ children }: { children: React.ReactNode }) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const base = isDark ? DarkTheme : DefaultTheme;
+  const navTheme: Theme = {
+    ...base,
+    colors: { ...base.colors, background: isDark ? '#222831' : '#FFFFFF' },
+  };
+  return <NavigationContainer theme={navTheme}>{children}</NavigationContainer>;
+}
+
 export default function App() {
   const [fontsReady] = useSoraFonts({ Sora_400Regular, Sora_500Medium, Sora_600SemiBold, Sora_700Bold, Sora_800ExtraBold });
 
@@ -44,10 +60,10 @@ export default function App() {
           <QueryClientProvider client={queryClient}>
             <AuthProvider>
               <SavedPostsProvider>
-                <NavigationContainer>
+                <ThemedNavigationContainer>
                   <RootNavigator />
                   <ThemedStatusBar />
-                </NavigationContainer>
+                </ThemedNavigationContainer>
               </SavedPostsProvider>
             </AuthProvider>
           </QueryClientProvider>

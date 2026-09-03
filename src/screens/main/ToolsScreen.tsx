@@ -3,6 +3,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
+  Bus,
   Calculator,
   CalendarDays,
   HeartHandshake,
@@ -55,6 +56,12 @@ const TOOLS = [
     icon: CalendarDays,
     title: 'Ders Programı',
     desc: 'Haftalık ders programını oluştur; çakışmaları anında gör.',
+  },
+  {
+    key: 'Ego130Schedule' as const,
+    icon: Bus,
+    title: '130 Ring Saatleri',
+    desc: 'Beytepe Metro İstasyonu - Hacettepe Beytepe Kampüsü ring hattının sefer saatleri, internetsizken de çalışır.',
   },
   {
     key: 'NoteRequests' as const,
