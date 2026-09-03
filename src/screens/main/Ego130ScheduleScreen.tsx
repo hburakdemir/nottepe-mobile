@@ -204,6 +204,7 @@ export default function Ego130ScheduleScreen() {
 
   return (
     <ScrollView
+      pointerEvents="box-none"
       style={{ backgroundColor: t.ground }}
       contentContainerStyle={{ padding: SCREEN_PADDING, paddingTop: 16, paddingBottom: 92 }}
     >
