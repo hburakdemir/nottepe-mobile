@@ -25,6 +25,12 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: 36
+          ndk-version: '27.1.12297006'
+
       - name: Install dependencies
         run: npm install
 
