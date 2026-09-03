@@ -327,7 +327,7 @@ export default function UserProfileScreen() {
             </ScrollView>
           </View>
 
-          <View className="gap-3">
+          <View className={activeTab === 'posts' || activeTab === 'saved' ? '' : 'gap-3'}>
             {activeTab === 'posts' &&
               (postsLoading ? (
                 <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />

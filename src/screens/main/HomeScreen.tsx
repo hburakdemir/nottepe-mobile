@@ -5,6 +5,7 @@ import {
   Modal,
   Pressable,
   RefreshControl,
+  StyleSheet,
   Text,
   TextInput,
   View,
@@ -17,6 +18,7 @@ import { noteRequestAPI, postsAPI } from '../../lib/api';
 import PostCard from '../../components/PostCard';
 import DepartmentQuickNav from '../../components/home/DepartmentQuickNav';
 import { useTheme } from '../../context/ThemeContext';
+import { useCardSurface, useFeedTokens } from '../../theme/feedTokens';
 import { faculties as ALL_FACULTIES } from '../../data/departments';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
@@ -26,18 +28,14 @@ interface PostsPage {
   total: number;
 }
 
-const SHADOW_MD = {
-  shadowColor: '#000',
-  shadowOpacity: 0.1,
-  shadowRadius: 8,
-  shadowOffset: { width: 0, height: 3 },
-  elevation: 3,
-};
-
 export default function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  // Kartlar kalktı, satırlar tek zemin üstünde ince çizgiyle ayrılıyor
+  // (bkz. theme/feedTokens.ts + PostCardModern) — liste artık kenardan kenara.
+  const t = useFeedTokens();
+  const cardSurface = useCardSurface();
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [faculty, setFaculty] = useState('');
@@ -104,15 +102,15 @@ export default function HomeScreen() {
   const hasMore = posts.length < total;
 
   const filterBar = (
-    <View>
+    <View style={{ paddingHorizontal: 12, paddingTop: 12 }}>
       <Text className="text-2xl font-extrabold text-gray-900 dark:text-darktext mb-1">Tüm Notlar</Text>
       <Text className="text-[13px] text-gray-500 dark:text-darktext mb-4">Öğrenciler tarafından paylaşılan ders notlarını inceleyin</Text>
 
       <DepartmentQuickNav />
 
       <Pressable
-        className="flex-row items-center gap-3 bg-primary dark:bg-darkbgbutton rounded-lg p-3.5 mb-3 border border-gray-100 dark:border-gray-700"
-        style={SHADOW_MD}
+        className="flex-row items-center gap-3 p-3.5 mb-3"
+        style={[cardSurface, { borderRadius: 16 }]}
         onPress={() => navigation.navigate('NoteRequests')}
       >
         <View className="w-[38px] h-[38px] rounded-[10px] bg-brand/10 dark:bg-brand-light/20 items-center justify-center">
@@ -130,7 +128,10 @@ export default function HomeScreen() {
         </View>
       </Pressable>
 
-      <View className="bg-primary dark:bg-darkbgbutton rounded-lg p-4 mb-3.5" style={SHADOW_MD}>
+      <View
+        className="p-4 mb-1"
+        style={[cardSurface, { borderRadius: 16 }]}
+      >
         <View className="flex-row items-center gap-2 bg-gray-50 dark:bg-darkbg border border-gray-200 dark:border-gray-600 rounded-[10px] px-3 mb-2.5">
           <Search size={16} color="#5A9690" />
           <TextInput
@@ -172,10 +173,10 @@ export default function HomeScreen() {
   }
 
   return (
-    <View className="flex-1 bg-primary dark:bg-darkbgbutton">
+    <View style={{ flex: 1, backgroundColor: t.ground }}>
       <FlatList
         className="flex-1"
-        contentContainerStyle={{ padding: 12, flexGrow: 1 }}
+        contentContainerStyle={{ paddingBottom: 92, flexGrow: 1 }}
         data={posts}
         keyExtractor={(item) => String(item.id ?? item.post_id)}
         renderItem={({ item }) => <PostCard post={item} />}

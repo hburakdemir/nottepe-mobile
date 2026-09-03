@@ -18,4 +18,13 @@ export interface Post {
   rating_count?: number;
   comment_count?: number;
   badges?: Badge[];
+  // Yazarın avatarı liste sorgusuyla birlikte geliyor (backend
+  // models/postModel.js — avatars tablosuna LEFT JOIN), ayrı istek gerekmiyor.
+  avatar_config?: Record<string, unknown> | null;
+  avatar_photo_path?: string | null;
+  avatar_display_mode?: 'avatar' | 'photo' | 'both' | null;
+  // Fotoğraflı avatar yalnızca admin/moderatör yazarlarda gösteriliyor
+  // (bkz. buildPostAuthorAvatar). Backend bu alanı dönmezse herkes çizim
+  // avatarla görünür — bilinçli güvenli varsayılan.
+  user_role?: string | null;
 }

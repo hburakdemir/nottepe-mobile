@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Bookmark, Calendar, ExternalLink, FileText, Star, Trash2, User } from 'lucide-react-native';
+import { Bookmark, Link2, Star, Trash2, User } from 'lucide-react-native';
 import { postsAPI } from '../../lib/api';
-import { getFileUrl } from '../../lib/config';
 import { useAuth } from '../../context/AuthContext';
 import { useSavedPosts } from '../../context/SavedPostContext';
-import { useTheme } from '../../context/ThemeContext';
+import { useCardSurface, useFeedTokens } from '../../theme/feedTokens';
 import { useGoToUserProfile } from '../../hooks/useGoToUserProfile';
+import { buildPostAuthorAvatar } from '../../lib/postAuthorAvatar';
+import AvatarDisplay from '../../components/avatar/AvatarDisplay';
+import FileTiles from '../../components/FileTiles';
+import BadgeChip from '../../components/BadgeChip';
 import CommentSection from '../../components/CommentSection';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
@@ -21,13 +24,17 @@ function formatDate(dateString: string): string {
   });
 }
 
+// Akıştaki kartla (PostCardModern — "R1 · Sakin Şerit") aynı dil: kart/gölge
+// yok, tek zemin, künye → başlık → içerik → dosya şeridi → kimlik sırası.
+// Detayda fark: içerik kısaltılmıyor, dosyalar tek tek listeleniyor, tarih tam
+// yazılıyor ve altta yorumlar var.
 export default function PostDetailScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user, isAuthenticated } = useAuth();
   const { savedPosts, toggleSavePost } = useSavedPosts();
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const t = useFeedTokens();
+  const cardSurface = useCardSurface();
   const goToUserProfile = useGoToUserProfile();
   const { postId } = route.params as RootStackParamList['PostDetail'];
   const isSaved = savedPosts.includes(String(postId));
@@ -74,16 +81,16 @@ export default function PostDetailScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color={isDark ? '#60a5fa' : '#1d4ed8'} />
+      <View style={[styles.center, { backgroundColor: t.ground }]}>
+        <ActivityIndicator size="large" color={t.accent} />
       </View>
     );
   }
 
   if (error || !post) {
     return (
-      <View className="flex-1 items-center justify-center">
-        <Text className="text-gray-500 dark:text-gray-400 text-sm">{error || 'Gönderi bulunamadı.'}</Text>
+      <View style={[styles.center, { backgroundColor: t.ground }]}>
+        <Text style={{ color: t.ink2, fontSize: 14 }}>{error || 'Gönderi bulunamadı.'}</Text>
       </View>
     );
   }
@@ -91,95 +98,94 @@ export default function PostDetailScreen() {
   const isOwner = user && String(user.id) === String(post.user_id);
   const avgRating = Number(post.avg_rating) || 0;
   const ratingCount = post.rating_count || 0;
+  const authorAvatar = buildPostAuthorAvatar(post);
+  const files = post.file_urls ?? [];
 
   return (
-    <ScrollView className="flex-1 bg-primary dark:bg-darkbgbutton" contentContainerClassName="px-4 py-6">
-      <View className="bg-white dark:bg-darkbgbutton rounded-2xl p-6" style={SHADOW_MD}>
-        <View className="flex-row items-start justify-between gap-3">
-          <Text className="flex-1 text-xl font-bold text-gray-900 dark:text-darktext leading-7">{post.title}</Text>
-          <View className="flex-row gap-3.5">
-            {isAuthenticated && (
-              <Pressable onPress={() => toggleSavePost(postId)} hitSlop={8}>
-                <Bookmark
-                  size={20}
-                  color={isDark ? '#DFD0B8' : isSaved ? '#003161' : '#6b7280'}
-                  fill={isSaved ? (isDark ? '#DFD0B8' : '#003161') : 'none'}
-                />
-              </Pressable>
-            )}
+    <ScrollView
+      style={{ flex: 1, backgroundColor: t.ground }}
+      contentContainerStyle={{ paddingBottom: 90 }}
+    >
+      <View style={[styles.head, cardSurface]}>
+        {/* Profil en üstte: avatar + kullanıcı adı + rozetler + tarih, sağda
+            kaydet/sil. Fakülte ve bölüm künyesi en alta indi. */}
+        <View style={styles.authorRow}>
+          <Pressable style={styles.who} onPress={() => goToUserProfile(post.username)} hitSlop={6}>
+            <View style={[styles.avatar, { backgroundColor: t.inset }]}>
+              {authorAvatar ? (
+                <AvatarDisplay avatar={authorAvatar} size={36} showBg={false} />
+              ) : (
+                <User size={18} color={t.ink3} />
+              )}
+            </View>
+            <View style={{ minWidth: 0, flexShrink: 1 }}>
+              <View style={styles.nameLine}>
+                <Text style={[styles.whoName, { color: t.ink }]} numberOfLines={1}>
+                  {post.username || 'Anonim'}
+                </Text>
+                {!!post.badges?.length && (
+                  <View style={styles.badgeRow}>
+                    {post.badges.map((badge) => (
+                      <BadgeChip key={badge.id} badge={badge} compact />
+                    ))}
+                  </View>
+                )}
+              </View>
+              <Text style={[styles.date, { color: t.ink3 }]}>{formatDate(post.created_at)}</Text>
+            </View>
+          </Pressable>
+
+          <View style={styles.actions}>
             {isOwner && (
               <Pressable onPress={handleDeletePost} hitSlop={8}>
-                <Trash2 size={20} color="#f87171" />
+                <Trash2 size={18} color={t.danger} strokeWidth={2} />
+              </Pressable>
+            )}
+            {isAuthenticated && (
+              <Pressable onPress={() => toggleSavePost(postId)} hitSlop={8} accessibilityLabel="Kaydet">
+                <Bookmark size={19} color={isSaved ? t.ink : t.ink2} fill={isSaved ? t.ink : 'none'} strokeWidth={2} />
               </Pressable>
             )}
           </View>
         </View>
 
-        <View className="flex-row flex-wrap gap-2 mt-5">
-          <View className="px-3 py-1 rounded-full bg-brand">
-            <Text className="text-white text-xs font-medium">{post.faculty}</Text>
-          </View>
-          <View className="px-3 py-1 rounded-full bg-brand-light">
-            <Text className="text-white text-xs font-medium">{post.department}</Text>
-          </View>
-        </View>
+        <Text style={[styles.title, { color: t.ink }]}>{post.title}</Text>
 
-        <View className="flex-row items-center gap-4 mt-5">
-          <Pressable className="flex-row items-center gap-1.5" onPress={() => goToUserProfile(post.username)}>
-            <View className="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-700/40 items-center justify-center">
-              <User size={16} color={isDark ? '#DFD0B8' : '#6b7280'} />
-            </View>
-            <Text className="text-sm text-gray-500 dark:text-gray-400">{post.username || 'Anonim'}</Text>
+        {!!post.content && <Text style={[styles.body, { color: t.ink2 }]}>{post.content}</Text>}
+
+        {/* Detayda sınır yok: bütün dosyalar kendi kutucuğuyla listeleniyor. */}
+        {files.length > 0 && <FileTiles files={files} />}
+
+        {post.link ? (
+          <Pressable style={styles.linkRow} onPress={() => Linking.openURL(post.link!)} hitSlop={6}>
+            <Link2 size={14} color={t.ink2} strokeWidth={2} />
+            <Text style={[styles.linkText, { color: t.ink2 }]} numberOfLines={1}>Bağlantıyı aç</Text>
           </Pressable>
-          <View className="flex-row items-center gap-1.5">
-            <Calendar size={16} color={isDark ? '#9ca3af' : '#6b7280'} />
-            <Text className="text-sm text-gray-500 dark:text-gray-400">{formatDate(post.created_at)}</Text>
-          </View>
-        </View>
+        ) : null}
 
-        <View className="flex-row items-center gap-1.5 mt-5">
+        <Text style={[styles.crumb, { color: t.ink3 }]}>
+          {post.faculty}
+          {!!post.faculty && !!post.department && <Text style={{ color: t.line }}>{'  ›  '}</Text>}
+          <Text style={[styles.crumbDept, { color: t.ink2 }]}>{post.department}</Text>
+        </Text>
+
+        <View style={[styles.ratingRow, { borderTopColor: t.line }]}>
           {[1, 2, 3, 4, 5].map((star) => (
             <Star
               key={star}
               size={16}
-              color={avgRating >= star ? '#eab308' : '#d1d5db'}
-              fill={avgRating >= star ? '#eab308' : 'none'}
+              color={avgRating >= star ? t.amber : t.line}
+              fill={avgRating >= star ? t.amber : 'none'}
+              strokeWidth={1.6}
             />
           ))}
-          <Text className="text-sm text-gray-500 dark:text-gray-400 ml-1">
+          <Text style={[styles.ratingText, { color: t.ink3 }]}>
             {ratingCount > 0 ? `${avgRating.toFixed(1)}/5 · ${ratingCount} puan` : 'Henüz puan yok'}
           </Text>
         </View>
+      </View>
 
-        <Text className="text-sm text-gray-700 dark:text-darktext leading-[23px] mt-5">{post.content}</Text>
-
-        {post.link ? (
-          <Pressable className="flex-row items-center gap-1.5 mt-5" onPress={() => Linking.openURL(post.link!)}>
-            <ExternalLink size={16} color={isDark ? '#ffffff' : '#1e3a8a'} />
-            <Text className="text-blue-900 dark:text-primary text-sm font-normal">Linki aç</Text>
-          </Pressable>
-        ) : null}
-
-        {post.file_urls && post.file_urls.length > 0 && (
-          <View className="mt-5">
-            <Text className="text-xs font-medium text-gray-500 dark:text-gray-400 tracking-[0.3px] mb-1.5">DOSYALAR</Text>
-            <View className="flex-row flex-wrap gap-2">
-              {post.file_urls.map((fileName, index) => (
-                <Pressable
-                  key={index}
-                  className="flex-row items-center gap-1.5 bg-gray-100 dark:bg-gray-700/40 rounded-lg px-3 py-1.5"
-                  onPress={() => Linking.openURL(getFileUrl(fileName))}
-                >
-                  <FileText size={16} color={isDark ? '#C5D3E8' : '#1e3a8a'} />
-                  <Text className="text-sm text-blue-900 dark:text-[#C5D3E8]">{fileName}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        )}
-
-        <View className="h-px bg-gray-100 dark:bg-gray-700/40 mt-5" />
-
+      <View style={[styles.comments, cardSurface]}>
         <CommentSection
           postId={postId}
           postOwnerId={post.user_id}
@@ -193,10 +199,40 @@ export default function PostDetailScreen() {
   );
 }
 
-const SHADOW_MD = {
-  shadowColor: '#000',
-  shadowOpacity: 0.1,
-  shadowRadius: 8,
-  shadowOffset: { width: 0, height: 3 },
-  elevation: 3,
-};
+const styles = StyleSheet.create({
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  // Gönderi ve yorumlar iki ayrı kart — akıştaki kartlarla aynı dil.
+  head: {
+    marginHorizontal: 12,
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 16,
+    borderRadius: 16,
+    gap: 13,
+  },
+  crumb: { fontSize: 12.5, lineHeight: 18 },
+  crumbDept: { fontWeight: '600' },
+  title: { fontSize: 23, fontWeight: '600', lineHeight: 30, letterSpacing: -0.3 },
+  body: { fontSize: 14.5, lineHeight: 23 },
+  linkRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  linkText: { fontSize: 12.5, fontWeight: '500' },
+  authorRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  nameLine: { flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' },
+  who: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1, minWidth: 0 },
+  avatar: { width: 36, height: 36, borderRadius: 18, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  whoName: { fontSize: 14, fontWeight: '600' },
+  date: { fontSize: 11.5, marginTop: 1 },
+  badgeRow: { flexDirection: 'row', gap: 3 },
+  actions: { marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 16 },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingTop: 14, marginTop: 6, borderTopWidth: StyleSheet.hairlineWidth },
+  ratingText: { fontSize: 12.5, marginLeft: 8 },
+  comments: {
+    marginHorizontal: 12,
+    marginTop: 10,
+    paddingHorizontal: 16,
+    paddingTop: 4,
+    paddingBottom: 12,
+    borderRadius: 16,
+  },
+});

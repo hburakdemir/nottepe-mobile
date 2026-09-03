@@ -44,6 +44,10 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useSavedPosts } from '../../context/SavedPostContext';
 import PostCard from '../../components/PostCard';
+
+// Gönderi satırları kenardan kenara akıyor (bkz. PostCardModern) — bu iki
+// sekmede dış yatay boşluk kaldırılıyor, diğerlerinde duruyor.
+const POST_TABS = new Set(['posts', 'saved']);
 import BadgeChip, { type Badge } from '../../components/BadgeChip';
 import ChecklistCard from '../../components/ChecklistCard';
 import ChecklistStatsModal from '../../components/ChecklistStatsModal';
@@ -51,6 +55,7 @@ import ChecklistEditModal from '../../components/ChecklistEditModal';
 import ProfileEditModal from '../../components/profile/ProfileEditModal';
 import DeleteAccountModal from '../../components/profile/DeleteAccountModal';
 import AvatarBuilderScreen from './AvatarBuilderScreen';
+import { useInvalidateMyAvatar } from '../../hooks/useMyAvatar';
 import AvatarDisplay from '../../components/avatar/AvatarDisplay';
 import type { AvatarData } from '../../components/avatar/AvatarDisplay';
 import { isWithinEditWindow, type Checklist, type ChecklistItem } from '../../types/checklist';
@@ -121,6 +126,9 @@ export default function ProfileScreen() {
   const [follows, setFollows] = useState<Follow[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
   const [avatar, setAvatar] = useState<AvatarData | null>(null);
+  // Üst bar ve tab bar avatarı ortak bir react-query anahtarından besleniyor
+  // (bkz. hooks/useMyAvatar.ts) — burada avatar değişince onlar da tazelensin.
+  const invalidateMyAvatar = useInvalidateMyAvatar();
   const [photoUploading, setPhotoUploading] = useState(false);
 
   const [forumItems, setForumItems] = useState<ForumItem[] | null>(null);
@@ -274,6 +282,7 @@ export default function ProfileScreen() {
         type: asset.mimeType || 'image/jpeg',
       });
       setAvatar(res.data.avatar);
+      invalidateMyAvatar();
     } catch (err: any) {
       Alert.alert('Hata', err.response?.data?.error || 'Fotoğraf yüklenemedi.');
     } finally {
@@ -380,7 +389,7 @@ export default function ProfileScreen() {
           })}
         </ScrollView>
 
-        <View className="px-4 gap-2.5">
+        <View className={POST_TABS.has(activeTab) ? '' : 'px-4 gap-2.5'}>
           {activeTab === 'posts' &&
             (myPosts.length === 0 ? (
               <EmptyState icon={FileText} text="Henüz not paylaşmadınız." />
@@ -578,6 +587,7 @@ export default function ProfileScreen() {
           onClose={() => setShowAvatarBuilder(false)}
           onSaved={(newCfg) => {
             setAvatar((prev) => ({ ...(prev || {}), config: newCfg }));
+            invalidateMyAvatar();
           }}
         />
       </Modal>

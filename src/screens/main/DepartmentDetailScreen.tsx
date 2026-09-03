@@ -7,6 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Bell, BellOff } from 'lucide-react-native';
 import { postsAPI, departmentFollowAPI } from '../../lib/api';
 import PostCard from '../../components/PostCard';
+import { useFeedTokens } from '../../theme/feedTokens';
 import { useTheme } from '../../context/ThemeContext';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
@@ -22,6 +23,7 @@ export default function DepartmentDetailScreen() {
   const { faculty, department } = route.params as RootStackParamList['DepartmentDetail'];
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  const t = useFeedTokens();
 
   const [isFollowing, setIsFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
@@ -114,8 +116,9 @@ export default function DepartmentDetailScreen() {
 
   return (
     <FlatList
-      className="flex-1 bg-primary dark:bg-darkbgbutton"
-      contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 32, paddingBottom: 16, flexGrow: 1 }}
+      className="flex-1"
+      style={{ backgroundColor: t.ground }}
+      contentContainerStyle={{ paddingTop: 4, paddingBottom: 92, flexGrow: 1 }}
       data={posts}
       keyExtractor={(item) => String(item.id ?? item.post_id)}
       renderItem={({ item }) => <PostCard post={item} />}

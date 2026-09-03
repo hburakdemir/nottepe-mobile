@@ -4,10 +4,12 @@ import { Bookmark } from 'lucide-react-native';
 import { savedPostsAPI } from '../../lib/api';
 import { useSavedPosts } from '../../context/SavedPostContext';
 import PostCard from '../../components/PostCard';
+import { useFeedTokens } from '../../theme/feedTokens';
 import type { Post } from '../../types/post';
 
 export default function SavedPostsScreen() {
   const { savedPosts } = useSavedPosts();
+  const t = useFeedTokens();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,8 +39,9 @@ export default function SavedPostsScreen() {
 
   return (
     <FlatList
-      className="flex-1 bg-primary dark:bg-darkbgbutton"
-      contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 32, flexGrow: 1 }}
+      className="flex-1"
+      style={{ backgroundColor: t.ground }}
+      contentContainerStyle={{ paddingTop: 4, paddingBottom: 92, flexGrow: 1 }}
       data={posts}
       keyExtractor={(item) => String(item.id ?? item.post_id)}
       renderItem={({ item }) => <PostCard post={item} />}

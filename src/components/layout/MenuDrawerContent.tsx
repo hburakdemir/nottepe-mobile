@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
@@ -30,8 +31,8 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme, type ThemePreference } from '../../context/ThemeContext';
-import { avatarAPI, departmentFollowAPI, notificationAPI, postsAPI, savedPostsAPI, userNotificationAPI } from '../../lib/api';
-import type { AvatarData } from '../avatar/AvatarDisplay';
+import { departmentFollowAPI, notificationAPI, postsAPI, savedPostsAPI, userNotificationAPI } from '../../lib/api';
+import { useMyAvatar } from '../../hooks/useMyAvatar';
 import AvatarDisplay from '../avatar/AvatarDisplay';
 import DeerIcon from '../icons/DeerIcon';
 import type { RootStackParamList } from '../../navigation/types';
@@ -42,16 +43,26 @@ interface MenuLinkProps {
   color: string;
   badge?: number;
   onPress: () => void;
+  isSubItem?: boolean;
 }
 
 // Web'in `px-3 py-2 rounded-md` linkleriyle (Navbar.jsx satır ~467-540) birebir
 // aynı padding/font-size; ikon rengi web'deki gibi metinle aynı currentColor'ı
 // takip ediyor (dark: darktext, light: gray-700) — sabit gri değil.
-function MenuLink({ icon: Icon, label, color, badge, onPress }: MenuLinkProps) {
+function MenuLink({ icon: Icon, label, color, badge, onPress, isSubItem }: MenuLinkProps) {
+  const subItemClasses = "pl-11 pr-3 py-2 rounded-md active:bg-gray-100 dark:active:bg-gray-700/40";
+  const mainItemClasses = "flex-row items-center gap-4 px-3 py-3.5 rounded-md active:bg-gray-100 dark:active:bg-gray-700/40";
+
+  const subItemTextClasses = "text-gray-700 dark:text-darktext text-[13px] font-semibold";
+  const mainItemTextClasses = "text-gray-700 dark:text-darktext text-[17px] font-bold";
+
   return (
-    <Pressable onPress={onPress} className="flex-row items-center gap-4 px-3 py-3.5 rounded-md active:bg-gray-100 dark:active:bg-gray-700/40">
-      <Icon size={22} color={color} />
-      <Text className="text-gray-700 dark:text-darktext text-[20px] font-bold">{label}</Text>
+    <Pressable onPress={onPress} className={isSubItem ? subItemClasses : mainItemClasses}>
+      {!isSubItem && <Icon size={22} color={color} />}
+      <View className="flex-row items-center gap-2 flex-1  ">
+        {isSubItem && <Icon size={18} color={color} />}
+        <Text className={isSubItem ? subItemTextClasses : mainItemTextClasses}>{label}</Text>
+      </View>
       {!!badge && badge > 0 && (
         <View className="ml-auto min-w-[16px] h-4 px-1 rounded-full bg-red-500 items-center justify-center">
           <Text className="text-white text-[10px] font-bold">{badge > 99 ? '99+' : badge}</Text>
@@ -88,7 +99,12 @@ function FollowedDepartmentsSection({
   const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
-    if (!isOpen) return;
+    // Menü kapanınca liste başa dönsün — bir sonraki açılışta panel hep en
+    // baştaki haliyle karşılasın (bkz. MenuDrawerContent scroll sıfırlaması).
+    if (!isOpen) {
+      setShowAll(false);
+      return;
+    }
     departmentFollowAPI
       .getMine()
       .then((res) => setFollows(res.data?.follows || []))
@@ -104,7 +120,7 @@ function FollowedDepartmentsSection({
         className="flex-row items-center gap-4 px-3 py-3.5 rounded-md active:bg-gray-100 dark:active:bg-gray-700/40"
       >
         <GraduationCap size={22} color={iconColor} />
-        <Text className="text-gray-700 dark:text-darktext text-[20px] font-bold flex-1">
+        <Text className="text-gray-700 dark:text-darktext text-[17px] font-bold flex-1">
           Henüz takip ettiğin bölüm yok, eklemek için dokun
         </Text>
       </Pressable>
@@ -126,7 +142,7 @@ function FollowedDepartmentsSection({
         className="flex-row items-center gap-4 px-3 py-3.5 rounded-md active:bg-gray-100 dark:active:bg-gray-700/40"
       >
         <GraduationCap size={22} color={iconColor} />
-        <Text className="text-gray-700 dark:text-darktext text-[20px] font-bold flex-1" numberOfLines={1}>
+        <Text className="text-gray-700 dark:text-darktext text-[17px] font-bold flex-1" numberOfLines={1}>
           {first.department}
         </Text>
       </Pressable>
@@ -167,10 +183,26 @@ const TOOLS_EXTRA = [
 // Not İstekleri/SSS/Öneriler/Yardım zaten üstte ayrı link olarak var — burada
 // sadece o dörtte olmayan araçlar listeleniyor (bkz. ToolsScreen.tsx TOOLS).
 // Ok, açılınca Reanimated ile 180° dönüyor (statik CSS transform değil).
-function ToolsSection({ iconColor, onNavigate }: { iconColor: string; onNavigate: (fn: () => void) => void }) {
+function ToolsSection({
+  iconColor,
+  isDrawerOpen,
+  onNavigate,
+}: {
+  iconColor: string;
+  isDrawerOpen: boolean;
+  onNavigate: (fn: () => void) => void;
+}) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [open, setOpen] = useState(false);
   const rotation = useSharedValue(0);
+
+  // Menü kapanınca kapalı duruma dön: panel her açılışta aynı (en baştaki)
+  // görünümde olsun, önceki açılışta açık bıraktığın bölüm hatırlanmasın.
+  useEffect(() => {
+    if (isDrawerOpen) return;
+    setOpen(false);
+    rotation.value = 0;
+  }, [isDrawerOpen, rotation]);
 
   const toggle = () => {
     const next = !open;
@@ -184,7 +216,7 @@ function ToolsSection({ iconColor, onNavigate }: { iconColor: string; onNavigate
     <View>
       <Pressable onPress={toggle} className="flex-row items-center gap-4 px-3 py-3.5 rounded-md active:bg-gray-100 dark:active:bg-gray-700/40">
         <Wrench size={22} color={iconColor} />
-        <Text className="text-gray-700 dark:text-darktext text-[20px] font-bold flex-1">Araçlar</Text>
+        <Text className="text-gray-700 dark:text-darktext text-[17px] font-bold flex-1">Araçlar</Text>
         <Animated.View style={chevronStyle}>
           <ChevronDown size={22} color={iconColor} />
         </Animated.View>
@@ -192,7 +224,7 @@ function ToolsSection({ iconColor, onNavigate }: { iconColor: string; onNavigate
       {open && (
         <View className="gap-1 mt-1">
           {TOOLS_EXTRA.map(({ key, icon: Icon, label }) => (
-            <MenuLink key={key} icon={Icon} label={label} color={iconColor} onPress={() => onNavigate(() => navigation.navigate(key))} />
+            <MenuLink key={key} icon={Icon} label={label} color={iconColor} isSubItem onPress={() => onNavigate(() => navigation.navigate(key))} />
           ))}
         </View>
       )}
@@ -248,15 +280,19 @@ function ThemePickerModal({
 }
 
 // İtilen içerik panelin ÖNÜNDE göründüğü için gölge burada, panelin sağ
-// kenarına yakın katmanlar halinde — kenara en yakın katman en koyu, dışa
-// (sola) doğru şeffaflaşıyor (bkz. shadowFadeStyle kullanım yeri).
-const SHADOW_STEPS: { width: number; alpha: number }[] = [
-  { width: 3, alpha: 0.45 },
-  { width: 6, alpha: 0.32 },
-  { width: 10, alpha: 0.22 },
-  { width: 16, alpha: 0.13 },
-  { width: 24, alpha: 0.06 },
-];
+// kenarında — kenara en yakın yer en koyu, dışa (sola) doğru şeffaflaşıyor
+// (bkz. shadowFadeStyle kullanım yeri).
+//
+// ESKİDEN bu, üst üste binen 5 yarı saydam şeritle (3/6/10/16/24dp,
+// 0.45/0.32/0.22/0.13/0.06) taklit ediliyordu. Şeritler `right: 0` ile
+// ÜST ÜSTE bindiği için alfalar çarpışıyordu: en sağdaki 3dp'de birikmiş
+// koyuluk 1−(0.55×0.68×0.78×0.87×0.94) ≈ 0.76 oluyordu. Sonuç, yumuşak bir
+// gölge değil, %76 siyah, 5 basamaklı sert bir bant — panelin sağında dikey
+// bir çizgi gibi görünüyordu. Yerine tek bir gerçek gradyan çiziyoruz:
+// basamak yok, birikme yok, koyuluk tek sayıdan geliyor.
+const SHADOW_WIDTH = 11;
+const SHADOW_ALPHA_DARK = 0;
+const SHADOW_ALPHA_LIGHT = 0.05;
 
 // Web'in Navbar.jsx `isMenuOpen` panelinin mobil karşılığı — X (Twitter)
 // uygulamasındaki gibi soldan açılan, arkadaki sayfayı iten gerçek bir Drawer
@@ -278,7 +314,7 @@ export default function MenuDrawerContent({ navigation }: DrawerContentComponent
   // yarı saydam şeritlerle taklit ediyoruz).
   const shadowFadeStyle = useAnimatedStyle(() => ({ opacity: drawerProgress.value }));
 
-  const [avatar, setAvatar] = useState<AvatarData | null>(null);
+  const avatar = useMyAvatar();
   const [broadcastUnread, setBroadcastUnread] = useState(0);
   const [personalUnread, setPersonalUnread] = useState(0);
   const [myPostsCount, setMyPostsCount] = useState(0);
@@ -289,10 +325,6 @@ export default function MenuDrawerContent({ navigation }: DrawerContentComponent
   // (her seferinde taze mount olan) davranışla aynı garanti korunuyor.
   useEffect(() => {
     if (!isOpen) return;
-    avatarAPI
-      .get()
-      .then((res) => setAvatar(res.data?.avatar || null))
-      .catch(() => setAvatar(null));
     notificationAPI
       .getActive()
       .then((res) => setBroadcastUnread(res.data?.length || 0))
@@ -328,10 +360,18 @@ export default function MenuDrawerContent({ navigation }: DrawerContentComponent
 
   const stackNavigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
+  // Panel içeriği kalıcı mount'lu olduğu için bıraktığın kaydırma konumunu
+  // hatırlıyordu; menü her açılışta en baştan başlasın diye KAPANIRKEN başa
+  // alınıyor (açılırken almak görünür bir zıplama yaratırdı).
+  const scrollRef = useRef<ScrollView>(null);
+  useEffect(() => {
+    if (!isOpen) scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [isOpen]);
+
   return (
     <View className="flex-1 bg-primary dark:bg-darkbgbutton">
       <SafeAreaView edges={['top', 'left', 'bottom']} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ padding: 12, gap: 4 }}>
+        <ScrollView ref={scrollRef} contentContainerStyle={{ padding: 12, gap: 4 }}>
           {/* X'te üstte kapatma butonu yok — panel dışına dokunma/kaydırma ile
               kapanıyor (bkz. PushableStack.tsx overlay + RootNavigator.tsx
               swipeEdgeWidth). Sağ üstte rozetli ikon çubuğu var; bizde bu
@@ -414,7 +454,7 @@ export default function MenuDrawerContent({ navigation }: DrawerContentComponent
           <MenuLink icon={BadgeHelp} label="Yardım" color={iconColor} onPress={() => go(() => stackNavigation.navigate('Help'))} />
 
           <FollowedDepartmentsSection iconColor={iconColor} isOpen={isOpen} onNavigate={go} />
-          <ToolsSection iconColor={iconColor} onNavigate={go} />
+          <ToolsSection iconColor={iconColor} isDrawerOpen={isOpen} onNavigate={go} />
 
           <Divider />
 
@@ -423,14 +463,14 @@ export default function MenuDrawerContent({ navigation }: DrawerContentComponent
             className="flex-row items-center gap-4 px-3 py-3.5 rounded-md active:bg-gray-100 dark:active:bg-gray-700/40"
           >
             {theme === 'dark' ? <Moon size={22} color={iconColor} /> : <Sun size={22} color={iconColor} />}
-            <Text className="text-gray-700 dark:text-darktext text-[20px] font-bold">Temayı Ayarla</Text>
+            <Text className="text-gray-700 dark:text-darktext text-[17px] font-bold">Temayı Ayarla</Text>
           </Pressable>
           <Pressable
             onPress={handleLogout}
             className="flex-row items-center gap-4 px-3 py-3.5 rounded-md active:bg-red-50 dark:active:bg-red-900/20"
           >
             <LogOut size={22} color="#dc2626" />
-            <Text className="text-red-600 text-[20px] font-bold">Çıkış Yap</Text>
+            <Text className="text-red-600 text-[17px] font-bold">Çıkış Yap</Text>
           </Pressable>
         </ScrollView>
       </SafeAreaView>
@@ -438,19 +478,21 @@ export default function MenuDrawerContent({ navigation }: DrawerContentComponent
       <ThemePickerModal visible={showThemePicker} onClose={() => setShowThemePicker(false)} iconColor={iconColor} />
 
       <Animated.View style={[StyleSheet.absoluteFill, shadowFadeStyle]} pointerEvents="none">
-        {SHADOW_STEPS.map((step) => (
-          <View
-            key={step.width}
-            style={{
-              position: 'absolute',
-              right: 0,
-              top: 0,
-              bottom: 0,
-              width: step.width,
-              backgroundColor: `rgba(0,0,0,${step.alpha})`,
-            }}
-          />
-        ))}
+        <View style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: SHADOW_WIDTH }}>
+          <Svg width="100%" height="100%">
+            <Defs>
+              <LinearGradient id="drawerEdgeShadow" x1="0" y1="0" x2="1" y2="0">
+                <Stop offset="0" stopColor="#000" stopOpacity={0} />
+                <Stop
+                  offset="1"
+                  stopColor="#000"
+                  stopOpacity={theme === 'dark' ? SHADOW_ALPHA_DARK : SHADOW_ALPHA_LIGHT}
+                />
+              </LinearGradient>
+            </Defs>
+            <Rect x="0" y="0" width="100%" height="100%" fill="url(#drawerEdgeShadow)" />
+          </Svg>
+        </View>
       </Animated.View>
     </View>
   );

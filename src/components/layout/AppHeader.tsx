@@ -1,13 +1,12 @@
-import React, { useCallback, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import React from 'react';
+import { Pressable, View } from 'react-native';
 import Animated, { interpolate, useAnimatedStyle } from 'react-native-reanimated';
-import { DrawerActions, useFocusEffect, useNavigation } from '@react-navigation/native';
+import { DrawerActions, useNavigation } from '@react-navigation/native';
 import { useDrawerProgress, useDrawerStatus } from '@react-navigation/drawer';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Bell } from 'lucide-react-native';
+import { Bell, Plus } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { avatarAPI } from '../../lib/api';
-import type { AvatarData } from '../../components/avatar/AvatarDisplay';
+import { useMyAvatar } from '../../hooks/useMyAvatar';
 import AvatarDisplay from '../../components/avatar/AvatarDisplay';
 import DeerIcon from '../icons/DeerIcon';
 import type { RootStackParamList } from '../../navigation/types';
@@ -24,15 +23,14 @@ const SHADOW_SM = {
   elevation: 1,
 };
 
-// Web'in Navbar'ından bilinçli bir sapma (kullanıcı isteği): solda logo yerine
-// menü avatarı, ortada "Nottepe" yazısı, sağda hamburger yerine bildirim zili
-// — avatar artık menünün açıldığı tarafta (soldan iten Drawer, bkz.
-// RootNavigator.tsx). Avatara dokununca çekmece açılıyor (en üstünde
-// "Profili Görüntüle" var).
+// Web'in Navbar'ından bilinçli bir sapma (kullanıcı isteği): solda menü
+// avatarı, sağda bildirim zili + yeni not ekleme butonu. Ortadaki "Nottepe"
+// yazısı kaldırıldı — bar tek satır, sade ve her ekranda aynı yükseklikte
+// (push edilen ekranların native başlıkları da kapalı, bkz. RootNavigator.tsx).
 export default function AppHeader() {
   const { theme } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [avatar, setAvatar] = useState<AvatarData | null>(null);
+  const avatar = useMyAvatar();
   const drawerProgress = useDrawerProgress();
   // Menü açıkken bu avatar, itilen sayfanın en sol kenarında (görünen dar
   // şeritte) tuhafça görünür kalıyordu — X'te menü açılınca tetikleyici
@@ -41,15 +39,6 @@ export default function AppHeader() {
   const avatarFadeStyle = useAnimatedStyle(() => ({
     opacity: interpolate(drawerProgress.value, [0, 1], [1, 0]),
   }));
-
-  useFocusEffect(
-    useCallback(() => {
-      avatarAPI
-        .get()
-        .then((res) => setAvatar(res.data?.avatar || null))
-        .catch(() => setAvatar(null));
-    }, [])
-  );
 
   const inkColor = theme === 'dark' ? '#DFD0B8' : '#374151';
   const brandColor = theme === 'dark' ? '#5A9690' : '#2F5755';
@@ -68,18 +57,29 @@ export default function AppHeader() {
           </Pressable>
         </Animated.View>
 
-        <View className="flex-1 items-center">
-          <Text className="text-secondary dark:text-darktext text-lg font-extrabold tracking-tight">Nottepe</Text>
-        </View>
+        <View className="flex-1" />
 
-        <Pressable
-          onPress={() => navigation.navigate('Notifications', { initialTab: 'aktivite' })}
-          hitSlop={8}
-          className="p-2 rounded-full"
-          accessibilityLabel="Bildirimler"
-        >
-          <Bell size={22} color={inkColor} />
-        </Pressable>
+        <View className="flex-row items-center gap-1">
+          <Pressable
+            onPress={() => navigation.navigate('Notifications', { initialTab: 'aktivite' })}
+            hitSlop={8}
+            className="p-2 rounded-full"
+            accessibilityLabel="Bildirimler"
+          >
+            <Bell size={22} color={inkColor} />
+          </Pressable>
+
+          {/* Ekleme artık tab bar'da değil (orası Yemek Listesi + profil avatarına
+              ayrıldı, bkz. WaveTabBar.tsx) — zilin sağında. */}
+          <Pressable
+            onPress={() => navigation.navigate('AddPost')}
+            hitSlop={8}
+            className="p-2 rounded-full"
+            accessibilityLabel="Not ekle"
+          >
+            <Plus size={24} color={inkColor} />
+          </Pressable>
+        </View>
       </View>
     </View>
   );

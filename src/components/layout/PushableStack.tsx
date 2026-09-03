@@ -3,30 +3,40 @@ import { Pressable, StyleSheet } from 'react-native';
 import Animated, { interpolate, runOnJS, useAnimatedReaction, useAnimatedStyle } from 'react-native-reanimated';
 import { useDrawerProgress } from '@react-navigation/drawer';
 import { DrawerActions, useNavigation } from '@react-navigation/native';
-import { DRAWER_WIDTH } from '../../navigation/drawerConstants';
 import { useTheme } from '../../context/ThemeContext';
 
-// X (Twitter) tarzı "itme" efekti: Drawer.Navigator `drawerType: 'front'` ile
-// içeriğe hiç dokunmuyor (bkz. RootNavigator.tsx) — itme + köşe yuvarlama +
-// gölgeyi burada `useDrawerProgress()`'in verdiği 0..1 SharedValue'suyla elle
-// sürüyoruz. X'te sayfa KÜÇÜLMÜYOR — sadece tam boyutunda sağa kayıyor (sağ
-// tarafı zaten ekran dışına taşıyor, görünmüyor), sadece görünen SOL kenar
-// köşeleri yuvarlanıyor. Şeffaf kenar boşluğu olmadığı için (ölçekleme yok)
-// translateX hedefi doğrudan DRAWER_WIDTH — telafi matematiğine gerek yok.
+// X (Twitter) tarzı "itme" efekti. İTMENİN KENDİSİ ARTIK BU DOSYADA DEĞİL:
+// Drawer.Navigator `drawerType: 'back'` kullanıyor (bkz. RootNavigator.tsx),
+// yani react-native-drawer-layout içeriği parmakla birebir sağa itiyor. Daha
+// önce `front` + burada elle translateX vardı; kütüphanenin `front`'a özel
+// "touchDistance" düzeltmesi, parmak panel genişliğinin sağından başladığında
+// meüyü anında ileri fırlattığı için jest parmağı takip etmiyordu.
 //
-// Gölge X'in gerçek görünümüyle birebir olacak şekilde AYARLANDI (referans
-// ekran görüntüsü incelendi): X'te gölge hafif — dramatik bir blur değil,
-// sadece görünen sol-üst köşenin yuvarlanmasıyla + hafif bir tonla belli
-// oluyor. Bu yüzden değerler bilinçli olarak düşük tutuluyor.
+// Geriye kalan iş: itilen sayfanın görünen SOL kenarını yuvarlamak, opak bir
+// zemin vermek (altındaki menü sızmasın), ince ayırıcı çizgiyi çizmek ve menü
+// açıkken sayfaya dokununca kapatmak. X'te sayfa KÜÇÜLMÜYOR, sadece kayıyor.
+//
+// GÖLGE ŞU AN BİLİNÇLİ OLARAK YOK. Önce Android `elevation` + iOS `shadow*`
+// ikilisi, sonra SVG ile çizilen bir gradyan şerit denendi; ikisi de itilen
+// sayfanın solundaki koyu bandı değiştirmedi. Bant başka bir katmandan
+// geliyor — kaynağı bulunana kadar buradan hiç gölge çizmiyoruz ki teşhis
+// tek değişkenli kalsın.
+// Olculer Claude mobil uygulamasinin referans ekran goruntulerinden cikarildi
+// (946x2048; ekran genisligi 393dp kabul edilerek olceklendi):
+//  - Kose yaricapi: kose egrisi y=0'da x=895'ten baslayip y=125'te duz kenara
+//    (x=776) oturuyor → yatay sapma 119px = ekran genisliginin %12.6 ≈ 50dp.
+//    Egriye R=119px'lik daire fit edildi, sapma her noktada ~3px (JPEG+antialias).
+//  - Ayirici: itilen sayfanin sol kenarinda 1 FIZIKSEL piksellik bir cizgi.
+//    Koyu temada acik (17→51, yani %14 beyaz), acik temada koyu (243→210,
+//    yani %14 siyah). Ayrimi asil yapan sey bu cizgi — golge degil.
+const CORNER_RADIUS = 50;
+
 export default function PushableStack({ children }: { children: React.ReactNode }) {
   const progress = useDrawerProgress();
   const navigation = useNavigation();
   const { theme } = useTheme();
-  // Android'de `elevation` gölgesi, üstüne uygulandığı View'ın OPAK bir
-  // backgroundColor'ı yoksa güvenilir şekilde render olmuyor (silüeti
-  // hesaplayamıyor) — dıştaki gölge View'ı şeffaftı, bu yüzden X'teki gibi
-  // belirgin bir "kart önde" gölgesi hiç görünmüyordu. İçteki ve dıştaki
-  // View'a da temaya uygun opak arka plan veriyoruz (sabit '#fff' yerine).
+  // İtilen sayfanın OPAK bir zemini olmalı: köşe yuvarlaması sırasında
+  // altındaki menü paneli içeriğinin sızmaması için.
   const surfaceColor = theme === 'dark' ? '#222831' : '#fff';
   const [overlayActive, setOverlayActive] = useState(false);
 
@@ -38,28 +48,20 @@ export default function PushableStack({ children }: { children: React.ReactNode 
   );
 
   const radiusStyle = useAnimatedStyle(() => {
-    const radius = interpolate(progress.value, [0, 1], [0, 28]);
+    const radius = interpolate(progress.value, [0, 1], [0, CORNER_RADIUS]);
     return { borderTopLeftRadius: radius, borderBottomLeftRadius: radius };
   });
-
-  const shadowStyle = useAnimatedStyle(() => ({
-    shadowOpacity: interpolate(progress.value, [0, 1], [0, 0.35]),
-    elevation: interpolate(progress.value, [0, 1], [0, 24]),
-    transform: [{ translateX: interpolate(progress.value, [0, 1], [0, DRAWER_WIDTH]) }],
-  }));
 
   return (
     <Animated.View
       style={[
         StyleSheet.absoluteFill,
-        shadowStyle,
         radiusStyle,
-        // `drawerType: 'front'` menü panelini DOĞASI GEREĞİ içeriğin ÖNÜNDE
-        // (üstünde) render ediyor (bkz. dosya başı notu) — biz tam tersini
-        // istiyoruz (itilen sayfa menünün önünde). Android'de dizilim sırasından
-        // bağımsız olarak `elevation`, iOS/genel RN'de `zIndex` kazanıyor; yüksek
-        // tutmazsak gölge (ve içerik) menü panelinin ARKASINDA kalıp görünmüyor.
-        { shadowColor: '#000', shadowOffset: { width: -3, height: 0 }, shadowRadius: 12, zIndex: 100, backgroundColor: surfaceColor },
+        {
+          backgroundColor: surfaceColor,
+          borderLeftWidth: StyleSheet.hairlineWidth,
+          borderLeftColor: theme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.40)',
+        },
       ]}
     >
       <Animated.View style={[StyleSheet.absoluteFill, radiusStyle, { overflow: 'hidden', backgroundColor: surfaceColor }]}>
