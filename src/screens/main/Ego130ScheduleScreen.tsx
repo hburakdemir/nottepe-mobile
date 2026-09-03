@@ -229,11 +229,11 @@ export default function Ego130ScheduleScreen() {
       <View style={styles.metaRow}>
         <Pressable
           onPress={() => setOrigin((prev) => (prev === 'campus' ? 'metro' : 'campus'))}
-          style={[styles.originButton, { borderColor: t.line }]}
+          style={[styles.originButton, { backgroundColor: t.inset, borderColor: t.line }]}
         >
-          <ArrowUpDown size={13} color={t.accent} />
-          <Text style={[styles.originText, { color: t.ink2 }]} numberOfLines={1}>
-            {ORIGIN_LABEL[origin]}
+          <ArrowUpDown size={14} color={t.accent} />
+          <Text style={[styles.originText, { color: t.ink }]} numberOfLines={1}>
+            {origin === 'campus' ? 'Hukuk Fakültesi kalkış' : 'Beytepe Metro (varış)'}
           </Text>
         </Pressable>
         <Text style={[styles.count, { color: t.ink3 }]}>{activeSchedule.departures.length} sefer</Text>
