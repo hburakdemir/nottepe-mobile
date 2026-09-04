@@ -323,7 +323,9 @@ export function serverDataToCourses(data: AktsServerData | null | undefined): { 
       const name = String(raw?.name ?? '').trim();
       const code = String(raw?.code ?? '').trim();
       const akts = Number(raw?.akts);
-      const grade = String(raw?.grade ?? '').trim().toUpperCase();
+      const grade = String(raw?.grade ?? '')
+        .trim()
+        .toUpperCase();
       if (name && Number.isFinite(akts) && akts > 0 && isValidGrade(grade)) {
         courses.push({ id: makeCourseId(), code: code || undefined, name, semester: semesterNumber, akts, grade });
       } else if (name) {

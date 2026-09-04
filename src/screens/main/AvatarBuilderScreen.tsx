@@ -39,7 +39,7 @@ function ColorRow({ colors, activeIdx, onChange }: { colors: string[]; activeIdx
           key={i}
           onPress={() => onChange(i)}
           className={`w-[26px] h-[26px] rounded-[13px] border-2 ${
-            i === activeIdx ? 'border-brand dark:border-brand-light scale-110' : c === '#ffffff' ? 'border-gray-300 dark:border-gray-600' : 'border-transparent'
+            i === activeIdx ? 'border-accent scale-110' : c === '#ffffff' ? 'border-line' : 'border-transparent'
           }`}
           style={{ backgroundColor: c }}
         />
@@ -52,9 +52,7 @@ function MiniSvg({ rects, skin }: { rects: Rect[]; skin: string }) {
   return (
     <Svg width={30} height={30} viewBox="0 0 32 40">
       <SvgRect x={8} y={7} width={16} height={16} fill={skin} />
-      {rects.map((r, i) =>
-        r.type === 'image' ? null : <SvgRect key={i} x={r.x} y={r.y} width={r.w} height={r.h} rx={r.rx} fill={r.c} />
-      )}
+      {rects.map((r, i) => (r.type === 'image' ? null : <SvgRect key={i} x={r.x} y={r.y} width={r.w} height={r.h} rx={r.rx} fill={r.c} />))}
     </Svg>
   );
 }
@@ -77,7 +75,7 @@ function OptButton({
       onPress={onPress}
       disabled={disabled}
       className={`w-[38px] h-[38px] rounded-lg border-2 items-center justify-center overflow-hidden ${
-        active ? 'border-brand dark:border-brand-light bg-brand/10 dark:bg-brand-light/20' : 'border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-darkbg'
+        active ? 'border-accent bg-accent-soft' : 'border-line bg-inset'
       } ${disabled ? 'opacity-30' : ''}`}
     >
       <MiniSvg rects={rects} skin={skin} />
@@ -88,7 +86,7 @@ function OptButton({
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <View className="mt-4">
-      <Text className="text-[11px] font-bold text-gray-400 dark:text-gray-500 tracking-[0.5px] mb-2 uppercase">{label}</Text>
+      <Text className="text-[11px] font-bold text-muted2 tracking-[0.5px] mb-2 uppercase">{label}</Text>
       {children}
     </View>
   );
@@ -136,8 +134,8 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
   const skin = SKIN_COLORS[cfg.skin] || SKIN_COLORS[0];
 
   return (
-    <View className="flex-1 bg-primary dark:bg-darkbgbutton">
-      <View className="items-center py-4 border-b border-gray-100 dark:border-gray-700/40">
+    <View className="flex-1 bg-surface">
+      <View className="items-center py-4 border-b border-line-soft">
         <View className="w-[150px] h-[150px] rounded-[30px] overflow-hidden border-[3px] border-beige">
           <AvatarSVG config={cfg} size={140} />
         </View>
@@ -150,18 +148,14 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
             onPress={handleSave}
             disabled={saving || saved}
           >
-            {saving ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : saved ? (
-              <Check size={16} color="#fff" />
-            ) : null}
+            {saving ? <ActivityIndicator size="small" color="#fff" /> : saved ? <Check size={16} color="#fff" /> : null}
             <Text className="text-white text-[13px] font-bold">{saving ? 'Kaydediliyor...' : saved ? 'Kaydedildi!' : 'Kaydet'}</Text>
           </Pressable>
         </View>
         {!!error && <Text className="text-red-600 text-[11.5px] mt-2 text-center max-w-[220px]">{error}</Text>}
       </View>
 
-      <ScrollView className="flex-1 px-4" contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView showsVerticalScrollIndicator={false} className="flex-1 px-4" contentContainerStyle={{ paddingBottom: 40 }}>
         <Section label="Arka plan">
           <ColorRow colors={BG_COLORS} activeIdx={cfg.bg} onChange={(v) => set('bg', v)} />
         </Section>
@@ -267,7 +261,7 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
               />
             ))}
           </View>
-          {!!cfg.jersey && <Text className="text-[11px] text-gray-400 dark:text-gray-500 mt-1.5">Forma seçiliyken kıyafet değiştirilemez.</Text>}
+          {!!cfg.jersey && <Text className="text-[11px] text-muted2 mt-1.5">Forma seçiliyken kıyafet değiştirilemez.</Text>}
         </Section>
 
         {!cfg.jersey && (
@@ -277,11 +271,7 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
             </Section>
             {cfg.outfit > 0 && (
               <Section label="Kıyafet desen / detay rengi">
-                <ColorRow
-                  colors={OUTFIT_PATTERN_COLORS}
-                  activeIdx={cfg.outfitColor2 ?? 0}
-                  onChange={(v) => set('outfitColor2', v)}
-                />
+                <ColorRow colors={OUTFIT_PATTERN_COLORS} activeIdx={cfg.outfitColor2 ?? 0} onChange={(v) => set('outfitColor2', v)} />
               </Section>
             )}
           </>
@@ -303,16 +293,16 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
             {!!cfg.jersey && (
               <Pressable className="flex-row items-center gap-1.5 mt-2" onPress={() => set('jersey', null)}>
                 <ShieldOff size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
-                <Text className="text-xs text-gray-500 dark:text-gray-400 font-semibold">Formayı kaldır</Text>
+                <Text className="text-xs text-muted font-semibold">Formayı kaldır</Text>
               </Pressable>
             )}
-            <Text className="text-[11px] text-gray-400 dark:text-gray-500 mt-1.5">Forma seçiliyken renkler sabittir.</Text>
+            <Text className="text-[11px] text-muted2 mt-1.5">Forma seçiliyken renkler sabittir.</Text>
           </Section>
         )}
       </ScrollView>
 
-      <Pressable className="items-center py-3.5 border-t border-gray-100 dark:border-gray-700/40" onPress={onClose}>
-        <Text className="text-sm font-bold text-gray-700 dark:text-darktext">Kapat</Text>
+      <Pressable className="items-center py-3.5 border-t border-line-soft" onPress={onClose}>
+        <Text className="text-sm font-bold text-ink2">Kapat</Text>
       </Pressable>
     </View>
   );

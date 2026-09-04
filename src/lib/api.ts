@@ -1,15 +1,41 @@
 import axios from 'axios';
 import { API_URL } from './config';
-import {
-  getAccessToken,
-  setAccessToken,
-  clearAccessToken,
-  getRefreshToken,
-  clearRefreshToken,
-} from './tokenStore';
+import { getAccessToken, setAccessToken, clearAccessToken, getRefreshToken, clearRefreshToken } from './tokenStore';
 import { emitSessionExpired } from './authEvents';
 
 const ADMIN_POSTS_PAGE_LIMIT = 10;
+
+/** `POST /user-notifications/devices` gövdesi. */
+export interface PushDeviceRegistration {
+  token: string;
+  /** İleride bare FCM'e geçilirse şema göçü gerekmesin diye taşınıyor (plan 3.1). */
+  provider: 'expo' | 'fcm';
+  platform: 'android' | 'ios';
+  app_version?: string;
+  os_version?: string;
+  device_name?: string;
+  locale?: string;
+}
+
+/** `GET/PATCH /user-notifications/preferences` cevabı — ikisi de aynı tam gövdeyi döndürür. */
+export interface PushPreferences {
+  push_enabled: boolean;
+  /** Yalnızca kullanıcının açıkça ayarladığı anahtarlar; eksikler `default`a düşer. */
+  types: Record<string, boolean>;
+  /**
+   * Hangi tiplerin var olduğunun TEK yetkili kaynağı — sıra, grup ve varsayılan dahil.
+   * Yeni cron tipi eklemek = bir backend satırı, sıfır uygulama sürümü (plan 3.4).
+   */
+  available_types: PushTypeDescriptor[];
+}
+
+export interface PushTypeDescriptor {
+  key: string;
+  label: string;
+  description?: string;
+  group?: string;
+  default: boolean;
+}
 
 const toQueryString = (params: Record<string, unknown> = {}) => {
   const query = new URLSearchParams();
@@ -43,11 +69,7 @@ api.interceptors.request.use(async (requestConfig) => {
 function isRequestAborted(error: any) {
   const msg = error?.message || '';
   const code = error?.code || '';
-  return (
-    code === 'ERR_CANCELED' ||
-    code === 'ECONNABORTED' ||
-    /abort|cancell?ed/i.test(msg)
-  );
+  return code === 'ERR_CANCELED' || code === 'ECONNABORTED' || /abort|cancell?ed/i.test(msg);
 }
 
 async function clearSessionTokens() {
@@ -84,10 +106,7 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const url: string = error.config?.url || '';
     const isAuthEndpoint =
-      url.includes('/auth/login') ||
-      url.includes('/auth/register') ||
-      url.includes('/auth/logout') ||
-      url.includes('/auth/refresh');
+      url.includes('/auth/login') || url.includes('/auth/register') || url.includes('/auth/logout') || url.includes('/auth/refresh');
 
     if (status === 401 && !isAuthEndpoint && !error.config?._retried) {
       if (!refreshPromise) {
@@ -117,8 +136,7 @@ api.interceptors.response.use(
 // Auth API
 export const authAPI = {
   register: (userData: Record<string, unknown>) => api.post('/auth/register', userData),
-  login: (credentials: { username: string; password: string }) =>
-    api.post('/auth/login', credentials),
+  login: (credentials: { username: string; password: string }) => api.post('/auth/login', credentials),
   logout: async () => {
     const refreshToken = await getRefreshToken();
     return api.post('/auth/mobile-logout', { refreshToken });
@@ -136,7 +154,11 @@ export const postsAPI = {
     if (department) params.append('department', department);
     return api.get(`/posts/getpost?${params.toString()}`);
   },
-  getMyPosts: () => api.get('/posts/my-posts'),
+  // `page` verilmezse sunucu eski davranışı koruyor (tüm liste, çıplak dizi) —
+  // web istemcisi hâlâ böyle çağırıyor. `page` verildiğinde cevap
+  // `{ posts, total, page, limit }` zarfına giriyor.
+  getMyPosts: (opts?: { page?: number; limit?: number }) =>
+    api.get(`/posts/my-posts${opts?.page ? toQueryString({ page: opts.page, limit: opts.limit ?? 20 }) : ''}`),
   getById: (postId: string | number) => api.get(`/posts/${postId}`),
   getFaculties: () => api.get('/posts/faculties'),
   addPost: (formData: FormData) =>
@@ -148,25 +170,26 @@ export const postsAPI = {
 
 // Saved Posts API
 export const savedPostsAPI = {
-  getSavedPosts: () => api.get('/saved-posts/getPost'),
+  // getMyPosts ile aynı sözleşme: `page` yoksa çıplak dizi, varsa zarf.
+  getSavedPosts: (opts?: { page?: number; limit?: number }) =>
+    api.get(`/saved-posts/getPost${opts?.page ? toQueryString({ page: opts.page, limit: opts.limit ?? 20 }) : ''}`),
+  // Sadece id listesi — SavedPostContext "bu post kayıtlı mı?" sorusu için
+  // eskiden tüm kayıtlı notları indirip id'ye düşürüyordu.
+  getSavedPostIds: () => api.get('/saved-posts/ids'),
   savePost: (postId: string | number) => api.post(`/saved-posts/savePost/${postId}`),
   unsavePost: (postId: string | number) => api.delete(`/saved-posts/unsavePost/${postId}`),
 };
 
 // Profile API
 export const profileAPI = {
-  updateProfile: (profileData: Record<string, unknown>) =>
-    api.put('/update-profile/profile', profileData),
+  updateProfile: (profileData: Record<string, unknown>) => api.put('/update-profile/profile', profileData),
 };
 
 // Admin API
 export const adminAPI = {
-  getAllUsers: ({ limit = 50, offset = 0, q = '' } = {}) =>
-    api.get(`/users?limit=${limit}&offset=${offset}&q=${encodeURIComponent(q)}`),
-  updateUserRole: (userId: string | number, role: string) =>
-    api.patch(`/users/${userId}/role`, { role }),
-  updateUserEmail: (userId: string | number, emailVerified: boolean) =>
-    api.patch(`/users/${userId}/email-verification`, { emailVerified }),
+  getAllUsers: ({ limit = 50, offset = 0, q = '' } = {}) => api.get(`/users?limit=${limit}&offset=${offset}&q=${encodeURIComponent(q)}`),
+  updateUserRole: (userId: string | number, role: string) => api.patch(`/users/${userId}/role`, { role }),
+  updateUserEmail: (userId: string | number, emailVerified: boolean) => api.patch(`/users/${userId}/email-verification`, { emailVerified }),
   deleteUser: (userId: string | number) => api.delete(`/users/${userId}`),
   searchUsersLite: (q: string) => api.get(`/users/search${toQueryString({ q })}`),
   getPendingPosts: ({ page = 1, ...rest } = {}) =>
@@ -195,16 +218,13 @@ export const userAPI = {
   getSchedule: (username: string) => api.get(`/users/${encodeURIComponent(username)}/schedule`),
   getFollows: (username: string) => api.get(`/users/${encodeURIComponent(username)}/follows`),
   getSavedPosts: (username: string) => api.get(`/users/${encodeURIComponent(username)}/saved-posts`),
-  banProfileView: (userId: string | number, banned: boolean, reason = '') =>
-    api.patch(`/users/${userId}/profile-ban`, { banned, reason }),
-  getProfileBans: ({ page = 1, limit = 20 } = {}) =>
-    api.get(`/users/profile-bans${toQueryString({ page, limit })}`),
+  banProfileView: (userId: string | number, banned: boolean, reason = '') => api.patch(`/users/${userId}/profile-ban`, { banned, reason }),
+  getProfileBans: ({ page = 1, limit = 20 } = {}) => api.get(`/users/profile-bans${toQueryString({ page, limit })}`),
 };
 
 export const passwordApi = {
   forgotPassword: (email: string) => api.post('/password/forgot', { email }),
-  resetPassword: (email: string, code: string, newPassword: string) =>
-    api.post('/password/reset', { email, code, newPassword }),
+  resetPassword: (email: string, code: string, newPassword: string) => api.post('/password/reset', { email, code, newPassword }),
 };
 
 export const profileupdateAPI = {
@@ -213,8 +233,7 @@ export const profileupdateAPI = {
 };
 
 export const ratingAPI = {
-  ratePost: (postId: string | number, rating: number) =>
-    api.post('/rating/rate', { post_id: postId, rating }),
+  ratePost: (postId: string | number, rating: number) => api.post('/rating/rate', { post_id: postId, rating }),
   getPostRating: (postId: string | number) => api.get(`/rating/getRate/${postId}`),
 };
 
@@ -245,48 +264,52 @@ export const notificationAPI = {
   markViewed: (id: string | number) => api.post(`/notifications/${id}/view`),
   getCategories: () => api.get('/notifications/categories'),
   createCategory: (data: Record<string, unknown>) => api.post('/notifications/categories', data),
-  toggleCategory: (id: string | number, is_active: boolean) =>
-    api.patch(`/notifications/categories/${id}/toggle`, { is_active }),
+  toggleCategory: (id: string | number, is_active: boolean) => api.patch(`/notifications/categories/${id}/toggle`, { is_active }),
   create: (formData: FormData) =>
     api.post('/notifications', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
-  adminList: ({ page = 1, limit = 20 } = {}) =>
-    api.get(`/notifications${toQueryString({ page, limit })}`),
-  toggle: (id: string | number, is_active: boolean) =>
-    api.patch(`/notifications/${id}/toggle`, { is_active }),
+  adminList: ({ page = 1, limit = 20 } = {}) => api.get(`/notifications${toQueryString({ page, limit })}`),
+  toggle: (id: string | number, is_active: boolean) => api.patch(`/notifications/${id}/toggle`, { is_active }),
   delete: (id: string | number) => api.delete(`/notifications/${id}`),
-  getViewers: (id: string | number, page = 1, limit = 20) =>
-    api.get(`/notifications/${id}/viewers?page=${page}&limit=${limit}`),
+  getViewers: (id: string | number, page = 1, limit = 20) => api.get(`/notifications/${id}/viewers?page=${page}&limit=${limit}`),
   approve: (id: string | number) => api.patch(`/notifications/${id}/approve`),
   reject: (id: string | number) => api.patch(`/notifications/${id}/reject`),
 };
 
 export const userNotificationAPI = {
-  getAll: ({ page = 1, limit = 20 } = {}) =>
-    api.get(`/user-notifications${toQueryString({ page, limit })}`),
+  getAll: ({ page = 1, limit = 20 } = {}) => api.get(`/user-notifications${toQueryString({ page, limit })}`),
   getUnreadCount: () => api.get('/user-notifications/unread-count'),
   markAllRead: () => api.post('/user-notifications/mark-all-read'),
+
+  // --- Push ---
+  // Token üzerinde idempotent upsert: aynı token başka bir kullanıcıya bağlıysa
+  // sunucu YENİDEN ATAR (ortak cihazda önceki sahip bildirim almaya devam etmesin).
+  registerDevice: (payload: PushDeviceRegistration) => api.post('/user-notifications/devices', payload),
+  // DELETE-with-body değil: bazı proxy'ler gövdeyi sessizce düşürüyor.
+  unregisterDevice: (token: string) => api.post('/user-notifications/devices/unregister', { token }),
+
+  getPushPreferences: () => api.get('/user-notifications/preferences'),
+  // `types` sunucuda shallow-merge edilir; gönderilmeyen anahtarlar korunur.
+  // Cevap GET ile aynı tam gövde — istemci refetch'siz cache'i ezebilsin.
+  updatePushPreferences: (payload: { push_enabled?: boolean; types?: Record<string, boolean> }) =>
+    api.patch('/user-notifications/preferences', payload),
 };
 
 export const commentAPI = {
-  getByPost: (postId: string | number, page = 1) =>
-    api.get(`/comments/post/${postId}?page=${page}`),
+  getByPost: (postId: string | number, page = 1) => api.get(`/comments/post/${postId}?page=${page}`),
   create: ({ post_id, content, rating }: { post_id: string | number; content?: string; rating?: number }) =>
     api.post('/comments', { post_id, content, rating }),
-  delete: (commentId: string | number, delete_reason = '') =>
-    api.delete(`/comments/${commentId}`, { data: { delete_reason } }),
+  delete: (commentId: string | number, delete_reason = '') => api.delete(`/comments/${commentId}`, { data: { delete_reason } }),
   update: (commentId: string | number, { content, rating }: { content?: string; rating?: number }) =>
     api.patch(`/comments/${commentId}`, { content, rating }),
 };
 
 export const adminCommentAPI = {
-  getAll: ({ page = 1, limit = 20, search = '' } = {}) =>
-    api.get(`/comments/admin/all${toQueryString({ page, limit, search })}`),
+  getAll: ({ page = 1, limit = 20, search = '' } = {}) => api.get(`/comments/admin/all${toQueryString({ page, limit, search })}`),
   getByPost: (postId: string | number) => api.get(`/comments/admin/post/${postId}`),
   restore: (commentId: string | number) => api.put(`/comments/admin/${commentId}/restore`),
-  delete: (commentId: string | number, delete_reason = '') =>
-    api.delete(`/comments/${commentId}`, { data: { delete_reason } }),
+  delete: (commentId: string | number, delete_reason = '') => api.delete(`/comments/${commentId}`, { data: { delete_reason } }),
 };
 
 export const aktsAPI = {
@@ -294,15 +317,13 @@ export const aktsAPI = {
   save: (data: Record<string, unknown>) => api.post('/akts', data),
   update: (id: string | number, data: Record<string, unknown>) => api.put(`/akts/${id}`, data),
   delete: (id: string | number) => api.delete(`/akts/${id}`),
-  adminList: ({ page = 1, limit = 20, search = '' } = {}) =>
-    api.get(`/akts/admin${toQueryString({ page, limit, search })}`),
+  adminList: ({ page = 1, limit = 20, search = '' } = {}) => api.get(`/akts/admin${toQueryString({ page, limit, search })}`),
 };
 
 export const checklistAPI = {
   getAll: () => api.get('/checklists'),
   getMine: () => api.get('/checklists/mine'),
-  setItemState: (itemId: string | number, checked: boolean) =>
-    api.put(`/checklists/items/${itemId}/state`, { checked }),
+  setItemState: (itemId: string | number, checked: boolean) => api.put(`/checklists/items/${itemId}/state`, { checked }),
   create: (data: Record<string, unknown>) => api.post('/checklists', data),
   adminList: ({ page = 1, limit = 20, search = '', type = '' } = {}) =>
     api.get(`/checklists/admin${toQueryString({ page, limit, search, type })}`),
@@ -310,15 +331,12 @@ export const checklistAPI = {
   update: (id: string | number, data: Record<string, unknown>) => api.patch(`/checklists/${id}`, data),
   toggle: (id: string | number, is_active: boolean) => api.patch(`/checklists/${id}/toggle`, { is_active }),
   delete: (id: string | number) => api.delete(`/checklists/${id}`),
-  addItem: (checklistId: string | number, data: Record<string, unknown>) =>
-    api.post(`/checklists/${checklistId}/items`, data),
-  updateItem: (itemId: string | number, data: Record<string, unknown>) =>
-    api.patch(`/checklists/items/${itemId}`, data),
+  addItem: (checklistId: string | number, data: Record<string, unknown>) => api.post(`/checklists/${checklistId}/items`, data),
+  updateItem: (itemId: string | number, data: Record<string, unknown>) => api.patch(`/checklists/items/${itemId}`, data),
   deleteItem: (itemId: string | number) => api.delete(`/checklists/items/${itemId}`),
   reorderItems: (checklistId: string | number, orderedIds: Array<string | number>) =>
     api.patch(`/checklists/${checklistId}/items/reorder`, { orderedIds }),
-  getCompleters: (id: string | number, page = 1, limit = 20) =>
-    api.get(`/checklists/${id}/completers${toQueryString({ page, limit })}`),
+  getCompleters: (id: string | number, page = 1, limit = 20) => api.get(`/checklists/${id}/completers${toQueryString({ page, limit })}`),
 };
 
 export const menuAPI = {
@@ -328,28 +346,22 @@ export const menuAPI = {
   adminStatus: () => api.get('/menu/status'),
   adminScrape: (date = '') => api.post(`/menu/scrape${date ? `?date=${date}` : ''}`),
   adminScrapeWeek: () => api.post('/menu/scrape?range=week'),
-  adminScrapeMonth: (year: number, month: number) =>
-    api.post(`/menu/scrape?range=month&year=${year}&month=${month}`),
+  adminScrapeMonth: (year: number, month: number) => api.post(`/menu/scrape?range=month&year=${year}&month=${month}`),
 };
 
 export const badgeAPI = {
   getMine: () => api.get('/badges/me'),
   getByUser: (userId: string | number) => api.get(`/badges/user/${userId}`),
-  setVisibility: (badgeId: string | number, is_visible: boolean) =>
-    api.patch(`/badges/mine/${badgeId}/visibility`, { is_visible }),
+  setVisibility: (badgeId: string | number, is_visible: boolean) => api.patch(`/badges/mine/${badgeId}/visibility`, { is_visible }),
   adminList: ({ page = 1, limit = 20 } = {}) => api.get(`/badges${toQueryString({ page, limit })}`),
-  create: (formData: FormData) =>
-    api.post('/badges', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  create: (formData: FormData) => api.post('/badges', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   update: (id: string | number, formData: FormData) =>
     api.patch(`/badges/${id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   toggle: (id: string | number, is_active: boolean) => api.patch(`/badges/${id}/toggle`, { is_active }),
   delete: (id: string | number) => api.delete(`/badges/${id}`),
-  getRecipients: (id: string | number, page = 1, limit = 20) =>
-    api.get(`/badges/${id}/recipients${toQueryString({ page, limit })}`),
-  assign: (badgeId: string | number, userId: string | number) =>
-    api.post(`/badges/${badgeId}/assign`, { userId }),
-  revoke: (badgeId: string | number, userId: string | number) =>
-    api.delete(`/badges/${badgeId}/assign/${userId}`),
+  getRecipients: (id: string | number, page = 1, limit = 20) => api.get(`/badges/${id}/recipients${toQueryString({ page, limit })}`),
+  assign: (badgeId: string | number, userId: string | number) => api.post(`/badges/${badgeId}/assign`, { userId }),
+  revoke: (badgeId: string | number, userId: string | number) => api.delete(`/badges/${badgeId}/assign/${userId}`),
   approve: (id: string | number) => api.patch(`/badges/${id}/approve`),
   reject: (id: string | number) => api.patch(`/badges/${id}/reject`),
   getAuditLog: (page = 1, limit = 30) => api.get(`/badges/audit-log${toQueryString({ page, limit })}`),
@@ -357,6 +369,9 @@ export const badgeAPI = {
 
 export const statsAPI = {
   getAdminStats: (range = '7d') => api.get(`/stats/admin${toQueryString({ range })}`),
+  // Menü çekmecesindeki sayaçlar — eskiden üç ayrı tam liste indirilip
+  // yalnızca `.length` okunuyordu (bkz. MenuDrawerContent).
+  getMine: () => api.get('/stats/me'),
 };
 
 export const leaderboardAPI = {
@@ -364,19 +379,16 @@ export const leaderboardAPI = {
 };
 
 export const feedbackAPI = {
-  send: ({ name, email, message }: { name: string; email: string; message: string }) =>
-    api.post('/feedback', { name, email, message }),
+  send: ({ name, email, message }: { name: string; email: string; message: string }) => api.post('/feedback', { name, email, message }),
 };
 
 export const faqAPI = {
   getAll: ({ page = 1, limit = 20 } = {}) => api.get(`/faq${toQueryString({ page, limit })}`),
   getById: (id: string | number) => api.get(`/faq/${id}`),
-  getComments: (id: string | number, page = 1, limit = 50) =>
-    api.get(`/faq/${id}/comments${toQueryString({ page, limit })}`),
+  getComments: (id: string | number, page = 1, limit = 50) => api.get(`/faq/${id}/comments${toQueryString({ page, limit })}`),
   addComment: (id: string | number, content: string, parentCommentId: string | number | null = null) =>
     api.post(`/faq/${id}/comments`, { content, parent_comment_id: parentCommentId }),
-  deleteComment: (commentId: string | number, reason: string) =>
-    api.delete(`/faq/comments/${commentId}`, { data: { reason } }),
+  deleteComment: (commentId: string | number, reason: string) => api.delete(`/faq/comments/${commentId}`, { data: { reason } }),
   voteAnswer: (id: string | number, vote: number) => api.post(`/faq/${id}/vote`, { vote }),
   voteComment: (commentId: string | number, vote: number) => api.post(`/faq/comments/${commentId}/vote`, { vote }),
   askQuestion: (question: string) => api.post('/faq/ask', { question }),
@@ -392,43 +404,34 @@ export const faqAPI = {
 export const suggestionAPI = {
   getAll: ({ page = 1, limit = 20 } = {}) => api.get(`/suggestions${toQueryString({ page, limit })}`),
   getById: (id: string | number) => api.get(`/suggestions/${id}`),
-  getComments: (id: string | number, page = 1, limit = 50) =>
-    api.get(`/suggestions/${id}/comments${toQueryString({ page, limit })}`),
+  getComments: (id: string | number, page = 1, limit = 50) => api.get(`/suggestions/${id}/comments${toQueryString({ page, limit })}`),
   addComment: (id: string | number, content: string, parentCommentId: string | number | null = null) =>
     api.post(`/suggestions/${id}/comments`, { content, parent_comment_id: parentCommentId }),
-  deleteComment: (commentId: string | number, reason: string) =>
-    api.delete(`/suggestions/comments/${commentId}`, { data: { reason } }),
-  voteComment: (commentId: string | number, vote: number) =>
-    api.post(`/suggestions/comments/${commentId}/vote`, { vote }),
+  deleteComment: (commentId: string | number, reason: string) => api.delete(`/suggestions/comments/${commentId}`, { data: { reason } }),
+  voteComment: (commentId: string | number, vote: number) => api.post(`/suggestions/comments/${commentId}/vote`, { vote }),
   create: (content: string) => api.post('/suggestions', { content }),
   getUserActivity: (userId: string | number) => api.get(`/suggestions/activity/${userId}`),
   adminList: ({ page = 1, limit = 20 } = {}) => api.get(`/suggestions/admin/all${toQueryString({ page, limit })}`),
-  markReviewed: (id: string | number, is_reviewed: boolean) =>
-    api.patch(`/suggestions/${id}/reviewed`, { is_reviewed }),
+  markReviewed: (id: string | number, is_reviewed: boolean) => api.patch(`/suggestions/${id}/reviewed`, { is_reviewed }),
   setActive: (id: string | number, is_active: boolean) => api.patch(`/suggestions/${id}/active`, { is_active }),
 };
 
 export const adAPI = {
   getActive: () => api.get('/ads/active'),
   adminList: ({ page = 1, limit = 20 } = {}) => api.get(`/ads${toQueryString({ page, limit })}`),
-  create: (formData: FormData) =>
-    api.post('/ads', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  create: (formData: FormData) => api.post('/ads', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
   update: (id: string | number, data: Record<string, unknown>) => api.patch(`/ads/${id}`, data),
   activate: (id: string | number) => api.patch(`/ads/${id}/activate`),
   deactivate: (id: string | number) => api.patch(`/ads/${id}/deactivate`),
   delete: (id: string | number) => api.delete(`/ads/${id}`),
-  getLog: (id: string | number, page = 1, limit = 20) =>
-    api.get(`/ads/${id}/log${toQueryString({ page, limit })}`),
+  getLog: (id: string | number, page = 1, limit = 20) => api.get(`/ads/${id}/log${toQueryString({ page, limit })}`),
 };
 
 export const departmentFollowAPI = {
-  follow: (faculty: string, department: string) =>
-    api.post('/department-follows', { faculty, department }),
-  unfollow: (faculty: string, department: string) =>
-    api.delete('/department-follows', { data: { faculty, department } }),
+  follow: (faculty: string, department: string) => api.post('/department-follows', { faculty, department }),
+  unfollow: (faculty: string, department: string) => api.delete('/department-follows', { data: { faculty, department } }),
   getMine: () => api.get('/department-follows/mine'),
-  getStatus: (faculty: string, department: string) =>
-    api.get(`/department-follows/status${toQueryString({ faculty, department })}`),
+  getStatus: (faculty: string, department: string) => api.get(`/department-follows/status${toQueryString({ faculty, department })}`),
 };
 
 export const noteRequestAPI = {
@@ -436,8 +439,7 @@ export const noteRequestAPI = {
     api.get(`/note-requests${toQueryString({ page, limit, faculty, department, status, sort })}`),
   getMine: () => api.get('/note-requests/mine'),
   create: (data: Record<string, unknown>) => api.post('/note-requests', data),
-  fulfill: (id: string | number, post_id: string | number) =>
-    api.post(`/note-requests/${id}/fulfill`, { post_id }),
+  fulfill: (id: string | number, post_id: string | number) => api.post(`/note-requests/${id}/fulfill`, { post_id }),
   support: (id: string | number) => api.post(`/note-requests/${id}/support`),
   unsupport: (id: string | number) => api.delete(`/note-requests/${id}/support`),
   reopen: (id: string | number) => api.post(`/note-requests/${id}/reopen`),
@@ -450,8 +452,7 @@ export const scheduleAPI = {
   save: (courses: unknown[]) => api.put('/schedule/me', { courses }),
   setShare: (enabled: boolean) => api.post('/schedule/share', { enabled }),
   getPublic: (shareId: string) => api.get(`/schedule/public/${encodeURIComponent(shareId)}`),
-  adminList: ({ page = 1, limit = 20, search = '' } = {}) =>
-    api.get(`/schedule/admin${toQueryString({ page, limit, search })}`),
+  adminList: ({ page = 1, limit = 20, search = '' } = {}) => api.get(`/schedule/admin${toQueryString({ page, limit, search })}`),
 };
 
 export const usefulnessSurveyAPI = {

@@ -10,11 +10,20 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DarkTheme, DefaultTheme, NavigationContainer, type Theme } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useFonts as useSoraFonts, Sora_400Regular, Sora_500Medium, Sora_600SemiBold, Sora_700Bold, Sora_800ExtraBold } from '@expo-google-fonts/sora';
+import {
+  useFonts as useSoraFonts,
+  Sora_400Regular,
+  Sora_500Medium,
+  Sora_600SemiBold,
+  Sora_700Bold,
+  Sora_800ExtraBold,
+} from '@expo-google-fonts/sora';
 import { AuthProvider } from './src/context/AuthContext';
 import { SavedPostsProvider } from './src/context/SavedPostContext';
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import RootNavigator from './src/navigation/RootNavigator';
+import { navigationRef, drainPendingTarget } from './src/navigation/navigationRef';
+import PushBridge from './src/components/PushBridge';
 
 const queryClient = new QueryClient();
 
@@ -38,12 +47,21 @@ function ThemedStatusBar() {
 function ThemedNavigationContainer({ children }: { children: React.ReactNode }) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const base = isDark ? DarkTheme : DefaultTheme;
-  const navTheme: Theme = {
-    ...base,
-    colors: { ...base.colors, background: isDark ? '#222831' : '#FFFFFF' },
-  };
-  return <NavigationContainer theme={navTheme}>{children}</NavigationContainer>;
+  // Nesne her render'da yeniden kurulursa NavigationContainer temayı degismis
+  // sayip tum navigator agacini yeniden ciziyor — tema gecisinde gereksiz bir
+  // yeniden yerlesim demek. Tek bagimlilik temanin kendisi.
+  const navTheme: Theme = React.useMemo(() => {
+    const base = isDark ? DarkTheme : DefaultTheme;
+    return { ...base, colors: { ...base.colors, background: isDark ? '#222831' : '#FFFFFF' } };
+  }, [isDark]);
+  // `ref` + `onReady`: push bildirimine soğuk açılışta dokunulduğunda hedef
+  // konteyner hazır olmadan elimize geçiyor, `onReady` o kuyruğu boşaltıyor
+  // (bkz. navigationRef.ts).
+  return (
+    <NavigationContainer ref={navigationRef} theme={navTheme} onReady={drainPendingTarget}>
+      {children}
+    </NavigationContainer>
+  );
 }
 
 export default function App() {
@@ -63,6 +81,10 @@ export default function App() {
                 <ThemedNavigationContainer>
                   <RootNavigator />
                   <ThemedStatusBar />
+                  {/* NavigationContainer'ın kardeşi: `useNavigation` ağacın
+                      içinde çalışıyor, PushBridge ise dışarıdan (soğuk açılış,
+                      AppState) yönlendirme yapmak zorunda (bkz. navigationRef.ts). */}
+                  <PushBridge />
                 </ThemedNavigationContainer>
               </SavedPostsProvider>
             </AuthProvider>

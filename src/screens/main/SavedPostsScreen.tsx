@@ -6,6 +6,7 @@ import { useSavedPosts } from '../../context/SavedPostContext';
 import PostCard from '../../components/PostCard';
 import { useFeedTokens } from '../../theme/feedTokens';
 import type { Post } from '../../types/post';
+import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 
 export default function SavedPostsScreen() {
   const { savedPosts } = useSavedPosts();
@@ -39,9 +40,10 @@ export default function SavedPostsScreen() {
 
   return (
     <FlatList
+      showsVerticalScrollIndicator={false}
       className="flex-1"
       style={{ backgroundColor: t.ground }}
-      contentContainerStyle={{ paddingTop: 4, paddingBottom: 92, flexGrow: 1 }}
+      contentContainerStyle={{ paddingTop: 4, paddingBottom: TAB_BAR_SAFE_PADDING, flexGrow: 1 }}
       data={posts}
       keyExtractor={(item) => String(item.id ?? item.post_id)}
       renderItem={({ item }) => <PostCard post={item} />}

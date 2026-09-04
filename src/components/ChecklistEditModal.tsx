@@ -4,6 +4,7 @@ import { Clock, Plus, Trash2, X } from 'lucide-react-native';
 import { checklistAPI } from '../lib/api';
 import type { Checklist } from '../types/checklist';
 import { useTheme } from '../context/ThemeContext';
+import KeyboardAvoider from './layout/KeyboardAvoider';
 
 interface EditItem {
   id: number | null;
@@ -28,10 +29,7 @@ export default function ChecklistEditModal({ checklist, onClose, onSaved }: Prop
   const [removedIds, setRemovedIds] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
 
-  const remainingMinutes = Math.max(
-    0,
-    Math.round((new Date(checklist.created_at).getTime() + 60 * 60 * 1000 - Date.now()) / 60000)
-  );
+  const remainingMinutes = Math.max(0, Math.round((new Date(checklist.created_at).getTime() + 60 * 60 * 1000 - Date.now()) / 60000));
 
   const handleRemoveItem = (idx: number) => {
     const item = items[idx];
@@ -74,77 +72,81 @@ export default function ChecklistEditModal({ checklist, onClose, onSaved }: Prop
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View className="bg-primary dark:bg-darkbgbutton" style={styles.sheet}>
-          <View style={styles.headerRow}>
-            <Text className="text-gray-900 dark:text-darktext" style={styles.title}>Checklisti Düzenle</Text>
-            <Pressable onPress={onClose} hitSlop={8}>
-              <X size={20} color={mutedColor} />
-            </Pressable>
-          </View>
-          <View style={styles.remainingRow}>
-            <Clock size={12} color={mutedColor} />
-            <Text className="text-gray-500 dark:text-gray-400" style={styles.remainingText}>Düzenleme için kalan süre: ~{remainingMinutes} dk</Text>
-          </View>
-
-          <ScrollView style={{ marginTop: 16 }}>
-            <Text className="text-gray-500 dark:text-gray-400" style={styles.label}>Başlık *</Text>
-            <TextInput
-              className="border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-darkbg text-gray-900 dark:text-darktext"
-              style={styles.input}
-              value={title}
-              onChangeText={setTitle}
-              maxLength={200}
-            />
-
-            <Text className="text-gray-500 dark:text-gray-400" style={styles.label}>Açıklama</Text>
-            <TextInput
-              className="border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-darkbg text-gray-900 dark:text-darktext"
-              style={styles.input}
-              value={description}
-              onChangeText={setDescription}
-            />
-
-            <Text className="text-gray-500 dark:text-gray-400" style={styles.label}>Maddeler</Text>
-            <View style={{ gap: 8 }}>
-              {items.map((item, idx) => (
-                <View key={item.id ?? `new-${idx}`} style={styles.itemRow}>
-                  <TextInput
-                    className="border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-darkbg text-gray-900 dark:text-darktext"
-                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                    value={item.content}
-                    onChangeText={(text) =>
-                      setItems((prev) => prev.map((v, i) => (i === idx ? { ...v, content: text } : v)))
-                    }
-                    maxLength={300}
-                  />
-                  <Pressable onPress={() => handleRemoveItem(idx)} hitSlop={8}>
-                    <Trash2 size={17} color={dangerColor} />
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-            {items.length < 30 && (
-              <Pressable
-                style={styles.addItemBtn}
-                onPress={() => setItems((prev) => [...prev, { id: null, content: '' }])}
-              >
-                <Plus size={13} color={linkColor} />
-                <Text style={[styles.addItemText, { color: linkColor }]}>Madde ekle</Text>
+      <KeyboardAvoider>
+        <View style={styles.overlay}>
+          <View className="bg-surface" style={styles.sheet}>
+            <View style={styles.headerRow}>
+              <Text className="text-ink" style={styles.title}>
+                Checklisti Düzenle
+              </Text>
+              <Pressable onPress={onClose} hitSlop={8}>
+                <X size={20} color={mutedColor} />
               </Pressable>
-            )}
-          </ScrollView>
+            </View>
+            <View style={styles.remainingRow}>
+              <Clock size={12} color={mutedColor} />
+              <Text className="text-muted" style={styles.remainingText}>
+                Düzenleme için kalan süre: ~{remainingMinutes} dk
+              </Text>
+            </View>
 
-          <View style={styles.actionsRow}>
-            <Pressable className="border-gray-200 dark:border-gray-600" style={styles.cancelBtn} onPress={onClose}>
-              <Text className="text-gray-500 dark:text-gray-400" style={styles.cancelText}>İptal</Text>
-            </Pressable>
-            <Pressable className="bg-brand dark:bg-brand-light" style={[styles.saveBtn, saving && { opacity: 0.6 }]} onPress={handleSave} disabled={saving}>
-              <Text style={styles.saveText}>{saving ? 'Kaydediliyor…' : 'Kaydet'}</Text>
-            </Pressable>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 16 }}>
+              <Text className="text-muted" style={styles.label}>
+                Başlık *
+              </Text>
+              <TextInput
+                className="border-line bg-inset text-ink"
+                style={styles.input}
+                value={title}
+                onChangeText={setTitle}
+                maxLength={200}
+              />
+
+              <Text className="text-muted" style={styles.label}>
+                Açıklama
+              </Text>
+              <TextInput className="border-line bg-inset text-ink" style={styles.input} value={description} onChangeText={setDescription} />
+
+              <Text className="text-muted" style={styles.label}>
+                Maddeler
+              </Text>
+              <View style={{ gap: 8 }}>
+                {items.map((item, idx) => (
+                  <View key={item.id ?? `new-${idx}`} style={styles.itemRow}>
+                    <TextInput
+                      className="border-line bg-inset text-ink"
+                      style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                      value={item.content}
+                      onChangeText={(text) => setItems((prev) => prev.map((v, i) => (i === idx ? { ...v, content: text } : v)))}
+                      maxLength={300}
+                    />
+                    <Pressable onPress={() => handleRemoveItem(idx)} hitSlop={8}>
+                      <Trash2 size={17} color={dangerColor} />
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+              {items.length < 30 && (
+                <Pressable style={styles.addItemBtn} onPress={() => setItems((prev) => [...prev, { id: null, content: '' }])}>
+                  <Plus size={13} color={linkColor} />
+                  <Text style={[styles.addItemText, { color: linkColor }]}>Madde ekle</Text>
+                </Pressable>
+              )}
+            </ScrollView>
+
+            <View style={styles.actionsRow}>
+              <Pressable className="border-line" style={styles.cancelBtn} onPress={onClose}>
+                <Text className="text-muted" style={styles.cancelText}>
+                  İptal
+                </Text>
+              </Pressable>
+              <Pressable className="bg-accent" style={[styles.saveBtn, saving && { opacity: 0.6 }]} onPress={handleSave} disabled={saving}>
+                <Text style={styles.saveText}>{saving ? 'Kaydediliyor…' : 'Kaydet'}</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
-      </View>
+      </KeyboardAvoider>
     </Modal>
   );
 }

@@ -14,7 +14,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react-native';
-import ViewShot, { captureRef, type ViewShotRef } from 'react-native-view-shot';
+import ViewShot, { captureRef } from 'react-native-view-shot';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as Clipboard from 'expo-clipboard';
@@ -47,7 +47,9 @@ export default function ScheduleScreen() {
   const [downloading, setDownloading] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const shotRef = useRef<ViewShotRef>(null);
+  // react-native-view-shot `ViewShotRef` diye bir tip dışa vermiyor; ref
+  // doğrudan default export edilen ViewShot bileşen sınıfının örneği.
+  const shotRef = useRef<ViewShot>(null);
 
   useEffect(() => {
     (async () => {
@@ -176,16 +178,8 @@ export default function ScheduleScreen() {
   return (
     <View className="flex-1 bg-primary dark:bg-darkbgbutton">
       <ScrollView contentContainerClassName="px-4 py-6">
-        <View className="mb-4">
-          <View className="flex-row items-center gap-2.5">
-            <CalendarDays size={32} color={isDark ? '#5A9690' : '#2F5755'} />
-            <Text className="text-2xl font-extrabold text-gray-900 dark:text-darktext">Ders Programı</Text>
-          </View>
-          <Text className="text-sm text-gray-600 dark:text-darktext mt-2">
-            Derslerini ekle, çakışmaları anında gör. Programın hesabına kaydedilir; profilinden de görüntüleyebilirsin.
-          </Text>
-        </View>
-
+        {/* Ekran içi "Ders Programı" başlığı ve alt yazısı kaldırıldı — üst bar
+            zaten sayfa adını yazıyor. */}
         <View className="flex-row flex-wrap gap-2 mb-3">
           <Pressable className="flex-row items-center gap-2 bg-brand rounded-lg px-5 py-2.5" onPress={() => setModalCourse('new')}>
             <Plus size={18} color="#fff" />

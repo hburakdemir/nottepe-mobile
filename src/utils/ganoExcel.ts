@@ -15,7 +15,9 @@ const HEADER_ALIASES: Record<string, string[]> = {
 const REQUIRED_FIELDS = ['lessonName', 'semester', 'akts', 'grade'];
 
 function normalizeHeader(value: unknown): string {
-  return String(value ?? '').trim().toLocaleLowerCase('tr-TR');
+  return String(value ?? '')
+    .trim()
+    .toLocaleLowerCase('tr-TR');
 }
 
 function mapHeaders(headerRow: unknown[]): { columnIndex: Record<string, number>; missing: string[] } {
@@ -53,7 +55,12 @@ function parseRow(
 ): { ok: true; course: ImportedCourse } | { ok: false; error: ImportError } {
   const errors: string[] = [];
 
-  const code = columnIndex.code !== undefined ? String(row[columnIndex.code] ?? '').trim().toUpperCase() : '';
+  const code =
+    columnIndex.code !== undefined
+      ? String(row[columnIndex.code] ?? '')
+          .trim()
+          .toUpperCase()
+      : '';
 
   const lessonName = String(row[columnIndex.lessonName] ?? '').trim();
   if (!lessonName) errors.push('Ders adı boş');
@@ -68,7 +75,9 @@ function parseRow(
     errors.push(`AKTS eksik veya geçersiz (${MIN_AKTS}-${MAX_AKTS} arası olmalı)`);
   }
 
-  const grade = String(row[columnIndex.grade] ?? '').trim().toUpperCase();
+  const grade = String(row[columnIndex.grade] ?? '')
+    .trim()
+    .toUpperCase();
   if (!isValidGrade(grade)) errors.push(`Geçersiz not: "${grade || 'boş'}"`);
 
   if (errors.length > 0) {
@@ -77,10 +86,7 @@ function parseRow(
   return { ok: true, course: { code, lessonName, semester, akts, grade } };
 }
 
-export async function parseCoursesFromExcel(
-  uri: string,
-  name: string
-): Promise<{ valid: ImportedCourse[]; errors: ImportError[] }> {
+export async function parseCoursesFromExcel(uri: string, name: string): Promise<{ valid: ImportedCourse[]; errors: ImportError[] }> {
   const file = new File(uri);
   const isCsv = name.toLowerCase().endsWith('.csv');
   // CSV'yi metin, xlsx/xls'i base64 olarak okuyup XLSX.read'e veriyoruz — array buffer

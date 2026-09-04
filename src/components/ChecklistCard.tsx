@@ -36,58 +36,56 @@ export default function ChecklistCard({
   const isPending = checklist.approval_status === 'pending';
 
   return (
-    <View className="bg-primary dark:bg-darkbgbutton" style={styles.card}>
+    <View className="bg-surface" style={styles.card}>
       <Pressable style={styles.headerRow} onPress={() => onToggleOpen(checklist)}>
         <View style={{ flex: 1 }}>
           <View style={styles.titleRow}>
-            <Text className="text-gray-900 dark:text-darktext" style={styles.title}>{checklist.title}</Text>
+            <Text className="text-ink" style={styles.title}>
+              {checklist.title}
+            </Text>
             {isUserList && isPending && (
-              <View className="bg-yellow-100 dark:bg-yellow-900/40" style={styles.pendingBadge}>
-                <Text className="text-yellow-800 dark:text-yellow-300" style={styles.pendingText}>Onay Bekliyor</Text>
+              <View className="bg-warn-soft" style={styles.pendingBadge}>
+                <Text className="text-warn-ink" style={styles.pendingText}>
+                  Onay Bekliyor
+                </Text>
               </View>
             )}
           </View>
-          {!!checklist.description && <Text className="text-gray-500 dark:text-gray-400" style={styles.desc}>{checklist.description}</Text>}
+          {!!checklist.description && (
+            <Text className="text-muted" style={styles.desc}>
+              {checklist.description}
+            </Text>
+          )}
           <View style={styles.progressRow}>
-            <View className="bg-gray-200 dark:bg-gray-700" style={styles.progressTrack}>
-              <View className="bg-brand dark:bg-brand-light" style={[styles.progressFill, { width: `${percent}%` }]} />
+            <View className="bg-inset" style={styles.progressTrack}>
+              <View className="bg-accent" style={[styles.progressFill, { width: `${percent}%` }]} />
             </View>
-            <Text className="text-gray-500 dark:text-gray-400" style={styles.progressText}>
+            <Text className="text-muted" style={styles.progressText}>
               {done}/{total}
             </Text>
           </View>
         </View>
-        <ChevronDown
-          size={20}
-          color={mutedColor}
-          style={{ transform: [{ rotate: isOpen ? '180deg' : '0deg' }] }}
-        />
+        <ChevronDown size={20} color={mutedColor} style={{ transform: [{ rotate: isOpen ? '180deg' : '0deg' }] }} />
       </Pressable>
 
       {isOpen && (
-        <View className="border-gray-100 dark:border-gray-700/40" style={styles.itemsBlock}>
+        <View className="border-line-soft" style={styles.itemsBlock}>
           {checklist.items.length === 0 ? (
-            <Text className="text-gray-500 dark:text-gray-400" style={styles.emptyText}>Bu checklistte henüz madde yok.</Text>
+            <Text className="text-muted" style={styles.emptyText}>
+              Bu checklistte henüz madde yok.
+            </Text>
           ) : (
             checklist.items.map((item) => (
-              <Pressable
-                key={item.id}
-                style={styles.itemRow}
-                disabled={readOnlyItems}
-                onPress={() => onToggleItem?.(checklist.id, item)}
-              >
+              <Pressable key={item.id} style={styles.itemRow} disabled={readOnlyItems} onPress={() => onToggleItem?.(checklist.id, item)}>
                 <View
-                  className={item.checked ? undefined : 'border-gray-300 dark:border-gray-600'}
+                  className={item.checked ? undefined : 'border-line'}
                   style={[styles.checkbox, item.checked && { backgroundColor: brandColor, borderColor: brandColor }]}
                 >
                   {item.checked && <CheckCircle2 size={14} color="#fff" />}
                 </View>
                 <Text
-                  className={item.checked ? undefined : 'text-gray-900 dark:text-darktext'}
-                  style={[
-                    styles.itemText,
-                    item.checked && { color: isDark ? '#6b7280' : '#9ca3af', textDecorationLine: 'line-through' },
-                  ]}
+                  className={item.checked ? undefined : 'text-ink'}
+                  style={[styles.itemText, item.checked && { color: isDark ? '#6b7280' : '#9ca3af', textDecorationLine: 'line-through' }]}
                 >
                   {item.content}
                 </Text>
@@ -96,9 +94,11 @@ export default function ChecklistCard({
           )}
 
           {total > 0 && done === total && (
-            <View className="bg-green-50 dark:bg-green-950/40" style={styles.doneBanner}>
+            <View className="bg-success-soft" style={styles.doneBanner}>
               <CheckCircle2 size={18} color={isDark ? '#4ade80' : '#15803d'} />
-              <Text className="text-green-700 dark:text-green-400" style={styles.doneBannerText}>Tebrikler, bu checklisti tamamladın!</Text>
+              <Text className="text-success" style={styles.doneBannerText}>
+                Tebrikler, bu checklisti tamamladın!
+              </Text>
             </View>
           )}
         </View>
@@ -106,12 +106,12 @@ export default function ChecklistCard({
 
       <View style={styles.actionsRow}>
         {canEdit && (
-          <Pressable className="bg-gray-50 dark:bg-gray-700/40" style={styles.actionBtn} onPress={() => onEditClick?.(checklist)} hitSlop={8}>
+          <Pressable className="bg-inset" style={styles.actionBtn} onPress={() => onEditClick?.(checklist)} hitSlop={8}>
             <Pencil size={15} color={mutedColor} />
           </Pressable>
         )}
         {isUserList && checklist.completion && (
-          <Pressable className="bg-gray-50 dark:bg-gray-700/40" style={styles.actionBtn} onPress={() => onStatsClick?.(checklist)} hitSlop={8}>
+          <Pressable className="bg-inset" style={styles.actionBtn} onPress={() => onStatsClick?.(checklist)} hitSlop={8}>
             <BarChart2 size={15} color={mutedColor} />
           </Pressable>
         )}

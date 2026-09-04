@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { AlertCircle, CheckCircle, Eye, EyeOff, Trash2, X } from 'lucide-react-native';
 import { profileupdateAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { faculties, departments } from '../../data/departments';
 import BadgeChip, { type Badge } from '../BadgeChip';
+import KeyboardAvoider from '../layout/KeyboardAvoider';
+import OptionSheet from '../layout/OptionSheet';
 
 const SECTION_VISIBILITY_FIELDS: { key: string; label: string }[] = [
   { key: 'saved_posts', label: 'Kaydedilenler' },
@@ -101,246 +103,260 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View className="bg-primary dark:bg-darkbgbutton" style={styles.sheet}>
-          <View style={styles.headerRow}>
-            <Text className="text-gray-900 dark:text-darktext" style={styles.title}>Profili Düzenle</Text>
-            <Pressable onPress={onClose} hitSlop={8}>
-              <X size={20} color={mutedIconColor} />
-            </Pressable>
-          </View>
-
-          <View className="border-gray-100 dark:border-gray-700/40" style={styles.tabRow}>
-            <Pressable
-              className={tab === 'info' ? 'border-brand dark:border-brand-light' : 'border-transparent'}
-              style={styles.tabBtn}
-              onPress={() => setTab('info')}
-            >
-              <Text
-                className={tab === 'info' ? 'text-brand dark:text-brand-light' : 'text-gray-500 dark:text-gray-400'}
-                style={styles.tabBtnText}
-              >
-                Kişisel Bilgiler
+      <KeyboardAvoider>
+        <View style={styles.overlay}>
+          <View className="bg-surface" style={styles.sheet}>
+            <View style={styles.headerRow}>
+              <Text className="text-ink" style={styles.title}>
+                Profili Düzenle
               </Text>
-            </Pressable>
-            <Pressable
-              className={tab === 'visibility' ? 'border-brand dark:border-brand-light' : 'border-transparent'}
-              style={styles.tabBtn}
-              onPress={() => setTab('visibility')}
-            >
-              <Text
-                className={tab === 'visibility' ? 'text-brand dark:text-brand-light' : 'text-gray-500 dark:text-gray-400'}
-                style={styles.tabBtnText}
+              <Pressable onPress={onClose} hitSlop={8}>
+                <X size={20} color={mutedIconColor} />
+              </Pressable>
+            </View>
+
+            <View className="border-line-soft" style={styles.tabRow}>
+              <Pressable
+                className={tab === 'info' ? 'border-accent' : 'border-transparent'}
+                style={styles.tabBtn}
+                onPress={() => setTab('info')}
               >
-                Görünürlük
-              </Text>
-            </Pressable>
-          </View>
-
-          {!!error && (
-            <View style={styles.alertError}>
-              <AlertCircle size={15} color="#b91c1c" />
-              <Text style={styles.alertErrorText}>{error}</Text>
+                <Text className={tab === 'info' ? 'text-accent' : 'text-muted'} style={styles.tabBtnText}>
+                  Kişisel Bilgiler
+                </Text>
+              </Pressable>
+              <Pressable
+                className={tab === 'visibility' ? 'border-accent' : 'border-transparent'}
+                style={styles.tabBtn}
+                onPress={() => setTab('visibility')}
+              >
+                <Text className={tab === 'visibility' ? 'text-accent' : 'text-muted'} style={styles.tabBtnText}>
+                  Görünürlük
+                </Text>
+              </Pressable>
             </View>
-          )}
-          {!!success && (
-            <View style={styles.alertSuccess}>
-              <CheckCircle size={15} color="#15803d" />
-              <Text style={styles.alertSuccessText}>{success}</Text>
-            </View>
-          )}
 
-          <ScrollView style={{ marginTop: 8 }}>
-            {tab === 'info' ? (
-              <>
-                <Text className="text-gray-700 dark:text-darktext" style={styles.label}>İsim Soyisim</Text>
-                <TextInput
-                  className="border-gray-200 dark:border-gray-600 text-gray-900 dark:text-darktext"
-                  style={styles.input}
-                  value={fullName}
-                  onChangeText={setFullName}
-                  placeholder="İsim Soyisim"
-                  placeholderTextColor="#9ca3af"
-                />
+            {!!error && (
+              <View style={styles.alertError}>
+                <AlertCircle size={15} color="#b91c1c" />
+                <Text style={styles.alertErrorText}>{error}</Text>
+              </View>
+            )}
+            {!!success && (
+              <View style={styles.alertSuccess}>
+                <CheckCircle size={15} color="#15803d" />
+                <Text style={styles.alertSuccessText}>{success}</Text>
+              </View>
+            )}
 
-                <Text className="text-gray-700 dark:text-darktext" style={styles.label}>Kullanıcı Adı</Text>
-                <TextInput
-                  className="border-gray-200 dark:border-gray-600 text-gray-900 dark:text-darktext"
-                  style={styles.input}
-                  value={username}
-                  onChangeText={setUsername}
-                  placeholder="Kullanıcı Adı"
-                  placeholderTextColor="#9ca3af"
-                  autoCapitalize="none"
-                />
-
-                <Text className="text-gray-700 dark:text-darktext" style={styles.label}>Telefon</Text>
-                <TextInput
-                  className="border-gray-200 dark:border-gray-600 text-gray-900 dark:text-darktext"
-                  style={styles.input}
-                  value={phone}
-                  onChangeText={setPhone}
-                  placeholder="05551234567"
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="phone-pad"
-                />
-
-                <Text className="text-gray-700 dark:text-darktext" style={styles.label}>Fakülte</Text>
-                <Pressable className="border-gray-200 dark:border-gray-600" style={styles.selectBox} onPress={() => setShowFacultyPicker(true)}>
-                  <Text className={faculty ? 'text-gray-900 dark:text-darktext' : 'text-gray-500 dark:text-gray-400'} style={styles.selectText}>
-                    {faculty || 'Fakülte seçin...'}
+            <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 8 }}>
+              {tab === 'info' ? (
+                <>
+                  <Text className="text-ink2" style={styles.label}>
+                    İsim Soyisim
                   </Text>
-                </Pressable>
+                  <TextInput
+                    className="border-line text-ink"
+                    style={styles.input}
+                    value={fullName}
+                    onChangeText={setFullName}
+                    placeholder="İsim Soyisim"
+                    placeholderTextColor="#9ca3af"
+                  />
 
-                <Text className="text-gray-700 dark:text-darktext" style={styles.label}>Bölüm</Text>
-                <Pressable
-                  className="border-gray-200 dark:border-gray-600"
-                  style={[styles.selectBox, !faculty && { opacity: 0.5 }]}
-                  onPress={() => faculty && setShowDeptPicker(true)}
-                >
-                  <Text className={department ? 'text-gray-900 dark:text-darktext' : 'text-gray-500 dark:text-gray-400'} style={styles.selectText}>
-                    {department || 'Bölüm seçin...'}
+                  <Text className="text-ink2" style={styles.label}>
+                    Kullanıcı Adı
                   </Text>
-                </Pressable>
-                <Text className="text-gray-500 dark:text-gray-400" style={styles.hint}>Fakülte/bölüm herkese açık profilinde görünür.</Text>
+                  <TextInput
+                    className="border-line text-ink"
+                    style={styles.input}
+                    value={username}
+                    onChangeText={setUsername}
+                    placeholder="Kullanıcı Adı"
+                    placeholderTextColor="#9ca3af"
+                    autoCapitalize="none"
+                  />
 
-                <Text className="text-gray-700 dark:text-darktext" style={styles.label}>Açıklama</Text>
-                <TextInput
-                  className="border-gray-200 dark:border-gray-600 text-gray-900 dark:text-darktext"
-                  style={[styles.input, styles.textArea]}
-                  value={bio}
-                  onChangeText={(t) => setBio(t.slice(0, 300))}
-                  placeholder="Kendinden kısaca bahset..."
-                  placeholderTextColor="#9ca3af"
-                  multiline
-                />
-                <Text className="text-gray-500 dark:text-gray-400" style={styles.hintRight}>{bio.length}/300 — herkese açık profilinde görünür</Text>
+                  <Text className="text-ink2" style={styles.label}>
+                    Telefon
+                  </Text>
+                  <TextInput
+                    className="border-line text-ink"
+                    style={styles.input}
+                    value={phone}
+                    onChangeText={setPhone}
+                    placeholder="05551234567"
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="phone-pad"
+                  />
 
-                <Text className="text-gray-700 dark:text-darktext" style={styles.label}>Email (Değiştirilemez)</Text>
-                <View className="border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-700/40" style={styles.input}>
-                  <Text className="text-gray-500 dark:text-gray-400">{user?.email}</Text>
-                </View>
-              </>
-            ) : (
-              <>
-                <View style={styles.switchRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text className="text-gray-700 dark:text-darktext" style={styles.switchLabel}>Profilimi herkese açık yap</Text>
-                    <Text className="text-gray-500 dark:text-gray-400" style={styles.hint}>Kapatırsan başkaları sadece adını, avatarını ve rozetlerini görür.</Text>
+                  <Text className="text-ink2" style={styles.label}>
+                    Fakülte
+                  </Text>
+                  <Pressable className="border-line" style={styles.selectBox} onPress={() => setShowFacultyPicker(true)}>
+                    <Text className={faculty ? 'text-ink' : 'text-muted'} style={styles.selectText}>
+                      {faculty || 'Fakülte seçin...'}
+                    </Text>
+                  </Pressable>
+
+                  <Text className="text-ink2" style={styles.label}>
+                    Bölüm
+                  </Text>
+                  <Pressable
+                    className="border-line"
+                    style={[styles.selectBox, !faculty && { opacity: 0.5 }]}
+                    onPress={() => faculty && setShowDeptPicker(true)}
+                  >
+                    <Text className={department ? 'text-ink' : 'text-muted'} style={styles.selectText}>
+                      {department || 'Bölüm seçin...'}
+                    </Text>
+                  </Pressable>
+                  <Text className="text-muted" style={styles.hint}>
+                    Fakülte/bölüm herkese açık profilinde görünür.
+                  </Text>
+
+                  <Text className="text-ink2" style={styles.label}>
+                    Açıklama
+                  </Text>
+                  <TextInput
+                    className="border-line text-ink"
+                    style={[styles.input, styles.textArea]}
+                    value={bio}
+                    onChangeText={(t) => setBio(t.slice(0, 300))}
+                    placeholder="Kendinden kısaca bahset..."
+                    placeholderTextColor="#9ca3af"
+                    multiline
+                  />
+                  <Text className="text-muted" style={styles.hintRight}>
+                    {bio.length}/300 — herkese açık profilinde görünür
+                  </Text>
+
+                  <Text className="text-ink2" style={styles.label}>
+                    Email (Değiştirilemez)
+                  </Text>
+                  <View className="border-line bg-inset" style={styles.input}>
+                    <Text className="text-muted">{user?.email}</Text>
                   </View>
-                  <Switch value={isPublic} onValueChange={setIsPublic} trackColor={{ true: '#2F5755' }} />
-                </View>
-
-                <Text className="text-gray-700 dark:text-darktext" style={styles.label}>Başkaları profilimde şunları görebilsin</Text>
-                <Text className="text-gray-500 dark:text-gray-400" style={styles.hint}>Postların her zaman görünür. Gizlediğin bir sekme başkasının profilinde hiç görünmez.</Text>
-                <View className="border-gray-100 dark:border-gray-700/40" style={styles.visibilityBox}>
-                  {SECTION_VISIBILITY_FIELDS.map(({ key, label }) => (
-                    <View key={key} className="border-gray-100 dark:border-gray-700/40" style={styles.visibilityRow}>
-                      <Text className="text-gray-700 dark:text-darktext" style={styles.visibilityLabel}>{label}</Text>
-                      <Switch
-                        value={!!visibility[key]}
-                        onValueChange={(v) => setVisibility((prev) => ({ ...prev, [key]: v }))}
-                        trackColor={{ true: '#2F5755' }}
-                      />
+                </>
+              ) : (
+                <>
+                  <View style={styles.switchRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text className="text-ink2" style={styles.switchLabel}>
+                        Profilimi herkese açık yap
+                      </Text>
+                      <Text className="text-muted" style={styles.hint}>
+                        Kapatırsan başkaları sadece adını, avatarını ve rozetlerini görür.
+                      </Text>
                     </View>
-                  ))}
-                </View>
+                    <Switch value={isPublic} onValueChange={setIsPublic} trackColor={{ true: '#2F5755' }} />
+                  </View>
 
-                <Text className="text-gray-700 dark:text-darktext" style={styles.label}>Rozetlerim</Text>
-                <Text className="text-gray-500 dark:text-gray-400" style={styles.hint}>Gizlediğin bir rozet profilinde görünmez. En az bir rozet görünür kalmalı.</Text>
-                {badges.length === 0 ? (
-                  <Text className="text-gray-500 dark:text-gray-400" style={styles.hint}>Henüz rozet yok.</Text>
-                ) : (
-                  <View className="border-gray-100 dark:border-gray-700/40" style={styles.visibilityBox}>
-                    {badges.map((badge) => (
-                      <View key={badge.id} className="border-gray-100 dark:border-gray-700/40" style={styles.visibilityRow}>
-                        <View style={{ flex: 1, opacity: badge.is_visible ? 1 : 0.4 }}>
-                          <BadgeChip badge={badge} />
-                        </View>
-                        <Pressable onPress={() => onToggleBadgeVisibility(badge)} hitSlop={8}>
-                          {badge.is_visible ? <Eye size={16} color={mutedIconColor} /> : <EyeOff size={16} color={mutedIconColor} />}
-                        </Pressable>
+                  <Text className="text-ink2" style={styles.label}>
+                    Başkaları profilimde şunları görebilsin
+                  </Text>
+                  <Text className="text-muted" style={styles.hint}>
+                    Postların her zaman görünür. Gizlediğin bir sekme başkasının profilinde hiç görünmez.
+                  </Text>
+                  <View className="border-line-soft" style={styles.visibilityBox}>
+                    {SECTION_VISIBILITY_FIELDS.map(({ key, label }) => (
+                      <View key={key} className="border-line-soft" style={styles.visibilityRow}>
+                        <Text className="text-ink2" style={styles.visibilityLabel}>
+                          {label}
+                        </Text>
+                        <Switch
+                          value={!!visibility[key]}
+                          onValueChange={(v) => setVisibility((prev) => ({ ...prev, [key]: v }))}
+                          trackColor={{ true: '#2F5755' }}
+                        />
                       </View>
                     ))}
                   </View>
-                )}
 
-                <View style={styles.dangerZone}>
-                  <Text className="text-red-600 dark:text-red-400" style={styles.dangerLabel}>Tehlikeli Bölge</Text>
-                  <Text className="text-gray-500 dark:text-gray-400" style={styles.hint}>
-                    Hesabını silersen tekrar giriş yapamazsın. Paylaştığın notlar, yorumlar ve listeler "Silinmiş
-                    Kullanıcı" adıyla anonim olarak yayında kalmaya devam eder.
+                  <Text className="text-ink2" style={styles.label}>
+                    Rozetlerim
                   </Text>
-                  <Pressable
-                    style={styles.deleteAccountBtn}
-                    onPress={() => {
-                      onClose();
-                      onDeleteAccountRequest();
-                    }}
-                  >
-                    <Trash2 size={14} color={dangerIconColor} />
-                    <Text className="text-red-600 dark:text-red-400" style={styles.deleteAccountText}>Hesabımı Sil</Text>
-                  </Pressable>
-                </View>
-              </>
-            )}
-          </ScrollView>
+                  <Text className="text-muted" style={styles.hint}>
+                    Gizlediğin bir rozet profilinde görünmez. En az bir rozet görünür kalmalı.
+                  </Text>
+                  {badges.length === 0 ? (
+                    <Text className="text-muted" style={styles.hint}>
+                      Henüz rozet yok.
+                    </Text>
+                  ) : (
+                    <View className="border-line-soft" style={styles.visibilityBox}>
+                      {badges.map((badge) => (
+                        <View key={badge.id} className="border-line-soft" style={styles.visibilityRow}>
+                          <View style={{ flex: 1, opacity: badge.is_visible ? 1 : 0.4 }}>
+                            <BadgeChip badge={badge} />
+                          </View>
+                          <Pressable onPress={() => onToggleBadgeVisibility(badge)} hitSlop={8}>
+                            {badge.is_visible ? <Eye size={16} color={mutedIconColor} /> : <EyeOff size={16} color={mutedIconColor} />}
+                          </Pressable>
+                        </View>
+                      ))}
+                    </View>
+                  )}
 
-          <View style={styles.actionsRow}>
-            <Pressable className="border-gray-200 dark:border-gray-600" style={styles.cancelBtn} onPress={onClose} disabled={loading}>
-              <Text className="text-gray-700 dark:text-darktext" style={styles.cancelText}>İptal</Text>
-            </Pressable>
-            <Pressable style={[styles.saveBtn, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
-              <Text style={styles.saveText}>{loading ? 'Güncelleniyor...' : 'Güncelle'}</Text>
-            </Pressable>
+                  <View style={styles.dangerZone}>
+                    <Text className="text-danger" style={styles.dangerLabel}>
+                      Tehlikeli Bölge
+                    </Text>
+                    <Text className="text-muted" style={styles.hint}>
+                      Hesabını silersen tekrar giriş yapamazsın. Paylaştığın notlar, yorumlar ve listeler "Silinmiş Kullanıcı" adıyla anonim
+                      olarak yayında kalmaya devam eder.
+                    </Text>
+                    <Pressable
+                      style={styles.deleteAccountBtn}
+                      onPress={() => {
+                        onClose();
+                        onDeleteAccountRequest();
+                      }}
+                    >
+                      <Trash2 size={14} color={dangerIconColor} />
+                      <Text className="text-danger" style={styles.deleteAccountText}>
+                        Hesabımı Sil
+                      </Text>
+                    </Pressable>
+                  </View>
+                </>
+              )}
+            </ScrollView>
+
+            <View style={styles.actionsRow}>
+              <Pressable className="border-line" style={styles.cancelBtn} onPress={onClose} disabled={loading}>
+                <Text className="text-ink2" style={styles.cancelText}>
+                  İptal
+                </Text>
+              </Pressable>
+              <Pressable style={[styles.saveBtn, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
+                <Text style={styles.saveText}>{loading ? 'Güncelleniyor...' : 'Güncelle'}</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
-      </View>
 
-      <Modal visible={showFacultyPicker} transparent animationType="slide" onRequestClose={() => setShowFacultyPicker(false)}>
-        <Pressable style={styles.pickerOverlay} onPress={() => setShowFacultyPicker(false)}>
-          <View className="bg-primary dark:bg-darkbgbutton" style={styles.pickerSheet}>
-            <ScrollView>
-              {faculties.map((f) => (
-                <Pressable
-                  key={f}
-                  className="border-gray-100 dark:border-gray-700/40"
-                  style={styles.pickerOption}
-                  onPress={() => {
-                    setFaculty(f);
-                    setDepartment('');
-                    setShowFacultyPicker(false);
-                  }}
-                >
-                  <Text className="text-gray-700 dark:text-darktext" style={styles.pickerOptionText}>{f}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
-        </Pressable>
-      </Modal>
+        <OptionSheet
+          visible={showFacultyPicker}
+          title="Fakülte seç"
+          options={faculties}
+          value={faculty}
+          onSelect={(f) => {
+            setFaculty(f);
+            setDepartment('');
+          }}
+          onClose={() => setShowFacultyPicker(false)}
+        />
 
-      <Modal visible={showDeptPicker} transparent animationType="slide" onRequestClose={() => setShowDeptPicker(false)}>
-        <Pressable style={styles.pickerOverlay} onPress={() => setShowDeptPicker(false)}>
-          <View className="bg-primary dark:bg-darkbgbutton" style={styles.pickerSheet}>
-            <ScrollView>
-              {(departments[faculty] || []).map((d) => (
-                <Pressable
-                  key={d}
-                  className="border-gray-100 dark:border-gray-700/40"
-                  style={styles.pickerOption}
-                  onPress={() => {
-                    setDepartment(d);
-                    setShowDeptPicker(false);
-                  }}
-                >
-                  <Text className="text-gray-700 dark:text-darktext" style={styles.pickerOptionText}>{d}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
-        </Pressable>
-      </Modal>
+        <OptionSheet
+          visible={showDeptPicker}
+          title="Bölüm seç"
+          options={departments[faculty] || []}
+          value={department}
+          onSelect={setDepartment}
+          onClose={() => setShowDeptPicker(false)}
+        />
+      </KeyboardAvoider>
     </Modal>
   );
 }
@@ -353,9 +369,25 @@ const styles = StyleSheet.create({
   tabRow: { flexDirection: 'row', borderBottomWidth: 1, marginTop: 12 },
   tabBtn: { flex: 1, paddingBottom: 10, borderBottomWidth: 2, alignItems: 'center' },
   tabBtnText: { fontSize: 13, fontWeight: '600' },
-  alertError: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fef2f2', borderRadius: 10, padding: 10, marginTop: 12 },
+  alertError: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#fef2f2',
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 12,
+  },
   alertErrorText: { color: '#b91c1c', fontSize: 12.5, flex: 1 },
-  alertSuccess: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#f0fdf4', borderRadius: 10, padding: 10, marginTop: 12 },
+  alertSuccess: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#f0fdf4',
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 12,
+  },
   alertSuccessText: { color: '#15803d', fontSize: 12.5, flex: 1 },
   label: { fontSize: 12.5, fontWeight: '600', marginBottom: 6, marginTop: 14 },
   input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
@@ -397,8 +429,4 @@ const styles = StyleSheet.create({
   cancelText: { fontSize: 13.5, fontWeight: '600' },
   saveBtn: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 10, backgroundColor: '#2F5755' },
   saveText: { color: '#fff', fontSize: 13.5, fontWeight: '700' },
-  pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  pickerSheet: { borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: '70%', paddingVertical: 8 },
-  pickerOption: { paddingHorizontal: 20, paddingVertical: 13, borderBottomWidth: 1 },
-  pickerOptionText: { fontSize: 14.5 },
 });

@@ -13,12 +13,16 @@ function FaqAccordion({ isDark }: { isDark: boolean }) {
       {helpFaq.map((item, i) => {
         const isOpen = openIndex === i;
         return (
-          <View key={item.q} className="bg-gray-50 dark:bg-darkbg rounded-[14px] border border-gray-200 dark:border-gray-600 overflow-hidden">
+          <View key={item.q} className="bg-inset rounded-[14px] border border-line overflow-hidden">
             <Pressable className="flex-row items-center justify-between gap-2.5 p-3.5" onPress={() => setOpenIndex(isOpen ? -1 : i)}>
-              <Text className="flex-1 text-sm font-semibold text-gray-900 dark:text-darktext">{item.q}</Text>
-              <ChevronDown size={18} color={isDark ? '#9ca3af' : '#6b7280'} style={{ transform: [{ rotate: isOpen ? '180deg' : '0deg' }] }} />
+              <Text className="flex-1 text-sm font-semibold text-ink">{item.q}</Text>
+              <ChevronDown
+                size={18}
+                color={isDark ? '#9ca3af' : '#6b7280'}
+                style={{ transform: [{ rotate: isOpen ? '180deg' : '0deg' }] }}
+              />
             </Pressable>
-            {isOpen && <Text className="text-xs text-gray-500 dark:text-gray-400 leading-[18px] px-3.5 pb-3.5">{item.a}</Text>}
+            {isOpen && <Text className="text-xs text-muted leading-[18px] px-3.5 pb-3.5">{item.a}</Text>}
           </View>
         );
       })}
@@ -51,18 +55,18 @@ function FeedbackForm() {
   };
 
   return (
-    <View className="bg-primary dark:bg-darkbgbutton rounded-[18px] p-[18px] border border-gray-100 dark:border-gray-700/40">
-      <Text className="text-base font-semibold text-gray-900 dark:text-darktext">Bize Yazın</Text>
-      <Text className="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-3.5">Fikir, öneri veya sorun bildirimlerin doğrudan bize ulaşır.</Text>
+    <View className="bg-surface rounded-[18px] p-[18px] border border-line-soft">
+      <Text className="text-base font-semibold text-ink">Bize Yazın</Text>
+      <Text className="text-xs text-muted mt-1 mb-3.5">Fikir, öneri veya sorun bildirimlerin doğrudan bize ulaşır.</Text>
       <TextInput
-        className="bg-gray-50 dark:bg-darkbg border border-gray-200 dark:border-gray-600 rounded-[10px] px-3.5 py-[11px] text-[13.5px] text-gray-900 dark:text-darktext mb-2.5"
+        className="bg-inset border border-line rounded-[10px] px-3.5 py-[11px] text-[13.5px] text-ink mb-2.5"
         value={name}
         onChangeText={setName}
         placeholder="Adın"
         placeholderTextColor="#9ca3af"
       />
       <TextInput
-        className="bg-gray-50 dark:bg-darkbg border border-gray-200 dark:border-gray-600 rounded-[10px] px-3.5 py-[11px] text-[13.5px] text-gray-900 dark:text-darktext mb-2.5"
+        className="bg-inset border border-line rounded-[10px] px-3.5 py-[11px] text-[13.5px] text-ink mb-2.5"
         value={email}
         onChangeText={setEmail}
         placeholder="E-posta adresin"
@@ -71,7 +75,7 @@ function FeedbackForm() {
         keyboardType="email-address"
       />
       <TextInput
-        className="bg-gray-50 dark:bg-darkbg border border-gray-200 dark:border-gray-600 rounded-[10px] px-3.5 py-[11px] text-[13.5px] text-gray-900 dark:text-darktext mb-2.5 min-h-[90px]"
+        className="bg-inset border border-line rounded-[10px] px-3.5 py-[11px] text-[13.5px] text-ink mb-2.5 min-h-[90px]"
         style={{ textAlignVertical: 'top' }}
         value={message}
         onChangeText={setMessage}
@@ -96,40 +100,48 @@ export default function HelpScreen() {
   const isDark = theme === 'dark';
 
   return (
-    <ScrollView className="flex-1 bg-primary dark:bg-darkbgbutton" contentContainerClassName="p-4 pb-10">
-      <Text className="text-2xl font-extrabold text-gray-900 dark:text-darktext mb-4 text-center">Biz Kimiz</Text>
+    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="p-4 pb-[110px]">
+      <Text className="text-2xl font-extrabold text-ink mb-4 text-center">Biz Kimiz</Text>
 
-      <View className="bg-primary dark:bg-darkbgbutton rounded-[18px] p-4 mb-3.5 border border-gray-100 dark:border-gray-700/40">
+      <View className="bg-surface rounded-[18px] p-4 mb-3.5 border border-line-soft">
         <View className="flex-row items-center gap-2 mb-3">
           <Target size={20} color={isDark ? '#5A9690' : '#2F5755'} />
-          <Text className="text-base font-semibold text-gray-900 dark:text-darktext mb-1.5">Misyonumuz</Text>
+          <Text className="text-base font-semibold text-ink mb-1.5">Misyonumuz</Text>
         </View>
-        <Text className="text-sm text-gray-600 dark:text-gray-400 leading-[19px]">
-          Bu platformu yapma amacımız Hacettepe Üniversitesi öğrencilerinin notlara kolayca ulaşabilmesi ve
-          birbirleriyle paylaşabilmesi. Öğrenciler arasında bilgi paylaşımını kolaylaştırmak ve akademik başarıya
-          katkıda bulunmak istiyoruz.
+        <Text className="text-sm text-muted leading-[19px]">
+          Bu platformu yapma amacımız Hacettepe Üniversitesi öğrencilerinin notlara kolayca ulaşabilmesi ve birbirleriyle paylaşabilmesi.
+          Öğrenciler arasında bilgi paylaşımını kolaylaştırmak ve akademik başarıya katkıda bulunmak istiyoruz.
         </Text>
       </View>
 
-      <View className="bg-primary dark:bg-darkbgbutton rounded-[18px] p-4 mb-3.5 border border-gray-100 dark:border-gray-700/40">
+      <View className="bg-surface rounded-[18px] p-4 mb-3.5 border border-line-soft">
         <View className="flex-row items-center gap-2 mb-3">
           <HelpCircle size={20} color={isDark ? '#5A9690' : '#2F5755'} />
-          <Text className="text-base font-semibold text-gray-900 dark:text-darktext mb-1.5">Sık Sorulan Sorular</Text>
+          <Text className="text-base font-semibold text-ink mb-1.5">Sık Sorulan Sorular</Text>
         </View>
         <FaqAccordion isDark={isDark} />
       </View>
 
-      <View className="bg-primary dark:bg-darkbgbutton rounded-[18px] p-4 mb-3.5 border border-gray-100 dark:border-gray-700/40">
-        <Text className="text-base font-semibold text-gray-900 dark:text-darktext mb-1.5">İletişim</Text>
-        <Pressable className="flex-row items-center gap-2.5 bg-brand rounded-full px-4 py-3 mt-2" onPress={() => Linking.openURL('mailto:burakd279@gmail.com')}>
+      <View className="bg-surface rounded-[18px] p-4 mb-3.5 border border-line-soft">
+        <Text className="text-base font-semibold text-ink mb-1.5">İletişim</Text>
+        <Pressable
+          className="flex-row items-center gap-2.5 bg-brand rounded-full px-4 py-3 mt-2"
+          onPress={() => Linking.openURL('mailto:burakd279@gmail.com')}
+        >
           <Mail size={16} color="#fff" />
           <Text className="text-white text-[13px] font-semibold">burakd279@gmail.com</Text>
         </Pressable>
-        <Pressable className="flex-row items-center gap-2.5 bg-brand rounded-full px-4 py-3 mt-2" onPress={() => Linking.openURL('https://www.linkedin.com/in/hburakdmr')}>
+        <Pressable
+          className="flex-row items-center gap-2.5 bg-brand rounded-full px-4 py-3 mt-2"
+          onPress={() => Linking.openURL('https://www.linkedin.com/in/hburakdmr')}
+        >
           <ExternalLink size={16} color="#fff" />
           <Text className="text-white text-[13px] font-semibold">LinkedIn — Hakan Burak Demir</Text>
         </Pressable>
-        <Pressable className="flex-row items-center gap-2.5 bg-brand rounded-full px-4 py-3 mt-2" onPress={() => Linking.openURL('http://www.instagram.com/hacettepecumhuriyet')}>
+        <Pressable
+          className="flex-row items-center gap-2.5 bg-brand rounded-full px-4 py-3 mt-2"
+          onPress={() => Linking.openURL('http://www.instagram.com/hacettepecumhuriyet')}
+        >
           <ExternalLink size={16} color="#fff" />
           <Text className="text-white text-[13px] font-semibold">Instagram — Hacettepe Cumhuriyet</Text>
         </Pressable>

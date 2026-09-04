@@ -1,17 +1,15 @@
 import React, { useEffect } from 'react';
-import { Platform, Pressable, View } from 'react-native';
+import { Keyboard, Platform, Pressable, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { StackActions, useNavigation, useRoute } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation, useNavigationState } from '@react-navigation/native';
 import { Home, Library, UtensilsCrossed, Wrench, type LucideIcon } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useMyAvatar } from '../../hooks/useMyAvatar';
 import AvatarDisplay from '../avatar/AvatarDisplay';
 import DeerIcon from '../icons/DeerIcon';
-import { setTabAnimationDirection } from '../../navigation/tabAnimationDirection';
-import type { RootStackParamList } from '../../navigation/types';
+import { TAB_ROUTE_NAMES, navigateApp } from '../../navigation/navigateApp';
 
 // Onaylanan "E · Instagram tarzı buzlu cam" mockup'ının RN karşılığı — kenarlardan
 // boşluklu, yüzen tam bir buzlu-cam hap (bar'ın kendi blur+arka planı+border+
@@ -20,14 +18,18 @@ import type { RootStackParamList } from '../../navigation/types';
 // (AppHeader'daki zil/avatar) — "Ekle" en sağda.
 //
 // Web'de Navbar/MobileTabBar her rotada (detay sayfaları dahil) sabit kalıyor —
-// burada da artık gerçek bir Tab.Navigator yok; AppShell (bkz. o dosya) bu bar'ı
-// RootStack'teki HER ekranın altına sabit monte ediyor, aktif sekme geçerli
-// route adına göre belirleniyor (5 route'tan biri değilse hiçbiri aktif görünmez).
+// burada da öyle. Bar iki yerde çiziliyor:
+//  1. MainTabsScreen'de Tab.Navigator'ın `tabBar`'ı olarak — sahnelerin
+//     KARDEŞİ olduğu için sekme geçiş animasyonu boyunca ekranda sabit kalır.
+//  2. AppShell'de, push edilen ekranların (gönderi/profil/araç sayfaları)
+//     altında.
+// Aktif sekme her iki durumda da en yakın navigator'ın odaklı route adından
+// çıkarılıyor (5 route'tan biri değilse hiçbiri aktif görünmez).
 //
 // "Ekle" buradan çıkıp AppHeader'daki + butonuna taşındı; yerine en sık gidilen
 // iki hedef geldi: Yemek Listesi ve (en sağda, ikon yerine kullanıcının kendi
 // avatarıyla) Profil.
-const TAB_ROUTES = ['Home', 'Departments', 'Tools', 'CafeteriaMenu', 'Profile'] as const;
+const TAB_ROUTES = TAB_ROUTE_NAMES;
 
 const PROFILE_ROUTE = 'Profile';
 
@@ -70,8 +72,11 @@ export default function WaveTabBar() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const c = COLORS[theme];
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const currentRouteName = useRoute().name;
+  const navigation = useNavigation();
+  // `useRoute()` değil: bar Tab.Navigator'ın `tabBar`'ı olarak çizildiğinde
+  // route bağlamı üstteki `MainTabs` ekranı olurdu. En yakın navigator'ın
+  // odaklı route'u her iki montaj yerinde de doğru cevabı veriyor.
+  const currentRouteName = useNavigationState((state) => state.routes[state.index]?.name);
   const activeIndex = TAB_ROUTES.indexOf(currentRouteName as (typeof TAB_ROUTES)[number]);
   const avatar = useMyAvatar();
 
@@ -98,8 +103,36 @@ export default function WaveTabBar() {
     transform: [{ translateX: capsuleX.value }],
   }));
 
+  // Klavye açıkken bar gizleniyor. Sekme sahneleri KeyboardAvoider'ın içinde
+  // (bkz. MainTabsScreen.tsx) — bar da onunla birlikte yukarı itilseydi
+  // klavyenin hemen üstünde yüzen tuhaf bir hap olarak kalırdı.
+  const [keyboardOpen, setKeyboardOpen] = React.useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+  if (keyboardOpen) return null;
+
   return (
-    <View style={{ paddingBottom: Math.max(insets.bottom, BOTTOM_MARGIN), paddingHorizontal: H_MARGIN }} pointerEvents="box-none">
+    // Bar'ın kendisi mutlak konumlu: hem Tab.Navigator'ın `tabBar` yuvasında
+    // (orada normal akışta olsa sahneleri yukarı iterdi) hem de AppShell'de
+    // içeriğin ÜZERİNDE yüzsün diye — tek tanım, iki montaj yeri.
+    <View
+      style={{
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        paddingBottom: Math.max(insets.bottom, BOTTOM_MARGIN),
+        paddingHorizontal: H_MARGIN,
+      }}
+      pointerEvents="box-none"
+    >
       {/* Bar'ın kendisi yüzen bir buzlu-cam hap: gerçek arka plan bulanıklığı
           (BlurView) + yarı saydam dolgu + ince border + gölge. İçinde, aktif
           sekmenin arkasında ayrı, daha yumuşak bir teal kapsül kayarak geziyor. */}
@@ -120,10 +153,7 @@ export default function WaveTabBar() {
           elevation: 12,
         }}
       >
-        <View
-          style={{ flex: 1, paddingHorizontal: 8 }}
-          onLayout={(e) => setBarWidth(e.nativeEvent.layout.width - 16)}
-        >
+        <View style={{ flex: 1, paddingHorizontal: 8 }} onLayout={(e) => setBarWidth(e.nativeEvent.layout.width - 16)}>
           {barWidth > 0 && (
             <Animated.View
               pointerEvents="none"
@@ -149,27 +179,13 @@ export default function WaveTabBar() {
 
               const onPress = () => {
                 if (isFocused) return;
-
-                // Profil, sekme değil PUSH edilen bir ekran: orada sağa kaydırma
-                // geri gitmeli (bkz. AppShell.tsx BACK_SWIPE_ROUTES) — `replace`
-                // olsaydı geri dönülecek ekran kalmazdı.
-                if (routeName === PROFILE_ROUTE) {
-                  navigation.navigate('Profile');
-                  return;
-                }
-
-                // Hangi yönde kayacağı, hedef sekmenin şu anki aktif sekmeye göre
-                // solda mı sağda mı olduğuna bakılarak belirleniyor — sağdaki bir
-                // sekmeden soldakine geçerken sayfa soldan, tersinde sağdan kayar
-                // (bkz. tabAnimationDirection.ts, RootNavigator'daki sekme options'ı).
-                setTabAnimationDirection(index < activeIndex ? 'slide_from_left' : 'slide_from_right');
-                // `navigate` bu route stack'te zaten varsa (örn. daha önce ziyaret
-                // edilmiş bir sekme) push değil POP yapıyor — o zaman yeni animasyon
-                // hiç oynamıyor, çünkü giren ekran zaten mount'lu, sadece üsttekiler
-                // kapanıyor. `replace` her sekme geçişinde taze bir instance mount
-                // ediyor, yön animasyonu her seferinde garantili çalışıyor; ayrıca alt
-                // tab'ların stack'te sonsuza kadar birikmesini de engelliyor.
-                navigation.dispatch(StackActions.replace(routeName));
+                // Sekmeler artık Tab.Navigator'ın ekranları: `navigateApp`
+                // `MainTabs`e iç içe navigate ediyor, sekme mount'lu kaldığı için
+                // veri yeniden çekilmiyor ve geçişi bottom-tabs'in kendi 'shift'
+                // animasyonu yapıyor (bkz. MainTabsScreen.tsx). Push edilmiş bir
+                // ekrandayken (ör. gönderi detayı) aynı çağrı stack'i MainTabs'e
+                // geri sarıyor.
+                navigateApp(navigation, routeName);
               };
 
               return (
@@ -204,11 +220,7 @@ export default function WaveTabBar() {
                       )}
                     </View>
                   ) : (
-                    <Icon
-                      size={23}
-                      color={isFocused ? c.active : c.inactive}
-                      strokeWidth={isFocused ? 2.3 : 1.8}
-                    />
+                    <Icon size={23} color={isFocused ? c.active : c.inactive} strokeWidth={isFocused ? 2.3 : 1.8} />
                   )}
                 </Pressable>
               );

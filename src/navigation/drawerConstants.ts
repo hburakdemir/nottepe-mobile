@@ -15,13 +15,20 @@ export const ROOT_DRAWER_ID = 'RootDrawer';
 // Bu ekranlarda sağa kaydırmak GERİ gidiyor (çekmece jesti kapalı) — jestin
 // kendisi AppShell'de elle yazıldı, çünkü native-stack'in `gestureEnabled`'ı
 // yalnızca iOS'ta çalışıyor.
-export const BACK_SWIPE_ROUTES: string[] = ['PostDetail', 'Profile', 'UserProfile'];
+// (Profil artık bir SEKME — bkz. MainTabsScreen.tsx — geri gidilecek ekranı
+// olmadığı için listeden çıktı.)
+export const BACK_SWIPE_ROUTES: string[] = ['PostDetail', 'UserProfile'];
 
 // Bu ekranlarda menü ekranın HERHANGİ bir yerinden sağa çekilerek açılıyor
 // (kenar şartı yok). Listede yatay ScrollView barındıran ekranlar bilinçli
 // olarak yok (CafeteriaMenu gün şeridi, AktsCalculator, NoteRequests…) —
 // oralarda tam genişlik jest, şeritlerin kaydırmasını çalardı.
 export const FULL_WIDTH_SWIPE_ROUTES: string[] = ['Home', 'Departments', 'Tools'];
+
+// Bu ekranlarda çekmece jesti TAMAMEN kapalı: satırların kendi yatay kaydırma
+// aksiyonları var (bildirim satırında "okunmadı" + "sil"), kenardan açılan
+// çekmece onlarla çakışıyordu (kullanıcı isteği).
+export const NO_DRAWER_SWIPE_ROUTES: string[] = ['Notifications'];
 
 // Tam genişlik jestin geçerli olmadığı ekranlarda soldan kaç px'lik şeritten
 // çekilirse menü açılır (react-native-drawer-layout `swipeEdgeWidth`).

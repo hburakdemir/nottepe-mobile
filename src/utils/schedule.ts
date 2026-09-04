@@ -22,8 +22,7 @@ export const COURSE_COLORS = [
   { name: 'Fuşya', hex: '#a21caf' },
 ];
 
-export const getCourseColor = (idx: number) =>
-  COURSE_COLORS[((idx % COURSE_COLORS.length) + COURSE_COLORS.length) % COURSE_COLORS.length];
+export const getCourseColor = (idx: number) => COURSE_COLORS[((idx % COURSE_COLORS.length) + COURSE_COLORS.length) % COURSE_COLORS.length];
 
 export const DAY_NAMES: Record<number, string> = {
   1: 'Pazartesi',
@@ -78,7 +77,9 @@ export function sanitizeCourse(raw: any): ScheduleCourse | null {
     day,
     start: raw.start,
     end: raw.end,
-    location: String(raw.location || '').trim().slice(0, 60),
+    location: String(raw.location || '')
+      .trim()
+      .slice(0, 60),
     colorIdx: Number.isInteger(raw.colorIdx) ? raw.colorIdx : 0,
   };
 }

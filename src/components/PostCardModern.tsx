@@ -107,7 +107,6 @@ export default function PostCardModern({ post, showStatus = false, showRating = 
   const statusBadge = STATUS_BADGES[post.status || 'pending'];
   const openDetail = () => navigation.navigate('PostDetail', { postId });
 
-
   return (
     <Pressable style={[styles.card, cardSurface]} onPress={openDetail}>
       {showStatus && (
@@ -132,14 +131,14 @@ export default function PostCardModern({ post, showStatus = false, showRating = 
         </Pressable>
       )}
 
-      {fileCount > 0 && (
-        <FileTiles files={files} maxVisible={FEED_FILE_TILES} onPressMore={openDetail} />
-      )}
+      {fileCount > 0 && <FileTiles files={files} maxVisible={FEED_FILE_TILES} onPressMore={openDetail} />}
 
       {post.link ? (
         <Pressable style={styles.linkRow} onPress={() => Linking.openURL(post.link!)} hitSlop={6}>
           <Link2 size={14} color={t.ink2} strokeWidth={2} />
-          <Text style={[styles.linkText, { color: t.ink2 }]} numberOfLines={1}>Bağlantıyı aç</Text>
+          <Text style={[styles.linkText, { color: t.ink2 }]} numberOfLines={1}>
+            Bağlantıyı aç
+          </Text>
         </Pressable>
       ) : null}
 
@@ -147,11 +146,7 @@ export default function PostCardModern({ post, showStatus = false, showRating = 
       <View style={styles.foot}>
         <Pressable style={styles.who} onPress={() => goToUserProfile(post.username)} hitSlop={6}>
           <View style={[styles.avatar, { backgroundColor: t.inset }]}>
-            {authorAvatar ? (
-              <AvatarDisplay avatar={authorAvatar} size={24} showBg={false} />
-            ) : (
-              <User size={13} color={t.ink3} />
-            )}
+            {authorAvatar ? <AvatarDisplay avatar={authorAvatar} size={24} showBg={false} /> : <User size={13} color={t.ink3} />}
           </View>
           <Text style={[styles.whoName, { color: t.ink2 }]} numberOfLines={1}>
             {post.username || 'Anonim'}
@@ -164,9 +159,7 @@ export default function PostCardModern({ post, showStatus = false, showRating = 
           {showRating && (
             <Pressable style={styles.stat} onPress={() => setShowRatingPicker((v) => !v)} hitSlop={8}>
               <Star size={14} color={t.amber} fill={avgRating > 0 ? t.amber : 'none'} strokeWidth={1.6} />
-              <Text style={[styles.statText, { color: t.ink2 }]}>
-                {ratingCount > 0 ? avgRating.toFixed(1) : '0.0'}
-              </Text>
+              <Text style={[styles.statText, { color: t.ink2 }]}>{ratingCount > 0 ? avgRating.toFixed(1) : '0.0'}</Text>
             </Pressable>
           )}
           <Pressable style={styles.stat} onPress={openDetail} hitSlop={8}>
@@ -190,12 +183,7 @@ export default function PostCardModern({ post, showStatus = false, showRating = 
         <View style={styles.ratingPicker}>
           {[1, 2, 3, 4, 5].map((star) => (
             <Pressable key={star} onPress={() => handleRate(star)} disabled={rating} hitSlop={4}>
-              <Star
-                size={20}
-                color={avgRating >= star ? t.amber : t.line}
-                fill={avgRating >= star ? t.amber : 'none'}
-                strokeWidth={1.6}
-              />
+              <Star size={20} color={avgRating >= star ? t.amber : t.line} fill={avgRating >= star ? t.amber : 'none'} strokeWidth={1.6} />
             </Pressable>
           ))}
           <Text style={[styles.ratingPickerText, { color: t.ink3 }]}>

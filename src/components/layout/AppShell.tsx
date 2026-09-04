@@ -1,68 +1,43 @@
 import React, { useCallback } from 'react';
-import { Dimensions, StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { runOnJS, useSharedValue } from 'react-native-reanimated';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import AppHeader from './AppHeader';
+import KeyboardAvoider from './KeyboardAvoider';
 import WaveTabBar from './WaveTabBar';
-import {
-  BACK_SWIPE_DISTANCE,
-  BACK_SWIPE_ROUTES,
-  BACK_SWIPE_VELOCITY,
-  EDGE_SWIPE_WIDTH,
-  FULL_WIDTH_SWIPE_ROUTES,
-  ROOT_DRAWER_ID,
-} from '../../navigation/drawerConstants';
+import { BACK_SWIPE_DISTANCE, BACK_SWIPE_ROUTES, BACK_SWIPE_VELOCITY } from '../../navigation/drawerConstants';
 
 // Web'de Navbar + MobileTabBar, Layout.jsx üzerinden HER rotada (detay
-// sayfaları dahil) sabit kalıyor — burada da her ekran bu kabukla sarmalanıyor.
-// Push edilen ekranların native başlıkları kapalı (bkz. RootNavigator.tsx), bu
-// yüzden AppHeader hiçbir yerde aşağı kaymıyor: ekranda tek başlık var.
+// sayfaları dahil) sabit kalıyor — burada da her PUSH edilen ekran bu kabukla
+// sarmalanıyor. (Sekmelerin kendi kabuğu MainTabsScreen'de: orada AppHeader ve
+// WaveTabBar Tab.Navigator'ın DIŞINDA durduğu için sekme geçişinde hiç
+// kıpırdamıyorlar.)
 //
-// Jestler de burada, rotaya göre ayarlanıyor:
-//  - Gönderi/profil ekranlarında sağa kaydırma GERİ gider (çekmece jesti kapalı).
-//  - Ana sayfa/bölümler/araçlarda menü ekranın her yerinden çekilerek açılır.
-//  - Diğer ekranlarda menü yalnızca sol kenar şeridinden açılır.
+// Çekmecenin jest ayarları artık burada değil, RootNavigator'daki
+// DrawerSwipeSync'te — tek yerde, o an odaklı ekrana bakarak.
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const routeName = useRoute().name;
-  const navigation = useNavigation();
   const isBackSwipeRoute = BACK_SWIPE_ROUTES.includes(routeName);
-
-  // Çekmecenin jest seçenekleri Drawer.Navigator'da tek bir yerde duruyor;
-  // odaklanan ekran kendi ihtiyacını üst navigator'a yazıyor. (Drawer'ın tek bir
-  // "Main" ekranı var, bu yüzden ekran bazlı screenOptions kullanılamıyor.)
-  useFocusEffect(
-    useCallback(() => {
-      navigation.getParent(ROOT_DRAWER_ID as never)?.setOptions({
-        swipeEnabled: !isBackSwipeRoute,
-        swipeEdgeWidth: FULL_WIDTH_SWIPE_ROUTES.includes(routeName)
-          ? Dimensions.get('window').width
-          : EDGE_SWIPE_WIDTH,
-      });
-    }, [navigation, routeName, isBackSwipeRoute])
-  );
 
   const shell = (
     <View style={{ flex: 1 }}>
-      {/* Web'de Navbar viewport'un en tepesine kadar aynı renkte uzanır (sticky,
-          boşluk yok) — burada da status bar'ın altındaki güvenli alan şeridi
-          AppHeader'ın kendi arka planıyla birebir aynı renk olmalı, yoksa üstte
-          farklı renkte bir şerit/dikiş görünür. */}
-      <SafeAreaView edges={['top']} className="bg-primary dark:bg-darkbgbutton">
+      {/* Status bar'ın altındaki güvenli alan şeridi AppHeader'ın kendi arka
+          planıyla birebir aynı renk olmalı, yoksa üstte farklı renkte bir
+          şerit/dikiş görünür. */}
+      <SafeAreaView edges={['top']} className="bg-surface">
         <AppHeader />
       </SafeAreaView>
 
       <View style={{ flex: 1 }}>
-        {children}
-
-        {/* Tabbar artık içeriği ikiye bölen ayrı bir satır değil — ekranın en
-            altında, içeriğin ÜZERİNDE yüzen mutlak konumlu bir katman. İçerik
-            tam ekran kaplıyor, kaydırıldığında bar'ın buzlu-cam bölgesinin
+        {/* Klavye açıldığında SAYFA yukarı itiliyor, tab bar itilmiyor: bar
+            klavyenin altında kalıyor (bkz. KeyboardAvoider.tsx). */}
+        <KeyboardAvoider>{children}</KeyboardAvoider>
+        {/* Bar kendi içinde mutlak konumlu (bkz. WaveTabBar.tsx): içerik tam
+            ekran kaplıyor, kaydırıldığında bar'ın buzlu-cam bölgesinin
             arkasından görünüyor. */}
-        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }} pointerEvents="box-none">
-          <WaveTabBar />
-        </View>
+        <WaveTabBar />
       </View>
     </View>
   );
@@ -73,44 +48,43 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 }
 
 // native-stack'in `gestureEnabled`'ı yalnızca iOS'ta çalıştığı için geri jesti
-// elle yazıldı: sayfa parmağı takip ediyor, eşiği geçince geri gidiyor, geçmezse
-// yerine yaylanıyor.
+// elle yazıldı.
+//
+// ÖNEMLİ: Burada sayfayı parmakla SAĞA ÖTELEMİYORUZ. Öteleme denendi ve şu
+// hatayı veriyordu: react-native-screens, stack'te alttaki ekranı üstteki
+// görünürken pasifleştiriyor; JS tarafında ötelediğimizde kütüphane bir geçiş
+// yaşandığını bilmediği için altta ekran değil BOŞ zemin kalıyordu — kullanıcı
+// "önce boş bi sayfa render oluyor sonra kayıyor" diye tarif etti. Artık jest
+// eşiği geçer geçmez doğrudan `goBack()` çağrılıyor: geçişi native stack kendi
+// yapıyor, yani geri gelirken gerçekten bir önceki sayfa görünüyor.
 function BackSwipeContainer({ children }: { children: React.ReactNode }) {
   const navigation = useNavigation();
-  const translateX = useSharedValue(0);
-  const screenWidth = Dimensions.get('window').width;
+  // Eşik aşıldıktan sonra parmak hareket ettikçe her karede tekrar
+  // tetiklenmesin diye kilit — worklet tarafında tutuluyor ki runOnJS bir kez
+  // çağrılsın.
+  const fired = useSharedValue(false);
 
   const goBack = useCallback(() => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
-    // Geri gidilecek ekran yoksa (örn. stack'in ilk ekranı) sayfa ekran dışında
-    // asılı kalmasın — yerine dönsün.
-    translateX.value = withSpring(0, { damping: 20, stiffness: 220 });
-  }, [navigation, translateX]);
+    if (navigation.canGoBack()) navigation.goBack();
+  }, [navigation]);
 
   const pan = Gesture.Pan()
     .activeOffsetX(25)
     .failOffsetY([-15, 15])
-    .onChange((event) => {
-      translateX.value = Math.max(0, event.translationX);
+    .onBegin(() => {
+      fired.value = false;
     })
-    .onEnd((event) => {
+    .onChange((event) => {
+      if (fired.value) return;
       if (event.translationX > BACK_SWIPE_DISTANCE || event.velocityX > BACK_SWIPE_VELOCITY) {
-        translateX.value = withTiming(screenWidth, { duration: 180 }, () => {
-          runOnJS(goBack)();
-        });
-      } else {
-        translateX.value = withSpring(0, { damping: 20, stiffness: 220 });
+        fired.value = true;
+        runOnJS(goBack)();
       }
     });
 
-  const style = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));
-
   return (
     <GestureDetector gesture={pan}>
-      <Animated.View style={[StyleSheet.absoluteFill, style]}>{children}</Animated.View>
+      <View style={{ flex: 1 }}>{children}</View>
     </GestureDetector>
   );
 }

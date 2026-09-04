@@ -11,10 +11,22 @@ interface Props {
 export default function AuthHeader({ icon, title, subtitle, hint }: Props) {
   return (
     <View style={styles.container}>
-      <View className="bg-brand/10 dark:bg-brand-light/20" style={styles.iconCircle}>{icon}</View>
-      <Text className="text-gray-900 dark:text-darktext" style={styles.title}>{title}</Text>
-      {!!subtitle && <Text className="text-gray-500 dark:text-gray-400" style={styles.subtitle}>{subtitle}</Text>}
-      {!!hint && <Text className="text-gray-500 dark:text-gray-400" style={styles.hint}>{hint}</Text>}
+      <View className="bg-accent-soft" style={styles.iconCircle}>
+        {icon}
+      </View>
+      <Text className="text-ink" style={styles.title}>
+        {title}
+      </Text>
+      {!!subtitle && (
+        <Text className="text-muted" style={styles.subtitle}>
+          {subtitle}
+        </Text>
+      )}
+      {!!hint && (
+        <Text className="text-muted" style={styles.hint}>
+          {hint}
+        </Text>
+      )}
     </View>
   );
 }

@@ -103,18 +103,16 @@ export default function PostCardClassic({ post, showStatus = false, showRating =
   const statusBadge = STATUS_BADGES[post.status || 'pending'];
 
   return (
-    <Pressable
-      className="bg-primary dark:bg-darkbgbutton rounded-lg mb-3"
-      style={styles.card}
-      onPress={() => navigation.navigate('PostDetail', { postId })}
-    >
+    <Pressable className="bg-surface rounded-lg mb-3" style={styles.card} onPress={() => navigation.navigate('PostDetail', { postId })}>
       {showStatus && (
         <View style={[styles.statusBadge, { backgroundColor: statusBadge.bg }]}>
           <Text style={[styles.statusBadgeText, { color: statusBadge.text }]}>{statusBadge.label}</Text>
         </View>
       )}
       <View style={styles.titleRow}>
-        <Text className="text-gray-900 f dark:text-darktext" style={[styles.title, { flex: 1 }]}>{post.title}</Text>
+        <Text className="text-ink f" style={[styles.title, { flex: 1 }]}>
+          {post.title}
+        </Text>
         {isOwner && (
           <Pressable onPress={handleDelete} hitSlop={8}>
             <Trash2 size={18} color={trashColor} />
@@ -130,16 +128,22 @@ export default function PostCardClassic({ post, showStatus = false, showRating =
           </Pressable>
         )}
       </View>
-      <Text className="text-gray-800 dark:text-darktext" style={styles.content}>{displayText}</Text>
+      <Text className="text-ink2" style={styles.content}>
+        {displayText}
+      </Text>
       {isLong && (
         <Pressable onPress={() => setShowMore((v) => !v)}>
-          <Text className="text-blue-900 dark:text-primary" style={styles.more}>{showMore ? 'Daha az göster' : 'Devamını oku'}</Text>
+          <Text className="text-on-badge" style={styles.more}>
+            {showMore ? 'Daha az göster' : 'Devamını oku'}
+          </Text>
         </Pressable>
       )}
 
       {post.link ? (
         <Pressable onPress={() => Linking.openURL(post.link!)}>
-          <Text className="text-blue-900 dark:text-primary" style={styles.link}>🔗 Linki aç</Text>
+          <Text className="text-on-badge" style={styles.link}>
+            🔗 Linki aç
+          </Text>
         </Pressable>
       ) : null}
 
@@ -153,14 +157,16 @@ export default function PostCardClassic({ post, showStatus = false, showRating =
       </View>
 
       <Pressable style={styles.ownerRow} onPress={() => goToUserProfile(post.username)}>
-        <View className="bg-gray-100 dark:bg-gray-700/40" style={styles.avatarFallback}>
+        <View className="bg-inset" style={styles.avatarFallback}>
           {authorAvatar ? (
             <AvatarDisplay avatar={authorAvatar} size={32} showBg={false} />
           ) : (
             <User size={16} color={isDark ? '#DFD0B8' : '#6b7280'} />
           )}
         </View>
-        <Text className="text-gray-700 dark:text-darktext" style={styles.username}>{post.username || 'Anonim'}</Text>
+        <Text className="text-ink2" style={styles.username}>
+          {post.username || 'Anonim'}
+        </Text>
         {!!post.badges?.length && (
           <View style={styles.badgeRow}>
             {post.badges.map((badge) => (
@@ -173,13 +179,11 @@ export default function PostCardClassic({ post, showStatus = false, showRating =
       {post.file_urls && post.file_urls.length > 0 && (
         <View style={{ marginTop: 8, gap: 6 }}>
           {post.file_urls.map((fileName, index) => (
-            <Pressable
-              key={index}
-              style={styles.fileRow}
-              onPress={() => Linking.openURL(getFileUrl(fileName))}
-            >
+            <Pressable key={index} style={styles.fileRow} onPress={() => Linking.openURL(getFileUrl(fileName))}>
               <FileText size={16} color={fileIconColor} />
-              <Text className="text-blue-900 dark:text-[#C5D3E8]" style={styles.fileText}>Notu Gör</Text>
+              <Text className="text-on-badge" style={styles.fileText}>
+                Notu Gör
+              </Text>
             </Pressable>
           ))}
         </View>
@@ -192,23 +196,29 @@ export default function PostCardClassic({ post, showStatus = false, showRating =
               <Star size={16} color={avgRating >= star ? '#eab308' : '#d1d5db'} fill={avgRating >= star ? '#eab308' : 'none'} />
             </Pressable>
           ))}
-          <Text className="text-gray-500 dark:text-gray-400" style={styles.ratingText}>
+          <Text className="text-muted" style={styles.ratingText}>
             ({ratingCount > 0 ? `${avgRating.toFixed(1)}/5` : '0.0/5'})
           </Text>
         </View>
       )}
 
-      <View className="border-gray-100 dark:border-gray-700/40" style={styles.footer}>
+      <View className="border-line-soft" style={styles.footer}>
         <View style={styles.footerItem}>
           <Calendar size={13} color={isDark ? '#9ca3af' : '#6b7280'} />
-          <Text className="text-gray-500 dark:text-gray-400" style={styles.footerText}>{formatDate(post.created_at)}</Text>
+          <Text className="text-muted" style={styles.footerText}>
+            {formatDate(post.created_at)}
+          </Text>
         </View>
         <Pressable style={styles.footerItem} onPress={() => navigation.navigate('PostDetail', { postId })}>
           <MessageSquare size={13} color={isDark ? '#5A9690' : '#2F5755'} />
-          <Text className="text-brand dark:text-brand-light" style={styles.footerLink}>Yorumları Gör</Text>
+          <Text className="text-accent" style={styles.footerLink}>
+            Yorumları Gör
+          </Text>
           {!!post.comment_count && (
-            <View className="bg-brand/10 dark:bg-brand-light/20" style={styles.commentPill}>
-              <Text className="text-brand dark:text-brand-light" style={styles.commentPillText}>{post.comment_count}</Text>
+            <View className="bg-accent-soft" style={styles.commentPill}>
+              <Text className="text-accent" style={styles.commentPillText}>
+                {post.comment_count}
+              </Text>
             </View>
           )}
         </Pressable>

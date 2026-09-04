@@ -1,14 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Modal,
-  Pressable,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { ListChecks, Plus, Trash2, X } from 'lucide-react-native';
 import { checklistAPI } from '../../lib/api';
@@ -19,6 +10,8 @@ import ChecklistEditModal from '../../components/ChecklistEditModal';
 import { isWithinEditWindow, type Checklist, type ChecklistItem } from '../../types/checklist';
 import type { RootStackParamList } from '../../navigation/types';
 import { useTheme } from '../../context/ThemeContext';
+import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
+import KeyboardAvoider from '../../components/layout/KeyboardAvoider';
 
 export default function ChecklistsScreen() {
   const route = useRoute<any>();
@@ -67,9 +60,7 @@ export default function ChecklistsScreen() {
     const newChecked = !item.checked;
     setChecklists((prev) =>
       prev.map((c) =>
-        c.id === checklistId
-          ? { ...c, items: c.items.map((i) => (i.id === item.id ? { ...i, checked: newChecked } : i)) }
-          : c
+        c.id === checklistId ? { ...c, items: c.items.map((i) => (i.id === item.id ? { ...i, checked: newChecked } : i)) } : c
       )
     );
     try {
@@ -77,9 +68,7 @@ export default function ChecklistsScreen() {
     } catch {
       setChecklists((prev) =>
         prev.map((c) =>
-          c.id === checklistId
-            ? { ...c, items: c.items.map((i) => (i.id === item.id ? { ...i, checked: !newChecked } : i)) }
-            : c
+          c.id === checklistId ? { ...c, items: c.items.map((i) => (i.id === item.id ? { ...i, checked: !newChecked } : i)) } : c
         )
       );
       Alert.alert('Hata', 'Kaydedilemedi, tekrar deneyin.');
@@ -125,17 +114,11 @@ export default function ChecklistsScreen() {
   }
 
   const header = (
-    <View className="mb-6">
-      <View className="flex-row flex-wrap items-start justify-between gap-3">
-        <View className="flex-1">
-          <View className="flex-row items-center gap-2.5">
-            <ListChecks size={32} color={isDark ? '#5A9690' : '#2F5755'} />
-            <Text className="text-2xl font-extrabold text-gray-900 dark:text-darktext">Checklistler</Text>
-          </View>
-          <Text className="text-sm text-gray-600 dark:text-darktext mt-2">
-            Kayıt dönemi, mezuniyet ve daha fazlası — işaretlediklerin hesabında saklanır.
-          </Text>
-        </View>
+    <View className="mb-4">
+      {/* Ekran içi "Checklistler" başlığı ve alt yazısı kaldırıldı — üst bar
+          zaten sayfa adını yazıyor. Başlığın yanındaki oluşturma butonu kaldı,
+          tek başına satırın sonuna hizalanıyor. */}
+      <View className="flex-row justify-end">
         <Pressable className="flex-row items-center gap-2 bg-brand rounded-lg px-4 py-2" onPress={openCreateModal}>
           <Plus size={16} color="#fff" />
           <Text className="text-white text-sm font-medium">Checklist Oluştur</Text>
@@ -145,9 +128,10 @@ export default function ChecklistsScreen() {
   );
 
   return (
-    <View className="flex-1 bg-primary dark:bg-darkbgbutton">
+    <View className="flex-1 bg-ground">
       <FlatList
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 40, paddingBottom: 24, flexGrow: 1 }}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: TAB_BAR_SAFE_PADDING, flexGrow: 1 }}
         data={checklists}
         keyExtractor={(item) => String(item.id)}
         renderItem={({ item }) => (
@@ -163,100 +147,94 @@ export default function ChecklistsScreen() {
         )}
         ListHeaderComponent={header}
         ListEmptyComponent={
-          <View className="items-center gap-3 bg-white dark:bg-darkbgbutton rounded-lg p-12" style={SHADOW_MD}>
+          <View className="items-center gap-3 bg-surface rounded-lg p-12" style={SHADOW_MD}>
             <ListChecks size={64} color={isDark ? '#6b7280' : '#9ca3af'} />
-            <Text className="text-gray-500 dark:text-gray-400 text-lg text-center">Henüz yayınlanmış bir checklist yok.</Text>
+            <Text className="text-muted text-lg text-center">Henüz yayınlanmış bir checklist yok.</Text>
           </View>
         }
       />
 
       {statsChecklist && <ChecklistStatsModal checklist={statsChecklist} onClose={() => setStatsChecklist(null)} />}
-      {editChecklist && (
-        <ChecklistEditModal
-          checklist={editChecklist}
-          onClose={() => setEditChecklist(null)}
-          onSaved={fetchChecklists}
-        />
-      )}
+      {editChecklist && <ChecklistEditModal checklist={editChecklist} onClose={() => setEditChecklist(null)} onSaved={fetchChecklists} />}
 
       <Modal visible={showCreate} transparent animationType="fade" onRequestClose={() => setShowCreate(false)}>
-        <View className="flex-1 bg-black/50 justify-center p-4">
-          <View className="bg-white dark:bg-darkbgbutton rounded-xl p-6 max-h-[88%]">
-            <View className="flex-row items-center justify-between">
-              <Text className="text-xl font-bold text-gray-900 dark:text-darktext flex-1 pr-3">Yeni Checklist Oluştur</Text>
-              <Pressable onPress={() => setShowCreate(false)} hitSlop={8}>
-                <X size={20} color={isDark ? '#9ca3af' : '#6b7280'} />
-              </Pressable>
-            </View>
-            <Text className="text-xs text-gray-400 dark:text-gray-500 mt-1 mb-5 leading-4">
-              Checklistin admin onayına gönderilir; onaylanana kadar yalnızca sana görünür. Oluşturduktan sonra
-              1 saat içinde düzenleyebilirsin.
-            </Text>
+        <KeyboardAvoider>
+          <View className="flex-1 bg-black/50 justify-center p-4">
+            <View className="bg-surface rounded-xl p-6 max-h-[88%]">
+              <View className="flex-row items-center justify-between">
+                <Text className="text-xl font-bold text-ink flex-1 pr-3">Yeni Checklist Oluştur</Text>
+                <Pressable onPress={() => setShowCreate(false)} hitSlop={8}>
+                  <X size={20} color={isDark ? '#9ca3af' : '#6b7280'} />
+                </Pressable>
+              </View>
+              <Text className="text-xs text-muted2 mt-1 mb-5 leading-4">
+                Checklistin admin onayına gönderilir; onaylanana kadar yalnızca sana görünür. Oluşturduktan sonra 1 saat içinde
+                düzenleyebilirsin.
+              </Text>
 
-            <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-1 mt-4">
-              Başlık <Text style={{ color: '#ef4444' }}>*</Text>
-            </Text>
-            <TextInput
-              className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-darkbg rounded-lg px-4 py-2 text-base text-gray-900 dark:text-darktext"
-              value={createTitle}
-              onChangeText={setCreateTitle}
-              maxLength={200}
-              placeholder='Örn: "Erasmus Başvuru Süreci"'
-              placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
-            />
+              <Text className="text-sm font-medium text-ink2 mb-1 mt-4">
+                Başlık <Text style={{ color: '#ef4444' }}>*</Text>
+              </Text>
+              <TextInput
+                className="border border-line bg-inset rounded-lg px-4 py-2 text-base text-ink"
+                value={createTitle}
+                onChangeText={setCreateTitle}
+                maxLength={200}
+                placeholder='Örn: "Erasmus Başvuru Süreci"'
+                placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
+              />
 
-            <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-1 mt-4">Açıklama</Text>
-            <TextInput
-              className="border border-gray-300 dark:border-gray-600 bg-white dark:bg-darkbg rounded-lg px-4 py-2 text-base text-gray-900 dark:text-darktext"
-              value={createDesc}
-              onChangeText={setCreateDesc}
-              placeholder="Kısa açıklama (opsiyonel)"
-              placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
-            />
+              <Text className="text-sm font-medium text-ink2 mb-1 mt-4">Açıklama</Text>
+              <TextInput
+                className="border border-line bg-inset rounded-lg px-4 py-2 text-base text-ink"
+                value={createDesc}
+                onChangeText={setCreateDesc}
+                placeholder="Kısa açıklama (opsiyonel)"
+                placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
+              />
 
-            <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-1 mt-4">Maddeler</Text>
-            <View className="gap-2">
-              {createItems.map((item, idx) => (
-                <View key={idx} className="flex-row items-center gap-2.5">
-                  <TextInput
-                    className="flex-1 mb-0 border border-gray-300 dark:border-gray-600 bg-white dark:bg-darkbg rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-darktext"
-                    value={item}
-                    onChangeText={(text) =>
-                      setCreateItems((prev) => prev.map((v, i) => (i === idx ? text : v)))
-                    }
-                    maxLength={300}
-                    placeholder={`Madde ${idx + 1}`}
-                    placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
-                  />
-                  {createItems.length > 1 && (
-                    <Pressable onPress={() => setCreateItems((prev) => prev.filter((_, i) => i !== idx))} hitSlop={8}>
-                      <Trash2 size={17} color="#660B05" />
-                    </Pressable>
-                  )}
-                </View>
-              ))}
-            </View>
-            {createItems.length < 30 && (
-              <Pressable className="flex-row items-center gap-[5px] mt-2.5" onPress={() => setCreateItems((prev) => [...prev, ''])}>
-                <Plus size={14} color={isDark ? '#5A9690' : '#2F5755'} />
-                <Text className="text-xs font-medium text-brand dark:text-brand-light">Madde ekle</Text>
-              </Pressable>
-            )}
+              <Text className="text-sm font-medium text-ink2 mb-1 mt-4">Maddeler</Text>
+              <View className="gap-2">
+                {createItems.map((item, idx) => (
+                  <View key={idx} className="flex-row items-center gap-2.5">
+                    <TextInput
+                      className="flex-1 mb-0 border border-line bg-inset rounded-lg px-3 py-2 text-sm text-ink"
+                      value={item}
+                      onChangeText={(text) => setCreateItems((prev) => prev.map((v, i) => (i === idx ? text : v)))}
+                      maxLength={300}
+                      placeholder={`Madde ${idx + 1}`}
+                      placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
+                    />
+                    {createItems.length > 1 && (
+                      <Pressable onPress={() => setCreateItems((prev) => prev.filter((_, i) => i !== idx))} hitSlop={8}>
+                        <Trash2 size={17} color="#660B05" />
+                      </Pressable>
+                    )}
+                  </View>
+                ))}
+              </View>
+              {createItems.length < 30 && (
+                <Pressable className="flex-row items-center gap-[5px] mt-2.5" onPress={() => setCreateItems((prev) => [...prev, ''])}>
+                  <Plus size={14} color={isDark ? '#5A9690' : '#2F5755'} />
+                  <Text className="text-xs font-medium text-accent">Madde ekle</Text>
+                </Pressable>
+              )}
 
-            <View className="flex-row gap-3 mt-6">
-              <Pressable className="flex-1 items-center py-2 rounded-lg border border-gray-300 dark:border-gray-600" onPress={() => setShowCreate(false)}>
-                <Text className="text-gray-700 dark:text-darktext text-sm font-normal">İptal</Text>
-              </Pressable>
-              <Pressable
-                className={`flex-1 items-center py-2 rounded-lg bg-brand ${creating ? 'opacity-60' : ''}`}
-                onPress={handleCreate}
-                disabled={creating}
-              >
-                <Text className="text-white text-sm font-medium">{creating ? 'Oluşturuluyor...' : 'Oluştur'}</Text>
-              </Pressable>
+              <View className="flex-row gap-3 mt-6">
+                <Pressable className="flex-1 items-center py-2 rounded-lg border border-line" onPress={() => setShowCreate(false)}>
+                  <Text className="text-ink2 text-sm font-normal">İptal</Text>
+                </Pressable>
+                <Pressable
+                  className={`flex-1 items-center py-2 rounded-lg bg-brand ${creating ? 'opacity-60' : ''}`}
+                  onPress={handleCreate}
+                  disabled={creating}
+                >
+                  <Text className="text-white text-sm font-medium">{creating ? 'Oluşturuluyor...' : 'Oluştur'}</Text>
+                </Pressable>
+              </View>
             </View>
           </View>
-        </View>
+        </KeyboardAvoider>
       </Modal>
     </View>
   );

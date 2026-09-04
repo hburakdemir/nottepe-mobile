@@ -1,19 +1,10 @@
 import React, { useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AlertCircle, Eye, EyeOff, Lock, LogIn, Send, User } from 'lucide-react-native';
 import { authAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
+import { useThemeColors } from '../../context/ThemeContext';
 import AuthHeader from '../../components/auth/AuthHeader';
 import type { AuthStackParamList } from '../../navigation/types';
 
@@ -21,6 +12,10 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
 export default function LoginScreen({ navigation }: Props) {
   const { login } = useAuth();
+  // Renkler artık StyleSheet'te DEĞİL: ekran koyu temada beyaz kalıyordu
+  // (AuthHeader token kullanıyor, sayfanın geri kalanı sabit hex'lerdeydi).
+  // StyleSheet sadece ölçü/tipografi taşıyor — bkz. components/CommentSection.tsx.
+  const colors = useThemeColors();
   const passwordRef = useRef<TextInput>(null);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -69,15 +64,15 @@ export default function LoginScreen({ navigation }: Props) {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <AuthHeader icon={<LogIn size={26} color="#2F5755" />} title="Giriş Yap" subtitle="Hesabınıza giriş yapın" />
+    <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.ground }]} behavior="padding">
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <AuthHeader icon={<LogIn size={26} color={colors.accent} />} title="Giriş Yap" subtitle="Hesabınıza giriş yapın" />
 
         {!!error && (
-          <View style={styles.alertError}>
-            <AlertCircle size={17} color="#b91c1c" style={{ marginTop: 1 }} />
+          <View style={[styles.alertError, { backgroundColor: colors.dangerSoft, borderColor: colors.dangerLine }]}>
+            <AlertCircle size={17} color={colors.danger} style={{ marginTop: 1 }} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.alertErrorText}>{error}</Text>
+              <Text style={[styles.alertErrorText, { color: colors.danger }]}>{error}</Text>
               {emailNotVerified && (
                 <Pressable style={styles.resendBtn} onPress={handleResendAndVerify} disabled={resendLoading}>
                   <Send size={14} color="#fff" />
@@ -88,13 +83,13 @@ export default function LoginScreen({ navigation }: Props) {
           </View>
         )}
 
-        <Text style={styles.label}>Kullanıcı Adı</Text>
-        <View style={styles.inputRow}>
-          <User size={18} color="#4f7d7a" />
+        <Text style={[styles.label, { color: colors.ink2 }]}>Kullanıcı Adı</Text>
+        <View style={[styles.inputRow, { borderColor: colors.line }]}>
+          <User size={18} color={colors.accent} />
           <TextInput
-            style={styles.input}
+            style={[styles.input, { color: colors.ink }]}
             placeholder="kullanıcı adınız"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={colors.muted2}
             autoCapitalize="none"
             autoCorrect={false}
             value={username}
@@ -109,14 +104,14 @@ export default function LoginScreen({ navigation }: Props) {
           />
         </View>
 
-        <Text style={styles.label}>Şifre</Text>
-        <View style={styles.inputRow}>
-          <Lock size={18} color="#4f7d7a" />
+        <Text style={[styles.label, { color: colors.ink2 }]}>Şifre</Text>
+        <View style={[styles.inputRow, { borderColor: colors.line }]}>
+          <Lock size={18} color={colors.accent} />
           <TextInput
             ref={passwordRef}
-            style={styles.input}
+            style={[styles.input, { color: colors.ink }]}
             placeholder="•••••••"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={colors.muted2}
             secureTextEntry={!showPassword}
             returnKeyType="done"
             onSubmitEditing={handleSubmit}
@@ -128,7 +123,7 @@ export default function LoginScreen({ navigation }: Props) {
             }}
           />
           <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={8}>
-            {showPassword ? <Eye size={18} color="#6b7280" /> : <EyeOff size={18} color="#6b7280" />}
+            {showPassword ? <Eye size={18} color={colors.muted} /> : <EyeOff size={18} color={colors.muted} />}
           </Pressable>
         </View>
 
@@ -144,12 +139,12 @@ export default function LoginScreen({ navigation }: Props) {
         </Pressable>
 
         <Pressable style={styles.forgotLink} onPress={() => navigation.navigate('ForgotPassword')}>
-          <Text style={styles.forgotLinkText}>Şifremi unuttum</Text>
+          <Text style={[styles.forgotLinkText, { color: colors.accent }]}>Şifremi unuttum</Text>
         </Pressable>
 
         <Pressable onPress={() => navigation.navigate('Register')}>
-          <Text style={styles.link}>
-            Hesabınız yok mu? <Text style={styles.linkStrong}>Kayıt Ol</Text>
+          <Text style={[styles.link, { color: colors.muted }]}>
+            Hesabınız yok mu? <Text style={[styles.linkStrong, { color: colors.accent }]}>Kayıt Ol</Text>
           </Text>
         </Pressable>
       </ScrollView>
@@ -157,20 +152,20 @@ export default function LoginScreen({ navigation }: Props) {
   );
 }
 
+// Burada renk YOK — sadece ölçü/tipografi. Tek istisna marka butonu (#2F5755)
+// ve üstündeki beyaz yazı: bunlar temadan bağımsız, iki temada da aynı.
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1 },
   content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 32 },
   alertError: {
     flexDirection: 'row',
     gap: 8,
-    backgroundColor: '#fef2f2',
     borderWidth: 1,
-    borderColor: '#fecaca',
     borderRadius: 10,
     padding: 12,
     marginBottom: 16,
   },
-  alertErrorText: { color: '#b91c1c', fontSize: 13, flex: 1 },
+  alertErrorText: { fontSize: 13, flex: 1 },
   resendBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -182,18 +177,17 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   resendBtnText: { color: '#fff', fontSize: 13, fontWeight: '600' },
-  label: { fontSize: 13.5, fontWeight: '600', color: '#374151', marginBottom: 8, marginTop: 6 },
+  label: { fontSize: 13.5, fontWeight: '600', marginBottom: 8, marginTop: 6 },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     borderWidth: 1,
-    borderColor: '#d1d5db',
     borderRadius: 10,
     paddingHorizontal: 14,
     marginBottom: 14,
   },
-  input: { flex: 1, paddingVertical: 13, fontSize: 15, color: '#111827' },
+  input: { flex: 1, paddingVertical: 13, fontSize: 15 },
   button: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -206,7 +200,7 @@ const styles = StyleSheet.create({
   },
   buttonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   forgotLink: { alignItems: 'flex-end', marginTop: 14 },
-  forgotLinkText: { color: '#2F5755', fontSize: 13, fontWeight: '600' },
-  link: { textAlign: 'center', marginTop: 16, color: '#6b7280', fontSize: 13.5 },
-  linkStrong: { color: '#2F5755', fontWeight: '700' },
+  forgotLinkText: { fontSize: 13, fontWeight: '600' },
+  link: { textAlign: 'center', marginTop: 16, fontSize: 13.5 },
+  linkStrong: { fontWeight: '700' },
 });

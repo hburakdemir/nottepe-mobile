@@ -1,14 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
@@ -48,6 +42,10 @@ import PostCard from '../../components/PostCard';
 // Gönderi satırları kenardan kenara akıyor (bkz. PostCardModern) — bu iki
 // sekmede dış yatay boşluk kaldırılıyor, diğerlerinde duruyor.
 const POST_TABS = new Set(['posts', 'saved']);
+
+// "Postlar" ve "Kayıtlı" sekmelerinin sayfa boyu (bkz. postsAPI.getMyPosts /
+// savedPostsAPI.getSavedPosts — argüman verilince yanıt zarfa giriyor).
+const POST_PAGE_LIMIT = 20;
 import BadgeChip, { type Badge } from '../../components/BadgeChip';
 import ChecklistCard from '../../components/ChecklistCard';
 import ChecklistStatsModal from '../../components/ChecklistStatsModal';
@@ -55,15 +53,17 @@ import ChecklistEditModal from '../../components/ChecklistEditModal';
 import ProfileEditModal from '../../components/profile/ProfileEditModal';
 import DeleteAccountModal from '../../components/profile/DeleteAccountModal';
 import AvatarBuilderScreen from './AvatarBuilderScreen';
-import { useInvalidateMyAvatar } from '../../hooks/useMyAvatar';
+import { MY_AVATAR_KEY, useInvalidateMyAvatar, useMyAvatar } from '../../hooks/useMyAvatar';
 import AvatarDisplay from '../../components/avatar/AvatarDisplay';
 import type { AvatarData } from '../../components/avatar/AvatarDisplay';
 import { isWithinEditWindow, type Checklist, type ChecklistItem } from '../../types/checklist';
 import { DAY_NAMES, getCourseColor, toMinutes, type ScheduleCourse } from '../../utils/schedule';
 import { formatGpa } from '../../utils/gano';
 import type { Post } from '../../types/post';
-import type { RootStackParamList } from '../../navigation/types';
-import { useTheme } from '../../context/ThemeContext';
+import { goToTab } from '../../navigation/navigateApp';
+import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
+import { useTheme, useThemeColors } from '../../context/ThemeContext';
+import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 
 interface AktsCalc {
   id: number;
@@ -103,10 +103,19 @@ function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+const postKey = (post: Post) => String(post.id ?? post.post_id);
+
+// Sayfalar arasında araya yeni bir gönderi girerse aynı satır iki sayfada
+// birden dönebiliyor; kopyalar burada eleniyor (React anahtarları eşsiz kalsın).
+function appendUniquePosts(prev: Post[], rows: Post[]): Post[] {
+  const seen = new Set(prev.map(postKey));
+  return [...prev, ...rows.filter((p) => !seen.has(postKey(p)))];
+}
+
 export default function ProfileScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const route = useRoute<RouteProp<RootStackParamList, 'Profile'>>();
-  const { user, logout } = useAuth();
+  const route = useRoute<RouteProp<MainTabParamList, 'Profile'>>();
+  const { user } = useAuth();
   const isStaff = user?.role === 'admin' || user?.role === 'moderator';
   const { savedPosts, fetchSavedPosts } = useSavedPosts();
   const { theme } = useTheme();
@@ -115,19 +124,47 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>(route.params?.initialTab ?? 'posts');
 
+  // Mount'ta çekilenler: yalnızca ilk açılan "Postlar" sekmesi ve profil
+  // kartındaki rozetler.
   const [myPosts, setMyPosts] = useState<Post[]>([]);
-  const [savedPostsData, setSavedPostsData] = useState<Post[]>([]);
-  const [myChecklists, setMyChecklists] = useState<Checklist[]>([]);
+  const [badges, setBadges] = useState<Badge[]>([]);
+
+  // --- Sonsuz kaydırma durumu (yalnızca iki gönderi sekmesi) --------------
+  // `total` sunucudaki gerçek satır sayısı: "hepsi yüklendi mi?" sorusu
+  // `liste.length >= total` ile cevaplanıyor, sekme sayaçları da bunu yazıyor.
+  // `null` = henüz bilinmiyor.
+  const [myPostsPage, setMyPostsPage] = useState(1);
+  const [myPostsTotal, setMyPostsTotal] = useState<number | null>(null);
+  const [myPostsLoadingMore, setMyPostsLoadingMore] = useState(false);
+  const [savedPostsPage, setSavedPostsPage] = useState(1);
+  const [savedPostsTotal, setSavedPostsTotal] = useState<number | null>(null);
+  const [savedPostsLoadingMore, setSavedPostsLoadingMore] = useState(false);
+  // İstek uçuştayken ikinciyi engelleyen kapılar. `state` değil `ref`: kaydırma
+  // eşiği tek bir kaydırmada arka arkaya defalarca tetikleniyor, state
+  // güncellemesi o ana yetişmiyor (aynı desen: NotificationsScreen).
+  const myPostsInFlight = useRef(false);
+  const savedPostsInFlight = useRef(false);
+
+  // Tembel yüklenen sekmeler — `null` = henüz çekilmedi, `[]` = gerçekten boş.
+  // Sekmeye ilk kez basıldığında (ya da `initialTab` ile doğrudan açıldığında)
+  // aşağıdaki effect'ler çekiyor; sentinel'i tekrar `null`'a çekmek yeniden
+  // yüklemeyi tetikliyor.
+  const [savedPostsData, setSavedPostsData] = useState<Post[] | null>(null);
+  const [myChecklists, setMyChecklists] = useState<Checklist[] | null>(null);
+  const [aktsCalcs, setAktsCalcs] = useState<AktsCalc[] | null>(null);
+  const [mySchedule, setMySchedule] = useState<ScheduleCourse[] | null>(null);
+  const [follows, setFollows] = useState<Follow[] | null>(null);
+
   const [expandedChecklistId, setExpandedChecklistId] = useState<number | null>(null);
   const [statsChecklist, setStatsChecklist] = useState<Checklist | null>(null);
   const [editChecklist, setEditChecklist] = useState<Checklist | null>(null);
-  const [aktsCalcs, setAktsCalcs] = useState<AktsCalc[]>([]);
-  const [mySchedule, setMySchedule] = useState<ScheduleCourse[]>([]);
-  const [follows, setFollows] = useState<Follow[]>([]);
-  const [badges, setBadges] = useState<Badge[]>([]);
-  const [avatar, setAvatar] = useState<AvatarData | null>(null);
-  // Üst bar ve tab bar avatarı ortak bir react-query anahtarından besleniyor
-  // (bkz. hooks/useMyAvatar.ts) — burada avatar değişince onlar da tazelensin.
+
+  // Avatar artık burada ayrıca çekilmiyor: üst bar ve tab bar ile aynı
+  // react-query anahtarını (`MY_AVATAR_KEY`, bkz. hooks/useMyAvatar.ts)
+  // paylaşıyor — böylece açılışta tek bir `avatarAPI.get()` isteği kalıyor.
+  const avatar = useMyAvatar();
+  const queryClient = useQueryClient();
+  // Avatar değişince üst bar ve tab bar da tazelensin.
   const invalidateMyAvatar = useInvalidateMyAvatar();
   const [photoUploading, setPhotoUploading] = useState(false);
 
@@ -138,33 +175,172 @@ export default function ProfileScreen() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  const fetchAll = useCallback(async () => {
+  // Profil kalıcı mount'lu bir SEKME olduğu için buradaki her istek uygulama
+  // açılır açılmaz koşuyor. Bu yüzden mount'ta yalnızca ilk görünen sekmenin
+  // (Postlar) ve profil kartının ihtiyacı olan iki uç çağrılıyor; kalan beş uç
+  // aşağıdaki tembel yükleme effect'lerine taşındı.
+  const fetchCore = useCallback(async () => {
     setLoading(true);
-    const results = await Promise.allSettled([
-      postsAPI.getMyPosts(),
-      savedPostsAPI.getSavedPosts(),
-      avatarAPI.get(),
-      aktsAPI.getAll(),
+    myPostsInFlight.current = true;
+    const [postsRes, badgesRes] = await Promise.allSettled([
+      postsAPI.getMyPosts({ page: 1, limit: POST_PAGE_LIMIT }),
       badgeAPI.getMine(),
-      checklistAPI.getMine(),
-      departmentFollowAPI.getMine(),
-      scheduleAPI.getMine(),
     ]);
-    const [postsRes, savedRes, avatarRes, aktsRes, badgesRes, checklistsRes, followsRes, scheduleRes] = results;
-    setMyPosts(postsRes.status === 'fulfilled' ? postsRes.value.data : []);
-    setSavedPostsData(savedRes.status === 'fulfilled' ? savedRes.value.data : []);
-    setAvatar(avatarRes.status === 'fulfilled' ? avatarRes.value.data?.avatar || null : null);
-    setAktsCalcs(aktsRes.status === 'fulfilled' ? aktsRes.value.data.calculations || [] : []);
+    // Sayfalı çağrıda yanıt ZARFTA geliyor: `data.posts` / `data.total`.
+    const firstPage: Post[] = postsRes.status === 'fulfilled' ? postsRes.value.data.posts || [] : [];
+    setMyPosts(firstPage);
+    setMyPostsPage(1);
+    setMyPostsTotal(
+      postsRes.status === 'fulfilled' && typeof postsRes.value.data.total === 'number' ? postsRes.value.data.total : firstPage.length
+    );
     setBadges(badgesRes.status === 'fulfilled' ? badgesRes.value.data.badges || [] : []);
-    setMyChecklists(checklistsRes.status === 'fulfilled' ? checklistsRes.value.data.checklists || [] : []);
-    setFollows(followsRes.status === 'fulfilled' ? followsRes.value.data.follows || [] : []);
-    setMySchedule(scheduleRes.status === 'fulfilled' ? scheduleRes.value.data?.courses || [] : []);
+    myPostsInFlight.current = false;
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+    fetchCore();
+  }, [fetchCore]);
+
+  // Profil artık kalıcı mount'lu bir SEKME (bkz. MainTabsScreen.tsx) — bu
+  // yüzden `initialTab` yalnızca useState'in başlangıç değeri olarak okunamaz:
+  // menüdeki "Notlarım" / "Kaydettiğim Notlarım" kısayolları ikinci kez
+  // basıldığında da doğru sekmeyi açsın diye parametre değiştikçe uygulanıyor.
+  const initialTabParam = route.params?.initialTab;
+  useEffect(() => {
+    if (initialTabParam) setActiveTab(initialTabParam);
+  }, [initialTabParam]);
+
+  // --- Sekme başına tembel yükleme ---------------------------------------
+  // Hepsi aynı deseni izliyor: sentinel `null` ise sekme henüz açılmamış
+  // demektir, ilk açılışta çekiliyor. Hata durumunda `[]` yazılıyor ki ekran
+  // sonsuza kadar yükleniyor göstermesin. `activeTab`'a bağlı oldukları için
+  // `route.params.initialTab` ile doğrudan bir sekmeye girildiğinde de
+  // (örn. menüdeki "Kaydettiğim Notlarım") aynı şekilde tetikleniyorlar.
+  const fetchSavedFirstPage = useCallback(async () => {
+    if (savedPostsInFlight.current) return;
+    savedPostsInFlight.current = true;
+    try {
+      const res = await savedPostsAPI.getSavedPosts({ page: 1, limit: POST_PAGE_LIMIT });
+      // Sayfalı çağrıda yanıt zarfta: `data.posts` (çıplak dizi DEĞİL).
+      const rows: Post[] = res.data.posts || [];
+      setSavedPostsData(rows);
+      setSavedPostsPage(1);
+      setSavedPostsTotal(typeof res.data.total === 'number' ? res.data.total : rows.length);
+    } catch {
+      setSavedPostsData([]);
+      setSavedPostsTotal(0);
+    } finally {
+      savedPostsInFlight.current = false;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'saved' || savedPostsData !== null) return;
+    fetchSavedFirstPage();
+  }, [activeTab, savedPostsData, fetchSavedFirstPage]);
+
+  // --- Sonraki sayfalar ---------------------------------------------------
+  // Durdurma koşulları: uçuşta istek var, toplam sayıya ulaşıldı ya da sunucu
+  // boş sayfa döndü. Hata hâlinde sayfa numarası ARTMIYOR — yoksa o sayfa
+  // kalıcı olarak atlanırdı; kullanıcı tekrar kaydırınca aynı sayfa yeniden
+  // deneniyor.
+  const loadMoreMyPosts = useCallback(async () => {
+    if (myPostsInFlight.current) return;
+    if (myPostsTotal !== null && myPosts.length >= myPostsTotal) return;
+    myPostsInFlight.current = true;
+    setMyPostsLoadingMore(true);
+    const nextPage = myPostsPage + 1;
+    try {
+      const res = await postsAPI.getMyPosts({ page: nextPage, limit: POST_PAGE_LIMIT });
+      const rows: Post[] = res.data.posts || [];
+      if (rows.length === 0) {
+        // Sunucu boş sayfa verdi: eldeki kadarını toplam sayıp döngüyü kapatıyoruz.
+        setMyPostsTotal(myPosts.length);
+      } else {
+        setMyPosts((prev) => appendUniquePosts(prev, rows));
+        setMyPostsPage(nextPage);
+        if (typeof res.data.total === 'number') setMyPostsTotal(res.data.total);
+      }
+    } catch {
+      // Sessiz geç: satırlar duruyor, kaydırma tekrar denetiyor.
+    } finally {
+      myPostsInFlight.current = false;
+      setMyPostsLoadingMore(false);
+    }
+  }, [myPosts, myPostsPage, myPostsTotal]);
+
+  const loadMoreSavedPosts = useCallback(async () => {
+    if (savedPostsInFlight.current || savedPostsData === null) return;
+    if (savedPostsTotal !== null && savedPostsData.length >= savedPostsTotal) return;
+    savedPostsInFlight.current = true;
+    setSavedPostsLoadingMore(true);
+    const nextPage = savedPostsPage + 1;
+    try {
+      const res = await savedPostsAPI.getSavedPosts({ page: nextPage, limit: POST_PAGE_LIMIT });
+      const rows: Post[] = res.data.posts || [];
+      if (rows.length === 0) {
+        setSavedPostsTotal(savedPostsData.length);
+      } else {
+        setSavedPostsData((prev) => (prev ? appendUniquePosts(prev, rows) : rows));
+        setSavedPostsPage(nextPage);
+        if (typeof res.data.total === 'number') setSavedPostsTotal(res.data.total);
+      }
+    } catch {
+      // Bkz. loadMoreMyPosts.
+    } finally {
+      savedPostsInFlight.current = false;
+      setSavedPostsLoadingMore(false);
+    }
+  }, [savedPostsData, savedPostsPage, savedPostsTotal]);
+
+  // Sekme içerikleri dış ScrollView'in içinde `map` ile basılıyor (FlatList
+  // yok, bkz. render). Bu yüzden `onEndReached` yerine ScrollView'in kendi
+  // kaydırma olayından, görünür yüksekliğin yarısı kadar bir eşikle
+  // ("onEndReachedThreshold={0.5}" karşılığı) tetikliyoruz.
+  const handleScroll = useCallback(
+    ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (activeTab !== 'posts' && activeTab !== 'saved') return;
+      const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+      const distanceToEnd = contentSize.height - contentOffset.y - layoutMeasurement.height;
+      if (distanceToEnd > layoutMeasurement.height * 0.5) return;
+      if (activeTab === 'posts') loadMoreMyPosts();
+      else loadMoreSavedPosts();
+    },
+    [activeTab, loadMoreMyPosts, loadMoreSavedPosts]
+  );
+
+  useEffect(() => {
+    if (activeTab !== 'lists' || myChecklists !== null) return;
+    checklistAPI
+      .getMine()
+      .then((res) => setMyChecklists(res.data.checklists || []))
+      .catch(() => setMyChecklists([]));
+  }, [activeTab, myChecklists]);
+
+  useEffect(() => {
+    if (activeTab !== 'akts' || aktsCalcs !== null) return;
+    aktsAPI
+      .getAll()
+      .then((res) => setAktsCalcs(res.data.calculations || []))
+      .catch(() => setAktsCalcs([]));
+  }, [activeTab, aktsCalcs]);
+
+  useEffect(() => {
+    if (activeTab !== 'schedule' || mySchedule !== null) return;
+    scheduleAPI
+      .getMine()
+      .then((res) => setMySchedule(res.data?.courses || []))
+      .catch(() => setMySchedule([]));
+  }, [activeTab, mySchedule]);
+
+  useEffect(() => {
+    if (activeTab !== 'follows' || follows !== null) return;
+    departmentFollowAPI
+      .getMine()
+      .then((res) => setFollows(res.data.follows || []))
+      .catch(() => setFollows([]));
+  }, [activeTab, follows]);
 
   useEffect(() => {
     if (activeTab !== 'forums' || forumItems !== null || !user?.id) return;
@@ -189,26 +365,27 @@ export default function ProfileScreen() {
         title: a.type === 'started' ? 'Yeni öneri paylaştı' : 'Öneriye yorum yaptı',
         body: a.type === 'started' ? a.suggestion_content : a.comment_content,
       }));
-      const merged = [...faqItems, ...sugItems].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
+      const merged = [...faqItems, ...sugItems].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       setForumItems(merged);
       setForumLoading(false);
     });
   }, [activeTab, forumItems, user?.id]);
 
   const handlePostDelete = (deletedId: string | number) => {
-    setMyPosts((prev) => prev.filter((p) => String(p.id ?? p.post_id) !== String(deletedId)));
+    setMyPosts((prev) => prev.filter((p) => postKey(p) !== String(deletedId)));
+    // Toplam da düşmeli, yoksa "hepsi yüklendi mi?" hesabı (length >= total)
+    // bir daha tutmaz ve liste sonuna gelindiğinde boşuna istek atılır.
+    setMyPostsTotal((prev) => (prev === null ? prev : Math.max(0, prev - 1)));
   };
 
   const handleChecklistItemToggle = async (checklistId: number, item: ChecklistItem) => {
     const newChecked = !item.checked;
     setMyChecklists((prev) =>
-      prev.map((c) =>
-        c.id === checklistId
-          ? { ...c, items: c.items.map((i) => (i.id === item.id ? { ...i, checked: newChecked } : i)) }
-          : c
-      )
+      prev
+        ? prev.map((c) =>
+            c.id === checklistId ? { ...c, items: c.items.map((i) => (i.id === item.id ? { ...i, checked: newChecked } : i)) } : c
+          )
+        : prev
     );
     try {
       await checklistAPI.setItemState(item.id, newChecked);
@@ -226,7 +403,7 @@ export default function ProfileScreen() {
         onPress: async () => {
           try {
             await aktsAPI.delete(id);
-            setAktsCalcs((prev) => prev.filter((c) => c.id !== id));
+            setAktsCalcs((prev) => (prev ? prev.filter((c) => c.id !== id) : prev));
           } catch {
             Alert.alert('Hata', 'Silinemedi.');
           }
@@ -236,10 +413,12 @@ export default function ProfileScreen() {
   };
 
   const handleUnfollow = async (faculty: string, department: string) => {
-    setFollows((prev) => prev.filter((f) => !(f.faculty === faculty && f.department === department)));
+    setFollows((prev) => (prev ? prev.filter((f) => !(f.faculty === faculty && f.department === department)) : prev));
     try {
       await departmentFollowAPI.unfollow(faculty, department);
     } catch {
+      // Sunucu reddettiyse listeyi yeniden çektirmek için sentinel'i sıfırla.
+      setFollows(null);
       Alert.alert('Hata', 'İşlem başarısız.');
     }
   };
@@ -281,7 +460,10 @@ export default function ProfileScreen() {
         name: asset.fileName || 'photo.jpg',
         type: asset.mimeType || 'image/jpeg',
       });
-      setAvatar(res.data.avatar);
+      // Yanıttaki avatarı önbelleğe doğrudan yazıyoruz ki bu ekran, üst bar ve
+      // tab bar ağ turunu beklemeden anında güncellensin; ardından gelen
+      // invalidate sunucudaki son hâlle senkronu garantiliyor.
+      queryClient.setQueryData(MY_AVATAR_KEY, (res.data.avatar as AvatarData | null) ?? null);
       invalidateMyAvatar();
     } catch (err: any) {
       Alert.alert('Hata', err.response?.data?.error || 'Fotoğraf yüklenemedi.');
@@ -299,9 +481,14 @@ export default function ProfileScreen() {
   }
 
   return (
-    <View className="flex-1 bg-primary dark:bg-darkbgbutton">
-      <ScrollView>
-        <View className="bg-white dark:bg-darkbgbutton p-4 m-4 mb-5 rounded-lg" style={SHADOW_MD}>
+    <View className="flex-1 bg-ground">
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+      >
+        <View className="bg-surface p-4 m-4 mb-5 rounded-lg" style={SHADOW_MD}>
           <View className="flex-row gap-3.5">
             <View className="w-20 h-20">
               <View className="w-20 h-20 rounded-[20px] bg-brand items-center justify-center overflow-hidden">
@@ -322,102 +509,131 @@ export default function ProfileScreen() {
               </Pressable>
             </View>
             <View className="flex-1">
-              <Text className="text-[19px] font-extrabold text-gray-900 dark:text-darktext">{user?.username}</Text>
-              <Text className="text-[13px] text-gray-600 dark:text-darktext mt-0.5">{user?.full_name}</Text>
-              <Text className="text-[12.5px] text-gray-500 dark:text-gray-400 mt-px">{user?.email}</Text>
-              {!!user?.phone && <Text className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{user.phone}</Text>}
+              <Text className="text-[19px] font-extrabold text-ink">{user?.username}</Text>
+              <Text className="text-[13px] text-ink2 mt-0.5">{user?.full_name}</Text>
+              <Text className="text-[12.5px] text-muted mt-px">{user?.email}</Text>
+              {!!user?.phone && <Text className="text-xs text-muted2 mt-0.5">{user.phone}</Text>}
               {!!user?.department && (
-                <Text className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                <Text className="text-xs text-muted2 mt-0.5">
                   {user.department}
                   {user.faculty ? ` · ${user.faculty}` : ''}
                 </Text>
               )}
-              {!!user?.bio && <Text className="text-[12.5px] text-gray-600 dark:text-darktext mt-1.5 leading-[17px]">{user.bio}</Text>}
+              {!!user?.bio && <Text className="text-[12.5px] text-ink2 mt-1.5 leading-[17px]">{user.bio}</Text>}
             </View>
           </View>
 
           <View className="flex-row flex-wrap gap-2 mt-3.5">
             {badges.filter((b) => b.is_visible !== false).length === 0 ? (
-              <Text className="text-[11.5px] text-gray-400 dark:text-gray-500">Henüz rozet yok — not paylaşarak rozet kazanabilirsin!</Text>
+              <Text className="text-[11.5px] text-muted2">Henüz rozet yok — not paylaşarak rozet kazanabilirsin!</Text>
             ) : (
               badges.filter((b) => b.is_visible !== false).map((badge) => <BadgeChip key={badge.id} badge={badge} />)
             )}
           </View>
 
-          <Pressable className="flex-row items-center justify-center gap-1.5 bg-brand rounded-[10px] py-2.5 mt-3.5" onPress={() => setShowEditModal(true)}>
+          <Pressable
+            className="flex-row items-center justify-center gap-1.5 bg-brand rounded-[10px] py-2.5 mt-3.5"
+            onPress={() => setShowEditModal(true)}
+          >
             <Edit2 size={15} color="#fff" />
             <Text className="text-white text-[13px] font-bold">Düzenle</Text>
           </Pressable>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          className="bg-white dark:bg-darkbgbutton rounded-lg mx-4 mb-5"
-          style={SHADOW_MD}
-          contentContainerClassName="px-3"
-        >
-          {TABS.map(({ key, label, icon: Icon }) => {
-            const count =
-              key === 'posts'
-                ? myPosts.length
-                : key === 'saved'
-                ? savedPosts.length
-                : key === 'lists'
-                ? myChecklists.length
-                : key === 'akts'
-                ? aktsCalcs.length
-                : key === 'schedule'
-                ? mySchedule.length
-                : key === 'follows'
-                ? follows.length
-                : null;
-            const active = activeTab === key;
-            return (
-              <Pressable
-                key={key}
-                className={`flex-row items-center gap-[5px] py-3 mr-[18px] border-b-2 ${active ? 'border-b-brand' : 'border-b-transparent'}`}
-                onPress={() => setActiveTab(key)}
-              >
-                <Icon size={14} color={active ? (isDark ? '#5A9690' : '#2F5755') : '#9ca3af'} />
-                <Text className={`text-[12.5px] font-semibold ${active ? 'text-brand dark:text-brand-light' : 'text-gray-400 dark:text-gray-500'}`}>
-                  {label}
-                  {count !== null ? ` (${count})` : ''}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+        {/* Sekme şeridi bilinçli olarak kendi kutusunda: altında ince bir çizgi
+            ve gölge var ki profil kartından ayrı, kendi başına bir yapı olduğu
+            görünsün (kullanıcı isteği). */}
+        <View className="bg-surface rounded-lg mx-4 mb-5 border-b border-line-soft" style={SHADOW_MD}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerClassName="px-3"
+          >
+            {TABS.map(({ key, label, icon: Icon }) => {
+              // Tembel yüklenen sekmelerde sayaç ancak veri geldiğinde
+              // gösteriliyor; aksi hâlde açılışta hepsi yanıltıcı "(0)"
+              // görünürdü. ("Kayıtlı" sayacı SavedPostContext'ten geldiği için
+              // ilk andan itibaren doğru.)
+              // İki gönderi sekmesi artık sayfalı: sayaç "ekranda kaç satır
+              // var" değil, sunucudaki TOPLAM — biliniyorsa `total` yazılıyor.
+              const count =
+                key === 'posts'
+                  ? (myPostsTotal ?? myPosts.length)
+                  : key === 'saved'
+                    ? (savedPostsTotal ?? savedPosts.length)
+                    : key === 'lists'
+                      ? (myChecklists?.length ?? null)
+                      : key === 'akts'
+                        ? (aktsCalcs?.length ?? null)
+                        : key === 'schedule'
+                          ? (mySchedule?.length ?? null)
+                          : key === 'follows'
+                            ? (follows?.length ?? null)
+                            : null;
+              const active = activeTab === key;
+              return (
+                <Pressable
+                  key={key}
+                  className={`flex-row items-center gap-[5px] py-3 mr-[18px] border-b-2 ${active ? 'border-b-brand' : 'border-b-transparent'}`}
+                  onPress={() => setActiveTab(key)}
+                >
+                  <Icon size={14} color={active ? (isDark ? '#5A9690' : '#2F5755') : '#9ca3af'} />
+                  <Text className={`text-[12.5px] font-semibold ${active ? 'text-accent' : 'text-muted2'}`}>
+                    {label}
+                    {count !== null ? ` (${count})` : ''}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
 
         <View className={POST_TABS.has(activeTab) ? '' : 'px-4 gap-2.5'}>
           {activeTab === 'posts' &&
             (myPosts.length === 0 ? (
               <EmptyState icon={FileText} text="Henüz not paylaşmadınız." />
             ) : (
-              myPosts.map((post) => (
-                <PostCard key={String(post.id ?? post.post_id)} post={post} showStatus showRating={false} onDelete={handlePostDelete} />
-              ))
+              <>
+                {myPosts.map((post) => (
+                  <PostCard key={postKey(post)} post={post} showStatus showRating={false} onDelete={handlePostDelete} />
+                ))}
+                {myPostsLoadingMore && <TabLoading />}
+              </>
             ))}
 
           {activeTab === 'saved' &&
-            (savedPostsData.length === 0 ? (
+            (savedPostsData === null ? (
+              <TabLoading />
+            ) : savedPostsData.length === 0 ? (
               <EmptyState icon={FileText} text="Henüz not kaydetmediniz." />
             ) : (
-              savedPostsData.map((post) => (
-                <PostCard
-                  key={String(post.id ?? post.post_id)}
-                  post={post}
-                  onDelete={() => {
-                    fetchSavedPosts();
-                    setSavedPostsData((prev) => prev.filter((p) => p.id !== post.id));
-                  }}
-                />
-              ))
+              <>
+                {savedPostsData.map((post) => (
+                  <PostCard
+                    key={postKey(post)}
+                    post={post}
+                    onDelete={() => {
+                      fetchSavedPosts();
+                      setSavedPostsData((prev) => (prev ? prev.filter((p) => p.id !== post.id) : prev));
+                      setSavedPostsTotal((prev) => (prev === null ? prev : Math.max(0, prev - 1)));
+                    }}
+                  />
+                ))}
+                {savedPostsLoadingMore && <TabLoading />}
+              </>
             ))}
 
           {activeTab === 'lists' &&
-            (myChecklists.length === 0 ? (
-              <EmptyState icon={ListChecks} text="Henüz bir checklist oluşturmadın." actionLabel="Checklistlere Git" onAction={() => navigation.navigate('Checklists')} />
+            (myChecklists === null ? (
+              <TabLoading />
+            ) : myChecklists.length === 0 ? (
+              <EmptyState
+                icon={ListChecks}
+                text="Henüz bir checklist oluşturmadın."
+                actionLabel="Checklistlere Git"
+                onAction={() => navigation.navigate('Checklists')}
+              />
             ) : (
               myChecklists.map((checklist) => (
                 <ChecklistCard
@@ -434,27 +650,37 @@ export default function ProfileScreen() {
             ))}
 
           {activeTab === 'akts' &&
-            (aktsCalcs.length === 0 ? (
-              <EmptyState icon={Calculator} text="Henüz kayıtlı AKTS hesaplaman yok." actionLabel="Hesaplayıcıya Git" onAction={() => navigation.navigate('AktsCalculator')} />
+            (aktsCalcs === null ? (
+              <TabLoading />
+            ) : aktsCalcs.length === 0 ? (
+              <EmptyState
+                icon={Calculator}
+                text="Henüz kayıtlı AKTS hesaplaman yok."
+                actionLabel="Hesaplayıcıya Git"
+                onAction={() => navigation.navigate('AktsCalculator')}
+              />
             ) : (
               aktsCalcs.map((calc) => {
                 const semesterCount = calc.data?.semesters?.length || 0;
                 const courseCount = calc.data?.semesters?.reduce((sum, s) => sum + (s.courses?.length || 0), 0) || 0;
                 return (
-                  <View key={calc.id} className="flex-row items-center bg-white dark:bg-darkbgbutton rounded-lg p-3.5 mb-3" style={SHADOW_SM}>
+                  <View key={calc.id} className="flex-row items-center bg-surface rounded-lg p-3.5 mb-3" style={SHADOW_SM}>
                     <View className="flex-1">
-                      <Text className="text-sm font-bold text-gray-900 dark:text-darktext" numberOfLines={1}>
+                      <Text className="text-sm font-bold text-ink" numberOfLines={1}>
                         {calc.title}
                       </Text>
-                      <Text className="text-[11.5px] text-gray-400 dark:text-gray-500 mt-0.5">
+                      <Text className="text-[11.5px] text-muted2 mt-0.5">
                         {semesterCount} dönem · {courseCount} ders · {formatDate(calc.updated_at)}
                       </Text>
                     </View>
                     <View className="items-center mr-2.5">
-                      <Text className="text-lg font-extrabold text-brand dark:text-brand-light">{formatGpa(calc.gpa)}</Text>
-                      <Text className="text-xs text-gray-400 dark:text-gray-500 uppercase">GANO</Text>
+                      <Text className="text-lg font-extrabold text-accent">{formatGpa(calc.gpa)}</Text>
+                      <Text className="text-xs text-muted2 uppercase">GANO</Text>
                     </View>
-                    <Pressable className="bg-brand rounded-lg px-2.5 py-[7px]" onPress={() => navigation.navigate('AktsCalculator', { loadId: calc.id })}>
+                    <Pressable
+                      className="bg-brand rounded-lg px-2.5 py-[7px]"
+                      onPress={() => navigation.navigate('AktsCalculator', { loadId: calc.id })}
+                    >
                       <Text className="text-white text-xs font-bold">Düzenle</Text>
                     </Pressable>
                     <Pressable onPress={() => handleAktsDelete(calc.id)} hitSlop={8} className="ml-2">
@@ -466,11 +692,21 @@ export default function ProfileScreen() {
             ))}
 
           {activeTab === 'schedule' &&
-            (mySchedule.length === 0 ? (
-              <EmptyState icon={CalendarDays} text="Henüz ders programı oluşturmadın." actionLabel="Ders Programı Oluştur" onAction={() => navigation.navigate('Schedule')} />
+            (mySchedule === null ? (
+              <TabLoading />
+            ) : mySchedule.length === 0 ? (
+              <EmptyState
+                icon={CalendarDays}
+                text="Henüz ders programı oluşturmadın."
+                actionLabel="Ders Programı Oluştur"
+                onAction={() => navigation.navigate('Schedule')}
+              />
             ) : (
               <View>
-                <Pressable className="flex-row self-end items-center gap-1.5 bg-brand rounded-lg px-3 py-2 mb-2.5" onPress={() => navigation.navigate('Schedule')}>
+                <Pressable
+                  className="flex-row self-end items-center gap-1.5 bg-brand rounded-lg px-3 py-2 mb-2.5"
+                  onPress={() => navigation.navigate('Schedule')}
+                >
                   <Edit2 size={13} color="#fff" />
                   <Text className="text-white text-xs font-bold">Düzenle</Text>
                 </Pressable>
@@ -478,16 +714,16 @@ export default function ProfileScreen() {
                   const dayCourses = mySchedule.filter((c) => c.day === day).sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
                   if (dayCourses.length === 0) return null;
                   return (
-                    <View key={day} className="bg-white dark:bg-darkbgbutton rounded-lg p-3.5 mb-3" style={SHADOW_SM}>
-                      <Text className="text-[13px] font-bold text-gray-900 dark:text-darktext mb-2">{DAY_NAMES[day]}</Text>
+                    <View key={day} className="bg-surface rounded-lg p-3.5 mb-3" style={SHADOW_SM}>
+                      <Text className="text-[13px] font-bold text-ink mb-2">{DAY_NAMES[day]}</Text>
                       {dayCourses.map((c) => (
                         <View key={c.id} className="flex-row items-center gap-2 py-1.5">
                           <View className="w-1 h-[26px] rounded-sm" style={{ backgroundColor: getCourseColor(c.colorIdx).hex }} />
                           <View className="flex-1">
-                            <Text className="text-[12.5px] font-semibold text-gray-900 dark:text-darktext" numberOfLines={1}>
+                            <Text className="text-[12.5px] font-semibold text-ink" numberOfLines={1}>
                               {c.name}
                             </Text>
-                            <Text className="text-[11px] text-gray-500 dark:text-gray-400 mt-px">
+                            <Text className="text-[11px] text-muted mt-px">
                               {c.start}–{c.end}
                               {c.location ? ` · ${c.location}` : ''}
                             </Text>
@@ -501,20 +737,37 @@ export default function ProfileScreen() {
             ))}
 
           {activeTab === 'follows' &&
-            (follows.length === 0 ? (
-              <EmptyState icon={Bell} text='Henüz bölüm takip etmiyorsun. Bölüm sayfasındaki "Takip Et" butonuyla haberdar olabilirsin.' actionLabel="Bölümlere Göz At" onAction={() => navigation.navigate('Departments')} />
+            (follows === null ? (
+              <TabLoading />
+            ) : follows.length === 0 ? (
+              <EmptyState
+                icon={Bell}
+                text='Henüz bölüm takip etmiyorsun. Bölüm sayfasındaki "Takip Et" butonuyla haberdar olabilirsin.'
+                actionLabel="Bölümlere Göz At"
+                onAction={() => goToTab(navigation, 'Departments')}
+              />
             ) : (
               follows.map((f) => (
-                <View key={`${f.faculty}-${f.department}`} className="flex-row items-center bg-white dark:bg-darkbgbutton rounded-lg p-3.5 mb-3" style={SHADOW_SM}>
-                  <Pressable className="flex-1" onPress={() => navigation.navigate('DepartmentDetail', { faculty: f.faculty, department: f.department })}>
-                    <Text className="text-sm font-bold text-gray-900 dark:text-darktext" numberOfLines={1}>
+                <View
+                  key={`${f.faculty}-${f.department}`}
+                  className="flex-row items-center bg-surface rounded-lg p-3.5 mb-3"
+                  style={SHADOW_SM}
+                >
+                  <Pressable
+                    className="flex-1"
+                    onPress={() => navigation.navigate('DepartmentDetail', { faculty: f.faculty, department: f.department })}
+                  >
+                    <Text className="text-sm font-bold text-ink" numberOfLines={1}>
                       {f.department}
                     </Text>
-                    <Text className="text-[11.5px] text-gray-400 dark:text-gray-500 mt-0.5">{f.faculty}</Text>
+                    <Text className="text-[11.5px] text-muted2 mt-0.5">{f.faculty}</Text>
                   </Pressable>
-                  <Pressable className="flex-row items-center gap-[5px] border border-gray-200 dark:border-gray-600 rounded-lg px-2.5 py-[7px]" onPress={() => handleUnfollow(f.faculty, f.department)}>
+                  <Pressable
+                    className="flex-row items-center gap-[5px] border border-line rounded-lg px-2.5 py-[7px]"
+                    onPress={() => handleUnfollow(f.faculty, f.department)}
+                  >
                     <BellOff size={13} color={isDark ? '#9ca3af' : '#6b7280'} />
-                    <Text className="text-[11.5px] text-gray-500 dark:text-gray-400 font-semibold">Bırak</Text>
+                    <Text className="text-[11.5px] text-muted font-semibold">Bırak</Text>
                   </Pressable>
                 </View>
               ))
@@ -522,14 +775,14 @@ export default function ProfileScreen() {
 
           {activeTab === 'forums' &&
             (forumLoading || forumItems === null ? (
-              <ActivityIndicator style={{ marginTop: 24 }} color="#2F5755" />
+              <TabLoading />
             ) : forumItems.length === 0 ? (
               <EmptyState icon={MessagesSquare} text="Henüz bir foruma katılmadı." />
             ) : (
               forumItems.map((item) => (
                 <Pressable
                   key={item.key}
-                  className="flex-row gap-2 bg-white dark:bg-darkbgbutton rounded-lg p-3.5 mb-3"
+                  className="flex-row gap-2 bg-surface rounded-lg p-3.5 mb-3"
                   style={SHADOW_SM}
                   onPress={() =>
                     item.kind === 'faq'
@@ -543,22 +796,18 @@ export default function ProfileScreen() {
                     <Lightbulb size={15} color={isDark ? '#5A9690' : '#2F5755'} />
                   )}
                   <View className="flex-1">
-                    <Text className="text-[11.5px] font-semibold text-gray-500 dark:text-gray-400">{item.title}</Text>
+                    <Text className="text-[11.5px] font-semibold text-muted">{item.title}</Text>
                     {!!item.body && (
-                      <Text className="text-sm text-gray-700 dark:text-darktext mt-[3px]" numberOfLines={2}>
+                      <Text className="text-sm text-ink2 mt-[3px]" numberOfLines={2}>
                         {item.body}
                       </Text>
                     )}
-                    <Text className="text-[10.5px] text-gray-400 dark:text-gray-500 mt-1">{formatDate(item.created_at)}</Text>
+                    <Text className="text-[10.5px] text-muted2 mt-1">{formatDate(item.created_at)}</Text>
                   </View>
                 </Pressable>
               ))
             ))}
         </View>
-
-        <Pressable className="items-center py-4 mt-2 mb-[30px]" onPress={logout}>
-          <Text className="text-red-600 text-[13.5px] font-bold">Çıkış Yap</Text>
-        </Pressable>
       </ScrollView>
 
       {statsChecklist && <ChecklistStatsModal checklist={statsChecklist} onClose={() => setStatsChecklist(null)} />}
@@ -566,7 +815,10 @@ export default function ProfileScreen() {
         <ChecklistEditModal
           checklist={editChecklist}
           onClose={() => setEditChecklist(null)}
-          onSaved={() => checklistAPI.getMine().then((res) => setMyChecklists(res.data.checklists || []))}
+          // Sentinel'i `null`'a çekmek yeniden yüklemeyi tetikliyor (bkz.
+          // tembel yükleme effect'leri) — düzenleme/silme sonrası liste
+          // sekmede kalınarak tazeleniyor.
+          onSaved={() => setMyChecklists(null)}
         />
       )}
 
@@ -586,7 +838,10 @@ export default function ProfileScreen() {
           isStaff={isStaff}
           onClose={() => setShowAvatarBuilder(false)}
           onSaved={(newCfg) => {
-            setAvatar((prev) => ({ ...(prev || {}), config: newCfg }));
+            queryClient.setQueryData(MY_AVATAR_KEY, (prev: AvatarData | null | undefined) => ({
+              ...(prev || {}),
+              config: newCfg,
+            }));
             invalidateMyAvatar();
           }}
         />
@@ -595,23 +850,20 @@ export default function ProfileScreen() {
   );
 }
 
-function EmptyState({
-  icon: Icon,
-  text,
-  actionLabel,
-  onAction,
-}: {
-  icon: any;
-  text: string;
-  actionLabel?: string;
-  onAction?: () => void;
-}) {
+// Sekme verisi ilk kez (ya da bir mutasyondan sonra yeniden) çekilirken
+// gösteriliyor — "henüz kaydın yok" metinleri yükleme bitmeden görünmesin diye.
+function TabLoading() {
+  const colors = useThemeColors();
+  return <ActivityIndicator style={{ marginTop: 24 }} color={colors.accent} />;
+}
+
+function EmptyState({ icon: Icon, text, actionLabel, onAction }: { icon: any; text: string; actionLabel?: string; onAction?: () => void }) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   return (
     <View className="items-center py-[50px] gap-2.5">
       <Icon size={40} color={isDark ? '#6b7280' : '#d1d5db'} />
-      <Text className="text-gray-400 dark:text-gray-500 text-[13.5px] text-center px-[30px]">{text}</Text>
+      <Text className="text-muted2 text-[13.5px] text-center px-[30px]">{text}</Text>
       {!!actionLabel && (
         <Pressable className="bg-brand rounded-[10px] px-[18px] py-2.5 mt-1" onPress={onAction}>
           <Text className="text-white text-[13px] font-bold">{actionLabel}</Text>

@@ -1,14 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authAPI } from '../lib/api';
-import {
-  getAccessToken,
-  setAccessToken,
-  clearAccessToken,
-  setRefreshToken,
-  clearRefreshToken,
-} from '../lib/tokenStore';
+import { getAccessToken, setAccessToken, clearAccessToken, setRefreshToken, clearRefreshToken } from '../lib/tokenStore';
 import { onSessionExpired } from '../lib/authEvents';
+import { unregisterToken } from '../lib/push/registration';
 import type { User } from '../types/user';
 
 const STORAGE_KEY = 'nottepe_auth_user';
@@ -89,6 +84,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const logout = async () => {
+    // `unregisterToken` ÖNCE: POST'un canlı Bearer'a ihtiyacı var, `clearSession`
+    // SecureStore'u siliyor. `clearSession`'a KONULMADI — orası aynı zamanda
+    // `onSessionExpired` yolu, o durumda token zaten ölü ve POST 401 alıp refresh
+    // interceptor'ında döner; kalan temizlik backend'in receipt taraması.
+    await unregisterToken();
     try {
       await authAPI.logout();
     } catch {

@@ -6,6 +6,7 @@ import { ChevronRight, Library, Search } from 'lucide-react-native';
 import { faculties, departments } from '../../data/departments';
 import { useTheme } from '../../context/ThemeContext';
 import type { RootStackParamList } from '../../navigation/types';
+import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 
 const SHADOW_MD = {
   shadowColor: '#000',
@@ -17,7 +18,7 @@ const SHADOW_MD = {
 
 export default function DepartmentsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { theme } = useTheme();
+  const { theme, colors } = useTheme();
   const isDark = theme === 'dark';
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedFaculty, setExpandedFaculty] = useState<string | null>(null);
@@ -33,19 +34,16 @@ export default function DepartmentsScreen() {
   }, [searchTerm]);
 
   return (
-    <View className="flex-1 bg-primary dark:bg-darkbgbutton">
-      <View className="px-4 pt-4">
-        <Text className="text-2xl font-extrabold text-gray-900 dark:text-darktext mb-4">Fakülteler ve Bölümler</Text>
-        <Text className="text-sm text-gray-500 dark:text-gray-400">Fakülte ve bölümlere göre notları inceleyin</Text>
-      </View>
-
-      <View className="bg-primary dark:bg-darkbgbutton rounded-lg mx-4 mt-8 mb-1 p-6" style={SHADOW_MD}>
-        <View className="flex-row items-center gap-2 bg-primary dark:bg-darkbg rounded-lg px-3 py-2.5 border border-gray-300 dark:border-gray-600">
-          <Search size={20} color="#5A9690" />
+    <View className="flex-1 bg-ground">
+      {/* Ekran içi "Fakülteler" başlığı ve alt yazısı kaldırıldı — üst bar
+          (AppHeader) zaten sayfa adını yazıyor. */}
+      <View className="bg-surface rounded-lg mx-4 mt-4 mb-1 p-6" style={SHADOW_MD}>
+        <View className="flex-row items-center gap-2 bg-inset rounded-lg px-3 py-2.5 border border-line">
+          <Search size={20} color={colors.accent} />
           <TextInput
-            className="flex-1 text-sm text-gray-900 dark:text-darktext"
+            className="flex-1 text-sm text-ink"
             placeholder="Fakülte veya bölüm ara..."
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={colors.muted2}
             value={searchTerm}
             onChangeText={setSearchTerm}
           />
@@ -53,22 +51,23 @@ export default function DepartmentsScreen() {
       </View>
 
       <FlatList
+        showsVerticalScrollIndicator={false}
         className="flex-1"
-        contentContainerStyle={{ padding: 16, gap: 10 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: TAB_BAR_SAFE_PADDING, gap: 10 }}
         data={filteredFaculties}
         keyExtractor={(item) => item}
-        ListEmptyComponent={<Text className="text-center text-gray-400 dark:text-gray-500 mt-10">Arama sonucu bulunamadı.</Text>}
+        ListEmptyComponent={<Text className="text-center text-muted2 mt-10">Arama sonucu bulunamadı.</Text>}
         renderItem={({ item: faculty }) => {
           const isExpanded = expandedFaculty === faculty;
           return (
-            <View className="bg-primary dark:bg-darkbgbutton rounded-lg mb-2.5 overflow-hidden" style={SHADOW_MD}>
+            <View className="bg-surface rounded-lg mb-2.5 overflow-hidden" style={SHADOW_MD}>
               <Pressable
                 className="flex-row items-center justify-between px-3.5 py-3.5"
                 onPress={() => setExpandedFaculty(isExpanded ? null : faculty)}
               >
                 <View className="flex-row items-center gap-2.5 flex-1">
                   <Library size={24} color={isDark ? '#5A9690' : '#2F5755'} />
-                  <Text className="text-base font-semibold text-gray-900 dark:text-darktext flex-shrink">{faculty}</Text>
+                  <Text className="text-base font-semibold text-ink flex-shrink">{faculty}</Text>
                 </View>
                 <ChevronRight
                   size={20}
@@ -78,14 +77,14 @@ export default function DepartmentsScreen() {
               </Pressable>
 
               {isExpanded && (
-                <View className="gap-2 px-3.5 pb-3.5 border-t border-gray-200 dark:border-gray-600 pt-3 bg-gray-50 dark:bg-darkbg">
+                <View className="gap-2 px-3.5 pb-3.5 border-t border-line-soft pt-3 bg-ground">
                   {departments[faculty]?.map((department) => (
                     <Pressable
                       key={department}
-                      className="bg-primary dark:bg-darkbgbutton border border-gray-400 dark:border-gray-600 rounded-lg p-3"
+                      className="bg-surface border border-line-soft rounded-lg p-3"
                       onPress={() => navigation.navigate('DepartmentDetail', { faculty, department })}
                     >
-                      <Text className="text-sm text-gray-700 dark:text-darktext font-medium">{department}</Text>
+                      <Text className="text-sm text-ink2 font-medium">{department}</Text>
                     </Pressable>
                   ))}
                 </View>

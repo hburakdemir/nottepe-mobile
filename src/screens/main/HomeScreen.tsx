@@ -1,27 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Modal,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowRight, ChevronDown, HeartHandshake, Search, X } from 'lucide-react-native';
+import { ChevronDown, GraduationCap, HeartHandshake, Search, X } from 'lucide-react-native';
 import { noteRequestAPI, postsAPI } from '../../lib/api';
 import PostCard from '../../components/PostCard';
-import DepartmentQuickNav from '../../components/home/DepartmentQuickNav';
 import { useTheme } from '../../context/ThemeContext';
 import { useCardSurface, useFeedTokens } from '../../theme/feedTokens';
-import { faculties as ALL_FACULTIES } from '../../data/departments';
+import { faculties as ALL_FACULTIES, departments as DEPARTMENTS_BY_FACULTY } from '../../data/departments';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
+import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
+import OptionSheet from '../../components/layout/OptionSheet';
+
+const LAST_FACULTY_KEY = 'nottepe_last_faculty';
 
 interface PostsPage {
   posts: Post[];
@@ -30,8 +24,7 @@ interface PostsPage {
 
 export default function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  const { colors } = useTheme();
   // Kartlar kalktı, satırlar tek zemin üstünde ince çizgiyle ayrılıyor
   // (bkz. theme/feedTokens.ts + PostCardModern) — liste artık kenardan kenara.
   const t = useFeedTokens();
@@ -40,9 +33,22 @@ export default function HomeScreen() {
   const [search, setSearch] = useState('');
   const [faculty, setFaculty] = useState('');
   const [showFacultyPicker, setShowFacultyPicker] = useState(false);
+  // "Bölümüne Git" karesinin iki adımlı seçimi + en son seçilen fakülte
+  // (AsyncStorage'da saklanıyor, kare üzerinde ipucu olarak gösteriliyor).
+  const [showDeptFacultyPicker, setShowDeptFacultyPicker] = useState(false);
+  const [pendingFaculty, setPendingFaculty] = useState<string | null>(null);
+  const [lastFaculty, setLastFaculty] = useState('');
   const [faculties, setFaculties] = useState<string[]>(ALL_FACULTIES);
   const [openRequestCount, setOpenRequestCount] = useState<number | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem(LAST_FACULTY_KEY)
+      .then((v) => {
+        if (v) setLastFaculty(v);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     noteRequestAPI
@@ -70,16 +76,7 @@ export default function HomeScreen() {
     };
   }, [searchInput]);
 
-  const {
-    data,
-    isLoading,
-    isError,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    refetch,
-    isRefetching,
-  } = useInfiniteQuery({
+  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage, refetch, isRefetching } = useInfiniteQuery({
     queryKey: ['posts', search, faculty],
     queryFn: async ({ pageParam }) => {
       const res = await postsAPI.getAllPosts({ page: pageParam, search, faculty });
@@ -101,56 +98,73 @@ export default function HomeScreen() {
   const total = data?.pages[0]?.total ?? 0;
   const hasMore = posts.length < total;
 
+  // Ana sayfa başlığı yeniden kurgulandı (kullanıcı isteği): EN ÜSTTE arama,
+  // hemen altında yan yana iki kare kısayol — "Bölümüne Git" ve "Not İstekleri".
+  // Önceki düzende arama en alttaydı, üstünde açılır-kapanır bir bölüm seçici
+  // (DepartmentQuickNav) ve tam genişlikte bir istek şeridi vardı.
   const filterBar = (
     <View style={{ paddingHorizontal: 12, paddingTop: 12 }}>
-      <Text className="text-2xl font-extrabold text-gray-900 dark:text-darktext mb-1">Tüm Notlar</Text>
-      <Text className="text-[13px] text-gray-500 dark:text-darktext mb-4">Öğrenciler tarafından paylaşılan ders notlarını inceleyin</Text>
-
-      <DepartmentQuickNav />
-
-      <Pressable
-        className="flex-row items-center gap-3 p-3.5 mb-3"
-        style={[cardSurface, { borderRadius: 16 }]}
-        onPress={() => navigation.navigate('NoteRequests')}
-      >
-        <View className="w-[38px] h-[38px] rounded-[10px] bg-brand/10 dark:bg-brand-light/20 items-center justify-center">
-          <HeartHandshake size={18} color={isDark ? '#5A9690' : '#2F5755'} />
-        </View>
-        <View className="flex-1">
-          <Text className="text-[13.5px] font-bold text-gray-900 dark:text-darktext">Not İstekleri</Text>
-          <Text className="text-[11px] text-gray-500 dark:text-darktext/80 mt-0.5">Aradığın notu bulamadın mı? İste, elinde olan karşılasın.</Text>
-        </View>
-        <View className="flex-row items-center gap-1">
-          <Text className="text-[11.5px] font-semibold text-brand dark:text-brand-light">
-            {openRequestCount !== null && openRequestCount > 0 ? `${openRequestCount} açık istek` : 'Panoya git'}
-          </Text>
-          <ArrowRight size={14} color={isDark ? '#5A9690' : '#2F5755'} />
-        </View>
-      </Pressable>
-
-      <View
-        className="p-4 mb-1"
-        style={[cardSurface, { borderRadius: 16 }]}
-      >
-        <View className="flex-row items-center gap-2 bg-gray-50 dark:bg-darkbg border border-gray-200 dark:border-gray-600 rounded-[10px] px-3 mb-2.5">
-          <Search size={16} color="#5A9690" />
+      <View className="p-3.5 mb-3" style={[cardSurface, { borderRadius: 16 }]}>
+        <View className="flex-row items-center gap-2 bg-inset border border-line rounded-[10px] px-3">
+          <Search size={16} color={colors.accent} />
           <TextInput
-            className="flex-1 py-2.5 text-[13.5px] text-gray-900 dark:text-darktext"
+            className="flex-1 py-2.5 text-[13.5px] text-ink"
             value={searchInput}
             onChangeText={setSearchInput}
             placeholder="Başlık, açıklama veya bölüm ara..."
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={colors.muted2}
           />
+          {!!searchInput && (
+            <Pressable onPress={() => setSearchInput('')} hitSlop={8} accessibilityLabel="Aramayı temizle">
+              <X size={15} color={colors.muted2} />
+            </Pressable>
+          )}
         </View>
 
         <Pressable
-          className="flex-row items-center justify-between border border-gray-200 dark:border-gray-600 rounded-[10px] px-3 py-2.5"
+          className="flex-row items-center justify-between border border-line rounded-[10px] px-3 py-2.5 mt-2.5"
           onPress={() => setShowFacultyPicker(true)}
         >
-          <Text className={`text-[13.5px] ${faculty ? 'text-gray-900 dark:text-darktext' : 'text-gray-500 dark:text-gray-400'}`}>
-            {faculty || 'Tüm Fakülteler'}
-          </Text>
-          <ChevronDown size={16} color={isDark ? '#9ca3af' : '#6b7280'} />
+          <Text className={`text-[13.5px] ${faculty ? 'text-ink' : 'text-muted'}`}>{faculty || 'Tüm Fakülteler'}</Text>
+          <ChevronDown size={16} color={colors.muted} />
+        </Pressable>
+      </View>
+
+      {/* İki kare: eşit genişlikte (flex-1) ve sabit yükseklikte, yani her
+          ekran genişliğinde yan yana sığıyorlar. */}
+      <View className="flex-row gap-3 mb-1">
+        <Pressable
+          className="flex-1 p-3.5 justify-between"
+          style={[cardSurface, { borderRadius: 16, height: 124 }]}
+          onPress={() => setShowDeptFacultyPicker(true)}
+        >
+          <View className="w-[38px] h-[38px] rounded-[10px] bg-accent-soft items-center justify-center">
+            <GraduationCap size={19} color={colors.accent} />
+          </View>
+          <View>
+            <Text className="text-[13.5px] font-bold text-ink">Bölümüne Git</Text>
+            {/* Sabit yükseklik: iki karenin açıklaması farklı satır sayısında
+                olsa da başlıkları aynı hizada kalıyor. */}
+            <Text className="text-[11px] text-muted mt-0.5" numberOfLines={2} style={{ height: 30 }}>
+              {lastFaculty ? lastFaculty : 'Fakülteni seç, bölüm notlarına atla.'}
+            </Text>
+          </View>
+        </Pressable>
+
+        <Pressable
+          className="flex-1 p-3.5 justify-between"
+          style={[cardSurface, { borderRadius: 16, height: 124 }]}
+          onPress={() => navigation.navigate('NoteRequests')}
+        >
+          <View className="w-[38px] h-[38px] rounded-[10px] bg-accent-soft items-center justify-center">
+            <HeartHandshake size={19} color={colors.accent} />
+          </View>
+          <View>
+            <Text className="text-[13.5px] font-bold text-ink">Not İstekleri</Text>
+            <Text className="text-[11px] text-muted mt-0.5" numberOfLines={2} style={{ height: 30 }}>
+              {openRequestCount !== null && openRequestCount > 0 ? `${openRequestCount} açık istek` : 'İste, elinde olan karşılasın.'}
+            </Text>
+          </View>
         </Pressable>
       </View>
     </View>
@@ -167,7 +181,7 @@ export default function HomeScreen() {
   if (isError) {
     return (
       <View className="flex-1 items-center justify-center py-16">
-        <Text className="text-gray-500 dark:text-gray-400 text-sm">Notlar yüklenemedi.</Text>
+        <Text className="text-muted text-sm">Notlar yüklenemedi.</Text>
       </View>
     );
   }
@@ -175,8 +189,9 @@ export default function HomeScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: t.ground }}>
       <FlatList
+        showsVerticalScrollIndicator={false}
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: 92, flexGrow: 1 }}
+        contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING, flexGrow: 1 }}
         data={posts}
         keyExtractor={(item) => String(item.id ?? item.post_id)}
         renderItem={({ item }) => <PostCard post={item} />}
@@ -190,47 +205,53 @@ export default function HomeScreen() {
           isFetchingNextPage ? (
             <ActivityIndicator style={{ marginVertical: 16 }} color="#2F5755" />
           ) : !hasMore && posts.length > 0 ? (
-            <Text className="text-center text-[12.5px] text-gray-400 dark:text-gray-500 py-5">Tüm notlar yüklendi ({total} not)</Text>
+            <Text className="text-center text-[12.5px] text-muted2 py-5">Tüm notlar yüklendi ({total} not)</Text>
           ) : null
         }
         ListEmptyComponent={
           <View className="flex-1 items-center justify-center py-16">
-            <Text className="text-gray-500 dark:text-gray-400 text-sm">
-              {search || faculty ? 'Arama sonucu bulunamadı.' : 'Henüz not paylaşılmamış.'}
-            </Text>
+            <Text className="text-muted text-sm">{search || faculty ? 'Arama sonucu bulunamadı.' : 'Henüz not paylaşılmamış.'}</Text>
           </View>
         }
       />
 
-      <Modal visible={showFacultyPicker} transparent animationType="fade" onRequestClose={() => setShowFacultyPicker(false)}>
-        <Pressable className="flex-1 bg-black/50 justify-end" onPress={() => setShowFacultyPicker(false)}>
-          <View className="bg-primary dark:bg-darkbgbutton rounded-t-[18px] max-h-[70%] p-4">
-            <View className="flex-row items-center justify-between mb-2">
-              <Text className="text-base font-bold text-gray-900 dark:text-darktext">Fakülte seç</Text>
-              <Pressable onPress={() => setShowFacultyPicker(false)} hitSlop={8}>
-                <X size={20} color={isDark ? '#9ca3af' : '#6b7280'} />
-              </Pressable>
-            </View>
-            <FlatList
-              data={['', ...faculties]}
-              keyExtractor={(item) => item || 'all'}
-              renderItem={({ item }) => (
-                <Pressable
-                  className="py-3 border-b border-gray-100 dark:border-gray-700/40"
-                  onPress={() => {
-                    setFaculty(item);
-                    setShowFacultyPicker(false);
-                  }}
-                >
-                  <Text className={`text-sm ${faculty === item ? 'text-brand dark:text-brand-light font-bold' : 'text-gray-700 dark:text-darktext'}`}>
-                    {item || 'Tüm Fakülteler'}
-                  </Text>
-                </Pressable>
-              )}
-            />
-          </View>
-        </Pressable>
-      </Modal>
+      <OptionSheet
+        visible={showFacultyPicker}
+        title="Fakülte seç"
+        options={faculties}
+        value={faculty}
+        allLabel="Tüm Fakülteler"
+        onSelect={setFaculty}
+        onClose={() => setShowFacultyPicker(false)}
+      />
+
+      {/* "Bölümüne Git" iki adım: önce fakülte, sonra o fakültenin bölümü —
+          ikisi de aynı OptionSheet. */}
+      <OptionSheet
+        visible={showDeptFacultyPicker}
+        title="Fakülteni seç"
+        options={ALL_FACULTIES}
+        value={lastFaculty}
+        onSelect={(f) => {
+          setLastFaculty(f);
+          AsyncStorage.setItem(LAST_FACULTY_KEY, f).catch(() => {});
+          setPendingFaculty(f);
+        }}
+        onClose={() => setShowDeptFacultyPicker(false)}
+      />
+
+      <OptionSheet
+        visible={!!pendingFaculty}
+        title={pendingFaculty || 'Bölüm seç'}
+        options={pendingFaculty ? DEPARTMENTS_BY_FACULTY[pendingFaculty] || [] : []}
+        onSelect={(department) => {
+          const f = pendingFaculty;
+          setPendingFaculty(null);
+          if (f && department) navigation.navigate('DepartmentDetail', { faculty: f, department });
+        }}
+        onClose={() => setPendingFaculty(null)}
+        emptyText="Bu fakülte için bölüm bulunamadı"
+      />
     </View>
   );
 }

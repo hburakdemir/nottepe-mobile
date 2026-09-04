@@ -1,3 +1,5 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
 export type AuthStackParamList = {
   Login: undefined;
   Register: undefined;
@@ -13,14 +15,28 @@ export interface NoteRequestSummary {
   course_name: string;
 }
 
-// Web'de Layout.jsx her rotayı (Ana Sayfa dahil, Ekle dahil) aynı Navbar+
-// MobileTabBar ile sarmalıyor — burada da tek düz stack, AppHeader/WaveTabBar
-// her ekranda AppShell üzerinden sabit kalıyor (bkz. RootNavigator.tsx).
-// Ayrı bir Tab.Navigator yok artık.
-export type RootStackParamList = {
+// WaveTabBar'ın 5 sekmesi ARTIK gerçek bir Tab.Navigator (bkz. MainTabsScreen.tsx).
+// Daha önce bunlar da düz stack route'larıydı ve sekme değişimi
+// `StackActions.replace` ile yapılıyordu — her geçişte ekran baştan mount olup
+// bütün veriyi yeniden çekiyordu ("sayfa refresh oluyor"). Tab.Navigator
+// sekmeleri mount'lu tuttuğu için geçiş artık kayarak ve veriyi tazelemeden
+// oluyor; tab bar da sahnelerin KARDEŞİ olarak çizildiğinden geçiş boyunca
+// yerinde sabit kalıyor.
+export type MainTabParamList = {
   Home: undefined;
   Departments: undefined;
   Tools: undefined;
+  CafeteriaMenu: undefined;
+  // Menüdeki "Notlarım" / "Kaydettiğim Notlarım" kısayolları Profil'i ilgili
+  // sekmeyle açıyor (bkz. ProfileScreen.tsx TABS, MenuDrawerContent.tsx).
+  Profile: { initialTab?: 'posts' | 'saved' } | undefined;
+};
+
+// Sekmeler artık burada değil, `MainTabs` altında. Sekme adlarına gitmek için
+// `navigateApp` yardımcısını kullan (bkz. navigateApp.ts) — düz
+// `navigate('Home')` bilerek tip hatası veriyor.
+export type RootStackParamList = {
+  MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   AddPost: { noteRequest?: NoteRequestSummary } | undefined;
   PostDetail: { postId: number };
   DepartmentDetail: { faculty: string; department: string };
@@ -34,16 +50,12 @@ export type RootStackParamList = {
   FaqDetail: { id: number };
   Suggestions: undefined;
   SuggestionDetail: { id: number };
-  CafeteriaMenu: undefined;
   Ego130Schedule: undefined;
   Leaderboard: undefined;
   Help: undefined;
   // Web'de "/notifications" ve "/duyurular" aynı NotificationsPage'i farklı
   // initialTab ile açıyor (bkz. App.jsx) — mobilde de tek ekran, iki giriş noktası.
   Notifications: { initialTab?: 'duyurular' | 'aktivite' } | undefined;
-  // Menüdeki "Notlarım" / "Kaydettiğim Notlarım" kısayolları Profile'ı ilgili
-  // sekmeyle açıyor (bkz. ProfileScreen.tsx TABS, MenuDrawerContent.tsx).
-  Profile: { initialTab?: 'posts' | 'saved' } | undefined;
 };
 
 // RootStackParamList'i saran tek gözlü Drawer.Navigator — menü artık ayrı bir

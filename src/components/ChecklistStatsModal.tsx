@@ -60,45 +60,55 @@ export default function ChecklistStatsModal({ checklist, onClose }: { checklist:
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View className="bg-primary dark:bg-darkbgbutton" style={styles.sheet}>
+        <View className="bg-surface" style={styles.sheet}>
           <View style={styles.headerRow}>
-            <Text className="text-gray-900 dark:text-darktext" style={styles.title} numberOfLines={1}>
+            <Text className="text-ink" style={styles.title} numberOfLines={1}>
               {checklist.title}
             </Text>
             <Pressable onPress={onClose} hitSlop={8}>
               <X size={20} color={mutedIconColor} />
             </Pressable>
           </View>
-          <Text className="text-gray-500 dark:text-gray-400" style={styles.subtitle}>Checklist istatistikleri</Text>
+          <Text className="text-muted" style={styles.subtitle}>
+            Checklist istatistikleri
+          </Text>
 
-          <ScrollView style={{ marginTop: 12 }}>
-            <View className="bg-brand/10 dark:bg-brand-light/20" style={styles.summaryBox}>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 12 }}>
+            <View className="bg-accent-soft" style={styles.summaryBox}>
               <Users size={22} color={brandIconColor} />
               <View>
-                <Text className="text-brand dark:text-brand-light" style={styles.summaryCount}>
+                <Text className="text-accent" style={styles.summaryCount}>
                   {checklist.completion?.completedCount ?? total} kişi
                 </Text>
-                <Text className="text-gray-500 dark:text-gray-400" style={styles.summaryLabel}>checklistin tamamını işaretleyerek tamamladı</Text>
+                <Text className="text-muted" style={styles.summaryLabel}>
+                  checklistin tamamını işaretleyerek tamamladı
+                </Text>
               </View>
             </View>
 
             <View style={styles.sectionHeaderRow}>
               <BarChart2 size={15} color={sectionIconColor} />
-              <Text className="text-gray-700 dark:text-darktext" style={styles.sectionHeader}>Madde bazlı işaretlenme</Text>
+              <Text className="text-ink2" style={styles.sectionHeader}>
+                Madde bazlı işaretlenme
+              </Text>
             </View>
             {items.length === 0 ? (
-              <Text className="text-gray-500 dark:text-gray-400" style={styles.emptyText}>Bu checklistte henüz madde yok.</Text>
+              <Text className="text-muted" style={styles.emptyText}>
+                Bu checklistte henüz madde yok.
+              </Text>
             ) : (
               <View style={{ gap: 10, marginBottom: 16 }}>
                 {items.map((item) => (
                   <View key={item.id}>
                     <View style={styles.itemStatRow}>
-                      <Text className="text-gray-800 dark:text-darktext" style={styles.itemStatText} numberOfLines={1}>
+                      <Text className="text-ink2" style={styles.itemStatText} numberOfLines={1}>
                         {item.content}
                       </Text>
-                      <Text className="text-gray-800 dark:text-darktext" style={styles.itemStatCount}>{item.checkedCount}</Text>
+                      <Text className="text-ink2" style={styles.itemStatCount}>
+                        {item.checkedCount}
+                      </Text>
                     </View>
-                    <View className="bg-gray-200 dark:bg-gray-700/40" style={styles.barTrack}>
+                    <View className="bg-inset" style={styles.barTrack}>
                       <View style={[styles.barFill, { width: `${(item.checkedCount / maxChecked) * 100}%` }]} />
                     </View>
                   </View>
@@ -108,18 +118,22 @@ export default function ChecklistStatsModal({ checklist, onClose }: { checklist:
 
             <View style={styles.sectionHeaderRow}>
               <Users size={15} color={sectionIconColor} />
-              <Text className="text-gray-700 dark:text-darktext" style={styles.sectionHeader}>Dolduranlar</Text>
+              <Text className="text-ink2" style={styles.sectionHeader}>
+                Dolduranlar
+              </Text>
             </View>
             {loading ? (
               <ActivityIndicator style={{ marginVertical: 16 }} color="#1d4ed8" />
             ) : completers.length === 0 ? (
-              <Text className="text-gray-500 dark:text-gray-400" style={styles.emptyText}>Bu checklisti henüz kimse tamamlamadı.</Text>
+              <Text className="text-muted" style={styles.emptyText}>
+                Bu checklisti henüz kimse tamamlamadı.
+              </Text>
             ) : (
               <View style={{ gap: 8 }}>
                 {completers.map((c) => (
                   <Pressable
                     key={c.id}
-                    className="bg-gray-50 dark:bg-gray-700/40 border-gray-100 dark:border-gray-700/40"
+                    className="bg-inset border-line-soft"
                     style={styles.completerRow}
                     onPress={() => {
                       onClose();
@@ -127,12 +141,16 @@ export default function ChecklistStatsModal({ checklist, onClose }: { checklist:
                     }}
                   >
                     <View style={{ flex: 1 }}>
-                      <Text className="text-gray-900 dark:text-darktext" style={styles.completerName} numberOfLines={1}>
+                      <Text className="text-ink" style={styles.completerName} numberOfLines={1}>
                         {c.full_name}
                       </Text>
-                      <Text className="text-gray-500 dark:text-gray-400" style={styles.completerUsername}>@{c.username}</Text>
+                      <Text className="text-muted" style={styles.completerUsername}>
+                        @{c.username}
+                      </Text>
                     </View>
-                    <Text className="text-gray-500 dark:text-gray-400" style={styles.completerDate}>{formatDate(c.completed_at)}</Text>
+                    <Text className="text-muted" style={styles.completerDate}>
+                      {formatDate(c.completed_at)}
+                    </Text>
                   </Pressable>
                 ))}
                 {hasMore && (
@@ -140,7 +158,9 @@ export default function ChecklistStatsModal({ checklist, onClose }: { checklist:
                     {loadingMore ? (
                       <ActivityIndicator color="#1d4ed8" />
                     ) : (
-                      <Text className="text-blue-700 dark:text-blue-400" style={styles.loadMoreText}>Daha fazla göster</Text>
+                      <Text className="text-info" style={styles.loadMoreText}>
+                        Daha fazla göster
+                      </Text>
                     )}
                   </Pressable>
                 )}

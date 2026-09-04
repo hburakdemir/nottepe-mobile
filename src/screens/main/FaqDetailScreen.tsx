@@ -113,43 +113,43 @@ export default function FaqDetailScreen() {
   if (!entry) {
     return (
       <View className="flex-1 items-center justify-center">
-        <Text className="text-gray-500 dark:text-gray-400 text-sm">Kayıt bulunamadı.</Text>
+        <Text className="text-muted text-sm">Kayıt bulunamadı.</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView className="flex-1 bg-gray-50 dark:bg-darkbgbutton" contentContainerClassName="p-4 pb-10">
-      <View className="bg-white dark:bg-darkbgbutton rounded-2xl p-4 mb-3.5">
+    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="p-4 pb-[110px]">
+      <View className="bg-surface rounded-2xl p-4 mb-3.5">
         <View className="flex-row gap-2.5">
           <HelpCircle size={20} color={isDark ? '#5A9690' : '#2F5755'} style={{ marginTop: 2 }} />
-          <Text className="flex-1 text-lg font-bold text-gray-900 dark:text-darktext leading-6">{entry.question}</Text>
+          <Text className="flex-1 text-lg font-bold text-ink leading-6">{entry.question}</Text>
         </View>
-        <Text className="text-sm text-gray-700 dark:text-darktext mt-3 leading-5">{entry.answer}</Text>
+        <Text className="text-sm text-ink2 mt-3 leading-5">{entry.answer}</Text>
         <View className="flex-row gap-2 mt-3">
           <Pressable
-            className={`flex-row items-center gap-[5px] border rounded-lg px-2.5 py-1.5 ${entry.my_vote === 1 ? 'border-brand dark:border-brand-light' : 'border-gray-200 dark:border-gray-600'}`}
+            className={`flex-row items-center gap-[5px] border rounded-lg px-2.5 py-1.5 ${entry.my_vote === 1 ? 'border-accent' : 'border-line'}`}
             onPress={() => handleVoteAnswer(1)}
           >
-            <ThumbsUp size={14} color={entry.my_vote === 1 ? (isDark ? '#5A9690' : '#2F5755') : (isDark ? '#9ca3af' : '#6b7280')} />
-            <Text className={`text-xs font-semibold ${entry.my_vote === 1 ? 'text-brand dark:text-brand-light' : 'text-gray-500 dark:text-gray-400'}`}>{entry.upvotes || 0}</Text>
+            <ThumbsUp size={14} color={entry.my_vote === 1 ? (isDark ? '#5A9690' : '#2F5755') : isDark ? '#9ca3af' : '#6b7280'} />
+            <Text className={`text-xs font-semibold ${entry.my_vote === 1 ? 'text-accent' : 'text-muted'}`}>{entry.upvotes || 0}</Text>
           </Pressable>
           <Pressable
-            className={`flex-row items-center gap-[5px] border rounded-lg px-2.5 py-1.5 ${entry.my_vote === -1 ? 'border-red-600' : 'border-gray-200 dark:border-gray-600'}`}
+            className={`flex-row items-center gap-[5px] border rounded-lg px-2.5 py-1.5 ${entry.my_vote === -1 ? 'border-red-600' : 'border-line'}`}
             onPress={() => handleVoteAnswer(-1)}
           >
-            <ThumbsDown size={14} color={entry.my_vote === -1 ? '#dc2626' : (isDark ? '#9ca3af' : '#6b7280')} />
-            <Text className={`text-xs font-semibold ${entry.my_vote === -1 ? 'text-red-600' : 'text-gray-500 dark:text-gray-400'}`}>{entry.downvotes || 0}</Text>
+            <ThumbsDown size={14} color={entry.my_vote === -1 ? '#dc2626' : isDark ? '#9ca3af' : '#6b7280'} />
+            <Text className={`text-xs font-semibold ${entry.my_vote === -1 ? 'text-red-600' : 'text-muted'}`}>{entry.downvotes || 0}</Text>
           </Pressable>
         </View>
         {!!entry.author_name && (
-          <Text className="text-[11px] text-gray-400 dark:text-gray-500 mt-3">
+          <Text className="text-[11px] text-muted2 mt-3">
             {entry.author_name} tarafından {formatDate(entry.created_at)}
           </Text>
         )}
       </View>
 
-      <View className="bg-white dark:bg-darkbgbutton rounded-2xl p-4 mb-3.5">
+      <View className="bg-surface rounded-2xl p-4 mb-3.5">
         <ForumCommentList
           comments={comments}
           loading={commentsLoading}

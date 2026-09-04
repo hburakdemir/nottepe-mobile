@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, Text
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AlertCircle, Eye, EyeOff, Lock } from 'lucide-react-native';
 import { passwordApi } from '../../lib/api';
+import { useThemeColors } from '../../context/ThemeContext';
 import AuthHeader from '../../components/auth/AuthHeader';
 import type { AuthStackParamList } from '../../navigation/types';
 
@@ -10,6 +11,8 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'ResetPassword'>;
 
 export default function ResetPasswordScreen({ route, navigation }: Props) {
   const { email } = route.params;
+  // Renkler StyleSheet'ten çıkarıldı; aşağıdaki stiller sadece ölçü/tipografi.
+  const colors = useThemeColors();
   const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -58,57 +61,61 @@ export default function ResetPasswordScreen({ route, navigation }: Props) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <AuthHeader icon={<Lock size={26} color="#2F5755" />} title="Yeni Şifre Belirle" subtitle={`${email} adresine gönderilen kodu girin`} />
+    <ScrollView showsVerticalScrollIndicator={false} style={[styles.container, { backgroundColor: colors.ground }]} contentContainerStyle={styles.content}>
+      <AuthHeader
+        icon={<Lock size={26} color={colors.accent} />}
+        title="Yeni Şifre Belirle"
+        subtitle={`${email} adresine gönderilen kodu girin`}
+      />
 
       {!!error && (
-        <View style={styles.alertError}>
-          <AlertCircle size={16} color="#b91c1c" />
-          <Text style={styles.alertErrorText}>{error}</Text>
+        <View style={[styles.alertError, { backgroundColor: colors.dangerSoft, borderColor: colors.dangerLine }]}>
+          <AlertCircle size={16} color={colors.danger} />
+          <Text style={[styles.alertErrorText, { color: colors.danger }]}>{error}</Text>
         </View>
       )}
 
-      <Text style={styles.label}>Doğrulama Kodu *</Text>
+      <Text style={[styles.label, { color: colors.ink2 }]}>Doğrulama Kodu *</Text>
       <TextInput
-        style={styles.codeInput}
+        style={[styles.codeInput, { borderColor: colors.line, color: colors.ink }]}
         maxLength={6}
         placeholder="000000"
-        placeholderTextColor="#d1d5db"
+        placeholderTextColor={colors.line}
         keyboardType="number-pad"
         value={code}
         onChangeText={(t) => setCode(t.replace(/\D/g, ''))}
       />
 
-      <Text style={styles.label}>Yeni Şifre *</Text>
-      <View style={styles.inputRow}>
-        <Lock size={18} color="#4f7d7a" />
+      <Text style={[styles.label, { color: colors.ink2 }]}>Yeni Şifre *</Text>
+      <View style={[styles.inputRow, { borderColor: colors.line }]}>
+        <Lock size={18} color={colors.accent} />
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: colors.ink }]}
           placeholder="••••••••"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={colors.muted2}
           secureTextEntry={!showPassword}
           value={newPassword}
           onChangeText={setNewPassword}
         />
         <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={8}>
-          {showPassword ? <Eye size={18} color="#6b7280" /> : <EyeOff size={18} color="#6b7280" />}
+          {showPassword ? <Eye size={18} color={colors.muted} /> : <EyeOff size={18} color={colors.muted} />}
         </Pressable>
       </View>
-      <Text style={styles.hintText}>En az 5 karakter, 1 büyük harf ve 1 noktalama işareti</Text>
+      <Text style={[styles.hintText, { color: colors.muted2 }]}>En az 5 karakter, 1 büyük harf ve 1 noktalama işareti</Text>
 
-      <Text style={styles.label}>Şifre Tekrar *</Text>
-      <View style={styles.inputRow}>
-        <Lock size={18} color="#4f7d7a" />
+      <Text style={[styles.label, { color: colors.ink2 }]}>Şifre Tekrar *</Text>
+      <View style={[styles.inputRow, { borderColor: colors.line }]}>
+        <Lock size={18} color={colors.accent} />
         <TextInput
-          style={styles.input}
+          style={[styles.input, { color: colors.ink }]}
           placeholder="••••••••"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={colors.muted2}
           secureTextEntry={!showConfirmPassword}
           value={confirmPassword}
           onChangeText={setConfirmPassword}
         />
         <Pressable onPress={() => setShowConfirmPassword((v) => !v)} hitSlop={8}>
-          {showConfirmPassword ? <Eye size={18} color="#6b7280" /> : <EyeOff size={18} color="#6b7280" />}
+          {showConfirmPassword ? <Eye size={18} color={colors.muted} /> : <EyeOff size={18} color={colors.muted} />}
         </Pressable>
       </View>
 
@@ -117,33 +124,48 @@ export default function ResetPasswordScreen({ route, navigation }: Props) {
       </Pressable>
 
       <Pressable style={styles.resendLink} onPress={() => navigation.navigate('ForgotPassword')}>
-        <Text style={styles.resendLinkText}>Kodu tekrar gönder</Text>
+        <Text style={[styles.resendLinkText, { color: colors.accent }]}>Kodu tekrar gönder</Text>
       </Pressable>
     </ScrollView>
   );
 }
 
+// Renkler kullanım yerinde (useThemeColors) — burada sadece ölçü/tipografi.
+// Tek istisna marka butonu ve üstündeki beyaz yazı.
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1 },
   content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 32 },
-  alertError: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca', borderRadius: 10, padding: 12, marginBottom: 16 },
-  alertErrorText: { color: '#b91c1c', fontSize: 13, flex: 1 },
-  label: { fontSize: 13.5, fontWeight: '600', color: '#374151', marginBottom: 8, marginTop: 14 },
+  alertError: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+  },
+  alertErrorText: { fontSize: 13, flex: 1 },
+  label: { fontSize: 13.5, fontWeight: '600', marginBottom: 8, marginTop: 14 },
   codeInput: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
     borderRadius: 10,
     paddingVertical: 14,
     fontSize: 22,
     letterSpacing: 6,
     textAlign: 'center',
-    color: '#111827',
   },
-  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, paddingHorizontal: 14 },
-  input: { flex: 1, paddingVertical: 13, fontSize: 15, color: '#111827' },
-  hintText: { fontSize: 11, color: '#9ca3af', marginTop: 5 },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+  },
+  input: { flex: 1, paddingVertical: 13, fontSize: 15 },
+  hintText: { fontSize: 11, marginTop: 5 },
   button: { backgroundColor: '#2F5755', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginTop: 22 },
   buttonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   resendLink: { alignItems: 'center', marginTop: 16 },
-  resendLinkText: { color: '#2F5755', fontSize: 13.5, fontWeight: '600' },
+  resendLinkText: { fontSize: 13.5, fontWeight: '600' },
 });

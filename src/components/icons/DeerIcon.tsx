@@ -11,7 +11,16 @@ interface Props {
 // çizilmiş minimal geyik başı/boynuz glifi.
 export default function DeerIcon({ size = 20, color = '#6b7280' }: Props) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+    <Svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <Path d="M9 8c-1.6-2-1.3-4.6-0.3-6.5" />
       <Path d="M9 8c-0.9-0.9-0.2-2.6-1.8-3.2" />
       <Path d="M15 8c1.6-2 1.3-4.6 0.3-6.5" />

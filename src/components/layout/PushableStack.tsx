@@ -34,10 +34,10 @@ const CORNER_RADIUS = 50;
 export default function PushableStack({ children }: { children: React.ReactNode }) {
   const progress = useDrawerProgress();
   const navigation = useNavigation();
-  const { theme } = useTheme();
+  const { theme, colors } = useTheme();
   // İtilen sayfanın OPAK bir zemini olmalı: köşe yuvarlaması sırasında
   // altındaki menü paneli içeriğinin sızmaması için.
-  const surfaceColor = theme === 'dark' ? '#222831' : '#fff';
+  const surfaceColor = colors.surface;
   const [overlayActive, setOverlayActive] = useState(false);
 
   useAnimatedReaction(
@@ -52,18 +52,15 @@ export default function PushableStack({ children }: { children: React.ReactNode 
     return { borderTopLeftRadius: radius, borderBottomLeftRadius: radius };
   });
 
+  // Ayirici cizgi SADECE menu aciliyorken var. Eskiden sabit bir `borderLeft`
+  // olarak duruyordu; menu kapaliyken de cizildigi icin koyu temada ana
+  // sayfanin sol kenarinda ince BEYAZ bir cizgi olarak goruluyordu. Artik
+  // kendi katmaninda ve opakligi cekmecenin ilerlemesini takip ediyor:
+  // kapaliyken tamamen yok.
+  const edgeLineStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
+
   return (
-    <Animated.View
-      style={[
-        StyleSheet.absoluteFill,
-        radiusStyle,
-        {
-          backgroundColor: surfaceColor,
-          borderLeftWidth: StyleSheet.hairlineWidth,
-          borderLeftColor: theme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.40)',
-        },
-      ]}
-    >
+    <Animated.View style={[StyleSheet.absoluteFill, radiusStyle, { backgroundColor: surfaceColor }]}>
       <Animated.View style={[StyleSheet.absoluteFill, radiusStyle, { overflow: 'hidden', backgroundColor: surfaceColor }]}>
         {children}
         {overlayActive && (
@@ -74,6 +71,21 @@ export default function PushableStack({ children }: { children: React.ReactNode 
           />
         )}
       </Animated.View>
+
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          {
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: StyleSheet.hairlineWidth,
+            backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.40)',
+          },
+          edgeLineStyle,
+        ]}
+      />
     </Animated.View>
   );
 }

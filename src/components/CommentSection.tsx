@@ -18,6 +18,7 @@ import { adminCommentAPI, commentAPI } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useGoToUserProfile } from '../hooks/useGoToUserProfile';
+import { useFeedTokens } from '../theme/feedTokens';
 import BadgeChip from './BadgeChip';
 import type { Comment } from '../types/comment';
 
@@ -35,11 +36,12 @@ function formatDateTime(dateString: string): string {
 }
 
 function StarPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const { amber } = useFeedTokens();
   return (
     <View style={styles.starRow}>
       {[1, 2, 3, 4, 5].map((s) => (
         <Pressable key={s} onPress={() => onChange(value === s ? 0 : s)} hitSlop={6}>
-          <Star size={22} color="#eab308" fill={value >= s ? '#eab308' : 'none'} />
+          <Star size={22} color={amber} fill={value >= s ? amber : 'none'} />
         </Pressable>
       ))}
     </View>
@@ -47,10 +49,11 @@ function StarPicker({ value, onChange }: { value: number; onChange: (v: number) 
 }
 
 function StarDisplay({ value }: { value: number }) {
+  const t = useFeedTokens();
   return (
     <View style={styles.starRow}>
       {[1, 2, 3, 4, 5].map((s) => (
-        <Star key={s} size={14} color={value >= s ? '#eab308' : '#d1d5db'} fill={value >= s ? '#eab308' : 'none'} />
+        <Star key={s} size={14} color={value >= s ? t.amber : t.line} fill={value >= s ? t.amber : 'none'} />
       ))}
     </View>
   );
@@ -74,12 +77,17 @@ interface CommentCardProps {
 function CommentCard({ comment, postOwnerId, isAdmin, onDelete, onRestore, onEdit, onEditRatingChange }: CommentCardProps) {
   const { user } = useAuth();
   const goToUserProfile = useGoToUserProfile();
+  // Renkler artık akış/gönderi tasarımıyla AYNI kaynaktan (theme/feedTokens.ts).
+  // Eskiden burada sabit hex'ler vardı — koyu tema için seçilmiş koyu yeşil bir
+  // form bloğu, beyaz girdi, neredeyse siyah buton — ve açık temada sayfanın
+  // geri kalanına hiç benzemiyordu.
+  const t = useFeedTokens();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const avatarIconColor = isDark ? '#DFD0B8' : '#6b7280';
-  const cancelIconColor = isDark ? '#DFD0B8' : '#6b7280';
-  const editIconColor = isDark ? '#60a5fa' : '#1d4ed8';
-  const deleteIconColor = isDark ? '#f87171' : '#dc2626';
+  const avatarIconColor = t.ink3;
+  const cancelIconColor = t.ink2;
+  const editIconColor = t.accent;
+  const deleteIconColor = t.danger;
   const restoreIconColor = isDark ? '#4ade80' : '#16a34a';
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -137,18 +145,15 @@ function CommentCard({ comment, postOwnerId, isAdmin, onDelete, onRestore, onEdi
   };
 
   return (
-    <View
-      className={isDeleted ? 'border-red-200 dark:border-red-900/40' : 'border-gray-100 dark:border-gray-700/40'}
-      style={styles.commentCard}
-    >
+    <View style={[styles.commentCard, { backgroundColor: t.inset, borderColor: isDeleted ? t.danger : t.line }]}>
       <View style={styles.commentHeader}>
         <Pressable style={styles.commentUser} onPress={() => goToUserProfile(comment.username)}>
-          <View className="bg-gray-100 dark:bg-gray-700/40" style={styles.avatarFallback}>
+          <View style={[styles.avatarFallback, { backgroundColor: t.card }]}>
             <User size={14} color={avatarIconColor} />
           </View>
           <View style={{ flex: 1 }}>
             <View style={styles.usernameRow}>
-              <Text className="text-gray-900 dark:text-darktext" style={styles.username}>{comment.username || 'Anonim'}</Text>
+              <Text style={[styles.username, { color: t.ink }]}>{comment.username || 'Anonim'}</Text>
               {!!comment.badges?.length && (
                 <View style={styles.badgeRow}>
                   {comment.badges.map((b) => (
@@ -162,7 +167,7 @@ function CommentCard({ comment, postOwnerId, isAdmin, onDelete, onRestore, onEdi
                 </View>
               )}
             </View>
-            <Text className="text-gray-500 dark:text-gray-400" style={styles.date}>
+            <Text style={[styles.date, { color: t.ink3 }]}>
               {formatDateTime(comment.created_at)}
               {!!comment.updated_at && <Text style={styles.editedText}> · düzenlendi</Text>}
             </Text>
@@ -193,31 +198,30 @@ function CommentCard({ comment, postOwnerId, isAdmin, onDelete, onRestore, onEdi
         </View>
       </View>
 
-      {!isEditing && !!comment.content && (
-        <Text className="text-gray-800 dark:text-darktext" style={styles.commentContent}>{comment.content}</Text>
-      )}
+      {!isEditing && !!comment.content && <Text style={[styles.commentContent, { color: t.ink2 }]}>{comment.content}</Text>}
 
       {isEditing && (
         <View style={{ marginTop: 8, gap: 8 }}>
           {!withinEditWindow ? (
-            <Text style={styles.editWindowWarning}>Yorumu attıktan sonra 1 saat içinde güncelleme yapabilirsiniz.</Text>
+            <Text style={[styles.editWindowWarning, { backgroundColor: t.card, borderColor: t.amber, color: t.ink2 }]}>
+              Yorumu attıktan sonra 1 saat içinde güncelleme yapabilirsiniz.
+            </Text>
           ) : (
             <>
-              <Text className="text-gray-500 dark:text-gray-400" style={styles.editLabel}>Puan</Text>
+              <Text style={[styles.editLabel, { color: t.ink3 }]}>Puan</Text>
               <StarPicker value={editRating} onChange={setEditRating} />
               <TextInput
-                className="border-gray-200 dark:border-gray-600 text-gray-900 dark:text-darktext"
-                style={styles.editInput}
+                style={[styles.editInput, { backgroundColor: t.card, borderColor: t.line, color: t.ink }]}
                 value={editContent}
                 onChangeText={(t) => setEditContent(t.slice(0, 300))}
                 multiline
                 placeholder="Yorumunuz..."
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={t.ink3}
               />
-              {!!editError && <Text className="text-red-600 dark:text-red-400" style={styles.errorText}>{editError}</Text>}
-              <Pressable style={styles.editSubmitBtn} onPress={handleEditSubmit} disabled={editLoading}>
-                <Send size={13} color="#fff" />
-                <Text style={styles.editSubmitText}>{editLoading ? 'Güncelleniyor…' : 'Güncelle'}</Text>
+              {!!editError && <Text style={[styles.errorText, { color: t.danger }]}>{editError}</Text>}
+              <Pressable style={[styles.editSubmitBtn, { backgroundColor: t.accent }]} onPress={handleEditSubmit} disabled={editLoading}>
+                <Send size={13} color={t.onAccent} />
+                <Text style={[styles.editSubmitText, { color: t.onAccent }]}>{editLoading ? 'Güncelleniyor…' : 'Güncelle'}</Text>
               </Pressable>
             </>
           )}
@@ -225,31 +229,29 @@ function CommentCard({ comment, postOwnerId, isAdmin, onDelete, onRestore, onEdi
       )}
 
       {isDeleted && isAdmin && (
-        <View style={styles.deletedInfo}>
-          <Text className="text-red-500 dark:text-red-400" style={styles.deletedInfoText}>
+        <View style={[styles.deletedInfo, { borderTopColor: t.line }]}>
+          <Text style={[styles.deletedInfoText, { color: t.danger }]}>
             🗑 Silen: {comment.deleted_by_username || `#${comment.deleted_by}`} · {formatDateTime(comment.deleted_at!)}
           </Text>
-          {!!comment.delete_reason && (
-            <Text className="text-red-500 dark:text-red-400" style={styles.deletedInfoText}>Sebep: {comment.delete_reason}</Text>
-          )}
+          {!!comment.delete_reason && <Text style={[styles.deletedInfoText, { color: t.danger }]}>Sebep: {comment.delete_reason}</Text>}
         </View>
       )}
 
       {showDeleteDialog && (
-        <View style={styles.deleteDialog}>
-          <Text style={styles.deleteDialogText}>Bu yorumu silmek istediğinizden emin misiniz?</Text>
+        <View style={[styles.deleteDialog, { backgroundColor: t.card, borderColor: t.danger }]}>
+          <Text style={[styles.deleteDialogText, { color: t.danger }]}>Bu yorumu silmek istediğinizden emin misiniz?</Text>
           {isAdminUser && (
             <TextInput
-              style={styles.deleteReasonInput}
+              style={[styles.deleteReasonInput, { backgroundColor: t.inset, borderColor: t.line, color: t.ink }]}
               value={deleteReason}
               onChangeText={setDeleteReason}
               placeholder="Silme sebebi (opsiyonel)"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={t.ink3}
             />
           )}
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <Pressable
-              style={styles.deleteConfirmBtn}
+              style={[styles.deleteConfirmBtn, { backgroundColor: t.danger }]}
               onPress={() => {
                 onDelete(comment.id, deleteReason);
                 setShowDeleteDialog(false);
@@ -257,8 +259,8 @@ function CommentCard({ comment, postOwnerId, isAdmin, onDelete, onRestore, onEdi
             >
               <Text style={styles.deleteConfirmText}>Evet, Sil</Text>
             </Pressable>
-            <Pressable style={styles.deleteCancelBtn} onPress={() => setShowDeleteDialog(false)}>
-              <Text style={styles.deleteCancelText}>İptal</Text>
+            <Pressable style={[styles.deleteCancelBtn, { backgroundColor: t.inset }]} onPress={() => setShowDeleteDialog(false)}>
+              <Text style={[styles.deleteCancelText, { color: t.ink2 }]}>İptal</Text>
             </Pressable>
           </View>
         </View>
@@ -273,16 +275,33 @@ interface Props {
   isAdmin?: boolean;
   defaultCollapsed?: boolean;
   onRatingChange: (stats: RatingStats) => void;
+  /**
+   * Yorum kutusuna odaklanıldığında çağrılır. Sayfayı saran
+   * KeyboardAvoidingView içeriği yukarı itiyor ama kaydırma konumunu
+   * DEĞİŞTİRMİYOR: yorum formu uzun bir ScrollView'ın en altında olduğu için
+   * klavye açılınca kullanıcı hiçbir şeyin hareket etmediğini görüyordu.
+   * Sayfa bu geri çağırımla forma kaydırıyor (bkz. PostDetailScreen.tsx).
+   */
+  onInputFocus?: () => void;
 }
 
-export default function CommentSection({ postId, postOwnerId, isAdmin = false, defaultCollapsed = true, onRatingChange }: Props) {
+// `defaultCollapsed` varsayılanı artık FALSE: gönderi detayında yorumlar
+// kapalı geliyordu ve kapalıyken hiç istek atılmadığı için "yorumlar
+// çekilmiyor" gibi görünüyordu. Artık ekran açılır açılmaz (ve postId
+// değiştiğinde yeniden) sunucudan çekiliyor.
+export default function CommentSection({
+  postId,
+  postOwnerId,
+  isAdmin = false,
+  defaultCollapsed = false,
+  onRatingChange,
+  onInputFocus,
+}: Props) {
   const { isAuthenticated } = useAuth();
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
-  const headerIconColor = isDark ? '#DFD0B8' : '#111827';
+  const t = useFeedTokens();
+  const headerIconColor = t.ink;
 
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
-  const [hasFetched, setHasFetched] = useState(false);
   const [comments, setComments] = useState<Comment[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -320,12 +339,15 @@ export default function CommentSection({ postId, postOwnerId, isAdmin = false, d
     [postId, isAdmin]
   );
 
+  // `fetchPage` yalnızca postId/isAdmin değişince yeniden üretiliyor — yani bu
+  // efekt hem ilk açılışta, hem başka bir gönderiye geçildiğinde, hem de
+  // kullanıcı bölümü kapatıp tekrar açtığında taze veri çekiyor. (Eskiden bir
+  // kerelik `hasFetched` bayrağı vardı: aynı bileşen başka bir gönderi için
+  // yeniden kullanıldığında bir daha hiç istek atmıyordu.)
   useEffect(() => {
-    if (!collapsed && !hasFetched) {
-      setHasFetched(true);
-      fetchPage(1);
-    }
-  }, [collapsed, hasFetched, fetchPage]);
+    if (collapsed) return;
+    fetchPage(1);
+  }, [collapsed, fetchPage]);
 
   const handleSubmit = async () => {
     if (!content.trim() && !rating) {
@@ -385,9 +407,9 @@ export default function CommentSection({ postId, postOwnerId, isAdmin = false, d
     <View style={styles.container}>
       <Pressable style={styles.toggleHeader} onPress={() => setCollapsed((c) => !c)}>
         <MessageSquare size={16} color={headerIconColor} />
-        <Text className="text-gray-900 dark:text-darktext" style={styles.toggleHeaderText}>Yorumlar</Text>
-        <View className="bg-brand/10 dark:bg-brand-light/20" style={styles.countPill}>
-          <Text className="text-brand dark:text-brand-light" style={styles.countPillText}>{total}</Text>
+        <Text style={[styles.toggleHeaderText, { color: t.ink }]}>Yorumlar</Text>
+        <View style={[styles.countPill, { backgroundColor: t.inset }]}>
+          <Text style={[styles.countPillText, { color: t.accent }]}>{total}</Text>
         </View>
         {collapsed ? <ChevronDown size={16} color={headerIconColor} /> : <ChevronUp size={16} color={headerIconColor} />}
       </Pressable>
@@ -395,9 +417,9 @@ export default function CommentSection({ postId, postOwnerId, isAdmin = false, d
       {!collapsed && (
         <>
           {loading ? (
-            <ActivityIndicator style={{ marginVertical: 16 }} color="#1d4ed8" />
+            <ActivityIndicator style={{ marginVertical: 16 }} color={t.accent} />
           ) : comments.length === 0 ? (
-            <Text className="text-gray-500 dark:text-gray-400" style={styles.empty}>{isAdmin ? 'Henüz yorum yok.' : 'İlk yorumu sen bırak!'}</Text>
+            <Text style={[styles.empty, { color: t.ink3 }]}>{isAdmin ? 'Henüz yorum yok.' : 'İlk yorumu sen bırak!'}</Text>
           ) : (
             <View style={{ gap: 10, marginTop: 10 }}>
               {comments.map((c) => (
@@ -415,23 +437,21 @@ export default function CommentSection({ postId, postOwnerId, isAdmin = false, d
               {totalPages > 1 && (
                 <View style={styles.pagerRow}>
                   <Pressable
-                    className="border-gray-200 dark:border-gray-600"
-                    style={[styles.pagerBtn, page <= 1 && styles.pagerBtnDisabled]}
+                    style={[styles.pagerBtn, { borderColor: t.line }, page <= 1 && styles.pagerBtnDisabled]}
                     disabled={page <= 1}
                     onPress={() => fetchPage(page - 1)}
                   >
-                    <ChevronLeft size={15} color={page <= 1 ? (isDark ? '#4b5563' : '#d1d5db') : (isDark ? '#5A9690' : '#2F5755')} />
+                    <ChevronLeft size={15} color={page <= 1 ? t.ink3 : t.accent} />
                   </Pressable>
-                  <Text className="text-gray-500 dark:text-gray-400" style={styles.pagerText}>
+                  <Text style={[styles.pagerText, { color: t.ink3 }]}>
                     {page} / {totalPages}
                   </Text>
                   <Pressable
-                    className="border-gray-200 dark:border-gray-600"
-                    style={[styles.pagerBtn, page >= totalPages && styles.pagerBtnDisabled]}
+                    style={[styles.pagerBtn, { borderColor: t.line }, page >= totalPages && styles.pagerBtnDisabled]}
                     disabled={page >= totalPages}
                     onPress={() => fetchPage(page + 1)}
                   >
-                    <ChevronRight size={15} color={page >= totalPages ? (isDark ? '#4b5563' : '#d1d5db') : (isDark ? '#5A9690' : '#2F5755')} />
+                    <ChevronRight size={15} color={page >= totalPages ? t.ink3 : t.accent} />
                   </Pressable>
                 </View>
               )}
@@ -439,26 +459,27 @@ export default function CommentSection({ postId, postOwnerId, isAdmin = false, d
           )}
 
           {isAuthenticated && (
-            <View style={styles.form}>
-              <Text style={styles.formLabel}>Puanın</Text>
+            <View style={[styles.form, { backgroundColor: t.inset, borderColor: t.line }]}>
+              <Text style={[styles.formLabel, { color: t.ink3 }]}>Puanın</Text>
               <StarPicker value={rating} onChange={setRating} />
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: t.card, borderColor: t.line, color: t.ink }]}
                 value={content}
                 onChangeText={setContent}
+                onFocus={onInputFocus}
                 placeholder="Yorumunuz..."
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={t.ink3}
                 multiline
                 maxLength={350}
               />
-              {!!formError && <Text style={styles.error}>{formError}</Text>}
+              {!!formError && <Text style={[styles.error, { color: t.danger }]}>{formError}</Text>}
               <Pressable
-                style={[styles.submitBtn, submitting && { opacity: 0.6 }]}
+                style={[styles.submitBtn, { backgroundColor: t.accent }, submitting && { opacity: 0.6 }]}
                 onPress={handleSubmit}
                 disabled={submitting}
               >
-                <Send size={14} color="#fff" />
-                <Text style={styles.submitText}>{submitting ? 'Gönderiliyor…' : 'Yorumu Gönder'}</Text>
+                <Send size={14} color={t.onAccent} />
+                <Text style={[styles.submitText, { color: t.onAccent }]}>{submitting ? 'Gönderiliyor…' : 'Yorumu Gönder'}</Text>
               </Pressable>
             </View>
           )}
@@ -468,6 +489,8 @@ export default function CommentSection({ postId, postOwnerId, isAdmin = false, d
   );
 }
 
+// Renk taşıyan hiçbir değer artık burada DEĞİL — hepsi kullanım yerinde
+// theme/feedTokens.ts'ten geliyor. Burada sadece ölçü/tipografi kaldı.
 const styles = StyleSheet.create({
   container: { marginTop: 16 },
   toggleHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -475,7 +498,7 @@ const styles = StyleSheet.create({
   countPill: { borderRadius: 100, paddingHorizontal: 8, paddingVertical: 2 },
   countPillText: { fontSize: 11.5, fontWeight: '700' },
   empty: { fontSize: 13, textAlign: 'center', paddingVertical: 16 },
-  commentCard: { borderWidth: 1, borderRadius: 10, padding: 10 },
+  commentCard: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, padding: 10 },
   commentHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   commentUser: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
   usernameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
@@ -504,63 +527,67 @@ const styles = StyleSheet.create({
     minHeight: 60,
     textAlignVertical: 'top',
   },
-  editWindowWarning: { fontSize: 12, color: '#1e3a8a', backgroundColor: '#fde047', borderRadius: 8, padding: 8 },
+  editWindowWarning: { fontSize: 12, borderWidth: 1, borderRadius: 8, padding: 8, lineHeight: 17 },
   editSubmitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#12161A',
     borderRadius: 10,
     paddingVertical: 9,
     alignSelf: 'flex-start',
     paddingHorizontal: 14,
   },
-  editSubmitText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  editSubmitText: { fontSize: 12, fontWeight: '700' },
   errorText: { fontSize: 11.5 },
-  deletedInfo: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#fecaca' },
+  deletedInfo: { marginTop: 8, paddingTop: 8, borderTopWidth: StyleSheet.hairlineWidth },
   deletedInfoText: { fontSize: 11 },
-  deleteDialog: { marginTop: 10, backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca', borderRadius: 10, padding: 10, gap: 8 },
-  deleteDialogText: { fontSize: 12.5, fontWeight: '600', color: '#b91c1c' },
+  deleteDialog: { marginTop: 10, borderWidth: StyleSheet.hairlineWidth, borderRadius: 10, padding: 10, gap: 8 },
+  deleteDialogText: { fontSize: 12.5, fontWeight: '600' },
   deleteReasonInput: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#fecaca',
+    borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 7,
     fontSize: 12.5,
-    color: '#374151',
   },
-  deleteConfirmBtn: { backgroundColor: '#ef4444', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
+  deleteConfirmBtn: { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
   deleteConfirmText: { color: '#fff', fontSize: 11.5, fontWeight: '700' },
-  deleteCancelBtn: { backgroundColor: '#e5e7eb', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
-  deleteCancelText: { color: '#374151', fontSize: 11.5, fontWeight: '700' },
+  deleteCancelBtn: { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
+  deleteCancelText: { fontSize: 11.5, fontWeight: '700' },
   pagerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14, paddingVertical: 8 },
-  pagerBtn: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  pagerBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: StyleSheet.hairlineWidth,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   pagerBtnDisabled: { opacity: 0.4 },
   pagerText: { fontSize: 12, fontWeight: '600' },
-  form: { marginTop: 16, backgroundColor: '#2F5755', borderRadius: 12, padding: 14, gap: 10 },
-  formLabel: { color: '#E0D9D9', fontSize: 12, fontWeight: '700' },
+  // Eskiden bu blok koyu yeşil (#2F5755) bir kutuydu: koyu temada bile yabancı,
+  // açık temada sayfanın ortasında kocaman koyu bir leke gibi duruyordu. Artık
+  // kartın içine gömülü nötr bir yüzey (t.inset) + saç teli çerçeve.
+  form: { marginTop: 16, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, padding: 14, gap: 10 },
+  formLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },
   input: {
-    backgroundColor: '#fff',
+    borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: '#111827',
     minHeight: 70,
     textAlignVertical: 'top',
   },
-  error: { color: '#fca5a5', fontSize: 12 },
+  error: { fontSize: 12 },
   submitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#12161A',
     borderRadius: 10,
     paddingVertical: 10,
   },
-  submitText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  submitText: { fontSize: 13, fontWeight: '700' },
 });

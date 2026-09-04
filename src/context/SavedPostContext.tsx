@@ -32,9 +32,12 @@ export const SavedPostsProvider = ({ children }: { children: React.ReactNode }) 
     }
     setLoading(true);
     try {
-      const res = await savedPostsAPI.getSavedPosts();
-      const savedIds = res.data.map((p: any) => String(p._id || p.id || p.postId || p.post_id));
-      setSavedPosts(savedIds);
+      // Sadece id kümesi gerektiği için tam not listesi yerine id-only uç
+      // (`GET /saved-posts/ids`) çağrılıyor — cevap çıplak bir string dizisi,
+      // o yüzden eski `p._id || p.id || ...` alan tahmini map'i gereksiz.
+      // Yine de sunucu sayı döndürürse küme eşleşmesin diye String()'liyoruz.
+      const res = await savedPostsAPI.getSavedPostIds();
+      setSavedPosts(Array.isArray(res.data) ? res.data.map((id: any) => String(id)) : []);
     } catch {
       setSavedPosts([]);
     } finally {

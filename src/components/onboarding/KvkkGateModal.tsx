@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
-import { Alert, FlatList, Linking, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ChevronDown, GraduationCap, ShieldCheck, X } from 'lucide-react-native';
+import { Alert, Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ChevronDown, GraduationCap, ShieldCheck } from 'lucide-react-native';
 import { onboardingGateAPI, departmentFollowAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { API_BASE } from '../../lib/config';
 import { departmentOptions, facultyOptions, type DepartmentOption } from '../../utils/departmentOptions';
+import OptionSheet from '../layout/OptionSheet';
 
 interface Option {
   value: string;
   label: string;
 }
 
+// Alan etiketi + seçim kutusu; seçim listesini uygulamanın ortak
+// OptionSheet'i açıyor (bkz. components/layout/OptionSheet.tsx) — bu dosyada
+// kendi arama kutulu sayfası vardı, artık her yerdekiyle aynı.
 function SearchableSelect({
   label,
   placeholder,
@@ -26,78 +30,30 @@ function SearchableSelect({
   onChange: (value: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
-  const mutedIconColor = isDark ? '#DFD0B8' : '#6b7280';
+  const { colors } = useTheme();
   const selected = options.find((o) => o.value === value) || null;
-  const filtered = query ? options.filter((o) => o.label.toLowerCase().includes(query.toLowerCase())) : options;
 
   return (
     <View style={{ marginBottom: 14 }}>
-      <Text className="text-gray-700 dark:text-darktext" style={styles.fieldLabel}>{label}</Text>
-      <Pressable
-        className="border-gray-200 dark:border-gray-600"
-        style={styles.selectBox}
-        onPress={() => {
-          setQuery('');
-          setOpen(true);
-        }}
-      >
-        <Text
-          className={selected ? 'text-gray-900 dark:text-darktext' : 'text-gray-500 dark:text-gray-400'}
-          style={styles.selectText}
-          numberOfLines={1}
-        >
+      <Text className="text-ink2" style={styles.fieldLabel}>
+        {label}
+      </Text>
+      <Pressable className="border-line" style={styles.selectBox} onPress={() => setOpen(true)}>
+        <Text className={selected ? 'text-ink' : 'text-muted'} style={styles.selectText} numberOfLines={1}>
           {selected?.label || placeholder}
         </Text>
-        <ChevronDown size={16} color={mutedIconColor} />
+        <ChevronDown size={16} color={colors.muted} />
       </Pressable>
 
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-        <View style={styles.pickerOverlay}>
-          <View className="bg-primary dark:bg-darkbgbutton" style={styles.pickerSheet}>
-            <View style={styles.pickerHeaderRow}>
-              <Text className="text-gray-900 dark:text-darktext" style={styles.pickerTitle}>{label}</Text>
-              <Pressable onPress={() => setOpen(false)} hitSlop={8}>
-                <X size={20} color={mutedIconColor} />
-              </Pressable>
-            </View>
-            <TextInput
-              className="border-gray-200 dark:border-gray-600 text-gray-900 dark:text-darktext"
-              style={styles.searchInput}
-              placeholder={placeholder}
-              placeholderTextColor="#9ca3af"
-              value={query}
-              onChangeText={setQuery}
-              autoFocus
-            />
-            <FlatList
-              data={filtered.slice(0, 200)}
-              keyExtractor={(item) => item.value}
-              style={{ maxHeight: 380 }}
-              ListEmptyComponent={<Text className="text-gray-500 dark:text-gray-400" style={styles.emptyText}>Sonuç bulunamadı</Text>}
-              renderItem={({ item }) => (
-                <Pressable
-                  className="border-gray-100 dark:border-gray-700/40"
-                  style={styles.pickerOption}
-                  onPress={() => {
-                    onChange(item.value);
-                    setOpen(false);
-                  }}
-                >
-                  <Text
-                    className={item.value === value ? 'text-brand dark:text-brand-light' : 'text-gray-700 dark:text-darktext'}
-                    style={[styles.pickerOptionText, item.value === value && styles.pickerOptionTextActive]}
-                  >
-                    {item.label}
-                  </Text>
-                </Pressable>
-              )}
-            />
-          </View>
-        </View>
-      </Modal>
+      <OptionSheet
+        visible={open}
+        title={label}
+        options={options}
+        value={value}
+        searchPlaceholder={placeholder}
+        onSelect={onChange}
+        onClose={() => setOpen(false)}
+      />
     </View>
   );
 }
@@ -114,9 +70,7 @@ export default function KvkkGateModal() {
   const hasValidPrefill = !!(user?.faculty && user?.department && user.department !== 'Fakülte Notu');
   const [selectedFaculty, setSelectedFaculty] = useState(hasValidPrefill ? user!.faculty! : '');
   const [selectedDepartment, setSelectedDepartment] = useState(hasValidPrefill ? user!.department! : '');
-  const [departmentValue, setDepartmentValue] = useState(
-    hasValidPrefill ? `${user!.faculty}::${user!.department}` : ''
-  );
+  const [departmentValue, setDepartmentValue] = useState(hasValidPrefill ? `${user!.faculty}::${user!.department}` : '');
   const [kvkkChecked, setKvkkChecked] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -158,14 +112,15 @@ export default function KvkkGateModal() {
   return (
     <Modal visible transparent animationType="fade" onRequestClose={() => {}}>
       <View style={styles.overlay}>
-        <View className="bg-primary dark:bg-darkbgbutton" style={styles.sheet}>
-          <View className="bg-brand/10 dark:bg-brand-light/20" style={styles.iconCircle}>
+        <View className="bg-surface" style={styles.sheet}>
+          <View className="bg-accent-soft" style={styles.iconCircle}>
             <GraduationCap size={22} color={brandIconColor} />
           </View>
-          <Text className="text-gray-900 dark:text-darktext" style={styles.title}>Hoş geldin! Devam etmeden önce</Text>
-          <Text className="text-gray-500 dark:text-gray-400" style={styles.subtitle}>
-            Nottepe'yi kullanmaya başlamak için bölümünü seç ve KVKK Aydınlatma Metni'ni onayla. Bu adım yalnızca bir
-            kez sorulur.
+          <Text className="text-ink" style={styles.title}>
+            Hoş geldin! Devam etmeden önce
+          </Text>
+          <Text className="text-muted" style={styles.subtitle}>
+            Nottepe'yi kullanmaya başlamak için bölümünü seç ve KVKK Aydınlatma Metni'ni onayla. Bu adım yalnızca bir kez sorulur.
           </Text>
 
           <SearchableSelect
@@ -183,15 +138,12 @@ export default function KvkkGateModal() {
             onChange={handleFacultyChange}
           />
 
-          <View className="bg-gray-200 dark:bg-gray-700/40" style={styles.divider} />
+          <View className="bg-inset" style={styles.divider} />
 
           <Pressable style={styles.kvkkRow} onPress={() => setKvkkChecked((v) => !v)}>
-            <View
-              className={kvkkChecked ? undefined : 'border-gray-200 dark:border-gray-600'}
-              style={[styles.checkbox, kvkkChecked && styles.checkboxChecked]}
-            />
-            <Text className="text-gray-700 dark:text-darktext" style={styles.kvkkText}>
-              <Text className="text-brand dark:text-brand-light" style={styles.kvkkLink} onPress={() => Linking.openURL(`${API_BASE}/kvkk`)}>
+            <View className={kvkkChecked ? undefined : 'border-line'} style={[styles.checkbox, kvkkChecked && styles.checkboxChecked]} />
+            <Text className="text-ink2" style={styles.kvkkText}>
+              <Text className="text-accent" style={styles.kvkkLink} onPress={() => Linking.openURL(`${API_BASE}/kvkk`)}>
                 KVKK Aydınlatma Metni
               </Text>
               'ni okudum, kişisel verilerimin belirtilen kapsamda işlenmesini kabul ediyorum.
@@ -244,20 +196,4 @@ const styles = StyleSheet.create({
   },
   submitBtnDisabled: { opacity: 0.5 },
   submitBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
-  pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  pickerSheet: { borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16, maxHeight: '75%' },
-  pickerHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  pickerTitle: { fontSize: 15, fontWeight: '700' },
-  searchInput: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  emptyText: { textAlign: 'center', fontSize: 13, paddingVertical: 16 },
-  pickerOption: { paddingHorizontal: 8, paddingVertical: 12, borderBottomWidth: 1 },
-  pickerOptionText: { fontSize: 14 },
-  pickerOptionTextActive: { fontWeight: '700' },
 });

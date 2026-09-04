@@ -27,10 +27,7 @@ export default function AvatarDisplay({ avatar, size = 40, showBg = true }: Prop
 
   if (showPhoto) {
     return (
-      <Image
-        source={{ uri: getFileUrl(`avatars/${avatar!.photo_path}`) }}
-        style={{ width: size, height: size, borderRadius: size / 2 }}
-      />
+      <Image source={{ uri: getFileUrl(`avatars/${avatar!.photo_path}`) }} style={{ width: size, height: size, borderRadius: size / 2 }} />
     );
   }
 

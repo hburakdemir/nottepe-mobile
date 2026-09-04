@@ -1,18 +1,9 @@
 import React, { useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AlertCircle, Check, Eye, EyeOff, Lock, Mail, Phone, User, UserPlus } from 'lucide-react-native';
 import { authAPI } from '../../lib/api';
+import { useThemeColors } from '../../context/ThemeContext';
 import AuthHeader from '../../components/auth/AuthHeader';
 import type { AuthStackParamList } from '../../navigation/types';
 
@@ -23,6 +14,8 @@ const TURKISH_NAME_RE = /^[ abcçdefgğhıijklmnoöprsştuüvyzABCÇDEFGĞHIİJK
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function RegisterScreen({ navigation }: Props) {
+  // Renkler StyleSheet'ten çıkarıldı; aşağıdaki stiller sadece ölçü/tipografi.
+  const colors = useThemeColors();
   const [fullName, setFullName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -100,115 +93,142 @@ export default function RegisterScreen({ navigation }: Props) {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.ground }]} behavior="padding">
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <AuthHeader
-          icon={<UserPlus size={26} color="#2F5755" />}
+          icon={<UserPlus size={26} color={colors.accent} />}
           title="Kayıt Ol"
           subtitle="Yeni hesap oluşturun"
           hint="Hacettepe mail adresi zorunlu değildir. İstediğiniz mail adresi ile kayıt olabilirsiniz."
         />
 
         {!!error && (
-          <View style={styles.alertError}>
-            <AlertCircle size={17} color="#b91c1c" style={{ marginTop: 1 }} />
-            <Text style={styles.alertErrorText}>{error}</Text>
+          <View style={[styles.alertError, { backgroundColor: colors.dangerSoft, borderColor: colors.dangerLine }]}>
+            <AlertCircle size={17} color={colors.danger} style={{ marginTop: 1 }} />
+            <Text style={[styles.alertErrorText, { color: colors.danger }]}>{error}</Text>
           </View>
         )}
 
-        <Text style={styles.label}>İsim Soyisim *</Text>
-        <View style={styles.inputRow}>
-          <User size={18} color="#4f7d7a" />
-          <TextInput style={styles.input} placeholder="İsim Soyisim" placeholderTextColor="#9ca3af" value={fullName} onChangeText={(t) => { setFullName(t.trimStart()); setError(null); }} />
+        <Text style={[styles.label, { color: colors.ink2 }]}>İsim Soyisim *</Text>
+        <View style={[styles.inputRow, { borderColor: colors.line }]}>
+          <User size={18} color={colors.accent} />
+          <TextInput
+            style={[styles.input, { color: colors.ink }]}
+            placeholder="İsim Soyisim"
+            placeholderTextColor={colors.muted2}
+            value={fullName}
+            onChangeText={(t) => {
+              setFullName(t.trimStart());
+              setError(null);
+            }}
+          />
         </View>
 
-        <Text style={styles.label}>Kullanıcı Adı *</Text>
-        <View style={styles.inputRow}>
-          <UserPlus size={18} color="#4f7d7a" />
+        <Text style={[styles.label, { color: colors.ink2 }]}>Kullanıcı Adı *</Text>
+        <View style={[styles.inputRow, { borderColor: colors.line }]}>
+          <UserPlus size={18} color={colors.accent} />
           <TextInput
-            style={styles.input}
+            style={[styles.input, { color: colors.ink }]}
             placeholder="Kullanıcı Adınız"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={colors.muted2}
             autoCapitalize="none"
             autoCorrect={false}
             value={username}
-            onChangeText={(t) => { setUsername(t.trimStart()); setError(null); }}
+            onChangeText={(t) => {
+              setUsername(t.trimStart());
+              setError(null);
+            }}
           />
         </View>
 
-        <Text style={styles.label}>E-posta *</Text>
-        <View style={styles.inputRow}>
-          <Mail size={18} color="#4f7d7a" />
+        <Text style={[styles.label, { color: colors.ink2 }]}>E-posta *</Text>
+        <View style={[styles.inputRow, { borderColor: colors.line }]}>
+          <Mail size={18} color={colors.accent} />
           <TextInput
-            style={styles.input}
+            style={[styles.input, { color: colors.ink }]}
             placeholder="ornek@gmail.com"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={colors.muted2}
             autoCapitalize="none"
             keyboardType="email-address"
             value={email}
-            onChangeText={(t) => { setEmail(t.trimStart()); setError(null); }}
+            onChangeText={(t) => {
+              setEmail(t.trimStart());
+              setError(null);
+            }}
           />
         </View>
 
-        <Text style={styles.label}>Şifre *</Text>
-        <View style={styles.inputRow}>
-          <Lock size={18} color="#4f7d7a" />
+        <Text style={[styles.label, { color: colors.ink2 }]}>Şifre *</Text>
+        <View style={[styles.inputRow, { borderColor: colors.line }]}>
+          <Lock size={18} color={colors.accent} />
           <TextInput
-            style={styles.input}
+            style={[styles.input, { color: colors.ink }]}
             placeholder="••••••••"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={colors.muted2}
             secureTextEntry={!showPassword}
             value={password}
-            onChangeText={(t) => { setPassword(t); setError(null); }}
+            onChangeText={(t) => {
+              setPassword(t);
+              setError(null);
+            }}
           />
           <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={8}>
-            {showPassword ? <Eye size={18} color="#6b7280" /> : <EyeOff size={18} color="#6b7280" />}
+            {showPassword ? <Eye size={18} color={colors.muted} /> : <EyeOff size={18} color={colors.muted} />}
           </Pressable>
         </View>
         <View style={styles.ruleBox}>
-          <Text style={styles.ruleTitle}>Şifre gereksinimleri</Text>
+          <Text style={[styles.ruleTitle, { color: colors.muted }]}>Şifre gereksinimleri</Text>
           {[
             { ok: ruleMinLen, label: 'En az 5 karakter' },
             { ok: ruleUpper, label: 'En az 1 büyük harf (A–Z)' },
             { ok: rulePunct, label: 'En az 1 noktalama işareti (!@#$…)' },
           ].map(({ ok, label }) => (
             <View key={label} style={styles.ruleRow}>
-              <View style={[styles.ruleCheck, ok && styles.ruleCheckOk]}>{ok && <Check size={10} color="#fff" strokeWidth={3} />}</View>
-              <Text style={[styles.ruleLabel, ok && styles.ruleLabelOk]}>{label}</Text>
+              {/* Sağlanan kural yeşil dolu kutu; sağlanmayan boş + soluk etiket. */}
+              <View style={[styles.ruleCheck, { borderColor: ok ? colors.success : colors.line }, ok && { backgroundColor: colors.success }]}>
+                {ok && <Check size={10} color="#fff" strokeWidth={3} />}
+              </View>
+              <Text style={[styles.ruleLabel, { color: ok ? colors.ink2 : colors.muted2 }]}>{label}</Text>
             </View>
           ))}
         </View>
 
-        <Text style={styles.label}>Şifre Tekrar *</Text>
-        <View style={styles.inputRow}>
-          <Lock size={18} color="#4f7d7a" />
+        <Text style={[styles.label, { color: colors.ink2 }]}>Şifre Tekrar *</Text>
+        <View style={[styles.inputRow, { borderColor: colors.line }]}>
+          <Lock size={18} color={colors.accent} />
           <TextInput
-            style={styles.input}
+            style={[styles.input, { color: colors.ink }]}
             placeholder="••••••••"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={colors.muted2}
             secureTextEntry={!showConfirmPassword}
             value={confirmPassword}
-            onChangeText={(t) => { setConfirmPassword(t); setError(null); }}
+            onChangeText={(t) => {
+              setConfirmPassword(t);
+              setError(null);
+            }}
           />
           <Pressable onPress={() => setShowConfirmPassword((v) => !v)} hitSlop={8}>
-            {showConfirmPassword ? <Eye size={18} color="#6b7280" /> : <EyeOff size={18} color="#6b7280" />}
+            {showConfirmPassword ? <Eye size={18} color={colors.muted} /> : <EyeOff size={18} color={colors.muted} />}
           </Pressable>
         </View>
 
-        <Text style={styles.label}>Telefon</Text>
-        <View style={styles.inputRow}>
-          <Phone size={18} color="#4f7d7a" />
+        <Text style={[styles.label, { color: colors.ink2 }]}>Telefon</Text>
+        <View style={[styles.inputRow, { borderColor: colors.line }]}>
+          <Phone size={18} color={colors.accent} />
           <TextInput
-            style={styles.input}
+            style={[styles.input, { color: colors.ink }]}
             placeholder="05551234567"
-            placeholderTextColor="#9ca3af"
+            placeholderTextColor={colors.muted2}
             keyboardType="number-pad"
             maxLength={11}
             value={phone}
-            onChangeText={(t) => { setPhone(t.replace(/\D/g, '').slice(0, 11)); setError(null); }}
+            onChangeText={(t) => {
+              setPhone(t.replace(/\D/g, '').slice(0, 11));
+              setError(null);
+            }}
           />
         </View>
-        <Text style={styles.hintText}>11 haneli (Örn: 05551234567)</Text>
+        <Text style={[styles.hintText, { color: colors.muted2 }]}>11 haneli (Örn: 05551234567)</Text>
 
         <Pressable style={styles.button} onPress={handleSubmit} disabled={submitting}>
           {submitting ? (
@@ -222,8 +242,8 @@ export default function RegisterScreen({ navigation }: Props) {
         </Pressable>
 
         <Pressable onPress={() => navigation.navigate('Login')}>
-          <Text style={styles.link}>
-            Zaten hesabınız var mı? <Text style={styles.linkStrong}>Giriş Yap</Text>
+          <Text style={[styles.link, { color: colors.muted }]}>
+            Zaten hesabınız var mı? <Text style={[styles.linkStrong, { color: colors.accent }]}>Giriş Yap</Text>
           </Text>
         </Pressable>
       </ScrollView>
@@ -231,22 +251,43 @@ export default function RegisterScreen({ navigation }: Props) {
   );
 }
 
+// Renk taşıyan değerler kullanım yerinde (useThemeColors) — burada sadece
+// ölçü/tipografi. Tek istisna marka butonu ve üstündeki beyaz yazı.
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1 },
   content: { flexGrow: 1, paddingHorizontal: 24, paddingVertical: 32 },
-  alertError: { flexDirection: 'row', gap: 8, backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fecaca', borderRadius: 10, padding: 12, marginBottom: 16 },
-  alertErrorText: { color: '#b91c1c', fontSize: 13, flex: 1 },
-  label: { fontSize: 13.5, fontWeight: '600', color: '#374151', marginBottom: 8, marginTop: 14 },
-  inputRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: '#d1d5db', borderRadius: 10, paddingHorizontal: 14 },
-  input: { flex: 1, paddingVertical: 13, fontSize: 15, color: '#111827' },
+  alertError: {
+    flexDirection: 'row',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+  },
+  alertErrorText: { fontSize: 13, flex: 1 },
+  label: { fontSize: 13.5, fontWeight: '600', marginBottom: 8, marginTop: 14 },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+  },
+  input: { flex: 1, paddingVertical: 13, fontSize: 15 },
   ruleBox: { marginTop: 10, gap: 5 },
-  ruleTitle: { fontSize: 11.5, fontWeight: '600', color: '#4b5563', marginBottom: 2 },
+  ruleTitle: { fontSize: 11.5, fontWeight: '600', marginBottom: 2 },
   ruleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  ruleCheck: { width: 15, height: 15, borderRadius: 4, borderWidth: 1, borderColor: '#d1d5db', alignItems: 'center', justifyContent: 'center' },
-  ruleCheckOk: { backgroundColor: '#16a34a', borderColor: '#16a34a' },
-  ruleLabel: { fontSize: 11.5, color: '#9ca3af' },
-  ruleLabelOk: { color: '#374151' },
-  hintText: { fontSize: 11, color: '#9ca3af', marginTop: 5 },
+  ruleCheck: {
+    width: 15,
+    height: 15,
+    borderRadius: 4,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ruleLabel: { fontSize: 11.5 },
+  hintText: { fontSize: 11, marginTop: 5 },
   button: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -258,6 +299,6 @@ const styles = StyleSheet.create({
     marginTop: 22,
   },
   buttonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  link: { textAlign: 'center', marginTop: 16, color: '#6b7280', fontSize: 13.5 },
-  linkStrong: { color: '#2F5755', fontWeight: '700' },
+  link: { textAlign: 'center', marginTop: 16, fontSize: 13.5 },
+  linkStrong: { fontWeight: '700' },
 });

@@ -1,20 +1,26 @@
-import React from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, Dimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createDrawerNavigator } from '@react-navigation/drawer';
+import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import AuthNavigator from './AuthNavigator';
 import { withAppShell } from '../components/layout/AppShell';
 import MenuDrawerContent from '../components/layout/MenuDrawerContent';
 import PushableStack from '../components/layout/PushableStack';
-import { DRAWER_WIDTH, EDGE_SWIPE_WIDTH, ROOT_DRAWER_ID } from './drawerConstants';
-import { getTabAnimationDirection } from './tabAnimationDirection';
-import HomeScreen from '../screens/main/HomeScreen';
-import DepartmentsScreen from '../screens/main/DepartmentsScreen';
+import MainTabsScreen from './MainTabsScreen';
+import { useActiveRouteName } from './useActiveRouteName';
+import {
+  BACK_SWIPE_ROUTES,
+  DRAWER_WIDTH,
+  EDGE_SWIPE_WIDTH,
+  FULL_WIDTH_SWIPE_ROUTES,
+  NO_DRAWER_SWIPE_ROUTES,
+  ROOT_DRAWER_ID,
+} from './drawerConstants';
 import AddPostScreen from '../screens/main/AddPostScreen';
-import ToolsScreen from '../screens/main/ToolsScreen';
 import PostDetailScreen from '../screens/main/PostDetailScreen';
 import DepartmentDetailScreen from '../screens/main/DepartmentDetailScreen';
 import SavedPostsScreen from '../screens/main/SavedPostsScreen';
@@ -27,21 +33,38 @@ import FaqScreen from '../screens/main/FaqScreen';
 import FaqDetailScreen from '../screens/main/FaqDetailScreen';
 import SuggestionsScreen from '../screens/main/SuggestionsScreen';
 import SuggestionDetailScreen from '../screens/main/SuggestionDetailScreen';
-import CafeteriaMenuScreen from '../screens/main/CafeteriaMenuScreen';
 import Ego130ScheduleScreen from '../screens/main/Ego130ScheduleScreen';
 import LeaderboardScreen from '../screens/main/LeaderboardScreen';
 import HelpScreen from '../screens/main/HelpScreen';
 import NotificationsScreen from '../screens/main/NotificationsScreen';
-import ProfileScreen from '../screens/main/ProfileScreen';
 import KvkkGateModal from '../components/onboarding/KvkkGateModal';
 import type { RootDrawerParamList, RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Drawer = createDrawerNavigator<RootDrawerParamList>();
 
+// Çekmecenin jest seçenekleri tek yerde duruyor (Drawer'ın tek bir "Main"
+// ekranı var, bu yüzden ekran bazlı screenOptions kullanılamıyor). Eskiden bunu
+// her ekranın AppShell'i kendi `useFocusEffect`'inde yapıyordu; sekmeler artık
+// AppShell kullanmadığı için burada, o an odaklı ekrana bakarak yapılıyor.
+function DrawerSwipeSync() {
+  const navigation = useNavigation();
+  const routeName = useActiveRouteName();
+
+  useEffect(() => {
+    if (!routeName) return;
+    navigation.setOptions({
+      swipeEnabled: !BACK_SWIPE_ROUTES.includes(routeName) && !NO_DRAWER_SWIPE_ROUTES.includes(routeName),
+      swipeEdgeWidth: FULL_WIDTH_SWIPE_ROUTES.includes(routeName) ? Dimensions.get('window').width : EDGE_SWIPE_WIDTH,
+    });
+  }, [navigation, routeName]);
+
+  return null;
+}
+
 export default function RootNavigator() {
   const { isAuthenticated, loading, user } = useAuth();
-  const { theme } = useTheme();
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
   if (loading) {
@@ -58,53 +81,28 @@ export default function RootNavigator() {
 
   const needsOnboardingGate = !!user && (!user.kvkkConsentAt || !user.faculty || !user.department);
 
-  // Web'de Navbar + MobileTabBar, Layout.jsx üzerinden HER rotada (Ana Sayfa,
-  // Ekle, Profil, Faq — hepsi) sabit kalıyor. Burada artık ayrı bir
-  // Tab.Navigator yok — tek düz bir stack, her ekran `withAppShell` ile
-  // AppHeader+WaveTabBar'a sarmalanıyor. Menü artık bu stack'in bir route'u
-  // değil — X (Twitter) tarzı, mevcut sayfayı iten gerçek bir Drawer.Navigator
-  // (bkz. MenuDrawerContent.tsx + PushableStack.tsx). İtmeyi `drawerType: 'back'`
-  // ile kütüphanenin kendisi yapıyor (aşağıdaki nota bkz.), PushableStack sadece
-  // köşe yuvarlama + kenar çizgisi + kapatma katmanını ekliyor.
+  // Stack'in ilk ekranı artık tek tek sekmeler değil, sekmeleri barındıran
+  // `MainTabs` (bkz. MainTabsScreen.tsx). Geri kalan her şey onun üstüne PUSH
+  // ediliyor ve kendi kabuğunu `withAppShell` ile alıyor. Menü bu stack'in bir
+  // route'u değil — X (Twitter) tarzı, mevcut sayfayı iten gerçek bir
+  // Drawer.Navigator (bkz. MenuDrawerContent.tsx + PushableStack.tsx).
   const mainStack = (
     <Stack.Navigator
-      initialRouteName="Home"
-      // Native-stack başlığı HER ekranda kapalı: AppShell'in kendi AppHeader'ı
-      // zaten sabit duruyordu, native başlık onun ALTINA ikinci bir satır
-      // ekleyip üst menüyü aşağı kaydırıyordu. Tek başlık, sabit yükseklik.
-      // Sayfa başlığı ve geri butonu bilinçli olarak yok (kullanıcı tercihi) —
-      // gönderi/profil ekranlarında geri, sağa kaydırma jestiyle (AppShell).
+      initialRouteName="MainTabs"
+      // Native-stack başlığı HER ekranda kapalı: AppHeader zaten sabit duruyor,
+      // native başlık onun ALTINA ikinci bir satır ekleyip üst menüyü aşağı
+      // kaydırıyordu. Tek başlık, sabit yükseklik. Sayfa adı AppHeader'ın
+      // ortasında yazıyor (bkz. routeTitles.ts).
       screenOptions={{
         animation: 'slide_from_right',
         headerShown: false,
+        // Ekranların altındaki varsayılan zemin de ana sayfanınkiyle aynı
+        // olsun: yüklenirken kendi arka planını boyamayan ekranlarda (sadece
+        // spinner gösterenler) arkada farklı bir gri kalmasın.
+        contentStyle: { backgroundColor: colors.ground },
       }}
     >
-      {/* Bu 4 ekran WaveTabBar'ın sekmeleri — `options` bilinçli olarak fonksiyon:
-          statik obje her seferinde aynı animasyonu dondururdu, fonksiyon ise
-          her navigasyonda yeniden çağrılıp WaveTabBar'ın az önce yazdığı
-          güncel yönü (getTabAnimationDirection) okuyor. Bar'ın 5. slotu olan
-          Profil sekme değil PUSH edilen bir ekran (orada sağa kaydırma geri
-          gidiyor), o yüzden burada değil, aşağıda varsayılan animasyonla. */}
-      <Stack.Screen
-        name="Home"
-        component={withAppShell(HomeScreen)}
-        options={() => ({ animation: getTabAnimationDirection() })}
-      />
-      <Stack.Screen
-        name="Departments"
-        component={withAppShell(DepartmentsScreen)}
-        options={() => ({ animation: getTabAnimationDirection() })}
-      />
-      <Stack.Screen
-        name="Tools"
-        component={withAppShell(ToolsScreen)}
-        options={() => ({ animation: getTabAnimationDirection() })}
-      />
-      <Stack.Screen
-        name="CafeteriaMenu"
-        component={withAppShell(CafeteriaMenuScreen)}
-        options={() => ({ animation: getTabAnimationDirection() })}
-      />
+      <Stack.Screen name="MainTabs" component={MainTabsScreen} />
       <Stack.Screen name="AddPost" component={withAppShell(AddPostScreen)} />
       <Stack.Screen name="PostDetail" component={withAppShell(PostDetailScreen)} />
       <Stack.Screen name="DepartmentDetail" component={withAppShell(DepartmentDetailScreen)} />
@@ -122,7 +120,6 @@ export default function RootNavigator() {
       <Stack.Screen name="Leaderboard" component={withAppShell(LeaderboardScreen)} />
       <Stack.Screen name="Help" component={withAppShell(HelpScreen)} />
       <Stack.Screen name="Notifications" component={withAppShell(NotificationsScreen)} />
-      <Stack.Screen name="Profile" component={withAppShell(ProfileScreen)} />
     </Stack.Navigator>
   );
 
@@ -131,7 +128,7 @@ export default function RootNavigator() {
   // hiçbir View yoksa Android'in varsayılan (beyaz) pencere arka planı görünüyor.
   // Bu kök View, Drawer.Navigator'ın ardında her zaman temaya uygun bir zemin
   // sağlayarak o çentiği (ve benzer boşlukları) doğru renkte tutuyor.
-  const rootBg = theme === 'dark' ? '#222831' : '#fff';
+  const rootBg = colors.surface;
 
   return (
     <View style={{ flex: 1, backgroundColor: rootBg }}>
@@ -180,14 +177,19 @@ export default function RootNavigator() {
             borderTopRightRadius: 0,
             borderBottomRightRadius: 0,
           },
-          // Başlangıç değeri; odaklanan ekrana göre AppShell güncelliyor
-          // (ana sayfada tam ekran genişliği, gönderi/profilde jest tamamen
-          // kapalı — bkz. AppShell.tsx ve drawerConstants.ts).
+          // Başlangıç değeri; odaklanan ekrana göre DrawerSwipeSync güncelliyor.
           swipeEdgeWidth: EDGE_SWIPE_WIDTH,
         }}
         drawerContent={(props) => <MenuDrawerContent {...props} />}
       >
-        <Drawer.Screen name="Main">{() => <PushableStack>{mainStack}</PushableStack>}</Drawer.Screen>
+        <Drawer.Screen name="Main">
+          {() => (
+            <PushableStack>
+              <DrawerSwipeSync />
+              {mainStack}
+            </PushableStack>
+          )}
+        </Drawer.Screen>
       </Drawer.Navigator>
       {needsOnboardingGate && <KvkkGateModal />}
     </View>

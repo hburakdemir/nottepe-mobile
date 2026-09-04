@@ -1,19 +1,10 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { Image, StyleSheet, View, useColorScheme as useNativeColorScheme } from 'react-native';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import { captureRef } from 'react-native-view-shot';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { View, useColorScheme } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useColorScheme as useNativeWindColorScheme } from 'nativewind';
+import { vars } from 'nativewind';
+import { DARK_VARS, LIGHT_VARS, THEME_COLORS, type ThemeColors } from '../theme/palette';
 
 const STORAGE_KEY = 'nottepe_theme';
-
-// Tema değişimi eskiden tek karede sertçe zıplıyordu. Artık değişimden HEMEN
-// ÖNCE ekranın fotoğrafı alınıp üstte tutuluyor, tema uygulandıktan sonra bu
-// fotoğraf soluyor — eski görünüm yeni görünüme çapraz geçiyor.
-const CROSSFADE_DURATION = 280;
-// Yakalama Android'de yavaş olabiliyor; bu süreyi aşarsa geçiş animasyonundan
-// vazgeçip temayı eskisi gibi anında uyguluyoruz (donmuş ekran hissi olmasın).
-const CAPTURE_TIMEOUT = 250;
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 type Theme = 'light' | 'dark';
@@ -22,6 +13,7 @@ interface ThemeContextValue {
   theme: Theme;
   themePreference: ThemePreference;
   setThemePreference: (pref: ThemePreference) => void;
+  colors: ThemeColors;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -34,91 +26,62 @@ export const useTheme = () => {
   return context;
 };
 
+// StyleSheet/inline stil isteyen yerler (SVG dolgusu, ikon rengi, gölge…) için
+// aynı paletin düz JS karşılığı. className kullanabildiğin her yerde token
+// sınıflarını (bg-surface, text-ink…) tercih et.
+export const useThemeColors = (): ThemeColors => useTheme().colors;
+
+// TEMA ARTIK NATIVE TARAFA HİÇ DOKUNMUYOR.
+//
+// Eskiden NativeWind'in `setColorScheme`'i çağrılıyordu; o da RN'in
+// `Appearance.setColorScheme`'ini, o da Android'de
+// `AppCompatDelegate.setDefaultNightMode`'u tetikliyordu. Sonuçları:
+//   1. Her tema değişimi bir native konfigürasyon değişimiydi — görünür flash,
+//      tüm ağacın yeniden yerleşmesi, sayfanın zıplaması.
+//   2. `Appearance` kalıcı olarak override edildiği için, ilk açılışta tercih
+//      'light' yazıldığı an cihazın GERÇEK teması bir daha hiç okunamıyordu;
+//      "Sistem" seçeneği bu yüzden hiç çalışmadı.
+//   3. Gizlemek için ekran fotoğrafı alıp çapraz geçiş yapılıyordu
+//      (captureRef + 250ms yakalama + 140ms bekleme + 280ms solma) — yani tema
+//      değiştirmek yarım saniyeden fazla donmuş bir ekran demekti.
+//
+// Şimdi: renkler CSS değişkeni (bkz. theme/palette.ts), değişkenler burada tek
+// bir kök View'a basılıyor. Tema değişimi tek bir React render'ı — anlık ve
+// pürüzsüz. `Appearance` hiç override edilmediği için `useColorScheme()` her
+// zaman cihazın gerçek temasını döndürüyor.
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-  const { setColorScheme } = useNativeWindColorScheme();
-  // NativeWind v4'ün kendi 'system' takibi Expo 54 + RN 0.81'de canlı
-  // güncellemiyor (bilinen üst-kütüphane hatası: OS teması değişince
-  // `colorScheme`/`dark:` varyantları senkronize kalmıyor —
-  // github.com/nativewind/nativewind/issues/1626). RN'in kendi
-  // `useColorScheme`'i güvenilir çalıştığı için köprü olarak kullanılıyor:
-  // tercih 'system' iken OS teması her değiştiğinde NativeWind'e elle
-  // `setColorScheme` ile bildiriliyor.
-  const systemScheme = useNativeColorScheme();
-  const [themePreference, setPreferenceState] = useState<ThemePreference>('light');
-
-  const rootRef = useRef<View>(null);
-  const [snapshotUri, setSnapshotUri] = useState<string | null>(null);
-  const snapshotOpacity = useSharedValue(0);
-  const snapshotStyle = useAnimatedStyle(() => ({ opacity: snapshotOpacity.value }));
+  const systemScheme = useColorScheme();
+  // Varsayılan artık 'light' değil 'system': kurulumdan hemen sonra uygulama
+  // cihazın temasına uyuyor (kullanıcı isteği).
+  const [themePreference, setPreferenceState] = useState<ThemePreference>('system');
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((stored) => {
-      const next: ThemePreference = stored === 'system' || stored === 'light' || stored === 'dark' ? stored : 'light';
-      setPreferenceState(next);
-      setColorScheme(next === 'system' ? (systemScheme ?? 'light') : next);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setColorScheme]);
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then((stored) => {
+        if (stored === 'system' || stored === 'light' || stored === 'dark') setPreferenceState(stored);
+      })
+      .catch(() => {});
+  }, []);
 
-  useEffect(() => {
-    if (themePreference === 'system') {
-      setColorScheme(systemScheme ?? 'light');
-    }
-  }, [themePreference, systemScheme, setColorScheme]);
-
-  const applyPreference = useCallback(
-    (pref: ThemePreference) => {
-      setPreferenceState(pref);
-      setColorScheme(pref === 'system' ? (systemScheme ?? 'light') : pref);
-      AsyncStorage.setItem(STORAGE_KEY, pref).catch(() => {});
-    },
-    [setColorScheme, systemScheme]
-  );
-
-  const setThemePreference = useCallback(
-    (pref: ThemePreference) => {
-      if (pref === themePreference) return;
-
-      const capture = captureRef(rootRef, { result: 'tmpfile' });
-      const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), CAPTURE_TIMEOUT));
-
-      Promise.race([capture, timeout])
-        .then((uri) => {
-          if (!uri) {
-            applyPreference(pref);
-            return;
-          }
-          // Fotoğraf tam görünürken temayı değiştiriyoruz: kullanıcı sert
-          // geçişi hiç görmüyor, sadece fotoğrafın solmasını görüyor.
-          snapshotOpacity.value = 1;
-          setSnapshotUri(uri);
-          requestAnimationFrame(() => {
-            applyPreference(pref);
-            snapshotOpacity.value = withTiming(0, { duration: CROSSFADE_DURATION }, (finished) => {
-              if (finished) runOnJS(setSnapshotUri)(null);
-            });
-          });
-        })
-        .catch(() => applyPreference(pref));
-    },
-    [applyPreference, snapshotOpacity, themePreference]
-  );
+  const setThemePreference = useCallback((pref: ThemePreference) => {
+    setPreferenceState(pref);
+    AsyncStorage.setItem(STORAGE_KEY, pref).catch(() => {});
+  }, []);
 
   const theme: Theme = themePreference === 'system' ? (systemScheme === 'dark' ? 'dark' : 'light') : themePreference;
 
+  const value = useMemo<ThemeContextValue>(
+    () => ({ theme, themePreference, setThemePreference, colors: THEME_COLORS[theme] }),
+    [theme, themePreference, setThemePreference]
+  );
+
+  // `vars()` CSS değişkenlerini bu View'ın ALTINDAKİ her şeye miras bırakıyor —
+  // Modal içerikleri dahil, çünkü miras React ağacını takip ediyor.
+  const themeVars = useMemo(() => vars(theme === 'dark' ? DARK_VARS : LIGHT_VARS), [theme]);
+
   return (
-    <ThemeContext.Provider value={{ theme, themePreference, setThemePreference }}>
-      {/* `collapsable={false}`: yakalanabilmesi için bu View'ın native tarafta
-          gerçek bir görünüm olarak kalması şart (RN aksi halde tek çocuklu
-          View'ları eliyor). */}
-      <View ref={rootRef} collapsable={false} style={{ flex: 1 }}>
-        {children}
-      </View>
-      {snapshotUri && (
-        <Animated.View style={[StyleSheet.absoluteFill, snapshotStyle]} pointerEvents="none">
-          <Image source={{ uri: snapshotUri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-        </Animated.View>
-      )}
+    <ThemeContext.Provider value={value}>
+      <View style={[{ flex: 1, backgroundColor: THEME_COLORS[theme].ground }, themeVars]}>{children}</View>
     </ThemeContext.Provider>
   );
 };

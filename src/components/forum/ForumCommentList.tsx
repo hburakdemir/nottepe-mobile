@@ -20,7 +20,17 @@ function formatDateTime(dateString: string): string {
   return new Date(dateString).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
-function VoteButtons({ upvotes = 0, downvotes = 0, myVote, onVote }: { upvotes?: number; downvotes?: number; myVote?: number | null; onVote: (v: number) => void }) {
+function VoteButtons({
+  upvotes = 0,
+  downvotes = 0,
+  myVote,
+  onVote,
+}: {
+  upvotes?: number;
+  downvotes?: number;
+  myVote?: number | null;
+  onVote: (v: number) => void;
+}) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const upColor = isDark ? '#5A9690' : '#2F5755';
@@ -28,19 +38,11 @@ function VoteButtons({ upvotes = 0, downvotes = 0, myVote, onVote }: { upvotes?:
   const mutedColor = isDark ? '#9ca3af' : '#6b7280';
   return (
     <View style={styles.voteRow}>
-      <Pressable
-        className="border-gray-200 dark:border-gray-600"
-        style={[styles.voteBtn, myVote === 1 && { borderColor: upColor }]}
-        onPress={() => onVote(1)}
-      >
+      <Pressable className="border-line" style={[styles.voteBtn, myVote === 1 && { borderColor: upColor }]} onPress={() => onVote(1)}>
         <ThumbsUp size={13} color={myVote === 1 ? upColor : mutedColor} />
         <Text style={[styles.voteText, { color: myVote === 1 ? upColor : mutedColor }]}>{upvotes}</Text>
       </Pressable>
-      <Pressable
-        className="border-gray-200 dark:border-gray-600"
-        style={[styles.voteBtn, myVote === -1 && { borderColor: downColor }]}
-        onPress={() => onVote(-1)}
-      >
+      <Pressable className="border-line" style={[styles.voteBtn, myVote === -1 && { borderColor: downColor }]} onPress={() => onVote(-1)}>
         <ThumbsDown size={13} color={myVote === -1 ? downColor : mutedColor} />
         <Text style={[styles.voteText, { color: myVote === -1 ? downColor : mutedColor }]}>{downvotes}</Text>
       </Pressable>
@@ -68,7 +70,7 @@ function ReplyForm({ onSubmit, onCancel }: { onSubmit: (text: string) => Promise
   return (
     <View style={styles.replyRow}>
       <TextInput
-        className="border-gray-200 dark:border-gray-600 text-gray-900 dark:text-darktext"
+        className="border-line text-ink"
         style={styles.replyInput}
         value={text}
         onChangeText={setText}
@@ -77,11 +79,13 @@ function ReplyForm({ onSubmit, onCancel }: { onSubmit: (text: string) => Promise
         maxLength={2000}
         autoFocus
       />
-      <Pressable className="bg-brand dark:bg-brand-light" style={styles.replySubmitBtn} onPress={handleSubmit} disabled={submitting || !text.trim()}>
+      <Pressable className="bg-accent" style={styles.replySubmitBtn} onPress={handleSubmit} disabled={submitting || !text.trim()}>
         <Send size={13} color="#fff" />
       </Pressable>
       <Pressable onPress={onCancel}>
-        <Text className="text-gray-500 dark:text-gray-400" style={styles.replyCancelText}>Vazgeç</Text>
+        <Text className="text-muted" style={styles.replyCancelText}>
+          Vazgeç
+        </Text>
       </Pressable>
     </View>
   );
@@ -112,25 +116,40 @@ function CommentRow({
 
   return (
     <View
-      className={`bg-gray-50 dark:bg-darkbg border-gray-100 dark:border-gray-700/40${isReply ? ' border-l-gray-300 dark:border-l-gray-600' : ''}`}
+      className={`bg-inset border-line-soft ${isReply ? 'border-l-line' : ''}`}
       style={[styles.commentRow, isReply && styles.commentRowReply]}
     >
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
         <View style={{ flex: 1 }}>
           <Pressable onPress={() => goToUserProfile(comment.username)}>
             <View style={styles.commentHeaderRow}>
-              <Text className="text-gray-900 dark:text-darktext" style={styles.commentAuthor}>{comment.full_name}</Text>
-              <Text className="text-gray-500 dark:text-gray-400" style={styles.commentMeta}>@{comment.username}</Text>
-              <Text className="text-gray-500 dark:text-gray-400" style={styles.commentMeta}>{formatDateTime(comment.created_at)}</Text>
+              <Text className="text-ink" style={styles.commentAuthor}>
+                {comment.full_name}
+              </Text>
+              <Text className="text-muted" style={styles.commentMeta}>
+                @{comment.username}
+              </Text>
+              <Text className="text-muted" style={styles.commentMeta}>
+                {formatDateTime(comment.created_at)}
+              </Text>
             </View>
           </Pressable>
-          <Text className="text-gray-800 dark:text-darktext" style={styles.commentContent}>{comment.content}</Text>
+          <Text className="text-ink2" style={styles.commentContent}>
+            {comment.content}
+          </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <VoteButtons upvotes={comment.upvotes} downvotes={comment.downvotes} myVote={comment.my_vote} onVote={(v) => onVoteComment(comment.id, v)} />
+            <VoteButtons
+              upvotes={comment.upvotes}
+              downvotes={comment.downvotes}
+              myVote={comment.my_vote}
+              onVote={(v) => onVoteComment(comment.id, v)}
+            />
             {canReply && !isReply && (
               <Pressable style={styles.replyToggle} onPress={() => setReplying((r) => !r)}>
                 <CornerDownRight size={13} color={mutedColor} />
-                <Text className="text-gray-500 dark:text-gray-400" style={styles.replyToggleText}>Yanıtla</Text>
+                <Text className="text-muted" style={styles.replyToggleText}>
+                  Yanıtla
+                </Text>
               </Pressable>
             )}
           </View>
@@ -187,12 +206,14 @@ export default function ForumCommentList({ comments, loading, canModerate, onAdd
     <View>
       <View style={styles.header}>
         <MessageSquare size={16} color={brandColor} />
-        <Text className="text-gray-900 dark:text-darktext" style={styles.headerText}>Yorumlar {comments ? `(${comments.length})` : ''}</Text>
+        <Text className="text-ink" style={styles.headerText}>
+          Yorumlar {comments ? `(${comments.length})` : ''}
+        </Text>
       </View>
 
       <View style={styles.formRow}>
         <TextInput
-          className="border-gray-200 dark:border-gray-600 text-gray-900 dark:text-darktext"
+          className="border-line text-ink"
           style={styles.formInput}
           value={text}
           onChangeText={setText}
@@ -200,7 +221,7 @@ export default function ForumCommentList({ comments, loading, canModerate, onAdd
           placeholderTextColor={isDark ? '#6b7280' : '#9ca3af'}
           maxLength={2000}
         />
-        <Pressable className="bg-brand dark:bg-brand-light" style={styles.formSubmitBtn} onPress={handleSubmit} disabled={submitting || !text.trim()}>
+        <Pressable className="bg-accent" style={styles.formSubmitBtn} onPress={handleSubmit} disabled={submitting || !text.trim()}>
           <Send size={15} color="#fff" />
         </Pressable>
       </View>
@@ -208,7 +229,9 @@ export default function ForumCommentList({ comments, loading, canModerate, onAdd
       {loading ? (
         <ActivityIndicator style={{ marginVertical: 16 }} color={brandColor} />
       ) : topLevel.length === 0 ? (
-        <Text className="text-gray-500 dark:text-gray-400" style={styles.emptyText}>Henüz yorum yok — ilk yorumu sen yaz.</Text>
+        <Text className="text-muted" style={styles.emptyText}>
+          Henüz yorum yok — ilk yorumu sen yaz.
+        </Text>
       ) : (
         <View style={{ gap: 10 }}>
           {topLevel.map((c) => (
@@ -222,7 +245,14 @@ export default function ForumCommentList({ comments, loading, canModerate, onAdd
                 onReply={(parentId, replyText) => onAddComment(replyText, parentId)}
               />
               {(repliesByParent[c.id] || []).map((r) => (
-                <CommentRow key={r.id} comment={r} canModerate={canModerate} isReply onDeleteComment={onDeleteComment} onVoteComment={onVoteComment} />
+                <CommentRow
+                  key={r.id}
+                  comment={r}
+                  canModerate={canModerate}
+                  isReply
+                  onDeleteComment={onDeleteComment}
+                  onVoteComment={onVoteComment}
+                />
               ))}
             </View>
           ))}
@@ -246,7 +276,15 @@ const styles = StyleSheet.create({
   commentMeta: { fontSize: 10.5 },
   commentContent: { fontSize: 13, marginTop: 4, lineHeight: 18 },
   voteRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
-  voteBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5 },
+  voteBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
   voteText: { fontSize: 11.5, fontWeight: '600' },
   replyToggle: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 },
   replyToggleText: { fontSize: 11.5, fontWeight: '600' },

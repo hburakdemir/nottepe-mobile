@@ -9,17 +9,17 @@ import { useTheme } from '../context/ThemeContext';
 //  2. Vurgu rengi TEK işe ayrıldı: dosya. Bölüm adı nötr metin — daha önce
 //     ikisi birbiriyle yarışıyordu.
 export interface FeedTokens {
-  ground: string;   // kartların arkasındaki zemin
-  card: string;     // kartın kendi yüzeyi
-  inset: string;    // kartın İÇİNDE gömülü yüzey (+N kutucuğu, avatar zemini)
-  line: string;     // ince çerçeve / ayırıcı
-  ink: string;      // başlık
-  ink2: string;     // içerik, bölüm, sayaçlar
-  ink3: string;     // fakülte/künye, en soluk kademe
-  accent: string;   // yalnızca dosya
+  ground: string; // kartların arkasındaki zemin
+  card: string; // kartın kendi yüzeyi
+  inset: string; // kartın İÇİNDE gömülü yüzey (+N kutucuğu, avatar zemini)
+  line: string; // ince çerçeve / ayırıcı
+  ink: string; // başlık
+  ink2: string; // içerik, bölüm, sayaçlar
+  ink3: string; // fakülte/künye, en soluk kademe
+  accent: string; // yalnızca dosya
   onAccent: string; // dosya ikonunun üstündeki renk
-  amber: string;    // yıldız
-  danger: string;   // silme
+  amber: string; // yıldız
+  danger: string; // silme
 }
 
 const DARK: FeedTokens = {
@@ -37,9 +37,9 @@ const DARK: FeedTokens = {
 };
 
 const LIGHT: FeedTokens = {
-  // Web'deki (nottepe.com) açık tema referansı: zemin de kart da BEYAZ,
-  // kartları ayıran şey renk farkı değil yumuşak gölge (bkz. useCardSurface).
-  ground: '#FFFFFF',
+  // Zemin, uygulamanın ortak `--ground` değeriyle aynı (bkz. theme/palette.ts):
+  // kart beyaz, zemin bir tık gri — kartlar hem gölgeyle hem kontrastla ayrışıyor.
+  ground: '#F4F5F7',
   card: '#FFFFFF',
   inset: '#F2F4F2',
   line: '#E7E9E6',
@@ -90,10 +90,22 @@ export type FileKind = 'pdf' | 'word' | 'image' | 'sheet' | 'slide' | 'other';
 
 const KIND_BY_EXTENSION: Record<string, FileKind> = {
   pdf: 'pdf',
-  doc: 'word', docx: 'word', odt: 'word', rtf: 'word', txt: 'word',
-  jpg: 'image', jpeg: 'image', png: 'image', webp: 'image', gif: 'image', heic: 'image',
-  xls: 'sheet', xlsx: 'sheet', csv: 'sheet',
-  ppt: 'slide', pptx: 'slide',
+  doc: 'word',
+  docx: 'word',
+  odt: 'word',
+  rtf: 'word',
+  txt: 'word',
+  jpg: 'image',
+  jpeg: 'image',
+  png: 'image',
+  webp: 'image',
+  gif: 'image',
+  heic: 'image',
+  xls: 'sheet',
+  xlsx: 'sheet',
+  csv: 'sheet',
+  ppt: 'slide',
+  pptx: 'slide',
 };
 
 const LABEL_BY_KIND: Record<FileKind, string> = {

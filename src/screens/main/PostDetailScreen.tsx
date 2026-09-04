@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -15,6 +15,7 @@ import BadgeChip from '../../components/BadgeChip';
 import CommentSection from '../../components/CommentSection';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
+import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('tr-TR', {
@@ -39,6 +40,7 @@ export default function PostDetailScreen() {
   const { postId } = route.params as RootStackParamList['PostDetail'];
   const isSaved = savedPosts.includes(String(postId));
 
+  const scrollRef = useRef<ScrollView>(null);
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -103,8 +105,9 @@ export default function PostDetailScreen() {
 
   return (
     <ScrollView
+      showsVerticalScrollIndicator={false}
       style={{ flex: 1, backgroundColor: t.ground }}
-      contentContainerStyle={{ paddingBottom: 90 }}
+      contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}
     >
       <View style={[styles.head, cardSurface]}>
         {/* Profil en üstte: avatar + kullanıcı adı + rozetler + tarih, sağda
@@ -112,11 +115,7 @@ export default function PostDetailScreen() {
         <View style={styles.authorRow}>
           <Pressable style={styles.who} onPress={() => goToUserProfile(post.username)} hitSlop={6}>
             <View style={[styles.avatar, { backgroundColor: t.inset }]}>
-              {authorAvatar ? (
-                <AvatarDisplay avatar={authorAvatar} size={36} showBg={false} />
-              ) : (
-                <User size={18} color={t.ink3} />
-              )}
+              {authorAvatar ? <AvatarDisplay avatar={authorAvatar} size={36} showBg={false} /> : <User size={18} color={t.ink3} />}
             </View>
             <View style={{ minWidth: 0, flexShrink: 1 }}>
               <View style={styles.nameLine}>
@@ -159,7 +158,9 @@ export default function PostDetailScreen() {
         {post.link ? (
           <Pressable style={styles.linkRow} onPress={() => Linking.openURL(post.link!)} hitSlop={6}>
             <Link2 size={14} color={t.ink2} strokeWidth={2} />
-            <Text style={[styles.linkText, { color: t.ink2 }]} numberOfLines={1}>Bağlantıyı aç</Text>
+            <Text style={[styles.linkText, { color: t.ink2 }]} numberOfLines={1}>
+              Bağlantıyı aç
+            </Text>
           </Pressable>
         ) : null}
 
@@ -189,10 +190,12 @@ export default function PostDetailScreen() {
         <CommentSection
           postId={postId}
           postOwnerId={post.user_id}
+          // Yorumlar açık geliyor: kullanıcı ayrıca dokunmadan yükleniyorlar.
+          defaultCollapsed={false}
+          // Klavye açılırken formu görünür alana kaydır (bkz. CommentSection).
+          onInputFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120)}
           isAdmin={user?.role === 'admin' || user?.role === 'moderator'}
-          onRatingChange={({ avg_rating, rating_count }) =>
-            setPost((prev) => (prev ? { ...prev, avg_rating, rating_count } : prev))
-          }
+          onRatingChange={({ avg_rating, rating_count }) => setPost((prev) => (prev ? { ...prev, avg_rating, rating_count } : prev))}
         />
       </View>
     </ScrollView>

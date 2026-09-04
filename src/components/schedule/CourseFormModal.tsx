@@ -3,6 +3,7 @@ import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View 
 import { AlertTriangle, CalendarDays, Trash2, X } from 'lucide-react-native';
 import { conflictsForCourse, COURSE_COLORS, DAY_NAMES, makeCourseId, toMinutes, type ScheduleCourse } from '../../utils/schedule';
 import { useTheme } from '../../context/ThemeContext';
+import KeyboardAvoider from '../layout/KeyboardAvoider';
 
 interface Props {
   initial: ScheduleCourse | null;
@@ -52,135 +53,148 @@ export default function CourseFormModal({ initial, courses, onSave, onDelete, on
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View className="bg-primary dark:bg-darkbgbutton" style={styles.sheet}>
-          <View style={styles.headerRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <CalendarDays size={18} color={brandColor} />
-              <Text className="text-gray-900 dark:text-darktext" style={styles.title}>{isEdit ? 'Dersi Düzenle' : 'Ders Ekle'}</Text>
-            </View>
-            <Pressable onPress={onClose} hitSlop={8}>
-              <X size={20} color={mutedColor} />
-            </Pressable>
-          </View>
-
-          <ScrollView style={{ marginTop: 14 }}>
-            <Text className="text-gray-500 dark:text-gray-400" style={styles.label}>Ders adı *</Text>
-            <TextInput
-              className="border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-darkbg text-gray-900 dark:text-darktext"
-              style={styles.input}
-              value={name}
-              onChangeText={setName}
-              maxLength={80}
-              placeholder="Örn: MAT123 Matematik I"
-              placeholderTextColor={placeholderColor}
-            />
-
-            <Text className="text-gray-500 dark:text-gray-400" style={styles.label}>Gün *</Text>
-            <View style={styles.dayGrid}>
-              {Object.entries(DAY_NAMES).map(([v, label]) => {
-                const active = day === Number(v);
-                return (
-                  <Pressable
-                    key={v}
-                    className="border-gray-200 dark:border-gray-600"
-                    style={[styles.dayChip, active && { backgroundColor: brandColor, borderColor: brandColor }]}
-                    onPress={() => setDay(Number(v))}
-                  >
-                    <Text
-                      className={active ? undefined : 'text-gray-500 dark:text-gray-400'}
-                      style={[styles.dayChipText, active && { color: '#fff' }]}
-                    >
-                      {label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <View style={{ flex: 1 }}>
-                <Text className="text-gray-500 dark:text-gray-400" style={styles.label}>Başlangıç *</Text>
-                <TextInput
-                  className="border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-darkbg text-gray-900 dark:text-darktext"
-                  style={styles.input}
-                  value={start}
-                  onChangeText={setStart}
-                  placeholder="09:00"
-                  placeholderTextColor={placeholderColor}
-                  maxLength={5}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text className="text-gray-500 dark:text-gray-400" style={styles.label}>Bitiş *</Text>
-                <TextInput
-                  className="border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-darkbg text-gray-900 dark:text-darktext"
-                  style={styles.input}
-                  value={end}
-                  onChangeText={setEnd}
-                  placeholder="10:50"
-                  placeholderTextColor={placeholderColor}
-                  maxLength={5}
-                />
-              </View>
-            </View>
-
-            <Text className="text-gray-500 dark:text-gray-400" style={styles.label}>Konum (isteğe bağlı)</Text>
-            <TextInput
-              className="border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-darkbg text-gray-900 dark:text-darktext"
-              style={styles.input}
-              value={location}
-              onChangeText={setLocation}
-              maxLength={60}
-              placeholder="Örn: Derslik B2-201"
-              placeholderTextColor={placeholderColor}
-            />
-
-            <Text className="text-gray-500 dark:text-gray-400" style={styles.label}>Renk</Text>
-            <View style={styles.colorRow}>
-              {COURSE_COLORS.map((c, i) => (
-                <Pressable
-                  key={c.name}
-                  onPress={() => setColorIdx(i)}
-                  style={[
-                    styles.swatch,
-                    { backgroundColor: c.hex },
-                    colorIdx === i && { opacity: 1, borderWidth: 2, borderColor: isDark ? '#DFD0B8' : '#111827' },
-                  ]}
-                />
-              ))}
-            </View>
-
-            {conflicts.length > 0 && (
-              <View className="bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800/60" style={styles.conflictBox}>
-                <AlertTriangle size={15} color={dangerColor} />
-                <Text className="text-red-600 dark:text-red-400" style={styles.conflictText}>
-                  Bu saatler şu derslerle çakışıyor: {conflicts.map((c) => c.name).join(', ')}. Yine de kaydedebilirsin.
+      <KeyboardAvoider>
+        <View style={styles.overlay}>
+          <View className="bg-surface" style={styles.sheet}>
+            <View style={styles.headerRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <CalendarDays size={18} color={brandColor} />
+                <Text className="text-ink" style={styles.title}>
+                  {isEdit ? 'Dersi Düzenle' : 'Ders Ekle'}
                 </Text>
               </View>
-            )}
-          </ScrollView>
-
-          <View style={styles.actionsRow}>
-            <Pressable className="bg-brand dark:bg-brand-light" style={styles.saveBtn} onPress={handleSubmit}>
-              <Text style={styles.saveBtnText}>{isEdit ? 'Kaydet' : 'Ekle'}</Text>
-            </Pressable>
-            {isEdit && (
-              <Pressable
-                className="border-red-200 dark:border-red-800/60"
-                style={styles.deleteBtn}
-                onPress={() => {
-                  onDelete(initial!.id);
-                  onClose();
-                }}
-                hitSlop={8}
-              >
-                <Trash2 size={18} color={dangerColor} />
+              <Pressable onPress={onClose} hitSlop={8}>
+                <X size={20} color={mutedColor} />
               </Pressable>
-            )}
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 14 }}>
+              <Text className="text-muted" style={styles.label}>
+                Ders adı *
+              </Text>
+              <TextInput
+                className="border-line bg-inset text-ink"
+                style={styles.input}
+                value={name}
+                onChangeText={setName}
+                maxLength={80}
+                placeholder="Örn: MAT123 Matematik I"
+                placeholderTextColor={placeholderColor}
+              />
+
+              <Text className="text-muted" style={styles.label}>
+                Gün *
+              </Text>
+              <View style={styles.dayGrid}>
+                {Object.entries(DAY_NAMES).map(([v, label]) => {
+                  const active = day === Number(v);
+                  return (
+                    <Pressable
+                      key={v}
+                      className="border-line"
+                      style={[styles.dayChip, active && { backgroundColor: brandColor, borderColor: brandColor }]}
+                      onPress={() => setDay(Number(v))}
+                    >
+                      <Text className={active ? undefined : 'text-muted'} style={[styles.dayChipText, active && { color: '#fff' }]}>
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <Text className="text-muted" style={styles.label}>
+                    Başlangıç *
+                  </Text>
+                  <TextInput
+                    className="border-line bg-inset text-ink"
+                    style={styles.input}
+                    value={start}
+                    onChangeText={setStart}
+                    placeholder="09:00"
+                    placeholderTextColor={placeholderColor}
+                    maxLength={5}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text className="text-muted" style={styles.label}>
+                    Bitiş *
+                  </Text>
+                  <TextInput
+                    className="border-line bg-inset text-ink"
+                    style={styles.input}
+                    value={end}
+                    onChangeText={setEnd}
+                    placeholder="10:50"
+                    placeholderTextColor={placeholderColor}
+                    maxLength={5}
+                  />
+                </View>
+              </View>
+
+              <Text className="text-muted" style={styles.label}>
+                Konum (isteğe bağlı)
+              </Text>
+              <TextInput
+                className="border-line bg-inset text-ink"
+                style={styles.input}
+                value={location}
+                onChangeText={setLocation}
+                maxLength={60}
+                placeholder="Örn: Derslik B2-201"
+                placeholderTextColor={placeholderColor}
+              />
+
+              <Text className="text-muted" style={styles.label}>
+                Renk
+              </Text>
+              <View style={styles.colorRow}>
+                {COURSE_COLORS.map((c, i) => (
+                  <Pressable
+                    key={c.name}
+                    onPress={() => setColorIdx(i)}
+                    style={[
+                      styles.swatch,
+                      { backgroundColor: c.hex },
+                      colorIdx === i && { opacity: 1, borderWidth: 2, borderColor: isDark ? '#DFD0B8' : '#111827' },
+                    ]}
+                  />
+                ))}
+              </View>
+
+              {conflicts.length > 0 && (
+                <View className="bg-danger-soft border-danger-line" style={styles.conflictBox}>
+                  <AlertTriangle size={15} color={dangerColor} />
+                  <Text className="text-danger" style={styles.conflictText}>
+                    Bu saatler şu derslerle çakışıyor: {conflicts.map((c) => c.name).join(', ')}. Yine de kaydedebilirsin.
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+
+            <View style={styles.actionsRow}>
+              <Pressable className="bg-accent" style={styles.saveBtn} onPress={handleSubmit}>
+                <Text style={styles.saveBtnText}>{isEdit ? 'Kaydet' : 'Ekle'}</Text>
+              </Pressable>
+              {isEdit && (
+                <Pressable
+                  className="border-danger-line"
+                  style={styles.deleteBtn}
+                  onPress={() => {
+                    onDelete(initial!.id);
+                    onClose();
+                  }}
+                  hitSlop={8}
+                >
+                  <Trash2 size={18} color={dangerColor} />
+                </Pressable>
+              )}
+            </View>
           </View>
         </View>
-      </View>
+      </KeyboardAvoider>
     </Modal>
   );
 }

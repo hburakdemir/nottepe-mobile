@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Linking, Pressable, Text, View } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import {
@@ -11,12 +11,21 @@ import {
   ExternalLink,
   Megaphone,
   MessageSquare,
+  Settings,
   Tag,
   User,
+  MailOpen,
+  Trash2,
 } from 'lucide-react-native';
 import { notificationAPI, userNotificationAPI } from '../../lib/api';
 import type { RootStackParamList } from '../../navigation/types';
 import { useTheme } from '../../context/ThemeContext';
+import SwipeActions from '../../components/layout/SwipeActions';
+import NotificationSettingsSheet from '../../components/notifications/NotificationSettingsSheet';
+import { useNotificationPrefs } from '../../lib/notificationPrefs';
+import { setNotificationsScreenFocused } from '../../lib/push/pushState';
+import { useMarkNotificationsRead } from '../../hooks/useUnreadNotifications';
+import { useNotificationCategories } from '../../hooks/useNotificationCategories';
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('tr-TR', {
@@ -49,12 +58,10 @@ function formatDateTime(dateString: string): string {
   });
 }
 
-interface Category {
-  id: number;
-  name: string;
-  slug: string;
-  is_active: boolean;
-}
+// Aktivite listesi sayfalı çekiliyor (bkz. userNotificationAPI.getAll).
+const ACTIVITY_PAGE_LIMIT = 30;
+// "Geri al" şeridinin ekranda kalma süresi.
+const UNDO_TIMEOUT_MS = 4000;
 
 const ACTIVITY_TYPE_META: Record<string, { icon: any; label: (n: any) => string }> = {
   comment_on_post: {
@@ -88,15 +95,22 @@ const ACTIVITY_TYPE_META: Record<string, { icon: any; label: (n: any) => string 
   },
 };
 
-function AnnouncementCard({ notif }: { notif: Announcement }) {
+// `unread`: kaydırma menüsündeki "Okunmadı" aksiyonunun YEREL karşılığı
+// (bkz. lib/notificationPrefs.ts). Rozet eskiden yalnız sunucudaki
+// `is_viewed`'a bakıyordu, o yüzden aksiyonun hiçbir görsel karşılığı yoktu;
+// artık ikisi birleşiyor — Aktivite sekmesindeki `ActivityCard` ile aynı desen.
+function AnnouncementCard({ notif, unread }: { notif: Announcement; unread?: boolean }) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  // Kullanıcı elle "okunmadı" dediyse sunucu görüntülenmiş saysa bile kart
+  // yeniden "Yeni" görünüyor: yerel tercih sunucuyu geçersiz kılıyor.
+  const isViewed = !!notif.is_viewed && !unread;
   return (
-    <View className="bg-white dark:bg-darkbgbutton rounded-xl p-3.5 mb-2.5">
+    <View className="bg-surface rounded-xl p-3.5 mb-2.5">
       <View className="flex-row items-center flex-wrap gap-1.5 mb-2">
-        <View className={`px-2 py-[3px] rounded-full ${notif.is_viewed ? 'bg-gray-100 dark:bg-gray-700/40' : 'bg-brand'}`}>
-          <Text className={`text-[10.5px] font-semibold ${notif.is_viewed ? 'text-gray-500 dark:text-gray-400' : 'text-white'}`}>
-            {notif.is_viewed ? `Görüntüleme Tarihi${notif.viewed_at ? ` · ${formatDateTime(notif.viewed_at)}` : ''}` : 'Yeni'}
+        <View className={`px-2 py-[3px] rounded-full ${isViewed ? 'bg-inset' : 'bg-brand'}`}>
+          <Text className={`text-[10.5px] font-semibold ${isViewed ? 'text-muted' : 'text-white'}`}>
+            {isViewed ? `Görüntüleme Tarihi${notif.viewed_at ? ` · ${formatDateTime(notif.viewed_at)}` : ''}` : 'Yeni'}
           </Text>
         </View>
         {!!notif.category_name && (
@@ -106,12 +120,12 @@ function AnnouncementCard({ notif }: { notif: Announcement }) {
           </View>
         )}
         {!!notif.creator_full_name && (
-          <View className="flex-row items-center gap-1 bg-gray-100 dark:bg-gray-700/40 rounded-full px-2 py-[3px]">
+          <View className="flex-row items-center gap-1 bg-inset rounded-full px-2 py-[3px]">
             <User size={11} color={isDark ? '#9ca3af' : '#4b5563'} />
-            <Text className="text-[10.5px] font-semibold text-gray-600 dark:text-gray-300">{notif.creator_full_name}</Text>
+            <Text className="text-[10.5px] font-semibold text-muted">{notif.creator_full_name}</Text>
             {!!notif.creator_role && (
-              <View className={`rounded ml-0.5 px-1 ${notif.creator_role === 'admin' ? 'bg-blue-900' : 'bg-blue-100 dark:bg-blue-900/40'}`}>
-                <Text className={`text-[9px] font-bold ${notif.creator_role === 'admin' ? 'text-yellow-300' : 'text-blue-700 dark:text-blue-300'}`}>
+              <View className={`rounded ml-0.5 px-1 ${notif.creator_role === 'admin' ? 'bg-blue-900' : 'bg-accent-soft'}`}>
+                <Text className={`text-[9px] font-bold ${notif.creator_role === 'admin' ? 'text-yellow-300' : 'text-info'}`}>
                   {notif.creator_role}
                 </Text>
               </View>
@@ -120,22 +134,22 @@ function AnnouncementCard({ notif }: { notif: Announcement }) {
         )}
         <View className="flex-row items-center gap-1 ml-auto">
           <Calendar size={11} color={isDark ? '#6b7280' : '#9ca3af'} />
-          <Text className="text-[11px] text-gray-400 dark:text-gray-500">Duyuru Tarihi: {formatDate(notif.created_at)}</Text>
+          <Text className="text-[11px] text-muted2">Duyuru Tarihi: {formatDate(notif.created_at)}</Text>
         </View>
       </View>
-      <Text className="text-[15.5px] font-bold text-gray-900 dark:text-darktext mb-1.5">{notif.title}</Text>
-      <Text className="text-[13.5px] text-gray-600 dark:text-darktext/80 leading-[19px]">{notif.content}</Text>
+      <Text className="text-[15.5px] font-bold text-ink mb-1.5">{notif.title}</Text>
+      <Text className="text-[13.5px] text-muted leading-[19px]">{notif.content}</Text>
       {!!notif.link && (
         <Pressable className="flex-row items-center gap-1.5 mt-2.5" onPress={() => Linking.openURL(notif.link!)}>
           <ExternalLink size={14} color={isDark ? '#60a5fa' : '#1d4ed8'} />
-          <Text className="text-[13px] text-blue-700 dark:text-blue-400 font-semibold">Daha fazla bilgi</Text>
+          <Text className="text-[13px] text-info font-semibold">Daha fazla bilgi</Text>
         </Pressable>
       )}
     </View>
   );
 }
 
-function ActivityCard({ notif }: { notif: any }) {
+function ActivityCard({ notif, unread }: { notif: any; unread: boolean }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -151,26 +165,40 @@ function ActivityCard({ notif }: { notif: any }) {
   };
 
   return (
-    <Pressable className="flex-row items-start gap-2.5 bg-white dark:bg-darkbgbutton rounded-xl p-3 mb-2.5" disabled={!canNavigate} onPress={handlePress}>
-      <View className="w-[34px] h-[34px] rounded-[17px] bg-brand/10 dark:bg-brand-light/20 items-center justify-center">
+    <Pressable className="flex-row items-start gap-2.5 bg-surface rounded-xl p-3 mb-2.5" disabled={!canNavigate} onPress={handlePress}>
+      <View className="w-[34px] h-[34px] rounded-[17px] bg-accent-soft items-center justify-center">
         <Icon size={16} color={isDark ? '#5A9690' : '#2F5755'} />
       </View>
       <View className="flex-1">
-        <Text className="text-[13.5px] text-gray-700 dark:text-darktext leading-[19px]">{label}</Text>
-        <Text className="text-[11px] text-gray-400 dark:text-gray-500">{formatDate(notif.created_at)}</Text>
+        <Text className="text-[13.5px] text-ink2 leading-[19px]">{label}</Text>
+        <Text className="text-[11px] text-muted2">{formatDate(notif.created_at)}</Text>
       </View>
-      {!notif.read_at && <View className="w-2 h-2 rounded-full bg-brand mt-1.5" />}
+      {unread && <View className="w-2 h-2 rounded-full bg-brand mt-1.5" />}
     </Pressable>
   );
 }
 
 export default function NotificationsScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'Notifications'>>();
-  const { theme } = useTheme();
+  const { theme, colors } = useTheme();
   const isDark = theme === 'dark';
   const [tab, setTab] = useState<'duyurular' | 'aktivite'>(route.params?.initialTab ?? 'duyurular');
+  const [showSettings, setShowSettings] = useState(false);
 
-  const [categories, setCategories] = useState<Category[]>([]);
+  // Rozet çift sayımı kancası (plan 3.5/5): bu ekran Aktivite sekmesine girince
+  // her şeyi okundu yapıyor. Ekran odaktayken bir push gelirse rozeti artırmak
+  // yanlış olurdu — kullanıcı zaten listeye bakıyor. Push tarafı bu bayrağa
+  // bakıp artırmayı atlıyor, yalnızca listeyi tazeliyor.
+  useFocusEffect(
+    useCallback(() => {
+      setNotificationsScreenFocused(true);
+      return () => setNotificationsScreenFocused(false);
+    }, [])
+  );
+
+  // Kategoriler react-query'de uzun `staleTime` ile duruyor; ekran her
+  // açıldığında yeniden çekilmiyor.
+  const categories = useNotificationCategories();
   const [activeCategory, setActiveCategory] = useState('');
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
@@ -178,13 +206,19 @@ export default function NotificationsScreen() {
   const [activity, setActivity] = useState<any[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
   const [activityLoaded, setActivityLoaded] = useState(false);
+  const [activityPage, setActivityPage] = useState(1);
+  const [activityLoadingMore, setActivityLoadingMore] = useState(false);
+  const [activityHasMore, setActivityHasMore] = useState(true);
+  // İstek uçuştayken ikinci isteği engelleyen kapı. `state` değil `ref`:
+  // `onEndReached` hızlı kaydırmada aynı render içinde birden çok kez
+  // tetiklenebiliyor, state güncellemesi o ana yetişmiyor.
+  const activityInFlight = useRef(false);
+  const prefs = useNotificationPrefs();
+  const markNotificationsRead = useMarkNotificationsRead();
 
-  useEffect(() => {
-    notificationAPI
-      .getCategories()
-      .then((res) => setCategories((res.data || []).filter((c: Category) => c.is_active)))
-      .catch(() => {});
-  }, []);
+  // Silinen son satırın id'si — "Geri al" şeridi bunu hedefliyor.
+  const [undoId, setUndoId] = useState<string | null>(null);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setLoadingAnnouncements(true);
@@ -195,63 +229,180 @@ export default function NotificationsScreen() {
       .finally(() => setLoadingAnnouncements(false));
   }, [activeCategory]);
 
+  // Aktivite listesi sayfa sayfa çekiliyor (desen: FaqScreen). Eskiden tek
+  // seferde `limit: 30` isteniyordu, yani 30'dan eski hiçbir bildirim ekranda
+  // görünmüyordu.
+  //
+  // Ekrana girildiği anda bildirimler okundu sayılıyor (kullanıcı isteği).
+  // Eskiden `markAllRead` çağrılıyordu ama YEREL satırların `read_at`'i eski
+  // kaldığı için mavi noktalar ekranda duruyordu ve üstteki zil rozeti bir
+  // sonraki açılışa kadar güncellenmiyordu. Artık üçü birlikte oluyor:
+  // sunucu + yerel liste + rozet (react-query anahtarı). Bu yalnızca İLK
+  // sayfada yapılıyor: sonraki sayfalar zaten okunmuş sayılan eski kayıtlar.
+  const fetchActivity = useCallback(
+    async (targetPage: number, reset = false) => {
+      if (activityInFlight.current) return;
+      activityInFlight.current = true;
+      if (reset) setActivityLoading(true);
+      else setActivityLoadingMore(true);
+      try {
+        const res = await userNotificationAPI.getAll({ page: targetPage, limit: ACTIVITY_PAGE_LIMIT });
+        const rows = res.data.notifications || [];
+        const now = new Date().toISOString();
+        const mapped = rows.map((n: any) => ({ ...n, read_at: n.read_at ?? now }));
+        setActivity((prev) => (reset ? mapped : [...prev, ...mapped]));
+        setActivityPage(targetPage);
+        // Uç toplam sayı döndürmüyor; dolu sayfadan az geldiyse son sayfadayız.
+        setActivityHasMore(rows.length >= ACTIVITY_PAGE_LIMIT);
+        if (reset) {
+          setActivityLoaded(true);
+          userNotificationAPI
+            .markAllRead()
+            .catch(() => {})
+            .finally(() => markNotificationsRead());
+        }
+      } catch {
+        // İlk sayfa patlarsa liste boşalıyor; "daha fazla" patlarsa eldeki
+        // satırlar duruyor ve kullanıcı tekrar kaydırınca yeniden denenebiliyor.
+        if (reset) setActivity([]);
+      } finally {
+        activityInFlight.current = false;
+        setActivityLoading(false);
+        setActivityLoadingMore(false);
+      }
+    },
+    [markNotificationsRead]
+  );
+
   useEffect(() => {
     if (tab !== 'aktivite' || activityLoaded) return;
-    setActivityLoading(true);
-    userNotificationAPI
-      .getAll({ page: 1, limit: 30 })
-      .then((res) => {
-        setActivity(res.data.notifications || []);
-        setActivityLoaded(true);
-        userNotificationAPI.markAllRead().catch(() => {});
-      })
-      .catch(() => setActivity([]))
-      .finally(() => setActivityLoading(false));
-  }, [tab, activityLoaded]);
+    fetchActivity(1, true);
+  }, [tab, activityLoaded, fetchActivity]);
+
+  const handleActivityEndReached = useCallback(() => {
+    // Liste boşken (ilk render / hata sonrası) ve son sayfa geldiğinde istek yok.
+    if (!activityHasMore || activityLoading || activityLoadingMore) return;
+    if (activity.length === 0) return;
+    fetchActivity(activityPage + 1);
+  }, [activityHasMore, activityLoading, activityLoadingMore, activity.length, activityPage, fetchActivity]);
+
+  // Silinenler listeden düşüyor (cihazda saklanıyor, bkz. lib/notificationPrefs.ts).
+  const visibleAnnouncements = announcements.filter((a) => !prefs.hidden.has(String(a.id)));
+  const visibleActivity = activity.filter((a) => !prefs.hidden.has(String(a.id)));
+
+  // Silme artık sessiz değil: kısa süreli bir "Geri al" şeridi çıkıyor.
+  // Arka arkaya iki silmede şerit SON silineni hedefliyor — yeni silme
+  // öncekinin sayacını iptal edip süreyi baştan başlatıyor. Kuyruk yerine bunu
+  // seçtik: üst üste binen şeritler tab çubuğunun üstünü kapatırdı, üstelik
+  // geri alınmayan satır zaten listeden düşmüş oluyor.
+  const handleDelete = useCallback(
+    (id: string | number) => {
+      prefs.hide(id);
+      if (undoTimer.current) clearTimeout(undoTimer.current);
+      setUndoId(String(id));
+      undoTimer.current = setTimeout(() => {
+        setUndoId(null);
+        undoTimer.current = null;
+      }, UNDO_TIMEOUT_MS);
+    },
+    [prefs.hide]
+  );
+
+  const handleUndo = useCallback(() => {
+    if (!undoId) return;
+    if (undoTimer.current) {
+      clearTimeout(undoTimer.current);
+      undoTimer.current = null;
+    }
+    prefs.unhide(undoId);
+    setUndoId(null);
+  }, [undoId, prefs.unhide]);
+
+  // Ekran kapanırken sayaç kalmasın: yoksa unmount sonrası setState olur.
+  useEffect(
+    () => () => {
+      if (undoTimer.current) clearTimeout(undoTimer.current);
+    },
+    []
+  );
+
+  const rowActions = (id: string | number, isUnread: boolean) => [
+    {
+      key: 'read',
+      icon: MailOpen,
+      label: isUnread ? 'Okundu' : 'Okunmadı',
+      color: colors.accent,
+      onPress: () => (isUnread ? prefs.markRead(id) : prefs.markUnread(id)),
+    },
+    { key: 'delete', icon: Trash2, label: 'Sil', color: colors.danger, onPress: () => handleDelete(id) },
+  ];
 
   return (
-    <View className="flex-1 bg-gray-50 dark:bg-darkbgbutton">
+    <View className="flex-1 bg-ground">
       <View className="flex-row gap-2 p-3 pb-1">
         <Pressable
           className={`flex-row items-center gap-1.5 border border-brand rounded-[10px] px-3.5 py-2 ${tab === 'duyurular' ? 'bg-brand' : ''}`}
           onPress={() => setTab('duyurular')}
         >
           <Megaphone size={15} color={tab === 'duyurular' ? '#fff' : isDark ? '#5A9690' : '#2F5755'} />
-          <Text className={`text-[13px] font-semibold ${tab === 'duyurular' ? 'text-white' : 'text-brand dark:text-brand-light'}`}>Duyurular</Text>
+          <Text className={`text-[13px] font-semibold ${tab === 'duyurular' ? 'text-white' : 'text-accent'}`}>Duyurular</Text>
         </Pressable>
         <Pressable
           className={`flex-row items-center gap-1.5 border border-brand rounded-[10px] px-3.5 py-2 ${tab === 'aktivite' ? 'bg-brand' : ''}`}
           onPress={() => setTab('aktivite')}
         >
           <Bell size={15} color={tab === 'aktivite' ? '#fff' : isDark ? '#5A9690' : '#2F5755'} />
-          <Text className={`text-[13px] font-semibold ${tab === 'aktivite' ? 'text-white' : 'text-brand dark:text-brand-light'}`}>Aktivite</Text>
+          <Text className={`text-[13px] font-semibold ${tab === 'aktivite' ? 'text-white' : 'text-accent'}`}>Aktivite</Text>
+        </Pressable>
+
+        {/* Dişli bilerek sekme satırında, üst bardaki AppHeader'da değil:
+            AppHeader her rotada ortak ve başlığı mutlak konumlu ortalanmış
+            (px-20 payı) — dördüncü bir kontrol uzun Türkçe başlıklarla
+            çakışırdı. */}
+        <View className="flex-1" />
+        <Pressable
+          className="items-center justify-center px-2"
+          onPress={() => setShowSettings(true)}
+          hitSlop={8}
+          accessibilityLabel="Bildirim ayarları"
+        >
+          <Settings size={20} color={colors.muted} />
         </Pressable>
       </View>
 
       {tab === 'duyurular' ? (
         <FlatList
-          contentContainerClassName="p-3 flex-grow gap-2.5"
-          data={announcements}
+          showsVerticalScrollIndicator={false}
+          contentContainerClassName="p-3 pb-[110px] flex-grow gap-2.5"
+          data={visibleAnnouncements}
           keyExtractor={(item) => String(item.id)}
-          renderItem={({ item }) => <AnnouncementCard notif={item} />}
+          renderItem={({ item }) => {
+            // Yerel "okunmadı" tercihi + sunucudaki `is_viewed` — Aktivite
+            // sekmesindeki hesabın aynısı; hem kaydırma aksiyonunun etiketi hem
+            // karttaki rozet aynı değerden çıkıyor.
+            const isUnread = prefs.unread.has(String(item.id)) || !item.is_viewed;
+            return (
+              <SwipeActions actions={rowActions(item.id, isUnread)}>
+                <AnnouncementCard notif={item} unread={isUnread} />
+              </SwipeActions>
+            );
+          }}
           ListHeaderComponent={
             categories.length > 0 ? (
               <View className="flex-row flex-wrap gap-2 mb-3">
                 <Pressable
-                  className={`rounded-full px-3 py-1.5 border ${activeCategory === '' ? 'bg-brand border-brand' : 'bg-white dark:bg-darkbgbutton border-gray-200 dark:border-gray-600'}`}
+                  className={`rounded-full px-3 py-1.5 border ${activeCategory === '' ? 'bg-brand border-brand' : 'bg-surface border-line'}`}
                   onPress={() => setActiveCategory('')}
                 >
-                  <Text className={`text-xs font-medium ${activeCategory === '' ? 'text-white' : 'text-gray-500 dark:text-gray-400'}`}>Tümü</Text>
+                  <Text className={`text-xs font-medium ${activeCategory === '' ? 'text-white' : 'text-muted'}`}>Tümü</Text>
                 </Pressable>
                 {categories.map((cat) => (
                   <Pressable
                     key={cat.id}
-                    className={`rounded-full px-3 py-1.5 border ${activeCategory === cat.slug ? 'bg-brand border-brand' : 'bg-white dark:bg-darkbgbutton border-gray-200 dark:border-gray-600'}`}
+                    className={`rounded-full px-3 py-1.5 border ${activeCategory === cat.slug ? 'bg-brand border-brand' : 'bg-surface border-line'}`}
                     onPress={() => setActiveCategory(cat.slug)}
                   >
-                    <Text className={`text-xs font-medium ${activeCategory === cat.slug ? 'text-white' : 'text-gray-500 dark:text-gray-400'}`}>
-                      {cat.name}
-                    </Text>
+                    <Text className={`text-xs font-medium ${activeCategory === cat.slug ? 'text-white' : 'text-muted'}`}>{cat.name}</Text>
                   </Pressable>
                 ))}
               </View>
@@ -261,25 +412,52 @@ export default function NotificationsScreen() {
             loadingAnnouncements ? (
               <ActivityIndicator style={{ marginTop: 24 }} color="#1d4ed8" />
             ) : (
-              <Text className="text-center text-gray-400 dark:text-gray-500 mt-6">Henüz bildirim yok.</Text>
+              <Text className="text-center text-muted2 mt-6">Henüz bildirim yok.</Text>
             )
           }
         />
       ) : (
         <FlatList
-          contentContainerClassName="p-3 flex-grow gap-2.5"
-          data={activity}
+          showsVerticalScrollIndicator={false}
+          contentContainerClassName="p-3 pb-[110px] flex-grow gap-2.5"
+          data={visibleActivity}
           keyExtractor={(item) => String(item.id)}
-          renderItem={({ item }) => <ActivityCard notif={item} />}
+          renderItem={({ item }) => {
+            const isUnread = prefs.unread.has(String(item.id)) || !item.read_at;
+            return (
+              <SwipeActions actions={rowActions(item.id, isUnread)}>
+                <ActivityCard notif={item} unread={isUnread} />
+              </SwipeActions>
+            );
+          }}
+          onEndReached={handleActivityEndReached}
+          // 0.4: liste sonuna gelmeden biraz önce tetiklensin ama piksel piksel
+          // kaydırmada sürekli ateşlemesin (çift istek kapısı yine de ref'te).
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={
+            activityLoadingMore ? <ActivityIndicator style={{ marginTop: 12 }} color={colors.accent} /> : null
+          }
           ListEmptyComponent={
             activityLoading ? (
               <ActivityIndicator style={{ marginTop: 24 }} color="#1d4ed8" />
             ) : (
-              <Text className="text-center text-gray-400 dark:text-gray-500 mt-6">Henüz aktivite bildirimi yok.</Text>
+              <Text className="text-center text-muted2 mt-6">Henüz aktivite bildirimi yok.</Text>
             )
           }
         />
       )}
+
+      {/* Silme geri alma şeridi — tab çubuğunun hemen üstünde duruyor. */}
+      {undoId !== null && (
+        <View className="absolute left-3 right-3 bottom-[96px] flex-row items-center gap-3 bg-surface border border-line rounded-xl px-3.5 py-3">
+          <Text className="flex-1 text-[13px] text-ink2">Bildirim silindi.</Text>
+          <Pressable onPress={handleUndo} hitSlop={10}>
+            <Text className="text-[13px] font-bold text-accent">Geri al</Text>
+          </Pressable>
+        </View>
+      )}
+
+      <NotificationSettingsSheet visible={showSettings} onClose={() => setShowSettings(false)} />
     </View>
   );
 }

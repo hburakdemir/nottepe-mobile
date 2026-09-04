@@ -1,14 +1,5 @@
 import React, { useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Modal,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as DocumentPicker from 'expo-document-picker';
@@ -16,6 +7,8 @@ import { AlertCircle, CheckCircle, FileText, HeartHandshake, Upload, X } from 'l
 import { postsAPI } from '../../lib/api';
 import { faculties, departments } from '../../data/departments';
 import { useTheme } from '../../context/ThemeContext';
+import { goToTab } from '../../navigation/navigateApp';
+import OptionSheet from '../../components/layout/OptionSheet';
 import type { RootStackParamList } from '../../navigation/types';
 
 const MAX_FILES = 5;
@@ -44,47 +37,6 @@ const SHADOW_MD = {
   shadowOffset: { width: 0, height: 3 },
   elevation: 3,
 };
-
-function PickerModal({
-  visible,
-  title,
-  options,
-  onSelect,
-  onClose,
-}: {
-  visible: boolean;
-  title: string;
-  options: string[];
-  onSelect: (value: string) => void;
-  onClose: () => void;
-}) {
-  return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <Pressable className="flex-1 bg-black/40 justify-end" onPress={onClose}>
-        <View className="bg-primary dark:bg-darkbgbutton rounded-t-2xl pt-4 pb-6 max-h-[70%]">
-          <Text className="text-base font-bold text-gray-900 dark:text-darktext px-[18px] mb-2">{title}</Text>
-          <FlatList
-            data={options}
-            keyExtractor={(item) => item}
-            style={{ maxHeight: 420 }}
-            renderItem={({ item }) => (
-              <Pressable
-                className="px-[18px] py-[13px] border-b border-gray-100 dark:border-gray-700/40"
-                onPress={() => {
-                  onSelect(item);
-                  onClose();
-                }}
-              >
-                <Text className="text-[14.5px] text-gray-700 dark:text-darktext">{item}</Text>
-              </Pressable>
-            )}
-          />
-        </View>
-      </Pressable>
-    </Modal>
-  );
-}
-
 export default function AddPostScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<any>();
@@ -106,7 +58,7 @@ export default function AddPostScreen() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  const departmentOptions = faculty ? departments[faculty] ?? [] : [];
+  const departmentOptions = faculty ? (departments[faculty] ?? []) : [];
 
   const handlePickFiles = async () => {
     const result = await DocumentPicker.getDocumentAsync({
@@ -179,7 +131,7 @@ export default function AddPostScreen() {
       setFiles([]);
       setTimeout(() => {
         setSuccess(false);
-        navigation.navigate('Profile');
+        goToTab(navigation, 'Profile');
       }, 2000);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Not paylaşılırken bir hata oluştu');
@@ -189,147 +141,148 @@ export default function AddPostScreen() {
   };
 
   return (
-    <ScrollView className="flex-1 bg-primary dark:bg-darkbgbutton" contentContainerClassName="px-4 py-8">
-      <View className="bg-primary dark:bg-darkbgbutton rounded-lg p-8" style={SHADOW_MD}>
-        <Text className="text-3xl font-extrabold text-gray-900 dark:text-darktext mb-6">Not Paylaş</Text>
+    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="px-4 pt-8 pb-[110px]">
+      <View className="bg-surface rounded-lg p-8" style={SHADOW_MD}>
+        <Text className="text-3xl font-extrabold text-ink mb-6">Not Paylaş</Text>
 
         {!!noteRequest && (
-          <View className="flex-row gap-2 bg-brand/10 dark:bg-brand-light/20 border border-brand/30 dark:border-brand-light/40 rounded-lg p-4 mb-6">
+          <View className="flex-row gap-2 bg-accent-soft border border-accent-line rounded-lg p-4 mb-6">
             <HeartHandshake size={20} color={isDark ? '#5A9690' : '#2F5755'} style={{ marginTop: 1 }} />
-            <Text className="flex-1 text-sm text-brand dark:text-brand-light leading-5">
-              <Text style={{ fontWeight: '700' }}>"{noteRequest.course_name}"</Text> isteği için not yüklüyorsun. Notun
-              onaylanınca istek otomatik olarak karşılanmış sayılır ve isteyen kullanıcıya haber verilir.
+            <Text className="flex-1 text-sm text-accent leading-5">
+              <Text style={{ fontWeight: '700' }}>"{noteRequest.course_name}"</Text> isteği için not yüklüyorsun. Notun onaylanınca istek
+              otomatik olarak karşılanmış sayılır ve isteyen kullanıcıya haber verilir.
             </Text>
           </View>
         )}
 
         {!!error && (
-          <View className="flex-row items-center gap-2 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 rounded-lg p-4 mb-6">
+          <View className="flex-row items-center gap-2 bg-danger-soft border border-danger-line rounded-lg p-4 mb-6">
             <AlertCircle size={20} color={isDark ? '#f87171' : '#b91c1c'} />
-            <Text className="text-red-700 dark:text-red-400 text-sm flex-1">{error}</Text>
+            <Text className="text-danger text-sm flex-1">{error}</Text>
           </View>
         )}
         {success && (
-          <View className="flex-row items-center gap-2 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800/60 rounded-lg p-4 mb-6">
+          <View className="flex-row items-center gap-2 bg-success-soft border border-success-line rounded-lg p-4 mb-6">
             <CheckCircle size={20} color={isDark ? '#4ade80' : '#15803d'} />
-            <Text className="text-green-700 dark:text-green-400 text-sm flex-1">Not başarıyla paylaşıldı! Yönlendiriliyorsunuz...</Text>
+            <Text className="text-success text-sm flex-1">Not başarıyla paylaşıldı! Yönlendiriliyorsunuz...</Text>
           </View>
         )}
 
         <View className="mb-6">
-        <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-2">Başlık *</Text>
-        <TextInput
-          className="border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-base text-gray-900 dark:text-darktext"
-          value={title}
-          onChangeText={setTitle}
-          placeholder="Örn: Matematik 101 Final Soruları"
-          placeholderTextColor="#9ca3af"
-        />
+          <Text className="text-sm font-medium text-ink2 mb-2">Başlık *</Text>
+          <TextInput
+            className="border border-line rounded-lg px-4 py-2 text-base text-ink"
+            value={title}
+            onChangeText={setTitle}
+            placeholder="Örn: Matematik 101 Final Soruları"
+            placeholderTextColor="#9ca3af"
+          />
+        </View>
+
+        <View className="mb-6">
+          <Text className="text-sm font-medium text-ink2 mb-2">Açıklama *</Text>
+          <TextInput
+            className="border border-line rounded-lg px-4 py-2 text-base text-ink min-h-24"
+            style={{ textAlignVertical: 'top' }}
+            value={content}
+            onChangeText={setContent}
+            placeholder="Notlar hakkında kısa bir açıklama yazın..."
+            placeholderTextColor="#9ca3af"
+            multiline
+          />
+        </View>
+
+        {/* Web kaynağında Link alanı .input-field yerine ayrı, tutarsız class'larla
+ yazılmış (soluk border, küçük radius, az padding) — birebir aynı görünmesi
+ için burada da bilerek farklı. */}
+        <View className="mb-6">
+          <Text className="text-sm font-normal text-ink2 mb-2">Link</Text>
+          <TextInput
+            className="border border-line rounded px-2 py-2 text-base text-ink"
+            value={link}
+            onChangeText={setLink}
+            placeholder="Ders notu link ise (ex: https://...)"
+            placeholderTextColor="#9ca3af"
+            autoCapitalize="none"
+            keyboardType="url"
+          />
+        </View>
+
+        <View className="mb-6">
+          <Text className="text-sm font-medium text-gray-700 mb-2">Fakülte *</Text>
+          <Pressable
+            className="border border-line rounded-lg px-4 py-2 justify-center min-h-[40px]"
+            onPress={() => setFacultyModalOpen(true)}
+          >
+            <Text className={`text-base ${faculty ? 'text-ink' : 'text-muted2'}`}>{faculty || 'Fakülte Seçin'}</Text>
+          </Pressable>
+        </View>
+
+        <View className="mb-6">
+          <Text className="text-sm font-medium text-ink2 mb-2">Bölüm *</Text>
+          <Pressable
+            className={`border border-line rounded-lg px-4 py-2 justify-center min-h-[40px] ${!faculty ? 'opacity-50' : ''}`}
+            onPress={() => faculty && setDepartmentModalOpen(true)}
+          >
+            <Text className={`text-base ${department ? 'text-ink' : 'text-muted2'}`}>{department || 'Bölüm Seçin'}</Text>
+          </Pressable>
+        </View>
+
+        <View className="mb-6">
+          <Text className="text-sm font-medium text-ink2 mb-2">Dosya Yükle (Opsiyonel, Max 5, her biri 10MB)</Text>
+          <Pressable className="border-2 border-line border-dashed rounded-lg pt-5 pb-6 px-6 items-center gap-1" onPress={handlePickFiles}>
+            <Upload size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
+            <Text className="text-sm text-success font-medium mt-2">Dosya seçin</Text>
+            <Text className="text-xs text-muted">PDF, DOC, PPT, JPG (max. 10MB her biri)</Text>
+          </Pressable>
+          {files.length > 0 && (
+            <View className="mt-4 gap-2">
+              {files.map((file, index) => (
+                <View key={index} className="flex-row items-center justify-center gap-2">
+                  <FileText size={20} color={isDark ? '#4ade80' : '#16a34a'} />
+                  <Text className="flex-shrink text-sm text-success" numberOfLines={1}>
+                    {file.name}
+                  </Text>
+                  <Pressable onPress={() => removeFile(index)} hitSlop={8}>
+                    <X size={16} color={isDark ? '#f87171' : '#ef4444'} />
+                  </Pressable>
+                </View>
+              ))}
+              <Text className="text-xs text-muted text-center mt-1">{files.length} dosya seçildi</Text>
+            </View>
+          )}
+        </View>
+
+        <View className="flex-row justify-end gap-4 mt-2">
+          <Pressable onPress={() => navigation.goBack()} className="py-2 px-4 rounded-lg">
+            <Text className="text-ink2 text-base font-medium">İptal</Text>
+          </Pressable>
+          <Pressable
+            className={`bg-brand rounded-lg py-2 px-4 items-center justify-center min-w-[84px] ${loading ? 'opacity-50' : ''}`}
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? <ActivityIndicator color="#fff" /> : <Text className="text-white text-base font-medium">Paylaş</Text>}
+          </Pressable>
+        </View>
       </View>
 
-      <View className="mb-6">
-        <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-2">Açıklama *</Text>
-        <TextInput
-          className="border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-base text-gray-900 dark:text-darktext min-h-24"
-          style={{ textAlignVertical: 'top' }}
-          value={content}
-          onChangeText={setContent}
-          placeholder="Notlar hakkında kısa bir açıklama yazın..."
-          placeholderTextColor="#9ca3af"
-          multiline
-        />
-      </View>
-
-      {/* Web kaynağında Link alanı .input-field yerine ayrı, tutarsız class'larla
-          yazılmış (soluk border, küçük radius, az padding) — birebir aynı görünmesi
-          için burada da bilerek farklı. */}
-      <View className="mb-6">
-        <Text className="text-sm font-normal text-gray-700 dark:text-darktext mb-2">Link</Text>
-        <TextInput
-          className="border border-gray-200 dark:border-gray-600 rounded px-2 py-2 text-base text-gray-900 dark:text-darktext"
-          value={link}
-          onChangeText={setLink}
-          placeholder="Ders notu link ise (ex: https://...)"
-          placeholderTextColor="#9ca3af"
-          autoCapitalize="none"
-          keyboardType="url"
-        />
-      </View>
-
-      <View className="mb-6">
-        <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-2">Fakülte *</Text>
-        <Pressable className="border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 justify-center min-h-[40px]" onPress={() => setFacultyModalOpen(true)}>
-          <Text className={`text-base ${faculty ? 'text-gray-900 dark:text-darktext' : 'text-gray-400 dark:text-gray-500'}`}>
-            {faculty || 'Fakülte Seçin'}
-          </Text>
-        </Pressable>
-      </View>
-
-      <View className="mb-6">
-        <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-2">Bölüm *</Text>
-        <Pressable
-          className={`border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 justify-center min-h-[40px] ${!faculty ? 'opacity-50' : ''}`}
-          onPress={() => faculty && setDepartmentModalOpen(true)}
-        >
-          <Text className={`text-base ${department ? 'text-gray-900 dark:text-darktext' : 'text-gray-400 dark:text-gray-500'}`}>
-            {department || 'Bölüm Seçin'}
-          </Text>
-        </Pressable>
-      </View>
-
-      <View className="mb-6">
-        <Text className="text-sm font-medium text-gray-700 dark:text-darktext mb-2">Dosya Yükle (Opsiyonel, Max 5, her biri 10MB)</Text>
-        <Pressable className="border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg pt-5 pb-6 px-6 items-center gap-1" onPress={handlePickFiles}>
-          <Upload size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
-          <Text className="text-sm text-green-600 dark:text-green-400 font-medium mt-2">Dosya seçin</Text>
-          <Text className="text-xs text-gray-500 dark:text-gray-400">PDF, DOC, PPT, JPG (max. 10MB her biri)</Text>
-        </Pressable>
-        {files.length > 0 && (
-          <View className="mt-4 gap-2">
-            {files.map((file, index) => (
-              <View key={index} className="flex-row items-center justify-center gap-2">
-                <FileText size={20} color={isDark ? '#4ade80' : '#16a34a'} />
-                <Text className="flex-shrink text-sm text-green-600 dark:text-green-400" numberOfLines={1}>
-                  {file.name}
-                </Text>
-                <Pressable onPress={() => removeFile(index)} hitSlop={8}>
-                  <X size={16} color={isDark ? '#f87171' : '#ef4444'} />
-                </Pressable>
-              </View>
-            ))}
-            <Text className="text-xs text-gray-500 dark:text-gray-400 text-center mt-1">{files.length} dosya seçildi</Text>
-          </View>
-        )}
-      </View>
-
-      <View className="flex-row justify-end gap-4 mt-2">
-        <Pressable onPress={() => navigation.goBack()} className="py-2 px-4 rounded-lg">
-          <Text className="text-gray-800 dark:text-darktext text-base font-medium">İptal</Text>
-        </Pressable>
-        <Pressable
-          className={`bg-brand rounded-lg py-2 px-4 items-center justify-center min-w-[84px] ${loading ? 'opacity-50' : ''}`}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
-          {loading ? <ActivityIndicator color="#fff" /> : <Text className="text-white text-base font-medium">Paylaş</Text>}
-        </Pressable>
-      </View>
-      </View>
-
-      <PickerModal
+      <OptionSheet
         visible={facultyModalOpen}
-        title="Fakülte Seçin"
+        title="Fakülte seç"
         options={faculties}
+        value={faculty}
         onClose={() => setFacultyModalOpen(false)}
         onSelect={(value) => {
           setFaculty(value);
           setDepartment('');
         }}
       />
-      <PickerModal
+      <OptionSheet
         visible={departmentModalOpen}
-        title="Bölüm Seçin"
+        title="Bölüm seç"
         options={departmentOptions}
+        value={department}
         onClose={() => setDepartmentModalOpen(false)}
         onSelect={setDepartment}
       />

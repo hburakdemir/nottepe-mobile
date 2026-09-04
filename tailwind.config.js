@@ -6,14 +6,51 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // TEMAYA GÖRE DEĞİŞEN renkler — hepsi CSS değişkeni (bkz. theme/palette.ts).
+        // `dark:` varyantı artık HİÇBİR YERDE kullanılmıyor: değişkenleri kökteki
+        // tek bir View'a ThemeProvider basıyor, tema değişimi saf JS oluyor.
+        ground: 'var(--ground)',
+        surface: 'var(--surface)',
+        inset: 'var(--inset)',
+        ink: 'var(--ink)',
+        ink2: 'var(--ink2)',
+        muted: 'var(--muted)',
+        muted2: 'var(--muted2)',
+        line: 'var(--line)',
+        'line-soft': 'var(--line-soft)',
+        accent: {
+          DEFAULT: 'var(--accent)',
+          soft: 'var(--accent-soft)',
+          line: 'var(--accent-line)',
+        },
+        danger: {
+          DEFAULT: 'var(--danger)',
+          soft: 'var(--danger-soft)',
+          line: 'var(--danger-line)',
+        },
+        success: {
+          DEFAULT: 'var(--success)',
+          soft: 'var(--success-soft)',
+          line: 'var(--success-line)',
+        },
+        info: 'var(--info)',
+        warn: {
+          DEFAULT: 'var(--warn)',
+          soft: 'var(--warn-soft)',
+          ink: 'var(--warn-ink)',
+        },
+        'on-badge': 'var(--on-badge)',
+        'avatar-ring': 'var(--avatar-ring)',
+        fail: { DEFAULT: 'var(--fail)', soft: 'var(--fail-soft)' },
+
+        // TEMADAN BAĞIMSIZ sabitler — her iki temada aynı kalan renkler.
+        // `bg-brand` dolgulu birincil butonların (üstünde her zaman beyaz yazı)
+        // rengi; tema ile açılıp koyulaşan her şey yukarıdaki token'lardan
+        // geliyor. Eski `darktext`/`darkbgbutton`/`darkbg`/`appground`/
+        // `primary`/`secondary` girdileri kaldırıldı: hepsi `dark:` çiftlerinin
+        // yarısıydı, artık tek bir kullanan bile yok (bkz. theme/palette.ts).
         brand: { DEFAULT: '#2F5755', light: '#5A9690' },
         beige: '#E0D9D9',
-        primary: '#FFFFFF',
-        secondary: '#000000',
-        darktext: '#DFD0B8',
-        darkbgbutton: '#222831',
-        darkhover: '#A78295',
-        darkbg: '#393E46',
       },
       keyframes: {
         'slide-up': {

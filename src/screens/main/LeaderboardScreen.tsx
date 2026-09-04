@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
-import { Award, Flame, FileText, Trophy, User } from 'lucide-react-native';
+import { Award, Flame, FileText, User } from 'lucide-react-native';
 import { leaderboardAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -41,13 +41,18 @@ function LeaderboardRow({ entry, metric, isMe }: { entry: LeaderboardEntry; metr
 
   return (
     <Pressable
-      className={`flex-row items-center gap-2.5 bg-white dark:bg-darkbgbutton rounded-xl p-2.5 ${isMe ? 'bg-brand/10 dark:bg-brand-light/20 border border-brand/20 dark:border-brand-light/30' : ''}`}
+      className={`flex-row items-center gap-2.5 bg-surface rounded-xl p-2.5 ${isMe ? 'bg-accent-soft border border-accent-line' : ''}`}
       onPress={() => goToUserProfile(entry.username)}
     >
-      <View className="w-[30px] h-[30px] rounded-[15px] bg-gray-100 dark:bg-gray-700/40 items-center justify-center" style={rankColor ? { backgroundColor: rankColor.bg } : undefined}>
-        <Text className="text-[13px] font-bold text-gray-600 dark:text-gray-300" style={rankColor ? { color: rankColor.text } : undefined}>{entry.rank}</Text>
+      <View
+        className="w-[30px] h-[30px] rounded-[15px] bg-inset items-center justify-center"
+        style={rankColor ? { backgroundColor: rankColor.bg } : undefined}
+      >
+        <Text className="text-[13px] font-bold text-muted" style={rankColor ? { color: rankColor.text } : undefined}>
+          {entry.rank}
+        </Text>
       </View>
-      <View className="w-[34px] h-[34px] rounded-[17px] bg-brand/10 dark:bg-brand-light/20 items-center justify-center overflow-hidden">
+      <View className="w-[34px] h-[34px] rounded-[17px] bg-accent-soft items-center justify-center overflow-hidden">
         {entry.avatar_config ? (
           <AvatarDisplay
             avatar={{ config: entry.avatar_config as any, photo_path: entry.avatar_photo_path, display_mode: entry.avatar_display_mode }}
@@ -59,10 +64,10 @@ function LeaderboardRow({ entry, metric, isMe }: { entry: LeaderboardEntry; metr
       </View>
       <View className="flex-1 min-w-0">
         <View className="flex-row items-center gap-1.5">
-          <Text className="text-[13.5px] font-semibold text-gray-900 dark:text-darktext flex-shrink" numberOfLines={1}>
+          <Text className="text-[13.5px] font-semibold text-ink flex-shrink" numberOfLines={1}>
             {entry.username}
           </Text>
-          {isMe && <Text className="text-[11px] text-brand dark:text-brand-light font-semibold">(sen)</Text>}
+          {isMe && <Text className="text-[11px] text-accent font-semibold">(sen)</Text>}
         </View>
         {!!entry.badges?.length && (
           <View className="flex-row gap-[3px] mt-[3px]">
@@ -72,7 +77,7 @@ function LeaderboardRow({ entry, metric, isMe }: { entry: LeaderboardEntry; metr
           </View>
         )}
       </View>
-      <Text className="text-[13px] font-bold text-brand dark:text-brand-light">{metric}</Text>
+      <Text className="text-[13px] font-bold text-accent">{metric}</Text>
     </Pressable>
   );
 }
@@ -102,22 +107,18 @@ export default function LeaderboardScreen() {
   const meInTop = me && entries.some((e) => e.id === me.id);
 
   return (
-    <ScrollView className="flex-1 bg-gray-50 dark:bg-darkbgbutton" contentContainerClassName="p-4 pb-10">
-      <View className="flex-row items-center gap-2.5">
-        <Trophy size={22} color={isDark ? '#5A9690' : '#2F5755'} />
-        <Text className="text-2xl font-extrabold text-gray-900 dark:text-darktext">Liderlik Tablosu</Text>
-      </View>
-      <Text className="text-[12.5px] text-gray-500 dark:text-gray-400 mt-1.5 mb-3.5">Not paylaşan, seri yapan ve rozet kazanan öğrenciler.</Text>
-
+    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="p-4 pb-[110px]">
+      {/* Ekran içi "Liderlik Tablosu" başlığı ve alt yazısı kaldırıldı — üst
+          bar zaten sayfa adını yazıyor. */}
       <View className="flex-row gap-2 mb-3.5">
         {SORTS.map(({ key, label, icon: Icon }) => (
           <Pressable
             key={key}
-            className={`flex-row items-center gap-1.5 rounded-[10px] px-3 py-[9px] ${sort === key ? 'bg-brand' : 'bg-white dark:bg-darkbgbutton'}`}
+            className={`flex-row items-center gap-1.5 rounded-[10px] px-3 py-[9px] ${sort === key ? 'bg-brand' : 'bg-surface'}`}
             onPress={() => setSort(key)}
           >
             <Icon size={14} color={sort === key ? '#fff' : isDark ? '#9ca3af' : '#4b5563'} />
-            <Text className={`text-xs font-semibold ${sort === key ? 'text-white' : 'text-gray-600 dark:text-gray-300'}`}>{label}</Text>
+            <Text className={`text-xs font-semibold ${sort === key ? 'text-white' : 'text-muted'}`}>{label}</Text>
           </Pressable>
         ))}
       </View>
@@ -125,8 +126,8 @@ export default function LeaderboardScreen() {
       {loading ? (
         <ActivityIndicator style={{ marginTop: 30 }} size="large" color={isDark ? '#5A9690' : '#2F5755'} />
       ) : entries.length === 0 ? (
-        <View className="items-center py-10 bg-white dark:bg-darkbgbutton rounded-[14px]">
-          <Text className="text-gray-400 dark:text-gray-500 text-[13.5px] text-center px-6">Henüz kimse bu kategoride sıralamaya girmedi. İlk sen ol!</Text>
+        <View className="items-center py-10 bg-surface rounded-[14px]">
+          <Text className="text-muted2 text-[13.5px] text-center px-6">Henüz kimse bu kategoride sıralamaya girmedi. İlk sen ol!</Text>
         </View>
       ) : (
         <View className="gap-1.5">
@@ -139,9 +140,9 @@ export default function LeaderboardScreen() {
       {!loading && me && !meInTop && (
         <>
           <View className="flex-row items-center gap-2.5 my-3.5">
-            <View className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
-            <Text className="text-[11px] text-gray-400 dark:text-gray-500">senin sıran</Text>
-            <View className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+            <View className="flex-1 h-px bg-inset" />
+            <Text className="text-[11px] text-muted2">senin sıran</Text>
+            <View className="flex-1 h-px bg-inset" />
           </View>
           <LeaderboardRow entry={me} metric={activeSort.metric(me)} isMe />
         </>

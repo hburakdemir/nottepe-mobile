@@ -11,7 +11,6 @@ import {
   Moon,
   Sparkles,
   Sun,
-  UtensilsCrossed,
 } from 'lucide-react-native';
 import { menuAPI } from '../../lib/api';
 import { useTheme } from '../../context/ThemeContext';
@@ -83,16 +82,16 @@ function MealCard({ mealType, meal, isDark }: { mealType: string; meal?: Meal; i
   const totalCal = meal.items.reduce((sum, i) => sum + (i.calories || 0), 0);
 
   return (
-    <View className="bg-primary dark:bg-darkbgbutton rounded-[14px] p-3.5 border border-gray-100 dark:border-gray-700/40">
+    <View className="bg-surface rounded-[14px] p-3.5 border border-line-soft">
       <View className="flex-row items-center justify-between mb-2.5">
         <View className="flex-row items-center gap-2">
           <Icon size={17} color={isDark ? '#5A9690' : '#2F5755'} />
-          <Text className="text-sm font-bold text-gray-900 dark:text-darktext">{config.label}</Text>
+          <Text className="text-sm font-bold text-ink">{config.label}</Text>
         </View>
         {totalCal > 0 && (
           <View className="flex-row items-center gap-1">
             <Flame size={12} color="#ea580c" />
-            <Text className="text-[11px] text-orange-600 dark:text-orange-400 font-semibold">{totalCal} kcal</Text>
+            <Text className="text-[11px] text-warn font-semibold">{totalCal} kcal</Text>
           </View>
         )}
       </View>
@@ -100,10 +99,10 @@ function MealCard({ mealType, meal, isDark }: { mealType: string; meal?: Meal; i
         {sortItems(meal.items).map((item, idx) => (
           <View key={idx} className="flex-row items-center justify-between gap-2">
             <View className="flex-1">
-              {!!item.category && <Text className="text-[9.5px] text-gray-400 dark:text-gray-500 uppercase tracking-[0.3px]">{item.category}</Text>}
-              <Text className="text-[13px] text-gray-800 dark:text-darktext font-medium">{item.name}</Text>
+              {!!item.category && <Text className="text-[9.5px] text-muted2 uppercase tracking-[0.3px]">{item.category}</Text>}
+              <Text className="text-[13px] text-ink2 font-medium">{item.name}</Text>
             </View>
-            {!!item.calories && <Text className="text-[11px] text-gray-400 dark:text-gray-500">{item.calories} kcal</Text>}
+            {!!item.calories && <Text className="text-[11px] text-muted2">{item.calories} kcal</Text>}
           </View>
         ))}
       </View>
@@ -117,25 +116,23 @@ function MealPreviewCard({ mealType, meal, isDark }: { mealType: string; meal?: 
   const Icon = config.icon;
 
   return (
-    <View className="bg-primary dark:bg-darkbgbutton rounded-[14px] p-3.5 border border-gray-200 dark:border-gray-600 border-dashed mt-2.5">
+    <View className="bg-surface rounded-[14px] p-3.5 border border-line border-dashed mt-2.5">
       <View className="flex-row items-center justify-between mb-2.5">
         <View className="flex-row items-center gap-2">
           <Icon size={17} color={isDark ? '#5A9690' : '#2F5755'} />
-          <Text className="text-sm font-bold text-gray-900 dark:text-darktext">{config.label}</Text>
+          <Text className="text-sm font-bold text-ink">{config.label}</Text>
         </View>
         <View className="flex-row items-center gap-1">
           <Sparkles size={12} color={isDark ? '#6b7280' : '#9ca3af'} />
-          <Text className="text-[11px] text-gray-400 dark:text-gray-500">Önizleme</Text>
+          <Text className="text-[11px] text-muted2">Önizleme</Text>
         </View>
       </View>
       {meal.items.map((item, idx) => (
-        <Text key={idx} className="text-[12.5px] text-gray-500 dark:text-gray-400 mb-1">
+        <Text key={idx} className="text-[12.5px] text-muted mb-1">
           {item.name}
         </Text>
       ))}
-      <Text className="text-[10.5px] text-gray-400 dark:text-gray-500 mt-1">
-        beslenme.hacettepe.edu.tr'nin aylık görünümünden alınan kısaltılmış önizleme.
-      </Text>
+      <Text className="text-[10.5px] text-muted2 mt-1">beslenme.hacettepe.edu.tr'nin aylık görünümünden alınan kısaltılmış önizleme.</Text>
     </View>
   );
 }
@@ -217,40 +214,30 @@ export default function CafeteriaMenuScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-gray-50 dark:bg-darkbg" contentContainerClassName="p-4 pb-10">
-      <View className="flex-row items-center gap-2.5">
-        <UtensilsCrossed size={22} color={isDark ? '#5A9690' : '#2F5755'} />
-        <Text className="text-2xl font-extrabold text-gray-900 dark:text-darktext">Yemek Listesi</Text>
-      </View>
-      <Text className="text-[12.5px] text-gray-500 dark:text-gray-400 mt-1.5 mb-3.5 leading-[17px]">
-        Hacettepe yemekhanesi menüsü —{' '}
-        <Text className="text-brand dark:text-brand-light underline" onPress={() => Linking.openURL('https://beslenme.hacettepe.edu.tr/')}>
-          beslenme.hacettepe.edu.tr
-        </Text>{' '}
-        kaynağından alınır.
-      </Text>
-
+    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="p-4 pb-[110px]">
+      {/* Ekran içi "Yemek Listesi" başlığı ve kaynak alt yazısı kaldırıldı —
+          üst bar zaten sayfa adını yazıyor. */}
       <View className="flex-row gap-2 mb-3.5">
         <Pressable
-          className={`flex-row items-center gap-1.5 rounded-[10px] px-3.5 py-[9px] ${viewMode === 'week' ? 'bg-brand' : 'bg-primary dark:bg-darkbgbutton'}`}
+          className={`flex-row items-center gap-1.5 rounded-[10px] px-3.5 py-[9px] ${viewMode === 'week' ? 'bg-brand' : 'bg-surface'}`}
           onPress={() => setViewMode('week')}
         >
           <ListTree size={14} color={viewMode === 'week' ? '#fff' : isDark ? '#9ca3af' : '#4b5563'} />
-          <Text className={`text-[12.5px] font-semibold ${viewMode === 'week' ? 'text-white' : 'text-gray-600 dark:text-gray-300'}`}>Haftalık</Text>
+          <Text className={`text-[12.5px] font-semibold ${viewMode === 'week' ? 'text-white' : 'text-muted'}`}>Haftalık</Text>
         </Pressable>
         <Pressable
-          className={`flex-row items-center gap-1.5 rounded-[10px] px-3.5 py-[9px] ${viewMode === 'month' ? 'bg-brand' : 'bg-primary dark:bg-darkbgbutton'}`}
+          className={`flex-row items-center gap-1.5 rounded-[10px] px-3.5 py-[9px] ${viewMode === 'month' ? 'bg-brand' : 'bg-surface'}`}
           onPress={() => setViewMode('month')}
         >
           <CalendarDays size={14} color={viewMode === 'month' ? '#fff' : isDark ? '#9ca3af' : '#4b5563'} />
-          <Text className={`text-[12.5px] font-semibold ${viewMode === 'month' ? 'text-white' : 'text-gray-600 dark:text-gray-300'}`}>Aylık</Text>
+          <Text className={`text-[12.5px] font-semibold ${viewMode === 'month' ? 'text-white' : 'text-muted'}`}>Aylık</Text>
         </Pressable>
       </View>
 
       {viewMode === 'week' && (
         <>
           {days.length > 0 && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
+            <ScrollView showsVerticalScrollIndicator={false} horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 14 }}>
               <View className="flex-row gap-2">
                 {days.map((d, idx) => {
                   const { day, num } = formatDayLabel(d.date);
@@ -260,16 +247,14 @@ export default function CafeteriaMenuScreen() {
                     <Pressable
                       key={d.date}
                       className={`items-center rounded-xl px-4 py-2.5 min-w-[60px] border ${
-                        isSelected
-                          ? 'bg-brand border-brand'
-                          : !dayHasMenu
-                            ? 'bg-gray-100 dark:bg-gray-700/40 border-gray-100 dark:border-gray-700/40'
-                            : 'bg-primary dark:bg-darkbgbutton border-gray-200 dark:border-gray-600'
+                        isSelected ? 'bg-brand border-brand' : !dayHasMenu ? 'bg-inset border-line-soft' : 'bg-surface border-line'
                       }`}
                       onPress={() => setSelectedDate(d.date)}
                     >
-                      <Text className={`text-[11px] capitalize ${isSelected ? 'text-white' : 'text-gray-500 dark:text-gray-400'}`}>{idx === 0 ? 'Bugün' : day}</Text>
-                      <Text className={`text-base font-bold mt-0.5 ${isSelected ? 'text-white' : 'text-gray-900 dark:text-darktext'}`}>{num}</Text>
+                      <Text className={`text-[11px] capitalize ${isSelected ? 'text-white' : 'text-muted'}`}>
+                        {idx === 0 ? 'Bugün' : day}
+                      </Text>
+                      <Text className={`text-base font-bold mt-0.5 ${isSelected ? 'text-white' : 'text-ink'}`}>{num}</Text>
                     </Pressable>
                   );
                 })}
@@ -277,13 +262,15 @@ export default function CafeteriaMenuScreen() {
             </ScrollView>
           )}
 
-          {!!selectedDay && <Text className="text-[12.5px] text-gray-500 dark:text-gray-400 mb-3 capitalize">{formatDayLabel(selectedDay.date).full}</Text>}
+          {!!selectedDay && <Text className="text-[12.5px] text-muted mb-3 capitalize">{formatDayLabel(selectedDay.date).full}</Text>}
 
           {!hasMenu ? (
-            <View className="items-center py-10 gap-2 bg-primary dark:bg-darkbgbutton rounded-[14px]">
+            <View className="items-center py-10 gap-2 bg-surface rounded-[14px]">
               <CalendarX size={40} color={isDark ? '#4b5563' : '#d1d5db'} />
-              <Text className="text-sm text-gray-500 dark:text-gray-400">Bu gün için menü bulunamadı.</Text>
-              <Text className="text-[11.5px] text-gray-400 dark:text-gray-500 text-center px-5">Hafta sonu / resmi tatil olabilir ya da menü henüz yayınlanmamış olabilir.</Text>
+              <Text className="text-sm text-muted">Bu gün için menü bulunamadı.</Text>
+              <Text className="text-[11.5px] text-muted2 text-center px-5">
+                Hafta sonu / resmi tatil olabilir ya da menü henüz yayınlanmamış olabilir.
+              </Text>
             </View>
           ) : (
             <View className="gap-3">
@@ -301,7 +288,7 @@ export default function CafeteriaMenuScreen() {
             <Pressable onPress={() => goMonth(-1)} hitSlop={8}>
               <ChevronLeft size={20} color={isDark ? '#9ca3af' : '#6b7280'} />
             </Pressable>
-            <Text className="text-[13.5px] font-bold text-gray-700 dark:text-darktext capitalize">
+            <Text className="text-[13.5px] font-bold text-ink2 capitalize">
               {new Date(monthCursor.year, monthCursor.month - 1, 1).toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}
             </Text>
             <Pressable onPress={() => goMonth(1)} hitSlop={8}>
@@ -313,10 +300,10 @@ export default function CafeteriaMenuScreen() {
             <ActivityIndicator style={{ marginVertical: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
           ) : (
             <>
-              <View className="bg-primary dark:bg-darkbgbutton rounded-[14px] p-3 mb-3.5">
+              <View className="bg-surface rounded-[14px] p-3 mb-3.5">
                 <View className="flex-row mb-1.5">
                   {WEEKDAY_LABELS.map((w) => (
-                    <Text key={w} className="flex-1 text-center text-[10.5px] font-bold text-gray-400 dark:text-gray-500">
+                    <Text key={w} className="flex-1 text-center text-[10.5px] font-bold text-muted2">
                       {w}
                     </Text>
                   ))}
@@ -328,43 +315,62 @@ export default function CafeteriaMenuScreen() {
                     const status = dayStatus(day);
                     const isSelected = date === selectedMonthDate;
                     const isToday = date === todayStr;
+                    // Seçili günün rengi ESKİDEN doğrudan Pressable'ın kendisine
+                    // veriliyordu: dolgu hücrenin 2px'lik iç boşluğunu da
+                    // kapsıyor, gün rakamı ise altındaki menü noktası yüzünden
+                    // dikeyde merkezden yukarı kayıyordu — vurgu "tam ortalı
+                    // durmuyor" diye görünen şey buydu. Artık dolgu, hücrenin
+                    // iç boşluğundan sonra kalan KARE alanı kaplayan ayrı bir
+                    // katman; rakam onun tam merkezinde, nokta ise akıştan
+                    // çıkarılıp alta sabitlendi, yani rakamı hiç itmiyor.
                     return (
                       <Pressable
                         key={date}
                         style={{ width: `${100 / 7}%`, aspectRatio: 1, padding: 2 }}
-                        className={`items-center justify-center rounded-lg gap-0.5 ${isSelected ? 'bg-brand' : ''} ${isToday && !isSelected ? 'border border-brand' : ''}`}
                         onPress={() => setSelectedMonthDate(date)}
                       >
-                        <Text className={`text-[12.5px] ${isSelected ? 'text-white font-bold' : 'text-gray-700 dark:text-darktext'}`}>{parseInt(date.slice(8, 10), 10)}</Text>
-                        {status !== 'none' && (
-                          <View
-                            className="w-[5px] h-[5px] rounded-[2.5px]"
-                            style={{ backgroundColor: status === 'ok' ? (isSelected ? '#fff' : '#10b981') : isSelected ? 'rgba(255,255,255,0.7)' : '#fbbf24' }}
-                          />
-                        )}
+                        <View
+                          style={{ flex: 1 }}
+                          className={`items-center justify-center rounded-lg ${isSelected ? 'bg-brand' : ''} ${isToday && !isSelected ? 'border border-brand' : ''}`}
+                        >
+                          <Text className={`text-[12.5px] ${isSelected ? 'text-white font-bold' : 'text-ink2'}`}>
+                            {parseInt(date.slice(8, 10), 10)}
+                          </Text>
+                          {status !== 'none' && (
+                            <View
+                              className="w-[5px] h-[5px] rounded-[2.5px]"
+                              style={{
+                                position: 'absolute',
+                                bottom: 4,
+                                backgroundColor:
+                                  status === 'ok' ? (isSelected ? '#fff' : '#10b981') : isSelected ? 'rgba(255,255,255,0.7)' : '#fbbf24',
+                              }}
+                            />
+                          )}
+                        </View>
                       </Pressable>
                     );
                   })}
                 </View>
-                <View className="flex-row gap-4 mt-2.5 pt-2.5 border-t border-gray-100 dark:border-gray-700/40">
+                <View className="flex-row gap-4 mt-2.5 pt-2.5 border-t border-line-soft">
                   <View className="flex-row items-center gap-1.5">
                     <View className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#10b981' }} />
-                    <Text className="text-[11px] text-gray-600 dark:text-gray-400">Kesin menü</Text>
+                    <Text className="text-[11px] text-muted">Kesin menü</Text>
                   </View>
                   <View className="flex-row items-center gap-1.5">
                     <View className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#fbbf24' }} />
-                    <Text className="text-[11px] text-gray-600 dark:text-gray-400">Önizleme</Text>
+                    <Text className="text-[11px] text-muted">Önizleme</Text>
                   </View>
                 </View>
               </View>
 
               {!!selectedMonthDate && (
                 <>
-                  <Text className="text-[12.5px] text-gray-500 dark:text-gray-400 mb-3 capitalize">{formatDayLabel(selectedMonthDate).full}</Text>
+                  <Text className="text-[12.5px] text-muted mb-3 capitalize">{formatDayLabel(selectedMonthDate).full}</Text>
                   {dayStatus(selectedMonthDay) === 'none' ? (
-                    <View className="items-center py-10 gap-2 bg-primary dark:bg-darkbgbutton rounded-[14px]">
+                    <View className="items-center py-10 gap-2 bg-surface rounded-[14px]">
                       <CalendarX size={40} color={isDark ? '#4b5563' : '#d1d5db'} />
-                      <Text className="text-sm text-gray-500 dark:text-gray-400">Bu gün için menü bulunamadı.</Text>
+                      <Text className="text-sm text-muted">Bu gün için menü bulunamadı.</Text>
                     </View>
                   ) : (
                     <View className="gap-3">
@@ -382,6 +388,17 @@ export default function CafeteriaMenuScreen() {
           )}
         </>
       )}
+
+      {/* Kaynak atfı. Eskiden ekran başlığının alt yazısındaydı; başlık üst barla
+          çakıştığı için kaldırıldı ama atıf açıklama değil, veri kaynağı — bu
+          yüzden listenin altına taşındı. */}
+      <Text className="text-[11px] text-muted2 mt-5 text-center">
+        Menü{' '}
+        <Text className="text-accent underline" onPress={() => Linking.openURL('https://beslenme.hacettepe.edu.tr/')}>
+          beslenme.hacettepe.edu.tr
+        </Text>{' '}
+        kaynağından alınır.
+      </Text>
     </ScrollView>
   );
 }

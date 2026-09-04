@@ -16,7 +16,7 @@ export function buildPostAuthorAvatar(post: Post): AvatarData | null {
 
   return {
     config: (post.avatar_config as Partial<AvatarConfig> | null) ?? null,
-    photo_path: isStaffAuthor ? post.avatar_photo_path ?? null : null,
-    display_mode: isStaffAuthor ? post.avatar_display_mode ?? 'avatar' : 'avatar',
+    photo_path: isStaffAuthor ? (post.avatar_photo_path ?? null) : null,
+    display_mode: isStaffAuthor ? (post.avatar_display_mode ?? 'avatar') : 'avatar',
   };
 }

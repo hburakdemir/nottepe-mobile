@@ -102,26 +102,26 @@ export default function SuggestionDetailScreen() {
   if (!suggestion) {
     return (
       <View className="flex-1 items-center justify-center">
-        <Text className="text-gray-500 dark:text-gray-400 text-sm">Öneri bulunamadı.</Text>
+        <Text className="text-muted text-sm">Öneri bulunamadı.</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView className="flex-1 bg-gray-50 dark:bg-darkbg" contentContainerClassName="p-4 pb-10">
-      <View className="bg-white dark:bg-darkbgbutton rounded-2xl p-4 mb-3.5">
+    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="p-4 pb-[110px]">
+      <View className="bg-surface rounded-2xl p-4 mb-3.5">
         <View className="flex-row gap-2.5">
           <Lightbulb size={20} color={isDark ? '#5A9690' : '#2F5755'} style={{ marginTop: 2 }} />
-          <Text className="flex-1 text-[15.5px] text-gray-900 dark:text-darktext leading-[22px]">{suggestion.content}</Text>
+          <Text className="flex-1 text-[15.5px] text-ink leading-[22px]">{suggestion.content}</Text>
         </View>
         <Pressable onPress={() => goToUserProfile(suggestion.username)}>
-          <Text className="text-[11.5px] text-gray-400 dark:text-gray-500 mt-3.5">
-            <Text className="text-brand dark:text-brand-light font-semibold">{suggestion.full_name}</Text> tarafından {formatDate(suggestion.created_at)}
+          <Text className="text-[11.5px] text-muted2 mt-3.5">
+            <Text className="text-accent font-semibold">{suggestion.full_name}</Text> tarafından {formatDate(suggestion.created_at)}
           </Text>
         </Pressable>
       </View>
 
-      <View className="bg-white dark:bg-darkbgbutton rounded-2xl p-4 mb-3.5">
+      <View className="bg-surface rounded-2xl p-4 mb-3.5">
         <ForumCommentList
           comments={comments}
           loading={commentsLoading}

@@ -69,7 +69,7 @@ export default function RequestCard({ request, onFulfill, onSupport, onClose, on
   };
 
   return (
-    <View className="bg-primary dark:bg-darkbgbutton" style={styles.card}>
+    <View className="bg-surface" style={styles.card}>
       <View style={styles.chipRow}>
         <View style={[styles.badge, { backgroundColor: status.bg }]}>
           <Text style={[styles.badgeText, { color: status.text }]}>{status.label}</Text>
@@ -88,14 +88,18 @@ export default function RequestCard({ request, onFulfill, onSupport, onClose, on
         )}
       </View>
 
-      <Text className="text-gray-900 dark:text-darktext" style={styles.title}>{request.course_name}</Text>
+      <Text className="text-ink" style={styles.title}>
+        {request.course_name}
+      </Text>
       {!!request.description && (
-        <Text className="text-gray-800 dark:text-darktext" style={styles.description}>{request.description}</Text>
+        <Text className="text-ink2" style={styles.description}>
+          {request.description}
+        </Text>
       )}
 
       <View style={styles.metaRow}>
         <User size={12} color={metaIconColor} />
-        <Text className="text-gray-500 dark:text-gray-400" style={styles.metaText}>
+        <Text className="text-muted" style={styles.metaText}>
           {request.requester_full_name || request.requester_username || 'Bir öğrenci'} · {formatDate(request.created_at)}
         </Text>
       </View>
@@ -103,7 +107,7 @@ export default function RequestCard({ request, onFulfill, onSupport, onClose, on
       {request.status === 'fulfilled' && request.fulfilled_post_id && (
         <Pressable style={styles.fulfilledLink} onPress={() => navigation.navigate('PostDetail', { postId: request.fulfilled_post_id! })}>
           <ExternalLink size={15} color={brandIconColor} />
-          <Text className="text-brand dark:text-brand-light" style={styles.fulfilledLinkText} numberOfLines={1}>
+          <Text className="text-accent" style={styles.fulfilledLinkText} numberOfLines={1}>
             Karşılayan not: {request.fulfilled_post_title || 'Görüntüle'}
             {request.fulfiller_username ? ` (${request.fulfiller_username})` : ''}
           </Text>
@@ -117,18 +121,20 @@ export default function RequestCard({ request, onFulfill, onSupport, onClose, on
               <HeartHandshake size={14} color="#fff" />
               <Text style={styles.actionBtnPrimaryText}>Karşıla</Text>
             </Pressable>
-            <Pressable className="border-brand dark:border-brand-light" style={styles.actionBtnBrandOutline} onPress={handleUpload}>
+            <Pressable className="border-accent" style={styles.actionBtnBrandOutline} onPress={handleUpload}>
               <Upload size={15} color={brandIconColor} />
-              <Text className="text-brand dark:text-brand-light" style={styles.actionBtnBrandOutlineText}>Not Yükle</Text>
+              <Text className="text-accent" style={styles.actionBtnBrandOutlineText}>
+                Not Yükle
+              </Text>
             </Pressable>
             <Pressable
-              className={request.supported_by_me ? undefined : 'border-gray-200 dark:border-gray-600'}
+              className={request.supported_by_me ? undefined : 'border-line'}
               style={[styles.actionBtnOutline, request.supported_by_me && styles.actionBtnSupported]}
               onPress={() => onSupport(request)}
             >
               <ThumbsUp size={15} color={request.supported_by_me ? '#92400e' : mutedIconColor} />
               <Text
-                className={request.supported_by_me ? undefined : 'text-gray-700 dark:text-darktext'}
+                className={request.supported_by_me ? undefined : 'text-ink2'}
                 style={[styles.actionBtnOutlineText, request.supported_by_me && { color: '#92400e' }]}
               >
                 {request.supported_by_me ? 'İstiyorum ✓' : 'Ben de istiyorum'}
@@ -138,23 +144,29 @@ export default function RequestCard({ request, onFulfill, onSupport, onClose, on
         )}
 
         {isOwner && request.status === 'open' && (
-          <Pressable className="border-gray-200 dark:border-gray-600" style={styles.actionBtnOutline} onPress={() => onClose(request)}>
+          <Pressable className="border-line" style={styles.actionBtnOutline} onPress={() => onClose(request)}>
             <XCircle size={15} color={mutedIconColor} />
-            <Text className="text-gray-700 dark:text-darktext" style={styles.actionBtnOutlineText}>Kapat</Text>
+            <Text className="text-ink2" style={styles.actionBtnOutlineText}>
+              Kapat
+            </Text>
           </Pressable>
         )}
 
         {isOwner && request.status === 'fulfilled' && (
-          <Pressable className="border-brand dark:border-brand-light" style={styles.actionBtnBrandOutline} onPress={() => onReopen(request)}>
+          <Pressable className="border-accent" style={styles.actionBtnBrandOutline} onPress={() => onReopen(request)}>
             <RotateCcw size={15} color={brandIconColor} />
-            <Text className="text-brand dark:text-brand-light" style={styles.actionBtnBrandOutlineText}>Yeniden Aç</Text>
+            <Text className="text-accent" style={styles.actionBtnBrandOutlineText}>
+              Yeniden Aç
+            </Text>
           </Pressable>
         )}
 
         {(isOwner || isStaff) && (
           <Pressable style={styles.actionBtnDanger} onPress={() => onDelete(request)}>
             <Trash2 size={15} color={dangerIconColor} />
-            <Text className="text-red-500 dark:text-red-400" style={styles.actionBtnDangerText}>Sil</Text>
+            <Text className="text-danger" style={styles.actionBtnDangerText}>
+              Sil
+            </Text>
           </Pressable>
         )}
       </View>
@@ -180,7 +192,15 @@ const styles = StyleSheet.create({
   chipBrand: { backgroundColor: '#2F5755' },
   chipBrandLight: { backgroundColor: '#5A9690' },
   chipText: { color: '#fff', fontSize: 10.5, fontWeight: '600' },
-  supportBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#fef3c7', borderRadius: 100, paddingHorizontal: 9, paddingVertical: 3 },
+  supportBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#fef3c7',
+    borderRadius: 100,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+  },
   supportBadgeText: { fontSize: 10.5, fontWeight: '600', color: '#92400e' },
   title: { fontSize: 17, fontWeight: '600', marginBottom: 4 },
   description: { fontSize: 14, marginBottom: 12, lineHeight: 19 },
@@ -189,13 +209,46 @@ const styles = StyleSheet.create({
   fulfilledLink: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 },
   fulfilledLinkText: { fontSize: 14, fontWeight: '600', flexShrink: 1 },
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  actionBtnPrimary: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#2F5755', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 9 },
+  actionBtnPrimary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#2F5755',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
   actionBtnPrimaryText: { color: '#fff', fontSize: 13, fontWeight: '600' },
-  actionBtnOutline: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 9 },
+  actionBtnOutline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
   actionBtnOutlineText: { fontSize: 13, fontWeight: '600' },
-  actionBtnBrandOutline: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 9 },
+  actionBtnBrandOutline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
   actionBtnBrandOutlineText: { fontSize: 13, fontWeight: '600' },
   actionBtnSupported: { backgroundColor: '#fef3c7', borderColor: '#fcd34d' },
-  actionBtnDanger: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderColor: '#fca5a5', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 9 },
+  actionBtnDanger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
   actionBtnDangerText: { fontSize: 13, fontWeight: '600' },
 });
