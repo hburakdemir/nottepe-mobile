@@ -1,7 +1,8 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Award } from 'lucide-react-native';
 import { BADGE_ICONS } from '../constants/badgeIcons';
+import { getFileUrl } from '../lib/config';
 
 export interface Badge {
   id: number;
@@ -19,6 +20,15 @@ function hexToBg(color: string) {
 }
 
 function BadgeIcon({ badge, size = 16 }: { badge: Badge; size?: number }) {
+  if (badge.icon_type === 'upload' && badge.icon_value) {
+    return (
+      <Image
+        source={{ uri: getFileUrl(badge.icon_value) }}
+        style={{ width: size, height: size, borderRadius: size / 4 }}
+        resizeMode="cover"
+      />
+    );
+  }
   const Icon = (badge.icon_value && BADGE_ICONS[badge.icon_value]) || Award;
   return <Icon size={size} color={badge.icon_color || '#C59560'} />;
 }
@@ -29,21 +39,25 @@ export default function BadgeChip({ badge, compact = false }: { badge: Badge; co
   const borderColor = icon_color ? `${icon_color}66` : bg_color || '#2F575533';
   const textColor = icon_color || bg_color || '#2F5755';
 
+  const showDescription = () => {
+    Alert.alert(badge.name, badge.description?.trim() || 'Bu rozet için açıklama eklenmemiş.');
+  };
+
   if (compact) {
     return (
-      <View style={[styles.compactChip, { backgroundColor, borderColor }]}>
+      <Pressable onPress={showDescription} style={[styles.compactChip, { backgroundColor, borderColor }]}>
         <BadgeIcon badge={badge} size={13} />
-      </View>
+      </Pressable>
     );
   }
 
   return (
-    <View style={[styles.chip, { backgroundColor, borderColor }]}>
+    <Pressable onPress={showDescription} style={[styles.chip, { backgroundColor, borderColor }]}>
       <BadgeIcon badge={badge} size={15} />
       <Text style={[styles.chipText, { color: textColor }]} numberOfLines={1}>
         {badge.name}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 

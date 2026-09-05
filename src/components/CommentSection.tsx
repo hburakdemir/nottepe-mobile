@@ -297,7 +297,7 @@ export default function CommentSection({
   onRatingChange,
   onInputFocus,
 }: Props) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const t = useFeedTokens();
   const headerIconColor = t.ink;
 
@@ -320,7 +320,12 @@ export default function CommentSection({
         if (isAdmin) {
           const res = await adminCommentAPI.getByPost(postId);
           setComments(res.data.comments);
-          setTotal(res.data.comments.length);
+          // Admin ucu geri yükleme için silinmiş yorumları da döndürüyor —
+          // başlıktaki sayaç yalnızca AKTİF yorumları saymalı, yoksa akıştaki
+          // gerçek comment_count ile tutarsız görünür (bkz. handleDelete/
+          // handleRestore'daki +1/-1 — bu satır her fetchPage'de o düzeltmeyi
+          // eziyordu çünkü ham listenin uzunluğunu kullanıyordu).
+          setTotal(res.data.comments.filter((c: Comment) => !c.deleted_at).length);
           setTotalPages(1);
         } else {
           const res = await commentAPI.getByPost(postId, p);
@@ -375,8 +380,26 @@ export default function CommentSection({
       const res = await commentAPI.delete(commentId, deleteReason);
       if (isAdmin) {
         setComments((prev) =>
-          prev.map((c) => (c.id === commentId ? { ...c, deleted_at: new Date().toISOString(), delete_reason: deleteReason || null } : c))
+          prev.map((c) =>
+            c.id === commentId
+              ? {
+                  ...c,
+                  deleted_at: new Date().toISOString(),
+                  delete_reason: deleteReason || null,
+                  // Sunucu cevabı silen kullanıcıyı dönmüyor (bkz. "Silen: #null"
+                  // görünen hata) — bu, o anki (silme işlemini yapan) kullanıcı
+                  // olduğu için burada biliniyor, sunucu tazelenmeden ekleniyor.
+                  deleted_by: user?.id ?? c.deleted_by,
+                  deleted_by_username: user?.username ?? c.deleted_by_username,
+                }
+              : c
+          )
         );
+        // Admin görünümünde silinen yorum "geri yükle" için listede kalıyor,
+        // ama artık aktif değil — başlıktaki sayaç buna göre düşmeli
+        // (aksi hâlde "Yorumlar (N)" silinen yorumu da saymaya devam eder ve
+        // akıştaki gerçek comment_count ile tutarsız görünür).
+        setTotal((t) => Math.max(t - 1, 0));
       } else {
         const newTotal = Math.max(total - 1, 0);
         setTotal(newTotal);
@@ -393,6 +416,7 @@ export default function CommentSection({
     try {
       const res = await adminCommentAPI.restore(commentId);
       setComments((prev) => prev.map((c) => (c.id === commentId ? { ...c, deleted_at: null, delete_reason: null } : c)));
+      setTotal((t) => t + 1);
       if (res.data.ratingStats) onRatingChange(res.data.ratingStats);
     } catch {
       Alert.alert('Hata', 'Geri yüklenemedi.');

@@ -1,12 +1,13 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronDown, GraduationCap, HeartHandshake, Search, X } from 'lucide-react-native';
 import { noteRequestAPI, postsAPI } from '../../lib/api';
 import PostCard from '../../components/PostCard';
+import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useCardSurface, useFeedTokens } from '../../theme/feedTokens';
 import { faculties as ALL_FACULTIES, departments as DEPARTMENTS_BY_FACULTY } from '../../data/departments';
@@ -24,6 +25,7 @@ interface PostsPage {
 
 export default function HomeScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const { user } = useAuth();
   const { colors } = useTheme();
   // Kartlar kalktı, satırlar tek zemin üstünde ince çizgiyle ayrılıyor
   // (bkz. theme/feedTokens.ts + PostCardModern) — liste artık kenardan kenara.
@@ -94,6 +96,23 @@ export default function HomeScreen() {
     placeholderData: keepPreviousData,
   });
 
+  // Gönderi detayına girip yorum/oy ekleyip geri dönünce bu ekran YENİDEN
+  // MOUNT OLMUYOR (Tab.Navigator sekmeleri mount'lu tutuyor, bkz.
+  // MainTabsScreen.tsx) — react-query'nin önbelleği de kendiliğinden
+  // tazelenmiyor, bu yüzden yorum sayısı elle "aşağı çekip yenile" yapılana
+  // kadar bayat kalıyordu. Sekme her odaklandığında sessizce (placeholderData
+  // sayesinde spinner/flicker olmadan) yeniden çekiliyor.
+  const didFocusOnceRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!didFocusOnceRef.current) {
+        didFocusOnceRef.current = true;
+        return;
+      }
+      refetch();
+    }, [refetch])
+  );
+
   const posts = useMemo(() => data?.pages.flatMap((p) => p.posts) ?? [], [data]);
   const total = data?.pages[0]?.total ?? 0;
   const hasMore = posts.length < total;
@@ -136,7 +155,16 @@ export default function HomeScreen() {
         <Pressable
           className="flex-1 p-3.5 justify-between"
           style={[cardSurface, { borderRadius: 16, height: 124 }]}
-          onPress={() => setShowDeptFacultyPicker(true)}
+          onPress={() => {
+            // Kullanıcının kendi bölümü profilde ayarlıysa seçim adımlarını
+            // atlayıp doğrudan oraya götürüyoruz — fakülte/bölüm seçmek zaten
+            // kendi bölümünü aramaktan başka bir şey değil.
+            if (user?.faculty && user?.department) {
+              navigation.navigate('DepartmentDetail', { faculty: user.faculty, department: user.department });
+            } else {
+              setShowDeptFacultyPicker(true);
+            }
+          }}
         >
           <View className="w-[38px] h-[38px] rounded-[10px] bg-accent-soft items-center justify-center">
             <GraduationCap size={19} color={colors.accent} />
@@ -146,7 +174,7 @@ export default function HomeScreen() {
             {/* Sabit yükseklik: iki karenin açıklaması farklı satır sayısında
                 olsa da başlıkları aynı hizada kalıyor. */}
             <Text className="text-[11px] text-muted mt-0.5" numberOfLines={2} style={{ height: 30 }}>
-              {lastFaculty ? lastFaculty : 'Fakülteni seç, bölüm notlarına atla.'}
+              {user?.department ? user.department : lastFaculty ? lastFaculty : 'Fakülteni seç, bölüm notlarına atla.'}
             </Text>
           </View>
         </Pressable>

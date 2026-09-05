@@ -24,7 +24,7 @@ export function useUpdatePushPreferences() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: { push_enabled?: boolean; types?: Record<string, boolean> }) => {
+    mutationFn: async (payload: { push_enabled?: boolean; types?: Record<string, boolean>; cafeteria_notify_hour?: number }) => {
       const res = await userNotificationAPI.updatePushPreferences(payload);
       return res.data as PushPreferences;
     },

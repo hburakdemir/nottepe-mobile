@@ -13,6 +13,7 @@ import {
   FileUp,
   FlaskConical,
   GraduationCap,
+  Info,
   Layers,
   ListOrdered,
   Pencil,
@@ -500,14 +501,33 @@ export default function AktsCalculatorScreen() {
 
       {/* Üst bilgi kartları */}
       <View className="flex-row flex-wrap gap-2.5">
-        <StatCard icon={Layers} label="Toplam AKTS" value={baseTotals.totalAkts.toLocaleString('tr-TR')} isDark={isDark} />
-        <StatCard icon={CheckCircle2} label="Başarılı AKTS" value={baseTotals.passedAkts.toLocaleString('tr-TR')} isDark={isDark} />
-        <StatCard icon={XCircle} label="Başarısız AKTS" value={baseTotals.failedAkts.toLocaleString('tr-TR')} isDark={isDark} />
+        <StatCard
+          icon={Layers}
+          label="Toplam AKTS"
+          value={baseTotals.totalAkts.toLocaleString('tr-TR')}
+          isDark={isDark}
+          info="Bu hesaplamaya girdiğin derslerin AKTS toplamı — resmi transkriptindeki gerçek toplam AKTS'den farklı olabilir, çünkü sadece burada eklediğin dersleri sayar."
+        />
+        <StatCard
+          icon={CheckCircle2}
+          label="Başarılı AKTS"
+          value={baseTotals.passedAkts.toLocaleString('tr-TR')}
+          isDark={isDark}
+          info="Geçer bir notla tamamladığın derslerin AKTS toplamı."
+        />
+        <StatCard
+          icon={XCircle}
+          label="Başarısız AKTS"
+          value={baseTotals.failedAkts.toLocaleString('tr-TR')}
+          isDark={isDark}
+          info="Kaldığın (FF/FD gibi başarısız notlu) derslerin AKTS toplamı."
+        />
         <StatCard
           icon={Sigma}
           label="Toplam Kalite Puanı"
           value={baseTotals.qualityPoints.toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
           isDark={isDark}
+          info="Kredili her dersin AKTS × katsayı değerlerinin toplamı. GANO = Toplam Kalite Puanı ÷ Kredili AKTS."
         />
         <View className="w-[47.5%] bg-brand rounded-lg p-4" style={SHADOW_MD}>
           <View className="flex-row items-center gap-1.5 mb-1">
@@ -1294,14 +1314,37 @@ export default function AktsCalculatorScreen() {
   );
 }
 
-function StatCard({ icon: Icon, label, value, isDark }: { icon: any; label: string; value: string; isDark: boolean }) {
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  isDark,
+  info,
+}: {
+  icon: any;
+  label: string;
+  value: string;
+  isDark: boolean;
+  info?: string;
+}) {
   return (
     <View className="w-[47.5%] bg-surface rounded-lg p-4" style={SHADOW_MD}>
       <View className="flex-row items-center gap-1.5 mb-1">
         <Icon size={16} color={isDark ? '#5A9690' : '#2F5755'} />
-        <Text className="text-xs font-medium text-muted">{label}</Text>
+        <Text className="text-xs font-medium text-muted flex-1" numberOfLines={1}>
+          {label}
+        </Text>
       </View>
       <Text className="text-2xl font-extrabold text-ink">{value}</Text>
+      {!!info && (
+        <Pressable
+          onPress={() => Alert.alert(label, info)}
+          hitSlop={8}
+          className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full items-center justify-center bg-inset"
+        >
+          <Info size={12} color={isDark ? '#5A9690' : '#2F5755'} />
+        </Pressable>
+      )}
     </View>
   );
 }

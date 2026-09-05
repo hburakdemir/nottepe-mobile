@@ -1,4 +1,4 @@
-import { Bell, BookOpen, Megaphone, MessageSquare, type LucideIcon } from 'lucide-react-native';
+import { Bell, BookOpen, CheckCircle, HeartHandshake, Megaphone, MessageSquare, UtensilsCrossed, type LucideIcon } from 'lucide-react-native';
 import type { PushTypeDescriptor } from '../api';
 
 // Bu dosya bir FİLTRE DEĞİL, bir CİLA TABLOSU.
@@ -46,6 +46,27 @@ export const PUSH_TYPE_CATALOG: PushTypeCatalogEntry[] = [
     icon: Megaphone,
     group: 'announcement',
   },
+  {
+    key: 'post_approved',
+    label: 'Paylaştığım not onaylandığında',
+    description: 'Paylaştığın bir not onaylanıp yayına girdiğinde bildirim al.',
+    icon: CheckCircle,
+    group: 'activity',
+  },
+  {
+    key: 'request_fulfilled',
+    label: 'Not isteğim karşılandığında',
+    description: 'Açtığın bir not isteğine biri not paylaşırsa bildirim al.',
+    icon: HeartHandshake,
+    group: 'activity',
+  },
+  {
+    key: 'cafeteria_daily',
+    label: 'Günlük yemekhane menüsü',
+    description: 'Her gün seçtiğin saatte o günün yemekhane menüsünü bildirim olarak al.',
+    icon: UtensilsCrossed,
+    group: 'daily',
+  },
 ];
 
 // Grup başlıkları da cila: bilinmeyen bir grup anahtarı geldiğinde ham anahtar
@@ -53,6 +74,7 @@ export const PUSH_TYPE_CATALOG: PushTypeCatalogEntry[] = [
 export const PUSH_GROUP_LABELS: Record<string, string> = {
   activity: 'Aktivite',
   announcement: 'Duyurular',
+  daily: 'Günlük',
 };
 
 const CATALOG_BY_KEY = new Map(PUSH_TYPE_CATALOG.map((entry) => [entry.key, entry]));

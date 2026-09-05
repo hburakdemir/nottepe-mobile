@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -21,8 +21,8 @@ import {
   MessagesSquare,
   Palette,
   Trash2,
-  User as UserIcon,
 } from 'lucide-react-native';
+import DeerIcon from '../../components/icons/DeerIcon';
 import {
   aktsAPI,
   avatarAPI,
@@ -105,6 +105,60 @@ function formatDate(dateString: string): string {
 
 const postKey = (post: Post) => String(post.id ?? post.post_id);
 
+// `/saved-posts/getPost` bazı sürümlerde comment_count döndürmüyor — eksik
+// olanlar tekil gönderi ucundan (postsAPI.getById) tamamlanıyor. Bkz. aynı
+// deseni kullanan SavedPostsScreen.tsx.
+async function enrichMissingCommentCounts(posts: Post[]): Promise<Post[]> {
+  const missing = posts.filter((p) => typeof p.comment_count === 'undefined');
+  if (missing.length === 0) return posts;
+  const enrichedById = new Map<string, Post>();
+  await Promise.all(
+    missing.map(async (post) => {
+      const postId = post.id ?? post.post_id;
+      if (postId == null) return;
+      try {
+        const fullPost = await postsAPI.getById(postId);
+        enrichedById.set(String(postId), fullPost.data?.post ?? fullPost.data);
+      } catch {
+        /* eksik kalsın, sessizce geç */
+      }
+    })
+  );
+  return posts.map((post) => {
+    const key = postKey(post);
+    const enriched = enrichedById.get(key);
+    return enriched ? { ...post, ...enriched } : post;
+  });
+}
+
+// Taze çekilen (genelde yalnızca 1. sayfa) satırların GÜNCEL alanlarını
+// (yorum sayısı, puan vb.) eldeki listeye id eşleşmesiyle işler — sayfalama
+// durumunu (page/total) ya da "load more" ile eklenen sonraki satırları
+// bozmadan. Bkz. Postlar/Kayıtlı sekmelerindeki focus-tazeleme.
+function mergeFreshFields(prev: Post[], fresh: Post[]): Post[] {
+  if (fresh.length === 0) return prev;
+  const freshByKey = new Map(fresh.map((p) => [postKey(p), p]));
+  return prev.map((p) => {
+    const f = freshByKey.get(postKey(p));
+    return f ? { ...p, ...f } : p;
+  });
+}
+
+// `/posts/my-posts` ve `/saved-posts/getPost` `page` verilince zarfa
+// ({ posts, total }) girmesi gerekiyor, ama sunucu tarafı bu davranışı
+// desteklemeyen bir sürümdeyse (ör. henüz dağıtılmamış bir backend değişikliği)
+// `page` parametresini yok sayıp eski çıplak diziyi döndürmeye devam edebilir.
+// Bu durumda `data.posts` `undefined` olur ve liste sessizce boş görünürdü —
+// burada iki şekli de kabul ediyoruz.
+function extractPostsPage(data: unknown): { posts: Post[]; total: number | null } {
+  if (Array.isArray(data)) return { posts: data, total: null };
+  const envelope = data as { posts?: Post[]; total?: number } | null | undefined;
+  return {
+    posts: envelope?.posts || [],
+    total: typeof envelope?.total === 'number' ? envelope.total : null,
+  };
+}
+
 // Sayfalar arasında araya yeni bir gönderi girerse aynı satır iki sayfada
 // birden dönebiliyor; kopyalar burada eleniyor (React anahtarları eşsiz kalsın).
 function appendUniquePosts(prev: Post[], rows: Post[]): Post[] {
@@ -123,6 +177,10 @@ export default function ProfileScreen() {
 
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabKey>(route.params?.initialTab ?? 'posts');
+  // Sekmeler artık yatay kaydırmalı bir "pager" (bkz. render) — sekme
+  // butonuna basınca ya da kaydırma bitince ikisi birbirini senkron tutuyor.
+  const pagerRef = useRef<ScrollView>(null);
+  const { width: screenWidth } = useWindowDimensions();
 
   // Mount'ta çekilenler: yalnızca ilk açılan "Postlar" sekmesi ve profil
   // kartındaki rozetler.
@@ -175,28 +233,55 @@ export default function ProfileScreen() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  // Profil kalıcı mount'lu bir SEKME olduğu için buradaki her istek uygulama
-  // açılır açılmaz koşuyor. Bu yüzden mount'ta yalnızca ilk görünen sekmenin
-  // (Postlar) ve profil kartının ihtiyacı olan iki uç çağrılıyor; kalan beş uç
-  // aşağıdaki tembel yükleme effect'lerine taşındı.
+  // Sekme şeridindeki sayaçlar eskiden yalnızca o sekmeye ilk kez basıldığında
+  // doluyordu (tembel yükleme) — kullanıcı "tıklamadan sayılar gösterilmiyor"
+  // diye bildirdi. Postlar/rozetler dışındaki dört uç (checklist/AKTS/program/
+  // takip) kullanıcının KENDİ verisi — sayfalı büyük bir feed değil, tek
+  // seferde tam liste çekmek posts/saved'deki gibi bir backend yükü
+  // oluşturmuyor — bu yüzden hepsi artık mount'ta birlikte çekiliyor.
+  //
+  // "Kayıtlı" sayacı ESKİDEN SavedPostContext'in `/saved-posts/ids` sonucuna
+  // (global, uygulama açılışında BİR KEZ çekilen `savedPosts.length`)
+  // bakıyordu — kullanıcı "kayıtlı sekmesi 0 gösteriyor" diye bildirdi:
+  // context'in tek seferlik sonucu, aynı oturumda başka yerden değişen gerçek
+  // veriyle senkron kalmıyordu. Artık diğer sekmeler gibi burada kendi
+  // `/saved-posts/getPost` isteğiyle taze çekiliyor, context'e bağımlılık yok.
   const fetchCore = useCallback(async () => {
     setLoading(true);
     myPostsInFlight.current = true;
-    const [postsRes, badgesRes] = await Promise.allSettled([
+    const [postsRes, savedRes, badgesRes, checklistsRes, aktsRes, scheduleRes, followsRes] = await Promise.allSettled([
       postsAPI.getMyPosts({ page: 1, limit: POST_PAGE_LIMIT }),
+      savedPostsAPI.getSavedPosts({ page: 1, limit: POST_PAGE_LIMIT }),
       badgeAPI.getMine(),
+      checklistAPI.getMine(),
+      aktsAPI.getAll(),
+      scheduleAPI.getMine(),
+      departmentFollowAPI.getMine(),
     ]);
-    // Sayfalı çağrıda yanıt ZARFTA geliyor: `data.posts` / `data.total`.
-    const firstPage: Post[] = postsRes.status === 'fulfilled' ? postsRes.value.data.posts || [] : [];
+    const { posts: firstPage, total } = extractPostsPage(postsRes.status === 'fulfilled' ? postsRes.value.data : null);
     setMyPosts(firstPage);
     setMyPostsPage(1);
-    setMyPostsTotal(
-      postsRes.status === 'fulfilled' && typeof postsRes.value.data.total === 'number' ? postsRes.value.data.total : firstPage.length
-    );
+    setMyPostsTotal(total ?? firstPage.length);
+    const { posts: savedFirstPage, total: savedTotal } = extractPostsPage(savedRes.status === 'fulfilled' ? savedRes.value.data : null);
+    setSavedPostsData(savedFirstPage);
+    setSavedPostsPage(1);
+    setSavedPostsTotal(savedTotal ?? savedFirstPage.length);
+    // Context'in id kümesini de tazele — aksi hâlde bookmark ikonu bu sekmedeki
+    // (zaten kayıtlı olduğu bilinen) postlar için "dolu" görünmeyebiliyordu,
+    // çünkü PostCard'ın isSaved kontrolü context'in (uygulama açılışında bir
+    // kez çekilen) savedPosts listesine bakıyor.
+    fetchSavedPosts();
+    if (savedFirstPage.length > 0) {
+      enrichMissingCommentCounts(savedFirstPage).then(setSavedPostsData);
+    }
     setBadges(badgesRes.status === 'fulfilled' ? badgesRes.value.data.badges || [] : []);
+    setMyChecklists(checklistsRes.status === 'fulfilled' ? checklistsRes.value.data.checklists || [] : []);
+    setAktsCalcs(aktsRes.status === 'fulfilled' ? aktsRes.value.data.calculations || [] : []);
+    setMySchedule(scheduleRes.status === 'fulfilled' ? scheduleRes.value.data?.courses || [] : []);
+    setFollows(followsRes.status === 'fulfilled' ? followsRes.value.data.follows || [] : []);
     myPostsInFlight.current = false;
     setLoading(false);
-  }, []);
+  }, [fetchSavedPosts]);
 
   useEffect(() => {
     fetchCore();
@@ -208,8 +293,11 @@ export default function ProfileScreen() {
   // basıldığında da doğru sekmeyi açsın diye parametre değiştikçe uygulanıyor.
   const initialTabParam = route.params?.initialTab;
   useEffect(() => {
-    if (initialTabParam) setActiveTab(initialTabParam);
-  }, [initialTabParam]);
+    if (!initialTabParam) return;
+    setActiveTab(initialTabParam);
+    const idx = TABS.findIndex((t) => t.key === initialTabParam);
+    if (idx >= 0) pagerRef.current?.scrollTo({ x: idx * screenWidth, animated: false });
+  }, [initialTabParam, screenWidth]);
 
   // --- Sekme başına tembel yükleme ---------------------------------------
   // Hepsi aynı deseni izliyor: sentinel `null` ise sekme henüz açılmamış
@@ -222,23 +310,70 @@ export default function ProfileScreen() {
     savedPostsInFlight.current = true;
     try {
       const res = await savedPostsAPI.getSavedPosts({ page: 1, limit: POST_PAGE_LIMIT });
-      // Sayfalı çağrıda yanıt zarfta: `data.posts` (çıplak dizi DEĞİL).
-      const rows: Post[] = res.data.posts || [];
+      const { posts: rows, total } = extractPostsPage(res.data);
       setSavedPostsData(rows);
       setSavedPostsPage(1);
-      setSavedPostsTotal(typeof res.data.total === 'number' ? res.data.total : rows.length);
+      setSavedPostsTotal(total ?? rows.length);
+      // Bkz. fetchCore'daki not: bookmark ikonu context'in savedPosts id
+      // kümesine bakıyor, bu yüzden bu ekranın kendi verisiyle birlikte tazelenmeli.
+      fetchSavedPosts();
+      if (rows.length > 0) {
+        enrichMissingCommentCounts(rows).then(setSavedPostsData);
+      }
     } catch {
       setSavedPostsData([]);
       setSavedPostsTotal(0);
     } finally {
       savedPostsInFlight.current = false;
     }
-  }, []);
+  }, [fetchSavedPosts]);
 
   useEffect(() => {
     if (activeTab !== 'saved' || savedPostsData !== null) return;
     fetchSavedFirstPage();
   }, [activeTab, savedPostsData, fetchSavedFirstPage]);
+
+  // Profil, Home gibi kalıcı mount'lu bir SEKME (bkz. MainTabsScreen.tsx) —
+  // bir gönderiye girip yorum ekleyip geri dönmek bu ekranı yeniden mount
+  // ETMİYOR, dolayısıyla `myPosts`/`savedPostsData` içindeki yorum sayısı
+  // sunucudan tazelenmeden bayat kalıyordu (kullanıcı bildirdi). Sekme her
+  // odaklandığında aktif sekmenin 1. sayfası sessizce çekilip id eşleşmesiyle
+  // eldeki listeye işleniyor — sayfalama/scroll konumu bozulmuyor.
+  //
+  // ÖNEMLİ: useCallback bağımlılığı SADECE `activeTab` (bir primitive) —
+  // `myPosts`/`savedPostsData` deps'e girseydi, bu efektin kendi setState'i
+  // yeni bir dizi referansı üretip callback'i yeniden kurar, bu da
+  // useFocusEffect'i odaktayken tekrar tetikler, o da tekrar setState çağırır:
+  // sonsuz döngü (bkz. SavedPostContext.fetchSavedPosts'ta yaşanan aynı hata).
+  const didProfileFocusOnceRef = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!didProfileFocusOnceRef.current) {
+        didProfileFocusOnceRef.current = true;
+        return;
+      }
+      let cancelled = false;
+      (async () => {
+        try {
+          if (activeTab === 'posts') {
+            const res = await postsAPI.getMyPosts({ page: 1, limit: POST_PAGE_LIMIT });
+            const { posts: fresh } = extractPostsPage(res.data);
+            if (!cancelled) setMyPosts((prev) => mergeFreshFields(prev, fresh));
+          } else if (activeTab === 'saved') {
+            const res = await savedPostsAPI.getSavedPosts({ page: 1, limit: POST_PAGE_LIMIT });
+            const { posts: fresh } = extractPostsPage(res.data);
+            const enrichedFresh = await enrichMissingCommentCounts(fresh);
+            if (!cancelled) setSavedPostsData((prev) => (prev ? mergeFreshFields(prev, enrichedFresh) : prev));
+          }
+        } catch {
+          /* sessiz geç: kullanıcı zaten mevcut (bayat da olsa) veriyi görüyor */
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [activeTab])
+  );
 
   // --- Sonraki sayfalar ---------------------------------------------------
   // Durdurma koşulları: uçuşta istek var, toplam sayıya ulaşıldı ya da sunucu
@@ -253,14 +388,22 @@ export default function ProfileScreen() {
     const nextPage = myPostsPage + 1;
     try {
       const res = await postsAPI.getMyPosts({ page: nextPage, limit: POST_PAGE_LIMIT });
-      const rows: Post[] = res.data.posts || [];
+      const { posts: rows, total } = extractPostsPage(res.data);
       if (rows.length === 0) {
         // Sunucu boş sayfa verdi: eldeki kadarını toplam sayıp döngüyü kapatıyoruz.
         setMyPostsTotal(myPosts.length);
       } else {
-        setMyPosts((prev) => appendUniquePosts(prev, rows));
+        setMyPosts((prev) => {
+          const next = appendUniquePosts(prev, rows);
+          // `total` bilinmiyorsa (sunucu sayfalamayı yok sayıp AYNI tam listeyi
+          // döndürüyorsa) ve eklenen satır sayısı 0 ise, gerçekte yeni bir
+          // sayfa yok demektir — sonsuz "sonraki sayfa" isteğine girmemek için
+          // döngüyü burada kapatıyoruz.
+          if (total === null && next.length === prev.length) setMyPostsTotal(prev.length);
+          return next;
+        });
         setMyPostsPage(nextPage);
-        if (typeof res.data.total === 'number') setMyPostsTotal(res.data.total);
+        if (total !== null) setMyPostsTotal(total);
       }
     } catch {
       // Sessiz geç: satırlar duruyor, kaydırma tekrar denetiyor.
@@ -278,13 +421,26 @@ export default function ProfileScreen() {
     const nextPage = savedPostsPage + 1;
     try {
       const res = await savedPostsAPI.getSavedPosts({ page: nextPage, limit: POST_PAGE_LIMIT });
-      const rows: Post[] = res.data.posts || [];
+      const { posts: rows, total } = extractPostsPage(res.data);
       if (rows.length === 0) {
         setSavedPostsTotal(savedPostsData.length);
       } else {
-        setSavedPostsData((prev) => (prev ? appendUniquePosts(prev, rows) : rows));
+        setSavedPostsData((prev) => {
+          const base = prev ?? [];
+          const next = appendUniquePosts(base, rows);
+          if (total === null && next.length === base.length) setSavedPostsTotal(base.length);
+          return next;
+        });
         setSavedPostsPage(nextPage);
-        if (typeof res.data.total === 'number') setSavedPostsTotal(res.data.total);
+        if (total !== null) setSavedPostsTotal(total);
+        enrichMissingCommentCounts(rows).then((enrichedRows) => {
+          if (enrichedRows === rows) return;
+          setSavedPostsData((prev) => {
+            if (!prev) return prev;
+            const byKey = new Map(enrichedRows.map((p) => [postKey(p), p]));
+            return prev.map((p) => byKey.get(postKey(p)) ?? p);
+          });
+        });
       }
     } catch {
       // Bkz. loadMoreMyPosts.
@@ -308,6 +464,29 @@ export default function ProfileScreen() {
       else loadMoreSavedPosts();
     },
     [activeTab, loadMoreMyPosts, loadMoreSavedPosts]
+  );
+
+  // Pager'ı sürüklerken (bırakmadan önce) sekme şeridinin de anlık takip
+  // etmesi için — orta noktayı geçer geçmez `activeTab` güncelleniyor, sadece
+  // bırakınca değil. Bu sayede aktif sekmenin içeriği de (bkz. render, her
+  // sayfa kendi `activeTab === key` koşuluyla basılıyor) tam kaydırma
+  // sırasında boş kalmıyor.
+  const handlePagerScroll = useCallback(
+    ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (screenWidth <= 0) return;
+      const idx = Math.round(nativeEvent.contentOffset.x / screenWidth);
+      const key = TABS[idx]?.key;
+      if (key && key !== activeTab) setActiveTab(key);
+    },
+    [screenWidth, activeTab]
+  );
+
+  const handleTabPress = useCallback(
+    (index: number) => {
+      setActiveTab(TABS[index].key);
+      pagerRef.current?.scrollTo({ x: index * screenWidth, animated: true });
+    },
+    [screenWidth]
   );
 
   useEffect(() => {
@@ -482,17 +661,12 @@ export default function ProfileScreen() {
 
   return (
     <View className="flex-1 bg-ground">
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-      >
+      <View>
         <View className="bg-surface p-4 m-4 mb-5 rounded-lg" style={SHADOW_MD}>
           <View className="flex-row gap-3.5">
             <View className="w-20 h-20">
               <View className="w-20 h-20 rounded-[20px] bg-brand items-center justify-center overflow-hidden">
-                {avatar ? <AvatarDisplay avatar={avatar} size={80} /> : <UserIcon size={32} color="#fff" />}
+                {avatar ? <AvatarDisplay avatar={avatar} size={80} /> : <DeerIcon size={32} color="#fff" />}
               </View>
               <Pressable
                 className="absolute -bottom-[3px] -right-[3px] w-[22px] h-[22px] rounded-[11px] bg-indigo-600 items-center justify-center"
@@ -550,7 +724,7 @@ export default function ProfileScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerClassName="px-3"
           >
-            {TABS.map(({ key, label, icon: Icon }) => {
+            {TABS.map(({ key, label, icon: Icon }, index) => {
               // Tembel yüklenen sekmelerde sayaç ancak veri geldiğinde
               // gösteriliyor; aksi hâlde açılışta hepsi yanıltıcı "(0)"
               // görünürdü. ("Kayıtlı" sayacı SavedPostContext'ten geldiği için
@@ -576,7 +750,7 @@ export default function ProfileScreen() {
                 <Pressable
                   key={key}
                   className={`flex-row items-center gap-[5px] py-3 mr-[18px] border-b-2 ${active ? 'border-b-brand' : 'border-b-transparent'}`}
-                  onPress={() => setActiveTab(key)}
+                  onPress={() => handleTabPress(index)}
                 >
                   <Icon size={14} color={active ? (isDark ? '#5A9690' : '#2F5755') : '#9ca3af'} />
                   <Text className={`text-[12.5px] font-semibold ${active ? 'text-accent' : 'text-muted2'}`}>
@@ -588,8 +762,25 @@ export default function ProfileScreen() {
             })}
           </ScrollView>
         </View>
+      </View>
 
-        <View className={POST_TABS.has(activeTab) ? '' : 'px-4 gap-2.5'}>
+      <ScrollView
+        ref={pagerRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onScroll={handlePagerScroll}
+        scrollEventThrottle={32}
+        contentOffset={{ x: TABS.findIndex((t) => t.key === activeTab) * screenWidth, y: 0 }}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          style={{ width: screenWidth }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+        >
           {activeTab === 'posts' &&
             (myPosts.length === 0 ? (
               <EmptyState icon={FileText} text="Henüz not paylaşmadınız." />
@@ -601,7 +792,15 @@ export default function ProfileScreen() {
                 {myPostsLoadingMore && <TabLoading />}
               </>
             ))}
+        </ScrollView>
 
+        <ScrollView
+          style={{ width: screenWidth }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+        >
           {activeTab === 'saved' &&
             (savedPostsData === null ? (
               <TabLoading />
@@ -613,6 +812,8 @@ export default function ProfileScreen() {
                   <PostCard
                     key={postKey(post)}
                     post={post}
+                    showStatus
+                    showRating={true}
                     onDelete={() => {
                       fetchSavedPosts();
                       setSavedPostsData((prev) => (prev ? prev.filter((p) => p.id !== post.id) : prev));
@@ -623,7 +824,14 @@ export default function ProfileScreen() {
                 {savedPostsLoadingMore && <TabLoading />}
               </>
             ))}
+        </ScrollView>
 
+        <ScrollView
+          style={{ width: screenWidth }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}
+          contentContainerClassName="px-4 gap-2.5"
+        >
           {activeTab === 'lists' &&
             (myChecklists === null ? (
               <TabLoading />
@@ -648,7 +856,14 @@ export default function ProfileScreen() {
                 />
               ))
             ))}
+        </ScrollView>
 
+        <ScrollView
+          style={{ width: screenWidth }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}
+          contentContainerClassName="px-4 gap-2.5"
+        >
           {activeTab === 'akts' &&
             (aktsCalcs === null ? (
               <TabLoading />
@@ -690,7 +905,14 @@ export default function ProfileScreen() {
                 );
               })
             ))}
+        </ScrollView>
 
+        <ScrollView
+          style={{ width: screenWidth }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}
+          contentContainerClassName="px-4 gap-2.5"
+        >
           {activeTab === 'schedule' &&
             (mySchedule === null ? (
               <TabLoading />
@@ -735,7 +957,14 @@ export default function ProfileScreen() {
                 })}
               </View>
             ))}
+        </ScrollView>
 
+        <ScrollView
+          style={{ width: screenWidth }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}
+          contentContainerClassName="px-4 gap-2.5"
+        >
           {activeTab === 'follows' &&
             (follows === null ? (
               <TabLoading />
@@ -772,7 +1001,14 @@ export default function ProfileScreen() {
                 </View>
               ))
             ))}
+        </ScrollView>
 
+        <ScrollView
+          style={{ width: screenWidth }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}
+          contentContainerClassName="px-4 gap-2.5"
+        >
           {activeTab === 'forums' &&
             (forumLoading || forumItems === null ? (
               <TabLoading />
@@ -807,7 +1043,7 @@ export default function ProfileScreen() {
                 </Pressable>
               ))
             ))}
-        </View>
+        </ScrollView>
       </ScrollView>
 
       {statsChecklist && <ChecklistStatsModal checklist={statsChecklist} onClose={() => setStatsChecklist(null)} />}

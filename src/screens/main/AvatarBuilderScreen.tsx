@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Rect as SvgRect } from 'react-native-svg';
 import { Check, Dice5, ShieldOff } from 'lucide-react-native';
 import { avatarAPI } from '../../lib/api';
@@ -134,7 +135,7 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
   const skin = SKIN_COLORS[cfg.skin] || SKIN_COLORS[0];
 
   return (
-    <View className="flex-1 bg-surface">
+    <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-surface">
       <View className="items-center py-4 border-b border-line-soft">
         <View className="w-[150px] h-[150px] rounded-[30px] overflow-hidden border-[3px] border-beige">
           <AvatarSVG config={cfg} size={140} />
@@ -304,6 +305,6 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
       <Pressable className="items-center py-3.5 border-t border-line-soft" onPress={onClose}>
         <Text className="text-sm font-bold text-ink2">Kapat</Text>
       </Pressable>
-    </View>
+    </SafeAreaView>
   );
 }

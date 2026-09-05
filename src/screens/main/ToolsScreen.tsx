@@ -34,10 +34,10 @@ const SHADOW_MD = {
 // rounded-xl+shadow-md) hub sayfasınınkiyle birebir aynı.
 const TOOLS = [
   {
-    key: 'AktsCalculator' as const,
-    icon: Calculator,
-    title: 'AKTS / GANO Hesaplama',
-    desc: "Derslerini gir veya Excel'den aktar; GANO'nu, dönem ortalamalarını, not senaryolarını ve hedef GANO planını hesapla.",
+    key: 'Ego130Schedule' as const,
+    icon: Bus,
+    title: '130 Ring Saatleri',
+    desc: 'Beytepe Metro İstasyonu - Hacettepe Beytepe Kampüsü ring hattının sefer saatleri, internetsizken de çalışır.',
   },
   {
     key: 'CafeteriaMenu' as const,
@@ -46,28 +46,10 @@ const TOOLS = [
     desc: 'Hacettepe yemekhanesinin günlük ve haftalık menüsü — kaloriler ve alerjen bilgileriyle birlikte.',
   },
   {
-    key: 'Checklists' as const,
-    icon: ListChecks,
-    title: 'Checklistler',
-    desc: 'Kayıt dönemi, mezuniyet ve daha fazlası için hazırlanmış checklistler. İşaretlediklerin hesabında saklanır.',
-  },
-  {
     key: 'Schedule' as const,
     icon: CalendarDays,
-    title: 'Ders Programı',
+    title: 'Ders Programım',
     desc: 'Haftalık ders programını oluştur; çakışmaları anında gör.',
-  },
-  {
-    key: 'Ego130Schedule' as const,
-    icon: Bus,
-    title: '130 Ring Saatleri',
-    desc: 'Beytepe Metro İstasyonu - Hacettepe Beytepe Kampüsü ring hattının sefer saatleri, internetsizken de çalışır.',
-  },
-  {
-    key: 'NoteRequests' as const,
-    icon: HeartHandshake,
-    title: 'Not İstekleri',
-    desc: 'Aradığın notu bulamadın mı? İstek aç — elinde olan karşılasın. İsteği karşılayanlar rozet kazanır.',
   },
   {
     key: 'Leaderboard' as const,
@@ -75,6 +57,25 @@ const TOOLS = [
     title: 'Liderlik Tablosu',
     desc: 'En yüksek seriye, en çok onaylı nota ve en çok rozete sahip öğrenciler kimler — sıralamada yerini gör.',
   },
+  {
+    key: 'AktsCalculator' as const,
+    icon: Calculator,
+    title: 'AKTS / GANO Hesaplama',
+    desc: "Derslerini gir veya Excel'den aktar; GANO'nu, dönem ortalamalarını, not senaryolarını ve hedef GANO planını hesapla.",
+  },
+  {
+    key: 'Checklists' as const,
+    icon: ListChecks,
+    title: 'Checklistler',
+    desc: 'Kayıt dönemi, mezuniyet ve daha fazlası için hazırlanmış checklistler. İşaretlediklerin hesabında saklanır.',
+  },
+  {
+    key: 'NoteRequests' as const,
+    icon: HeartHandshake,
+    title: 'Not İstekleri',
+    desc: 'Aradığın notu bulamadın mı? İstek aç — elinde olan karşılasın. İsteği karşılayanlar rozet kazanır.',
+  },
+  
   {
     key: 'Faq' as const,
     icon: HelpCircle,

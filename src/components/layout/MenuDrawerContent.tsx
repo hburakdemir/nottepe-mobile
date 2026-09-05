@@ -30,7 +30,7 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme, type ThemePreference } from '../../context/ThemeContext';
-import { departmentFollowAPI, statsAPI } from '../../lib/api';
+import { departmentFollowAPI, postsAPI, savedPostsAPI, notificationAPI } from '../../lib/api';
 import { useMyAvatar } from '../../hooks/useMyAvatar';
 import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
 import AvatarDisplay from '../avatar/AvatarDisplay';
@@ -269,13 +269,33 @@ const THEME_OPTIONS: { key: ThemePreference; label: string }[] = [
 
 // Uygulamadaki her "listeden seç" arayüzü gibi ortak OptionSheet'ten geliyor
 // (bkz. components/layout/OptionSheet.tsx) — burada eskiden kendi kopyası vardı.
+//
+// Tema değişimi 30sn'de bire kilitli (bkz. ThemeContext.tsx). Eskiden kilit
+// süresince her tıklamada AYNI Alert tekrar tekrar açılıyordu — kullanıcı
+// bunu "geri sayım yapmıyor, sadece tıklayınca tekrar açılıyor" diye tarif
+// etti. Artık kilitliyken diğer seçenekler soluk/devre dışı, başlığın altında
+// GERÇEKTEN saniyede bir azalan bir not var (`setInterval` + `Date.now()`,
+// panel açıkken çalışır).
 function ThemePickerModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const { themePreference, setThemePreference } = useTheme();
+  const { themePreference, setThemePreference, themeChangeLockedUntil } = useTheme();
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!visible) return;
+    setNow(Date.now());
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [visible]);
+
+  const remainingSec = Math.max(0, Math.ceil((themeChangeLockedUntil - now) / 1000));
+  const locked = remainingSec > 0;
 
   return (
     <OptionSheet
       visible={visible}
       title="Temayı Ayarla"
+      note={locked ? `Tekrar değiştirmek için ${remainingSec} saniye bekle.` : undefined}
+      disabledValues={locked ? THEME_OPTIONS.filter((o) => o.key !== themePreference).map((o) => o.key) : undefined}
       options={THEME_OPTIONS.map((o) => ({ value: o.key, label: o.label }))}
       value={themePreference}
       searchable={false}
@@ -329,30 +349,22 @@ export default function MenuDrawerContent({ navigation }: DrawerContentComponent
   const [savedPostsCount, setSavedPostsCount] = useState(0);
 
   // Drawer içeriği artık kalıcı mount'lu (her açılışta unmount/remount olmuyor)
-  // — bu yüzden bu fetch `isOpen`'a bağlı: her açılışta tazeleniyor, eski
+  // — bu yüzden bu fetch'ler `isOpen`'a bağlı: her açılışta tazeleniyor, eski
   // (her seferinde taze mount olan) davranışla aynı garanti korunuyor.
-  //
-  // Eskiden burada ÜÇ ayrı istek vardı (duyurular + notlarım + kaydettiklerim)
-  // ve üçünde de tam liste indirilip yalnızca `.length` okunuyordu. Artık tek
-  // `GET /stats/me` bu sayıları hazır döndürüyor. X'in "Takip edilen/Takipçiler"
-  // istatistik satırının karşılığı — bizde sosyal takip yok, o yüzden kendi post
-  // sayılarımızı aynı kalın-sayı + gri-etiket biçiminde gösteriyoruz.
-  // `unreadPersonal` alanı bilinçli olarak kullanılmıyor: kişisel rozet üst
-  // bardaki zille paylaşılan useUnreadNotifications() hook'undan geliyor.
   useEffect(() => {
     if (!isOpen) return;
-    statsAPI
-      .getMine()
-      .then((res) => {
-        setBroadcastUnread(res.data?.unreadBroadcast || 0);
-        setMyPostsCount(res.data?.posts || 0);
-        setSavedPostsCount(res.data?.saved || 0);
-      })
-      .catch(() => {
-        setBroadcastUnread(0);
-        setMyPostsCount(0);
-        setSavedPostsCount(0);
-      });
+    notificationAPI
+      .getActive()
+      .then((res) => setBroadcastUnread(res.data?.length || 0))
+      .catch(() => setBroadcastUnread(0));
+    postsAPI
+      .getMyPosts()
+      .then((res) => setMyPostsCount(res.data?.length || 0))
+      .catch(() => setMyPostsCount(0));
+    savedPostsAPI
+      .getSavedPosts()
+      .then((res) => setSavedPostsCount(res.data?.length || 0))
+      .catch(() => setSavedPostsCount(0));
   }, [isOpen]);
 
   const close = () => navigation.closeDrawer();

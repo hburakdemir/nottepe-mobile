@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { savedPostsAPI } from '../lib/api';
 import { useAuth } from './AuthContext';
 
@@ -24,7 +24,13 @@ export const SavedPostsProvider = ({ children }: { children: React.ReactNode }) 
   const [savedPosts, setSavedPosts] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchSavedPosts = async () => {
+  // useCallback ile sabitlenmiş referanslar: bu fonksiyonlar başka ekranlarda
+  // (bkz. ProfileScreen.tsx) useCallback/useEffect bağımlılığı olarak
+  // kullanılıyor. Sabitlenmemiş bir fonksiyon her render'da yeni referans
+  // üretir → ona bağımlı efekt her render'da yeniden tetiklenir → o efekt
+  // context state'ini güncelleyip yeniden render'a yol açarsa sonsuz döngü
+  // oluşur (yaşandı: profil sayfası sonsuz spinner'da takıldı).
+  const fetchSavedPosts = useCallback(async () => {
     if (!isAuthenticated) {
       setSavedPosts([]);
       setLoading(false);
@@ -32,34 +38,38 @@ export const SavedPostsProvider = ({ children }: { children: React.ReactNode }) 
     }
     setLoading(true);
     try {
-      // Sadece id kümesi gerektiği için tam not listesi yerine id-only uç
-      // (`GET /saved-posts/ids`) çağrılıyor — cevap çıplak bir string dizisi,
-      // o yüzden eski `p._id || p.id || ...` alan tahmini map'i gereksiz.
-      // Yine de sunucu sayı döndürürse küme eşleşmesin diye String()'liyoruz.
-      const res = await savedPostsAPI.getSavedPostIds();
-      setSavedPosts(Array.isArray(res.data) ? res.data.map((id: any) => String(id)) : []);
+      // `GET /saved-posts/ids` sunucuda mevcut değil (404 dönüyor — bkz. commit
+      // notu), bu yüzden id kümesi tam not listesinden (`/saved-posts/getPost`,
+      // sayfasız çağrıda çıplak dizi) çıkarılıyor. Sunucu sayı döndürürse küme
+      // eşleşmesin diye String()'liyoruz.
+      const res = await savedPostsAPI.getSavedPosts();
+      const rows = Array.isArray(res.data) ? res.data : (res.data?.posts ?? []);
+      setSavedPosts(rows.map((p: any) => String(p.id ?? p.post_id)));
     } catch {
       setSavedPosts([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAuthenticated]);
 
-  const toggleSavePost = async (postId: string | number) => {
-    if (!isAuthenticated) return;
-    const id = String(postId);
-    try {
-      if (savedPosts.includes(id)) {
-        await savedPostsAPI.unsavePost(id);
-        setSavedPosts((prev) => prev.filter((pid) => pid !== id));
-      } else {
-        await savedPostsAPI.savePost(id);
-        setSavedPosts((prev) => [...prev, id]);
+  const toggleSavePost = useCallback(
+    async (postId: string | number) => {
+      if (!isAuthenticated) return;
+      const id = String(postId);
+      try {
+        if (savedPosts.includes(id)) {
+          await savedPostsAPI.unsavePost(id);
+          setSavedPosts((prev) => prev.filter((pid) => pid !== id));
+        } else {
+          await savedPostsAPI.savePost(id);
+          setSavedPosts((prev) => [...prev, id]);
+        }
+      } catch {
+        /* ignore */
       }
-    } catch {
-      /* ignore */
-    }
-  };
+    },
+    [isAuthenticated, savedPosts]
+  );
 
   useEffect(() => {
     fetchSavedPosts();

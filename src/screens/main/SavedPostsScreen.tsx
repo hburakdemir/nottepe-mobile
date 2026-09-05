@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Text, View } from 'react-native';
 import { Bookmark } from 'lucide-react-native';
-import { savedPostsAPI } from '../../lib/api';
+import { savedPostsAPI, postsAPI } from '../../lib/api';
 import { useSavedPosts } from '../../context/SavedPostContext';
 import PostCard from '../../components/PostCard';
 import { useFeedTokens } from '../../theme/feedTokens';
@@ -9,7 +9,7 @@ import type { Post } from '../../types/post';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 
 export default function SavedPostsScreen() {
-  const { savedPosts } = useSavedPosts();
+  const { fetchSavedPosts } = useSavedPosts();
   const t = useFeedTokens();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,18 +17,48 @@ export default function SavedPostsScreen() {
   const fetchSavedPostsData = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await savedPostsAPI.getSavedPosts();
-      setPosts(res.data);
+      // İki uç birlikte tazeleniyor: SavedPostContext'in id listesi (bookmark
+      // ikonunun "dolu" durumu buna bakıyor) ile bu ekranın kendi post
+      // listesi aynı anda gelmezse, PostCard eski (kayıtlı değil) id
+      // kümesine bakıp ikonu boş gösteriyordu.
+      const [, res] = await Promise.all([fetchSavedPosts(), savedPostsAPI.getSavedPosts()]);
+      let postsData: Post[] = Array.isArray(res.data) ? res.data : [];
+
+      // `/saved-posts/getPost` yanıtı comment_count döndürmüyorsa (bkz. backend),
+      // eksik olan postlar için tekil gönderi ucundan tamamlanıyor.
+      const missing = postsData.filter((p) => typeof p.comment_count === 'undefined');
+      if (missing.length > 0) {
+        const enrichedById = new Map<string, Post>();
+        await Promise.all(
+          missing.map(async (post) => {
+            const postId = post.id ?? post.post_id;
+            if (postId == null) return;
+            try {
+              const fullPost = await postsAPI.getById(postId);
+              enrichedById.set(String(postId), fullPost.data?.post ?? fullPost.data);
+            } catch {
+              /* eksik kalsın, sessizce geç */
+            }
+          })
+        );
+        postsData = postsData.map((post) => {
+          const key = String(post.id ?? post.post_id);
+          const enriched = enrichedById.get(key);
+          return enriched ? { ...post, ...enriched } : post;
+        });
+      }
+
+      setPosts(postsData);
     } catch {
       setPosts([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchSavedPosts]);
 
   useEffect(() => {
     fetchSavedPostsData();
-  }, [fetchSavedPostsData, savedPosts.length]);
+  }, [fetchSavedPostsData]);
 
   if (loading) {
     return (

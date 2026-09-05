@@ -72,6 +72,10 @@ const ACTIVITY_TYPE_META: Record<string, { icon: any; label: (n: any) => string 
     icon: BookOpen,
     label: (n) => `Takip ettiğin bölümde yeni not paylaşıldı: ${n.post_title || 'yeni not'}`,
   },
+  post_approved: {
+    icon: CheckCircle,
+    label: (n) => `Paylaştığın not onaylandı: ${n.post_title || 'notun'}`,
+  },
   request_fulfilled: {
     icon: CheckCircle,
     label: (n) =>

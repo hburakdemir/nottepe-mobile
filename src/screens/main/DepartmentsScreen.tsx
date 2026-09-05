@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -23,15 +23,25 @@ export default function DepartmentsScreen() {
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedFaculty, setExpandedFaculty] = useState<string | null>(null);
 
+  const term = searchTerm.trim().toLowerCase();
+
   const filteredFaculties = useMemo(() => {
-    const term = searchTerm.toLowerCase();
     if (!term) return faculties;
     return faculties.filter((faculty) => {
       const matchesFaculty = faculty.toLowerCase().includes(term);
       const matchesDepartment = departments[faculty]?.some((dept) => dept.toLowerCase().includes(term));
       return matchesFaculty || matchesDepartment;
     });
-  }, [searchTerm]);
+  }, [term]);
+
+  // Aranan metin bir bölüm adıyla eşleşiyorsa, o bölümün altında olduğu
+  // fakülte otomatik açılsın — kullanıcı bölümü görmek için ayrıca fakülteye
+  // tıklamak zorunda kalmasın.
+  useEffect(() => {
+    if (!term) return;
+    const facultyWithMatch = faculties.find((faculty) => departments[faculty]?.some((dept) => dept.toLowerCase().includes(term)));
+    if (facultyWithMatch) setExpandedFaculty(facultyWithMatch);
+  }, [term]);
 
   return (
     <View className="flex-1 bg-ground">
@@ -59,6 +69,14 @@ export default function DepartmentsScreen() {
         ListEmptyComponent={<Text className="text-center text-muted2 mt-10">Arama sonucu bulunamadı.</Text>}
         renderItem={({ item: faculty }) => {
           const isExpanded = expandedFaculty === faculty;
+          const facultyDepts = departments[faculty] || [];
+          // Arama bir bölüm adıyla eşleşiyorsa yalnızca eşleşen bölümler
+          // gösterilsin — eskiden fakülte açılınca arama terimi ne olursa
+          // olsun TÜM bölümler listeleniyordu. Eşleşme yalnızca fakülte
+          // adından geliyorsa (bölüm eşleşmesi yoksa) hepsini göstermeye
+          // devam ediyoruz, çünkü daraltacak bir şey yok.
+          const matchingDepts = term ? facultyDepts.filter((d) => d.toLowerCase().includes(term)) : facultyDepts;
+          const deptsToShow = matchingDepts.length > 0 ? matchingDepts : facultyDepts;
           return (
             <View className="bg-surface rounded-lg mb-2.5 overflow-hidden" style={SHADOW_MD}>
               <Pressable
@@ -78,7 +96,7 @@ export default function DepartmentsScreen() {
 
               {isExpanded && (
                 <View className="gap-2 px-3.5 pb-3.5 border-t border-line-soft pt-3 bg-ground">
-                  {departments[faculty]?.map((department) => (
+                  {deptsToShow.map((department) => (
                     <Pressable
                       key={department}
                       className="bg-surface border border-line-soft rounded-lg p-3"

@@ -6,6 +6,9 @@ import { createDrawerNavigator } from '@react-navigation/drawer';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useIsOffline } from '../hooks/useIsOffline';
+import OfflineBanner from '../components/OfflineBanner';
+import OfflineEgoScreen from '../components/OfflineEgoScreen';
 import AuthNavigator from './AuthNavigator';
 import { withAppShell } from '../components/layout/AppShell';
 import MenuDrawerContent from '../components/layout/MenuDrawerContent';
@@ -66,6 +69,7 @@ export default function RootNavigator() {
   const { isAuthenticated, loading, user } = useAuth();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const isOffline = useIsOffline();
 
   if (loading) {
     return (
@@ -76,6 +80,13 @@ export default function RootNavigator() {
   }
 
   if (!isAuthenticated) {
+    // Giriş ekranı çevrimdışıyken zaten hiçbir işe yaramıyor (sunucuya
+    // bağlanamıyor) — bu durumda tek çevrimdışı-güvenli ekrana (EGO 130)
+    // doğrudan düşüyoruz. Girişten SONRAki çevrimdışı durum farklı: orada
+    // ağacı tamamen değiştirmek yerine üstte bir banner beliriyor (bkz. altta).
+    if (isOffline) {
+      return <OfflineEgoScreen />;
+    }
     return <AuthNavigator />;
   }
 
@@ -191,6 +202,17 @@ export default function RootNavigator() {
           )}
         </Drawer.Screen>
       </Drawer.Navigator>
+      {/* Eskiden çevrimdışıyken tüm ağaç OfflineEgoGate ile değiştiriliyordu;
+          `expo-network`in isConnected okuması gerçek cihazda ara sıra
+          titreştiği için bu, ekranı sık sık tamamen unmount/remount edip
+          (home feed'in yarıda kalması, donuk kalan spinner'lar gibi) bambaşka
+          hatalara yol açıyordu. Artık ağaç hep aynı kalıyor, sadece üstüne bir
+          şerit biniyor — bkz. OfflineBanner.tsx. */}
+      {isOffline && (
+        <View pointerEvents="box-none" style={{ position: 'absolute', top: 0, left: 0, right: 0 }}>
+          <OfflineBanner />
+        </View>
+      )}
       {needsOnboardingGate && <KvkkGateModal />}
     </View>
   );

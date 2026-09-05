@@ -5,6 +5,7 @@ import { ArrowUpDown, Bus, Info } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useCardSurface, useFeedTokens, type FeedTokens } from '../../theme/feedTokens';
 import { EGO_130_SCHEDULES, EGO_130_METRO_SCHEDULES, type Ego130DayKey } from '../../data/ego130Schedule';
+import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 
 // Ekran tamamen çevrimdışı çalışıyor: saatler `ego130Schedule.ts` içine gömülü,
 // burada hiçbir istek yok. Tek dış bağlantı en alttaki kaynak linki.
@@ -204,9 +205,22 @@ export default function Ego130ScheduleScreen() {
 
   return (
     <ScrollView
-      pointerEvents="box-none"
-      style={{ backgroundColor: t.ground }}
-      contentContainerStyle={{ padding: SCREEN_PADDING, paddingTop: 16, paddingBottom: 92 }}
+      // `flex: 1` şart: yoksa ScrollView'in kendi yüksekliği İÇERİĞİNE göre
+      // belirleniyor (sınırsız), yani kaydıracak bir "pencere" hiç oluşmuyor —
+      // içerik ekran altından taşıp gövde tarafından kesiliyor ama parmakla
+      // aşağı kaydırmak hiçbir şey yapmıyordu. `paddingBottom` (tab bar payı)
+      // tek başına bunu çözmüyordu, kaydırma zaten mümkün değildi.
+      //
+      // ESKİDEN burada `pointerEvents="box-none"` vardı — bu ScrollView'in
+      // KENDİSİNİN dokunuşa yanıt vermemesini, yalnızca dokunulabilir alt
+      // öğelerin (butonlar vs.) tepki vermesini sağlıyor. Kayan içerik ama
+      // dokunulabilir olmayan boş alanlar (kutucuklar arası boşluk, üstteki
+      // yazılar) böylece kaydırma jestini hiç yakalayamıyordu — parmağın hiçbir
+      // şeye "dokunmadığı" boşluklarda sürükleme sonuçsuz kalıyordu. WaveTabBar
+      // zaten AppShell'de bu ekranın DIŞINDA, ayrı bir katmanda duruyor —
+      // buradaki box-none onun için de gerekli değildi.
+      style={{ flex: 1, backgroundColor: t.ground }}
+      contentContainerStyle={{ padding: SCREEN_PADDING, paddingTop: 16, paddingBottom: TAB_BAR_SAFE_PADDING }}
     >
       <View style={styles.titleRow}>
         <Bus size={26} color={t.accent} />

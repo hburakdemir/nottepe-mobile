@@ -2,11 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, AppState, Linking, Modal, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
-import { AlertCircle, BellOff, CheckCircle, X } from 'lucide-react-native';
+import { AlertCircle, BellOff, CheckCircle, ChevronDown, X } from 'lucide-react-native';
 import { useThemeColors } from '../../context/ThemeContext';
 import { usePushPreferences, useUpdatePushPreferences } from '../../hooks/usePushPreferences';
 import { pushGroupLabel, resolvePushType, type ResolvedPushType } from '../../lib/push/catalog';
 import type { PushPreferences } from '../../lib/api';
+import OptionSheet from '../layout/OptionSheet';
+
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, '0')}:00`);
 
 interface Props {
   visible: boolean;
@@ -40,6 +43,8 @@ export default function NotificationSettingsSheet({ visible, onClose }: Props) {
 
   const [pushEnabled, setPushEnabled] = useState(false);
   const [types, setTypes] = useState<Record<string, boolean>>({});
+  const [cafeteriaHour, setCafeteriaHour] = useState(10);
+  const [showHourPicker, setShowHourPicker] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -69,6 +74,7 @@ export default function NotificationSettingsSheet({ visible, onClose }: Props) {
       seeded[type.key] = effectiveValue(prefs, type);
     });
     setTypes(seeded);
+    setCafeteriaHour(prefs.cafeteria_notify_hour ?? 10);
     setError('');
     setSuccess('');
   }, [visible, prefs]);
@@ -101,8 +107,9 @@ export default function NotificationSettingsSheet({ visible, onClose }: Props) {
     setError('');
     setSuccess('');
 
-    const payload: { push_enabled?: boolean; types?: Record<string, boolean> } = {};
+    const payload: { push_enabled?: boolean; types?: Record<string, boolean>; cafeteria_notify_hour?: number } = {};
     if (pushEnabled !== prefs.push_enabled) payload.push_enabled = pushEnabled;
+    if (cafeteriaHour !== (prefs.cafeteria_notify_hour ?? 10)) payload.cafeteria_notify_hour = cafeteriaHour;
 
     // Yalnızca DEĞİŞEN anahtarlar gidiyor: sunucu `types`i shallow-merge ediyor,
     // dokunulmayanlar korunuyor. Tümünü göndermek, kullanıcının hiç görmediği
@@ -202,24 +209,39 @@ export default function NotificationSettingsSheet({ visible, onClose }: Props) {
                   <View className="border border-line-soft rounded-[10px] overflow-hidden">
                     {items.map((type) => {
                       const Icon = type.icon;
+                      const isCafeteria = type.key === 'cafeteria_daily';
                       return (
-                        <View
-                          key={type.key}
-                          className="flex-row items-center gap-2.5 px-3 py-2.5 border-b border-line-soft"
-                        >
-                          <Icon size={16} color={colors.muted} />
-                          <View className="flex-1">
-                            <Text className="text-ink2 text-[13px]">{type.label}</Text>
-                            {!!type.description && (
-                              <Text className="text-muted text-[11px] leading-[15px] mt-0.5">{type.description}</Text>
-                            )}
+                        <View key={type.key} className="border-b border-line-soft">
+                          <View className="flex-row items-center gap-2.5 px-3 py-2.5">
+                            <Icon size={16} color={colors.muted} />
+                            <View className="flex-1">
+                              <Text className="text-ink2 text-[13px]">{type.label}</Text>
+                              {!!type.description && (
+                                <Text className="text-muted text-[11px] leading-[15px] mt-0.5">{type.description}</Text>
+                              )}
+                            </View>
+                            <Switch
+                              value={!!types[type.key]}
+                              onValueChange={(v) => setTypes((prev) => ({ ...prev, [type.key]: v }))}
+                              disabled={!pushEnabled}
+                              trackColor={{ true: '#2F5755' }}
+                            />
                           </View>
-                          <Switch
-                            value={!!types[type.key]}
-                            onValueChange={(v) => setTypes((prev) => ({ ...prev, [type.key]: v }))}
-                            disabled={!pushEnabled}
-                            trackColor={{ true: '#2F5755' }}
-                          />
+                          {isCafeteria && types[type.key] && (
+                            <Pressable
+                              className="flex-row items-center justify-between px-3 pb-2.5 pl-[38px]"
+                              onPress={() => setShowHourPicker(true)}
+                              disabled={!pushEnabled}
+                            >
+                              <Text className="text-muted text-[12px]">Bildirim saati</Text>
+                              <View className="flex-row items-center gap-1">
+                                <Text className="text-ink2 text-[12.5px] font-semibold">
+                                  {String(cafeteriaHour).padStart(2, '0')}:00
+                                </Text>
+                                <ChevronDown size={14} color={colors.muted} />
+                              </View>
+                            </Pressable>
+                          )}
                         </View>
                       );
                     })}
@@ -254,6 +276,15 @@ export default function NotificationSettingsSheet({ visible, onClose }: Props) {
           </View>
         </Pressable>
       </Pressable>
+
+      <OptionSheet
+        visible={showHourPicker}
+        title="Bildirim saati"
+        options={HOUR_OPTIONS}
+        value={`${String(cafeteriaHour).padStart(2, '0')}:00`}
+        onSelect={(v) => setCafeteriaHour(parseInt(v, 10))}
+        onClose={() => setShowHourPicker(false)}
+      />
     </Modal>
   );
 }

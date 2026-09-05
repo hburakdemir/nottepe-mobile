@@ -23,6 +23,10 @@ interface Props {
   searchable?: boolean;
   searchPlaceholder?: string;
   emptyText?: string;
+  /** Başlığın altında küçük bir not (ör. geçici bir kilit/geri sayım mesajı). */
+  note?: string;
+  /** Bu değerlere sahip satırlar soluk görünür ve dokunma seçim yapmaz. */
+  disabledValues?: readonly string[];
 }
 
 const AUTO_SEARCH_THRESHOLD = 8;
@@ -50,6 +54,8 @@ export default function OptionSheet({
   searchable,
   searchPlaceholder = 'Ara...',
   emptyText = 'Sonuç bulunamadı',
+  note,
+  disabledValues,
 }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -93,6 +99,8 @@ export default function OptionSheet({
               </Pressable>
             </View>
 
+            {!!note && <Text className="text-muted2 text-[12px] mb-2">{note}</Text>}
+
             {showSearch && (
               <View className="flex-row items-center gap-2 bg-inset border border-line rounded-[10px] px-3 mb-2">
                 <Search size={16} color={colors.muted2} />
@@ -114,15 +122,20 @@ export default function OptionSheet({
               ListEmptyComponent={<Text className="text-muted2 text-[13px] text-center py-6">{emptyText}</Text>}
               renderItem={({ item }) => {
                 const selected = value === item.value;
+                const disabled = disabledValues?.includes(item.value) ?? false;
                 return (
                   <Pressable
-                    className="flex-row items-center gap-3 py-3 border-b border-line-soft active:bg-inset"
+                    className={`flex-row items-center gap-3 py-3 border-b border-line-soft ${disabled ? '' : 'active:bg-inset'}`}
+                    disabled={disabled}
                     onPress={() => {
                       onSelect(item.value);
                       close();
                     }}
                   >
-                    <Text className={`flex-1 text-sm ${selected ? 'text-accent font-bold' : 'text-ink2'}`} numberOfLines={2}>
+                    <Text
+                      className={`flex-1 text-sm ${selected ? 'text-accent font-bold' : disabled ? 'text-muted2' : 'text-ink2'}`}
+                      numberOfLines={2}
+                    >
                       {item.label}
                     </Text>
                     {selected && <Check size={18} color={colors.accent} />}

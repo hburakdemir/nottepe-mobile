@@ -22,6 +22,8 @@ export interface PushPreferences {
   push_enabled: boolean;
   /** Yalnızca kullanıcının açıkça ayarladığı anahtarlar; eksikler `default`a düşer. */
   types: Record<string, boolean>;
+  /** Günlük yemekhane menüsü bildiriminin saati (0-23, varsayılan 10). */
+  cafeteria_notify_hour: number;
   /**
    * Hangi tiplerin var olduğunun TEK yetkili kaynağı — sıra, grup ve varsayılan dahil.
    * Yeni cron tipi eklemek = bir backend satırı, sıfır uygulama sürümü (plan 3.4).
@@ -292,8 +294,11 @@ export const userNotificationAPI = {
   getPushPreferences: () => api.get('/user-notifications/preferences'),
   // `types` sunucuda shallow-merge edilir; gönderilmeyen anahtarlar korunur.
   // Cevap GET ile aynı tam gövde — istemci refetch'siz cache'i ezebilsin.
-  updatePushPreferences: (payload: { push_enabled?: boolean; types?: Record<string, boolean> }) =>
-    api.patch('/user-notifications/preferences', payload),
+  updatePushPreferences: (payload: {
+    push_enabled?: boolean;
+    types?: Record<string, boolean>;
+    cafeteria_notify_hour?: number;
+  }) => api.patch('/user-notifications/preferences', payload),
 };
 
 export const commentAPI = {
