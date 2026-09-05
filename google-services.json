@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "653374283151",
+    "project_id": "nottepe-fd0f3",
+    "storage_bucket": "nottepe-fd0f3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:653374283151:android:ff9ecfe050bfa533e57ffa",
+        "android_client_info": {
+          "package_name": "com.nottepe.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDaplVvI2XM-STbfZGW86um3nTMMKdRJuk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
