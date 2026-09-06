@@ -10,6 +10,7 @@ import { useMyAvatar } from '../../hooks/useMyAvatar';
 import AvatarDisplay from '../avatar/AvatarDisplay';
 import DeerIcon from '../icons/DeerIcon';
 import { TAB_ROUTE_NAMES, navigateApp } from '../../navigation/navigateApp';
+import { useMetrics } from '../../theme/metrics';
 
 // Onaylanan "E · Instagram tarzı buzlu cam" mockup'ının RN karşılığı — kenarlardan
 // boşluklu, yüzen tam bir buzlu-cam hap (bar'ın kendi blur+arka planı+border+
@@ -40,14 +41,20 @@ const ICONS: Record<string, LucideIcon> = {
   CafeteriaMenu: UtensilsCrossed,
 };
 
-const BAR_HEIGHT = 50;
-const BAR_RADIUS = 25;
-const CAPSULE_SIZE = 38;
-const CAPSULE_RADIUS = 13;
+// Tabletde bar telefon ölçeğinde kalırsa parmak izine göre küçük görünüyordu
+// (kullanıcı isteği: "her yer responsive olmalı") — bu yüzden yükseklik/ikon/
+// avatar boyutları aşağıda `scale()` ile tabletde ~%15 büyütülüyor; sadece
+// kenar boşluğu (`H_MARGIN`) sabit kalıyor, zaten tablette `ContentContainer`
+// bar'ı da ortalanmış içerik genişliğine sığdırıyor.
+const BASE_BAR_HEIGHT = 50;
+const BASE_BAR_RADIUS = 25;
+const BASE_CAPSULE_SIZE = 38;
+const BASE_CAPSULE_RADIUS = 13;
 // 4 yerine 5 sütun var — kenar boşluğu daraltılmasa ikonlar birbirine girerdi.
 const H_MARGIN = 20;
 const BOTTOM_MARGIN = 10;
-const AVATAR_SIZE = 26;
+const BASE_AVATAR_SIZE = 26;
+const BASE_ICON_SIZE = 23;
 
 const COLORS = {
   light: {
@@ -79,6 +86,13 @@ export default function WaveTabBar() {
   const currentRouteName = useNavigationState((state) => state.routes[state.index]?.name);
   const activeIndex = TAB_ROUTES.indexOf(currentRouteName as (typeof TAB_ROUTES)[number]);
   const avatar = useMyAvatar();
+  const { scale } = useMetrics();
+  const BAR_HEIGHT = scale(BASE_BAR_HEIGHT);
+  const BAR_RADIUS = scale(BASE_BAR_RADIUS);
+  const CAPSULE_SIZE = scale(BASE_CAPSULE_SIZE);
+  const CAPSULE_RADIUS = scale(BASE_CAPSULE_RADIUS);
+  const AVATAR_SIZE = scale(BASE_AVATAR_SIZE);
+  const ICON_SIZE = scale(BASE_ICON_SIZE);
 
   const [barWidth, setBarWidth] = React.useState(0);
   const colWidth = barWidth / TAB_ROUTES.length;
@@ -220,7 +234,7 @@ export default function WaveTabBar() {
                       )}
                     </View>
                   ) : (
-                    <Icon size={23} color={isFocused ? c.active : c.inactive} strokeWidth={isFocused ? 2.3 : 1.8} />
+                    <Icon size={ICON_SIZE} color={isFocused ? c.active : c.inactive} strokeWidth={isFocused ? 2.3 : 1.8} />
                   )}
                 </Pressable>
               );

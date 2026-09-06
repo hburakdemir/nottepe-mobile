@@ -25,7 +25,20 @@ import RootNavigator from './src/navigation/RootNavigator';
 import { navigationRef, drainPendingTarget } from './src/navigation/navigationRef';
 import PushBridge from './src/components/PushBridge';
 
-const queryClient = new QueryClient();
+// Varsayılanlar eskiden boştu: react-query'nin kendi varsayılanı 3 tekrar +
+// üstel bekleme demek — çevrimdışıyken bir ekran dakikalarca "yükleniyor"
+// kalabiliyordu. `staleTime` de her odaklanmada/mount'ta gereksiz ağ isteğini
+// önlüyor (bkz. HomeScreen.tsx odak efekti). Bir hook kendi `retry`/`staleTime`
+// değerini verirse (ör. useUnreadNotifications) o değer burayı ezer.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 // Expo SDK 57'de Android edge-to-edge zorunlu ve expo-status-bar artik ayri bir
 // backgroundColor kabul etmiyor (durum cubugu her zaman saydam, altindaki icerik

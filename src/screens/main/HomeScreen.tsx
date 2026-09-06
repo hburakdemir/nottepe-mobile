@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { keepPreviousData, useInfiniteQuery } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronDown, GraduationCap, HeartHandshake, Search, X } from 'lucide-react-native';
@@ -15,6 +15,7 @@ import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 import OptionSheet from '../../components/layout/OptionSheet';
+import StateView from '../../components/StateView';
 
 const LAST_FACULTY_KEY = 'nottepe_last_faculty';
 
@@ -78,8 +79,10 @@ export default function HomeScreen() {
     };
   }, [searchInput]);
 
-  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage, refetch, isRefetching } = useInfiniteQuery({
-    queryKey: ['posts', search, faculty],
+  const queryClient = useQueryClient();
+  const queryKey = useMemo(() => ['posts', search, faculty] as const, [search, faculty]);
+  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } = useInfiniteQuery({
+    queryKey,
     queryFn: async ({ pageParam }) => {
       const res = await postsAPI.getAllPosts({ page: pageParam, search, faculty });
       return res.data as PostsPage;
@@ -94,14 +97,27 @@ export default function HomeScreen() {
     // liste VE arama kutusu birlikte kocaman bir spinner'la değişiyordu. Önceki
     // sonuçlar ekranda kalırken arka planda yenisi gelince yerini alıyor artık.
     placeholderData: keepPreviousData,
+    // 1 dakika içinde tekrar odaklanmak ağa hiç gitmesin — bkz. aşağıdaki
+    // focus efekti.
+    staleTime: 60_000,
   });
+
+  // Yalnızca kullanıcının elle aşağı ÇEKMESİ pull-to-refresh spinner'ını
+  // döndürür. Eskiden `RefreshControl.refreshing` doğrudan `isRefetching`'e
+  // bağlıydı; aşağıdaki odak efekti her `refetch()` çağırdığında (yani HER
+  // ana sayfaya dönüşte) üstte spinner beliriyordu — "ana sayfaya her
+  // dönüşte tekrar üstte loading dönüyor" şikâyeti buydu.
+  const [isManualRefresh, setIsManualRefresh] = useState(false);
+  const handleManualRefresh = useCallback(() => {
+    setIsManualRefresh(true);
+    refetch().finally(() => setIsManualRefresh(false));
+  }, [refetch]);
 
   // Gönderi detayına girip yorum/oy ekleyip geri dönünce bu ekran YENİDEN
   // MOUNT OLMUYOR (Tab.Navigator sekmeleri mount'lu tutuyor, bkz.
-  // MainTabsScreen.tsx) — react-query'nin önbelleği de kendiliğinden
-  // tazelenmiyor, bu yüzden yorum sayısı elle "aşağı çekip yenile" yapılana
-  // kadar bayat kalıyordu. Sekme her odaklandığında sessizce (placeholderData
-  // sayesinde spinner/flicker olmadan) yeniden çekiliyor.
+  // MainTabsScreen.tsx). Veri hâlâ `staleTime` içindeyse (son 1 dk) hiç istek
+  // atılmıyor; bayatladıysa sessizce (görünür spinner olmadan — RefreshControl
+  // artık `isManualRefresh`'e bağlı) arka planda tazeleniyor.
   const didFocusOnceRef = useRef(false);
   useFocusEffect(
     useCallback(() => {
@@ -109,8 +125,10 @@ export default function HomeScreen() {
         didFocusOnceRef.current = true;
         return;
       }
-      refetch();
-    }, [refetch])
+      const state = queryClient.getQueryState(queryKey);
+      const isStale = !state || Date.now() - state.dataUpdatedAt > 60_000;
+      if (isStale) refetch();
+    }, [queryClient, queryKey, refetch])
   );
 
   const posts = useMemo(() => data?.pages.flatMap((p) => p.posts) ?? [], [data]);
@@ -201,7 +219,7 @@ export default function HomeScreen() {
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center py-16">
-        <ActivityIndicator size="large" color="#2F5755" />
+        <StateView kind="loading" loadingColor="#2F5755" />
       </View>
     );
   }
@@ -209,7 +227,7 @@ export default function HomeScreen() {
   if (isError) {
     return (
       <View className="flex-1 items-center justify-center py-16">
-        <Text className="text-muted text-sm">Notlar yüklenemedi.</Text>
+        <StateView kind="error" title="Notlar yüklenemedi." onAction={() => refetch()} />
       </View>
     );
   }
@@ -224,7 +242,7 @@ export default function HomeScreen() {
         keyExtractor={(item) => String(item.id ?? item.post_id)}
         renderItem={({ item }) => <PostCard post={item} />}
         ListHeaderComponent={filterBar}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+        refreshControl={<RefreshControl refreshing={isManualRefresh} onRefresh={handleManualRefresh} />}
         onEndReachedThreshold={0.4}
         onEndReached={() => {
           if (hasNextPage && !isFetchingNextPage) fetchNextPage();

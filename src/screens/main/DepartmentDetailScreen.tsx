@@ -12,6 +12,7 @@ import { useTheme } from '../../context/ThemeContext';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
+import StateView from '../../components/StateView';
 
 interface PostsPage {
   posts: Post[];
@@ -56,7 +57,7 @@ export default function DepartmentDetailScreen() {
     }
   };
 
-  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } = useInfiniteQuery({
     queryKey: ['department-posts', faculty, department],
     queryFn: async ({ pageParam }) => {
       const res = await postsAPI.getAllPosts({ page: pageParam, faculty, department });
@@ -95,7 +96,7 @@ export default function DepartmentDetailScreen() {
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center py-[60px]">
-        <ActivityIndicator size="large" color={isDark ? '#5A9690' : '#1d4ed8'} />
+        <StateView kind="loading" loadingColor={isDark ? '#5A9690' : '#1d4ed8'} />
       </View>
     );
   }
@@ -103,7 +104,7 @@ export default function DepartmentDetailScreen() {
   if (isError) {
     return (
       <View className="flex-1 items-center justify-center py-[60px]">
-        <Text className="text-muted text-sm">Notlar yüklenemedi.</Text>
+        <StateView kind="error" title="Notlar yüklenemedi." onAction={() => refetch()} />
       </View>
     );
   }

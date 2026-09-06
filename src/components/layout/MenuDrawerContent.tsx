@@ -501,7 +501,17 @@ export default function MenuDrawerContent({ navigation }: DrawerContentComponent
             <Defs>
               <LinearGradient id="drawerEdgeShadow" x1="0" y1="0" x2="1" y2="0">
                 <Stop offset="0" stopColor="#000" stopOpacity={0} />
-                <Stop offset="1" stopColor="#000" stopOpacity={theme === 'dark' ? SHADOW_ALPHA_DARK : SHADOW_ALPHA_LIGHT} />
+                {/* Eskiden gradyan doğrudan 0 → tam alfada bitiyordu — en sağ
+                    sütun tam koyulukta SERT bir kenar oluşturuyordu (bir
+                    öncekiyle aynı sınıftan hata: kademesiz, ani bir sınır
+                    "çizgi gibi" görünüyor). Son %8'lik kısımda tekrar hafifçe
+                    geri çekilip yumuşak bir uçla bitiriyor. */}
+                <Stop offset="0.92" stopColor="#000" stopOpacity={theme === 'dark' ? SHADOW_ALPHA_DARK : SHADOW_ALPHA_LIGHT} />
+                <Stop
+                  offset="1"
+                  stopColor="#000"
+                  stopOpacity={(theme === 'dark' ? SHADOW_ALPHA_DARK : SHADOW_ALPHA_LIGHT) * 0.5}
+                />
               </LinearGradient>
             </Defs>
             <Rect x="0" y="0" width="100%" height="100%" fill="url(#drawerEdgeShadow)" />

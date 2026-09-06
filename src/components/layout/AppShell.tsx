@@ -7,6 +7,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import AppHeader from './AppHeader';
 import KeyboardAvoider from './KeyboardAvoider';
 import WaveTabBar from './WaveTabBar';
+import ContentContainer from './ContentContainer';
 import { BACK_SWIPE_DISTANCE, BACK_SWIPE_ROUTES, BACK_SWIPE_VELOCITY } from '../../navigation/drawerConstants';
 
 // Web'de Navbar + MobileTabBar, Layout.jsx üzerinden HER rotada (detay
@@ -32,8 +33,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       <View style={{ flex: 1 }}>
         {/* Klavye açıldığında SAYFA yukarı itiliyor, tab bar itilmiyor: bar
-            klavyenin altında kalıyor (bkz. KeyboardAvoider.tsx). */}
-        <KeyboardAvoider>{children}</KeyboardAvoider>
+            klavyenin altında kalıyor (bkz. KeyboardAvoider.tsx).
+            `ContentContainer` telefonda hiçbir şey değiştirmiyor (tam
+            genişlik); tablette/iPad'de içeriği ortalayıp yatayda sınırlıyor —
+            bkz. o dosya. */}
+        <KeyboardAvoider>
+          <ContentContainer>{children}</ContentContainer>
+        </KeyboardAvoider>
         {/* Bar kendi içinde mutlak konumlu (bkz. WaveTabBar.tsx): içerik tam
             ekran kaplıyor, kaydırıldığında bar'ın buzlu-cam bölgesinin
             arkasından görünüyor. */}

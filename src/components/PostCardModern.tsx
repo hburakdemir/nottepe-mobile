@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Bookmark, Link2, MessageSquare, Star, Trash2, User } from 'lucide-react-native';
+import { Link2, MessageSquare, Star, Trash2, User } from 'lucide-react-native';
 import type { Post } from '../types/post';
 import { postsAPI, ratingAPI } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
@@ -13,6 +13,7 @@ import { useGoToUserProfile } from '../hooks/useGoToUserProfile';
 import { buildPostAuthorAvatar } from '../lib/postAuthorAvatar';
 import AvatarDisplay from './avatar/AvatarDisplay';
 import FileTiles from './FileTiles';
+import SaveButton from './SaveButton';
 
 const MAX_LENGTH = 200;
 
@@ -122,7 +123,14 @@ export default function PostCardModern({ post, showStatus = false, showRating = 
         <Text style={[styles.crumbDept, { color: t.ink2 }]}>{post.department}</Text>
       </Text>
 
-      <Text style={[styles.title, { color: t.ink }]}>{post.title}</Text>
+      {/* Başlık satırı: kaydet ikonu artık burada, sağ üstte — eskiden alt
+          sayaç satırında, komşu ikonlara çok yakın ve zor dokunulur bir yerdeydi. */}
+      <View style={styles.titleRow}>
+        <Text style={[styles.title, { color: t.ink, flex: 1 }]}>{post.title}</Text>
+        {isAuthenticated && (
+          <SaveButton saved={isSaved} onPress={() => toggleSavePost(postId)} color={t.ink2} savedColor={t.ink} />
+        )}
+      </View>
 
       {!!content && <Text style={[styles.body, { color: t.ink2 }]}>{displayText}</Text>}
       {isLong && (
@@ -171,11 +179,6 @@ export default function PostCardModern({ post, showStatus = false, showRating = 
               <Trash2 size={16} color={t.ink3} strokeWidth={2} />
             </Pressable>
           )}
-          {isAuthenticated && (
-            <Pressable onPress={() => toggleSavePost(postId)} hitSlop={8} accessibilityLabel="Kaydet">
-              <Bookmark size={17} color={isSaved ? t.ink : t.ink2} fill={isSaved ? t.ink : 'none'} strokeWidth={2} />
-            </Pressable>
-          )}
         </View>
       </View>
 
@@ -210,6 +213,7 @@ const styles = StyleSheet.create({
   statusBadgeText: { fontSize: 10.5, fontWeight: '700' },
   crumb: { fontSize: 12, lineHeight: 17 },
   crumbDept: { fontWeight: '600' },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   title: { fontSize: 18, fontWeight: '600', lineHeight: 24, letterSpacing: -0.2 },
   body: { fontSize: 13.5, lineHeight: 21 },
   more: { fontSize: 13, fontWeight: '600' },

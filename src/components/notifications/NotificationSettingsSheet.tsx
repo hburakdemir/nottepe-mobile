@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, AppState, Linking, Modal, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { AppState, Linking, Modal, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import { AlertCircle, BellOff, CheckCircle, ChevronDown, X } from 'lucide-react-native';
@@ -8,6 +8,7 @@ import { usePushPreferences, useUpdatePushPreferences } from '../../hooks/usePus
 import { pushGroupLabel, resolvePushType, type ResolvedPushType } from '../../lib/push/catalog';
 import type { PushPreferences } from '../../lib/api';
 import OptionSheet from '../layout/OptionSheet';
+import StateView from '../StateView';
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, '0')}:00`);
 
@@ -33,7 +34,7 @@ export default function NotificationSettingsSheet({ visible, onClose }: Props) {
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
 
-  const { data: prefs, isLoading, isError } = usePushPreferences();
+  const { data: prefs, isLoading, isError, refetch } = usePushPreferences();
   const updatePrefs = useUpdatePushPreferences();
 
   // Cihaz izni sunucu tercihlerinden BAĞIMSIZ: `push_enabled` açıkken bile
@@ -186,9 +187,11 @@ export default function NotificationSettingsSheet({ visible, onClose }: Props) {
           )}
 
           {isLoading ? (
-            <ActivityIndicator style={{ marginVertical: 32 }} color={colors.accent} />
+            <View style={{ marginVertical: 32 }}>
+              <StateView kind="loading" loadingColor={colors.accent} />
+            </View>
           ) : isError || !prefs ? (
-            <Text className="text-muted2 text-[13px] text-center py-8">Bildirim tercihleri yüklenemedi.</Text>
+            <StateView kind="error" title="Bildirim tercihleri yüklenemedi." onAction={() => refetch()} />
           ) : (
             <ScrollView showsVerticalScrollIndicator={false}>
               <View className="flex-row items-center gap-2.5 py-1">

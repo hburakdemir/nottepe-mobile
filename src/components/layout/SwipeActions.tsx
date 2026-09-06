@@ -1,7 +1,15 @@
 import React, { useCallback, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, {
+  Extrapolation,
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from 'react-native-reanimated';
 import type { LucideIcon } from 'lucide-react-native';
 
 export interface SwipeAction {
@@ -15,6 +23,9 @@ export interface SwipeAction {
 
 const ACTION_WIDTH = 76;
 const OPEN_THRESHOLD = 0.4;
+// Sona gelince parmak "duvara çarpmış" gibi hissettirmesin diye hafif bir
+// lastik payı — üst sınır tam `width` değil, biraz ötesi.
+const RUBBER_BAND = 1.15;
 
 // Satırı sağa çekince SOLDAN açılan aksiyon şeridi (kullanıcı isteği:
 // "sağa kaydırınca okunmadı ve sil ikonları çıkmalı yan yana").
@@ -25,8 +36,23 @@ const OPEN_THRESHOLD = 0.4;
 // `translateX` ile kaydırması: Fabric'te dokunma hedeflemesi satırın
 // kaydırılmamış yerleşim dikdörtgenini kullandığı için satır, açığa çıkan
 // aksiyon alanının üstünü kapatıyor ve dokunuşları yutuyor. Burada aksiyon
-// katmanı satırın ÜSTÜNDE (z-sırasında sonra) ve yalnızca açıkken render
-// ediliyor — dokunuşlar doğrudan butonlara gidiyor.
+// katmanı satırın ÜSTÜNDE (z-sırasında sonra) duruyor — dokunuşlar doğrudan
+// butonlara gidiyor.
+//
+// İKİNCİ DÜZELTME (bu revizyon): `GestureDetector` eskiden yalnızca satırı
+// sarıyordu — açıldıktan sonra parmak butonların ÜZERİNDEN sürüklenince pan
+// hiç tetiklenmiyordu (butonlar `Pressable`, RN'in kendi dokunma sistemini
+// kullanıyor, pan'e hiç ulaşmıyordu), kapatmak için satırın dar, butonsuz
+// şeridinden çekmek gerekiyordu. `GestureDetector` artık aksiyon katmanı DAHİL
+// tüm bileşeni sarıyor: RNGH bir sürükleme başladığını (`activeOffsetX` eşiği
+// aşılınca) algılayınca alttaki `Pressable`nin dokunuşunu iptal edip pan'i
+// devralıyor, kısa bir dokunuş ise değişmeden butona gidiyor.
+//
+// Aksiyon katmanı artık HER ZAMAN mount'lu (eskiden yalnızca `open` iken
+// render ediliyordu, bu da butonların sürüklerken değil ancak bırakınca "pat"
+// diye belirmesine yol açıyordu) — görünürlüğü `translateX`'e bağlı bir
+// opaklık geçişiyle kademeli, kapalıyken `pointerEvents="none"` ile dokunuşu
+// yutmuyor.
 //
 // Çekmece jesti bu ekranda bilerek kapalı (bkz. drawerConstants
 // NO_DRAWER_SWIPE_ROUTES); açık olsaydı sağa çekiş menüyü açardı.
@@ -45,7 +71,7 @@ export default function SwipeActions({ actions, children }: { actions: SwipeActi
     .failOffsetY([-12, 12])
     .onChange((event) => {
       const next = translateX.value + event.changeX;
-      translateX.value = Math.min(width, Math.max(0, next));
+      translateX.value = Math.min(width * RUBBER_BAND, Math.max(0, next));
     })
     .onEnd(() => {
       const shouldOpen = translateX.value > width * OPEN_THRESHOLD;
@@ -54,15 +80,24 @@ export default function SwipeActions({ actions, children }: { actions: SwipeActi
     });
 
   const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));
+  const actionsStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(translateX.value, [0, width * 0.5], [0, 1], Extrapolation.CLAMP),
+  }));
 
   return (
-    <View style={{ overflow: 'hidden', borderRadius: 12 }}>
-      <GestureDetector gesture={pan}>
+    <GestureDetector gesture={pan}>
+      <View style={{ overflow: 'hidden', borderRadius: 12 }}>
+        {/* Satır ÖNCE (z-sırasında altta) — kendi (opak) arka planıyla
+            kapalıyken aksiyon katmanının tamamını örtüyor. */}
         <Animated.View style={rowStyle}>{children}</Animated.View>
-      </GestureDetector>
 
-      {open && (
-        <View style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width, flexDirection: 'row' }}>
+        {/* Aksiyon katmanı SONRA (z-sırasında üstte): açığa çıkan alandaki
+            dokunuşlar, satırın (Fabric'te yanlış raporlanan, kaydırılmamış)
+            hit-test dikdörtgeni ne derse desin doğrudan buraya geliyor. */}
+        <Animated.View
+          pointerEvents={open ? 'auto' : 'none'}
+          style={[{ position: 'absolute', left: 0, top: 0, bottom: 0, width, flexDirection: 'row' }, actionsStyle]}
+        >
           {actions.map(({ key, icon: Icon, label, color, onPress }) => (
             <Pressable
               key={key}
@@ -80,8 +115,8 @@ export default function SwipeActions({ actions, children }: { actions: SwipeActi
               </Text>
             </Pressable>
           ))}
-        </View>
-      )}
-    </View>
+        </Animated.View>
+      </View>
+    </GestureDetector>
   );
 }

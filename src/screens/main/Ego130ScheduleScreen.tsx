@@ -1,11 +1,24 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSpring, withTiming } from 'react-native-reanimated';
-import { ArrowUpDown, Bus, Info } from 'lucide-react-native';
+import { ArrowUpDown, Bus, Clock } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useCardSurface, useFeedTokens, type FeedTokens } from '../../theme/feedTokens';
 import { EGO_130_SCHEDULES, EGO_130_METRO_SCHEDULES, type Ego130DayKey } from '../../data/ego130Schedule';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
+import { toMinutes } from '../../utils/schedule';
+
+// Cihazın o anki gününe göre tarife anahtarı (0=Pazar, 6=Cumartesi). Ekran
+// açılışta bu güne düşüyor — eskiden hep `'weekday'` sabitti, Pazar günü
+// giren biri "Hafta İçi" tarifesiyle karşılaşıyordu.
+function dayKeyForOffset(offsetDays: number): Ego130DayKey {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  const dow = d.getDay();
+  if (dow === 0) return 'sunday';
+  if (dow === 6) return 'saturday';
+  return 'weekday';
+}
 
 // Ekran tamamen çevrimdışı çalışıyor: saatler `ego130Schedule.ts` içine gömülü,
 // burada hiçbir istek yok. Tek dış bağlantı en alttaki kaynak linki.
@@ -58,9 +71,13 @@ const LEGEND: { kind: MarkerKind; label: string }[] = [
 
 type Origin = 'campus' | 'metro';
 
+// Eskiden bu sabit hiç kullanılmıyordu — kalkış noktası butonu ve varış
+// kartı iki farklı yerde birbirinden ayrı, birbiriyle çelişen metinler
+// yazıyordu ("Beytepe Metro Durağı (varış)" / "Beytepe Metro (varış)").
+// Artık origin metni HER yerde buradan geliyor.
 const ORIGIN_LABEL: Record<Origin, string> = {
   campus: 'Hukuk Fakültesi kalkış',
-  metro: 'Beytepe Metro Durağı (varış)',
+  metro: 'Beytepe Metro (varış)',
 };
 
 const SCREEN_PADDING = 12;
@@ -176,9 +193,26 @@ export default function Ego130ScheduleScreen() {
           elevation: 2,
         };
   const [gridWidth, setGridWidth] = useState(0);
-  const [activeDay, setActiveDay] = useState<Ego130DayKey>('weekday');
+  // Ekran cihazın O ANKİ gününe düşüyor — eskiden sabit `'weekday'` idi,
+  // Pazar günü giren biri "Hafta İçi" tarifesiyle karşılaşıyordu.
+  const [activeDay, setActiveDay] = useState<Ego130DayKey>(() => dayKeyForOffset(0));
   const [origin, setOrigin] = useState<Origin>('campus');
   const [loading, setLoading] = useState(true);
+
+  // Cihaz saati dakikada bir tazeleniyor — "sıradaki sefer" kartının canlı
+  // kalması için (kullanıcı isteği: "cihaz saati okunup sırada ring saati
+  // yazmalı").
+  const [nowMinutes, setNowMinutes] = useState(() => {
+    const d = new Date();
+    return d.getHours() * 60 + d.getMinutes();
+  });
+  useEffect(() => {
+    const id = setInterval(() => {
+      const d = new Date();
+      setNowMinutes(d.getHours() * 60 + d.getMinutes());
+    }, 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Açılışta ve her değişimde kısa bir iskelet: liste yerel olduğu için veri
   // beklemiyoruz, beklenen şey 95+ kutucuğun çizimi.
@@ -192,10 +226,27 @@ export default function Ego130ScheduleScreen() {
     if (key !== activeDay) setActiveDay(key);
   };
 
+  const scheduleSource = origin === 'metro' ? EGO_130_METRO_SCHEDULES : EGO_130_SCHEDULES;
+
   const activeSchedule = useMemo(() => {
-    const schedules = origin === 'metro' ? EGO_130_METRO_SCHEDULES : EGO_130_SCHEDULES;
-    return schedules.find((s) => s.key === activeDay)!;
-  }, [activeDay, origin]);
+    return scheduleSource.find((s) => s.key === activeDay)!;
+  }, [activeDay, scheduleSource]);
+
+  const isToday = activeDay === dayKeyForOffset(0);
+
+  // "Sıradaki sefer": aktif tarife bugünse cihaz saatinden büyük/eşit ilk
+  // kalkışı bul. Ham veri gece yarısını geçen seferleri (00:10, 00:40, 01:25)
+  // listenin BAŞINDA tutuyor — bu yüzden günün seferleri bittiğinde (23:30'dan
+  // sonra) `find` hiçbir şey bulamıyor, o zaman yarının aynı gün-tipi
+  // tarifesinin İLK seferine düşülüyor (ki bu zaten 00:xx'tir).
+  const nextInfo = useMemo(() => {
+    if (!isToday) return null;
+    const upcoming = activeSchedule.departures.find((d) => toMinutes(d.time) >= nowMinutes);
+    if (upcoming) return { time: upcoming.time, minutesUntil: toMinutes(upcoming.time) - nowMinutes, tomorrow: false };
+    const tomorrowSchedule = scheduleSource.find((s) => s.key === dayKeyForOffset(1));
+    const first = tomorrowSchedule?.departures[0];
+    return first ? { time: first.time, minutesUntil: null, tomorrow: true } : null;
+  }, [isToday, activeSchedule, nowMinutes, scheduleSource]);
 
   // Eski düzende kutucuklar `flex-wrap` ile kendi genişliklerince diziliyordu,
   // satırlar tırtıklı çıkıyordu. Genişlik ızgaranın KENDİ ölçüsünden (onLayout)
@@ -230,12 +281,32 @@ export default function Ego130ScheduleScreen() {
         Beytepe Metro İstasyonu ↔ Hacettepe Beytepe Kampüsü ring hattı
       </Text>
 
-      <View style={[styles.notice, { backgroundColor: `${t.amber}14`, borderColor: `${t.amber}40` }]}>
-        <Info size={15} color={t.amber} style={{ marginTop: 1 }} />
-        <Text style={[styles.noticeText, { color: t.amber }]}>
-          Resmi EGO verisi değil, derlenmiş saatlerdir; değişmiş olabilir.
-        </Text>
-      </View>
+      {/* Eskiden burada "Resmi EGO verisi değil, derlenmiş saatlerdir" uyarısı
+          vardı — kullanıcı isteğiyle kaldırıldı, yerine cihaz saatine göre
+          hesaplanan "sıradaki sefer" kartı geldi. */}
+      {isToday && nextInfo && (
+        <View style={[styles.nextCard, { backgroundColor: `${t.accent}14`, borderColor: `${t.accent}40` }]}>
+          <Clock size={18} color={t.accent} style={{ marginTop: 1 }} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.nextLabel, { color: t.ink2 }]}>
+              {nextInfo.tomorrow ? 'Bugünkü seferler bitti — ilk sefer' : 'Sıradaki sefer'}
+            </Text>
+            <Text style={[styles.nextTime, { color: t.ink }]}>{nextInfo.time}</Text>
+            <Text style={[styles.nextMeta, { color: t.ink3 }]}>
+              {ORIGIN_LABEL[origin]}
+              {nextInfo.tomorrow ? ' · yarın' : ` · ${nextInfo.minutesUntil} dk sonra`}
+            </Text>
+          </View>
+        </View>
+      )}
+      {!isToday && (
+        <View style={[styles.nextCard, { backgroundColor: t.inset, borderColor: t.line }]}>
+          <Clock size={18} color={t.ink3} style={{ marginTop: 1 }} />
+          <Text style={[styles.nextMeta, { color: t.ink2, flex: 1 }]}>
+            Bugün değil — {activeSchedule.label} tarifesine bakıyorsun.
+          </Text>
+        </View>
+      )}
 
       <DayTabs activeDay={activeDay} onSelect={handleSelectDay} />
 
@@ -248,7 +319,7 @@ export default function Ego130ScheduleScreen() {
         >
           <ArrowUpDown size={14} color={t.accent} />
           <Text style={[styles.originText, { color: t.ink }]} numberOfLines={1}>
-            {origin === 'campus' ? 'Hukuk Fakültesi kalkış' : 'Beytepe Metro (varış)'}
+            {ORIGIN_LABEL[origin]}
           </Text>
         </Pressable>
         <Text style={[styles.count, { color: t.ink3 }]}>{activeSchedule.departures.length} sefer</Text>
@@ -263,9 +334,21 @@ export default function Ego130ScheduleScreen() {
               <View style={styles.grid}>
                 {activeSchedule.departures.map((d, i) => {
                   const marks = markersFor(d.note);
+                  // Sıradaki seferin kutucuğu vurgulanıyor — yalnızca bugünkü,
+                  // henüz gelmemiş sefer için (yarına düşen fallback'te grid
+                  // zaten farklı bir gün-tipi olabileceğinden vurgulanmıyor).
+                  const isNext = isToday && !!nextInfo && !nextInfo.tomorrow && d.time === nextInfo.time;
                   return (
-                    <View key={`${d.time}-${i}`} style={[styles.tile, tileSurface, { width: tileWidth }]}>
-                      <Text style={[styles.time, { color: t.ink }]}>
+                    <View
+                      key={`${d.time}-${i}`}
+                      style={[
+                        styles.tile,
+                        tileSurface,
+                        { width: tileWidth },
+                        isNext && { borderColor: t.accent, borderWidth: 1.5 },
+                      ]}
+                    >
+                      <Text style={[styles.time, { color: isNext ? t.accent : t.ink }]}>
                         {d.time}
                       </Text>
                       {/* İşaret satırı not olmasa da duruyor: kutucukların yüksekliği
@@ -299,17 +382,19 @@ const styles = StyleSheet.create({
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   title: { fontSize: 24, fontWeight: '700' },
   subtitle: { fontSize: 13, lineHeight: 19, marginTop: 6 },
-  notice: {
+  nextCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 9,
+    gap: 10,
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     marginTop: 14,
   },
-  noticeText: { flex: 1, fontSize: 12, lineHeight: 17 },
+  nextLabel: { fontSize: 11.5, fontWeight: '600' },
+  nextTime: { fontSize: 22, fontWeight: '800', fontVariant: ['tabular-nums'], marginTop: 1 },
+  nextMeta: { fontSize: 12, marginTop: 2 },
   tabs: { borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, marginTop: 14 },
   tabsRow: { flexDirection: 'row', padding: TABS_PADDING },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 999 },

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { AlertCircle, CheckCircle, Eye, EyeOff, Trash2, X } from 'lucide-react-native';
 import { profileupdateAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
@@ -38,11 +39,58 @@ interface Props {
 
 export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onClose, onDeleteAccountRequest }: Props) {
   const { user, updateUser } = useAuth();
-  const { theme } = useTheme();
+  const { theme, colors } = useTheme();
   const isDark = theme === 'dark';
   const mutedIconColor = isDark ? '#DFD0B8' : '#6b7280';
   const dangerIconColor = isDark ? '#f87171' : '#dc2626';
   const [tab, setTab] = useState<'info' | 'visibility'>('info');
+
+  // --- İki sekme arasında parmakla kaydırma ---------------------------------
+  // Eskiden "Kişisel Bilgiler"/"Görünürlük" yalnızca butona basınca değişen
+  // bir ternary'ydi. Sayfanın genişliği modal genişliği DEĞİL — overlay'in
+  // `padding:16` + sheet'in `padding:20`'si var, `useWindowDimensions`
+  // kullanılamaz — bu yüzden pager'ı saran View'in KENDİ `onLayout` genişliği
+  // kullanılıyor.
+  const [pagerWidth, setPagerWidth] = useState(0);
+  const pagerRef = useRef<ScrollView>(null);
+  const isProgrammaticScrollRef = useRef(false);
+  const [tabRowWidth, setTabRowWidth] = useState(0);
+  const indicatorX = useSharedValue(0);
+
+  useEffect(() => {
+    if (tabRowWidth <= 0) return;
+    indicatorX.value = withSpring(tab === 'info' ? 0 : tabRowWidth / 2, { damping: 18, stiffness: 160, mass: 0.8 });
+  }, [tab, tabRowWidth, indicatorX]);
+
+  const indicatorStyle = useAnimatedStyle(() => ({ transform: [{ translateX: indicatorX.value }] }));
+
+  const goToTab = useCallback(
+    (next: 'info' | 'visibility') => {
+      isProgrammaticScrollRef.current = true;
+      setTab(next);
+      pagerRef.current?.scrollTo({ x: next === 'info' ? 0 : pagerWidth, animated: true });
+    },
+    [pagerWidth]
+  );
+
+  const handlePagerScroll = useCallback(
+    ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (isProgrammaticScrollRef.current || pagerWidth <= 0) return;
+      const idx = Math.round(nativeEvent.contentOffset.x / pagerWidth);
+      setTab(idx === 0 ? 'info' : 'visibility');
+    },
+    [pagerWidth]
+  );
+
+  const handlePagerMomentumEnd = useCallback(
+    ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
+      isProgrammaticScrollRef.current = false;
+      if (pagerWidth <= 0) return;
+      const idx = Math.round(nativeEvent.contentOffset.x / pagerWidth);
+      setTab(idx === 0 ? 'info' : 'visibility');
+    },
+    [pagerWidth]
+  );
 
   const [fullName, setFullName] = useState(user?.full_name || '');
   const [username, setUsername] = useState(user?.username || '');
@@ -115,21 +163,23 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
               </Pressable>
             </View>
 
-            <View className="border-line-soft" style={styles.tabRow}>
-              <Pressable
-                className={tab === 'info' ? 'border-accent' : 'border-transparent'}
-                style={styles.tabBtn}
-                onPress={() => setTab('info')}
-              >
+            <View
+              className="border-line-soft"
+              style={[styles.tabRow, { position: 'relative' }]}
+              onLayout={(e) => setTabRowWidth(e.nativeEvent.layout.width)}
+            >
+              {tabRowWidth > 0 && (
+                <Animated.View
+                  pointerEvents="none"
+                  style={[styles.tabIndicator, { width: tabRowWidth / 2, backgroundColor: colors.accent }, indicatorStyle]}
+                />
+              )}
+              <Pressable style={styles.tabBtn} onPress={() => goToTab('info')}>
                 <Text className={tab === 'info' ? 'text-accent' : 'text-muted'} style={styles.tabBtnText}>
                   Kişisel Bilgiler
                 </Text>
               </Pressable>
-              <Pressable
-                className={tab === 'visibility' ? 'border-accent' : 'border-transparent'}
-                style={styles.tabBtn}
-                onPress={() => setTab('visibility')}
-              >
+              <Pressable style={styles.tabBtn} onPress={() => goToTab('visibility')}>
                 <Text className={tab === 'visibility' ? 'text-accent' : 'text-muted'} style={styles.tabBtnText}>
                   Görünürlük
                 </Text>
@@ -149,9 +199,34 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
               </View>
             )}
 
-            <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 8 }}>
-              {tab === 'info' ? (
-                <>
+            {/* Sekmeler artık parmakla kaydırılabiliyor — sayfa genişliği
+                yukarıdaki `onLayout`'tan geliyor (bkz. `pagerWidth`), off-by-one
+                düzeltmesi ProfileScreen.tsx'teki aynı desen: kesin sayfa
+                `onMomentumScrollEnd`'den geliyor, kendi programatik
+                `scrollTo`'muz sürerken `onScroll` devre dışı. Soldaki sayfada
+                `TextInput`lar olduğu için `directionalLockEnabled` ve
+                `keyboardShouldPersistTaps` var. */}
+            <View style={{ flex: 1, marginTop: 8 }} onLayout={(e) => setPagerWidth(e.nativeEvent.layout.width)}>
+              {pagerWidth > 0 && (
+                <ScrollView
+                  ref={pagerRef}
+                  horizontal
+                  pagingEnabled
+                  directionalLockEnabled
+                  showsHorizontalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  onScroll={handlePagerScroll}
+                  onScrollBeginDrag={() => {
+                    isProgrammaticScrollRef.current = false;
+                  }}
+                  onMomentumScrollEnd={handlePagerMomentumEnd}
+                  scrollEventThrottle={16}
+                >
+                  <ScrollView
+                    style={{ width: pagerWidth }}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                  >
                   <Text className="text-ink2" style={styles.label}>
                     İsim Soyisim
                   </Text>
@@ -237,9 +312,13 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
                   <View className="border-line bg-inset" style={styles.input}>
                     <Text className="text-muted">{user?.email}</Text>
                   </View>
-                </>
-              ) : (
-                <>
+                  </ScrollView>
+
+                  <ScrollView
+                    style={{ width: pagerWidth }}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                  >
                   <View style={styles.switchRow}>
                     <View style={{ flex: 1 }}>
                       <Text className="text-ink2" style={styles.switchLabel}>
@@ -319,9 +398,10 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
                       </Text>
                     </Pressable>
                   </View>
-                </>
+                  </ScrollView>
+                </ScrollView>
               )}
-            </ScrollView>
+            </View>
 
             <View style={styles.actionsRow}>
               <Pressable className="border-line" style={styles.cancelBtn} onPress={onClose} disabled={loading}>
@@ -367,7 +447,8 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: 20, fontWeight: '800' },
   tabRow: { flexDirection: 'row', borderBottomWidth: 1, marginTop: 12 },
-  tabBtn: { flex: 1, paddingBottom: 10, borderBottomWidth: 2, alignItems: 'center' },
+  tabBtn: { flex: 1, paddingBottom: 10, alignItems: 'center' },
+  tabIndicator: { position: 'absolute', bottom: -1, height: 2, borderRadius: 1 },
   tabBtnText: { fontSize: 13, fontWeight: '600' },
   alertError: {
     flexDirection: 'row',

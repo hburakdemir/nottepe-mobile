@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Bookmark, Link2, Star, Trash2, User } from 'lucide-react-native';
+import { Link2, Star, Trash2, User } from 'lucide-react-native';
 import { postsAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useSavedPosts } from '../../context/SavedPostContext';
@@ -12,10 +12,12 @@ import { buildPostAuthorAvatar } from '../../lib/postAuthorAvatar';
 import AvatarDisplay from '../../components/avatar/AvatarDisplay';
 import FileTiles from '../../components/FileTiles';
 import BadgeChip from '../../components/BadgeChip';
+import SaveButton from '../../components/SaveButton';
 import CommentSection from '../../components/CommentSection';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
+import StateView from '../../components/StateView';
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('tr-TR', {
@@ -44,12 +46,16 @@ export default function PostDetailScreen() {
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // "Tekrar dene" butonunun useEffect'i yeniden tetikleyebilmesi için basit
+  // bir sayaç — postId değişmeden aynı isteği yeniden atmanın en kısa yolu.
+  const [retryTick, setRetryTick] = useState(0);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         setLoading(true);
+        setError('');
         const res = await postsAPI.getById(postId);
         if (mounted) setPost(res.data.post);
       } catch (err: any) {
@@ -61,7 +67,9 @@ export default function PostDetailScreen() {
     return () => {
       mounted = false;
     };
-  }, [postId]);
+  }, [postId, retryTick]);
+
+  const handleRetry = useCallback(() => setRetryTick((n) => n + 1), []);
 
   const handleDeletePost = () => {
     Alert.alert('Gönderiyi sil', 'Bu gönderiyi silmek istiyor musunuz?', [
@@ -84,7 +92,7 @@ export default function PostDetailScreen() {
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: t.ground }]}>
-        <ActivityIndicator size="large" color={t.accent} />
+        <StateView kind="loading" loadingColor={t.accent} />
       </View>
     );
   }
@@ -92,7 +100,11 @@ export default function PostDetailScreen() {
   if (error || !post) {
     return (
       <View style={[styles.center, { backgroundColor: t.ground }]}>
-        <Text style={{ color: t.ink2, fontSize: 14 }}>{error || 'Gönderi bulunamadı.'}</Text>
+        <StateView
+          kind="error"
+          title={error || 'Gönderi bulunamadı.'}
+          onAction={error === 'Gönderi bulunamadı.' ? undefined : handleRetry}
+        />
       </View>
     );
   }
@@ -141,9 +153,7 @@ export default function PostDetailScreen() {
               </Pressable>
             )}
             {isAuthenticated && (
-              <Pressable onPress={() => toggleSavePost(postId)} hitSlop={8} accessibilityLabel="Kaydet">
-                <Bookmark size={19} color={isSaved ? t.ink : t.ink2} fill={isSaved ? t.ink : 'none'} strokeWidth={2} />
-              </Pressable>
+              <SaveButton saved={isSaved} onPress={() => toggleSavePost(postId)} size={19} color={t.ink2} savedColor={t.ink} />
             )}
           </View>
         </View>

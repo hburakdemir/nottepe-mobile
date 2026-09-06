@@ -5,12 +5,15 @@ import { WifiOff } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 import Ego130ScheduleScreen from '../screens/main/Ego130ScheduleScreen';
 
-// Giriş yapılmamışKEN + çevrimdışıyken düşülen ekran. `OfflineBanner`daki
-// "Ring seferlerini görmek ister misin?" butonu işe yaramaz burada — hedef
-// aldığı `RootStackParamList` (bkz. navigateWhenReady) henüz mount değil,
-// AuthNavigator ayrı bir ağaç. Giriş ekranı zaten çevrimdışıyken hiçbir işe
-// yaramadığından (sunucuya bağlanamıyor), tek çevrimdışı-güvenli ekranı
-// (bkz. Ego130ScheduleScreen.tsx başındaki not) doğrudan gösteriyoruz.
+// Çevrimdışıyken (giriş yapılmış OLSUN ya da OLMASIN) düşülen TEK ekran —
+// bkz. RootNavigator.tsx'teki erken `return`. Eskiden yalnızca giriş
+// EKRANI için vardı; artık tam kilit her iki durumda da buraya düşüyor,
+// bu yüzden metin giriş durumuna göre dallanmıyor. `OfflineBanner`daki "Ring
+// seferlerini görmek ister misin?" butonu burada işe yaramaz — hedef aldığı
+// `RootStackParamList` (bkz. navigateWhenReady) bu ekranla birlikte mount
+// değil; zaten kullanıcı burada başka bir yere gidemez, ring saatleri zaten
+// tek içerik. Bağlantı geri gelince `RootNavigator` otomatik olarak normal
+// ağaca döner.
 export default function OfflineEgoScreen() {
   const { colors } = useTheme();
 
@@ -32,8 +35,7 @@ export default function OfflineEgoScreen() {
           <View style={{ flex: 1 }}>
             <Text style={{ color: colors.ink, fontSize: 13, fontWeight: '700' }}>İnternet bağlantınız yok</Text>
             <Text style={{ color: colors.ink2, fontSize: 12, lineHeight: 17, marginTop: 2 }}>
-              Giriş yapmak için bağlantı gerekiyor. Bağlantı gelene kadar çevrimdışı çalışan EGO 130
-              saatlerini görüntüleyebilirsin.
+              Bağlantı gelene kadar çevrimdışı çalışan EGO 130 saatlerini görüntüleyebilirsin.
             </Text>
           </View>
         </View>

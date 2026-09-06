@@ -1,4 +1,4 @@
-import { Dimensions } from 'react-native';
+import { getMetricsSnapshot, useMetrics } from '../theme/metrics';
 
 // Menü panelinin genişliği — RootNavigator'daki Drawer.Navigator'ın
 // `drawerStyle.width`'i VE PushableStack'in itme mesafesi (translateX hedefi)
@@ -6,7 +6,25 @@ import { Dimensions } from 'react-native';
 // Oran Claude mobil uygulamasindan olculdu: referans ekran goruntusunde itilen
 // sayfanin sol kenari x=776/946 → ekran genisliginin %82'si. Tavan, tablette
 // menunun asiri genislemesini engellemek icin duruyor.
-export const DRAWER_WIDTH = Math.min(Dimensions.get('window').width * 0.82, 400);
+//
+// ESKİDEN bu modül yüklenirken BİR KEZ `Dimensions.get('window').width` ile
+// hesaplanan sabit bir SAYIYDI — döndürmede (özellikle telefon yatay moduna
+// geçince) yeniden hesaplanmıyordu, RootNavigator'daki tüketiciler (drawer
+// genişliği, durum çubuğu yaması) donuk kalıyordu. Artık reaktif bir hook:
+// `useWindowDimensions` üzerinden döndürmede otomatik güncelleniyor. Tablette
+// 400dp tavanı her yönelimde geçerli kaldığı için pratikte oradaki davranış
+// değişmedi — asıl düzeltme telefonun yatay moduna geçişinde.
+export function useDrawerWidth(): number {
+  const { width } = useMetrics();
+  return Math.min(width * 0.82, 400);
+}
+
+/** Hook dışı, bir kerelik okuma (ör. modül seviyesinde import edilen yerler
+ *  için) — reaktif değildir, döndürmeyi izlemez. Tercihen `useDrawerWidth()`
+ *  kullanılmalı; bu yalnızca hook çağıramayan yerler için. */
+export function getDrawerWidthSnapshot(): number {
+  return Math.min(getMetricsSnapshot().width * 0.82, 400);
+}
 
 // Drawer.Navigator'ın id'si — AppShell, odaklanan stack ekranına göre çekmecenin
 // jest seçeneklerini `navigation.getParent(ROOT_DRAWER_ID)` ile güncelliyor.

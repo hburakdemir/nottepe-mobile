@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
-import Animated, { interpolate, runOnJS, useAnimatedReaction, useAnimatedStyle } from 'react-native-reanimated';
+import Animated, { interpolate, interpolateColor, runOnJS, useAnimatedReaction, useAnimatedStyle } from 'react-native-reanimated';
 import { useDrawerProgress } from '@react-navigation/drawer';
 import { DrawerActions, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
@@ -29,7 +29,10 @@ import { useTheme } from '../../context/ThemeContext';
 //  - Ayirici: itilen sayfanin sol kenarinda 1 FIZIKSEL piksellik bir cizgi.
 //    Koyu temada acik (17→51, yani %14 beyaz), acik temada koyu (243→210,
 //    yani %14 siyah). Ayrimi asil yapan sey bu cizgi — golge degil.
-const CORNER_RADIUS = 50;
+// Dışa aktarılıyor: RootNavigator.tsx'teki durum-çubuğu yaması, bu köşe
+// yarıçapı kadar öteye taşıp köşe eğrisinin ötesine geçmeli (bkz. orada).
+export const PUSHABLE_STACK_CORNER_RADIUS = 50;
+const CORNER_RADIUS = PUSHABLE_STACK_CORNER_RADIUS;
 
 export default function PushableStack({ children }: { children: React.ReactNode }) {
   const progress = useDrawerProgress();
@@ -52,16 +55,28 @@ export default function PushableStack({ children }: { children: React.ReactNode 
     return { borderTopLeftRadius: radius, borderBottomLeftRadius: radius };
   });
 
-  // Ayirici cizgi SADECE menu aciliyorken var. Eskiden sabit bir `borderLeft`
-  // olarak duruyordu; menu kapaliyken de cizildigi icin koyu temada ana
-  // sayfanin sol kenarinda ince BEYAZ bir cizgi olarak goruluyordu. Artik
-  // kendi katmaninda ve opakligi cekmecenin ilerlemesini takip ediyor:
-  // kapaliyken tamamen yok.
-  const edgeLineStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
+  const edgeColor = theme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.40)';
+
+  // Ayırıcı çizgi ESKİDEN ayrı, düz kenarlı bir `View`di (sabit
+  // `left:0,top:0,bottom:0`) — köşe yuvarlamasını hiç TAŞIMIYORDU, üstündeki
+  // katmanda da `overflow:'hidden'` yoktu. Sonuç: sayfanın köşeleri
+  // yuvarlanırken çizgi tepeden tabana DÜMDÜZ inip köşede kesişmiyordu
+  // ("iOS'ta menü drawer açılınca köşeleri yuvarlanıyor ama hep bir düz çizgi
+  // oluyor" şikâyeti buydu). Artık ayrı bir View yok — çizgi, zaten
+  // `radiusStyle` + `overflow:'hidden'` taşıyan İÇ katmanın kendi
+  // `borderLeftWidth`'i: kenarlık köşe eğrisini otomatik takip ediyor ve
+  // eğrinin bittiği yerde sonlanıyor. Kapalıyken (`progress===0`) renk
+  // saydam, ayrı bir opaklık katmanına gerek kalmadı.
+  const innerStyle = useAnimatedStyle(() => ({
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderLeftColor: interpolateColor(progress.value, [0, 1], ['transparent', edgeColor]),
+  }));
 
   return (
     <Animated.View style={[StyleSheet.absoluteFill, radiusStyle, { backgroundColor: surfaceColor }]}>
-      <Animated.View style={[StyleSheet.absoluteFill, radiusStyle, { overflow: 'hidden', backgroundColor: surfaceColor }]}>
+      <Animated.View
+        style={[StyleSheet.absoluteFill, radiusStyle, innerStyle, { overflow: 'hidden', backgroundColor: surfaceColor }]}
+      >
         {children}
         {overlayActive && (
           <Pressable
@@ -71,21 +86,6 @@ export default function PushableStack({ children }: { children: React.ReactNode 
           />
         )}
       </Animated.View>
-
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          {
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            bottom: 0,
-            width: StyleSheet.hairlineWidth,
-            backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.40)',
-          },
-          edgeLineStyle,
-        ]}
-      />
     </Animated.View>
   );
 }

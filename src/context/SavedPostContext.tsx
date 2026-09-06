@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { savedPostsAPI } from '../lib/api';
 import { useAuth } from './AuthContext';
 
@@ -52,20 +52,25 @@ export const SavedPostsProvider = ({ children }: { children: React.ReactNode }) 
     }
   }, [isAuthenticated]);
 
+  // OPTİMİSTİK: ikon önce çevrilir, istek arkadan gider. Eskiden `await`
+  // bitmeden state değişmiyordu — dokunuş "ölü" hissettiriyordu (bkz.
+  // SaveButton.tsx). İstek başarısız olursa aynı işlem tersine çevrilerek geri
+  // alınır.
   const toggleSavePost = useCallback(
     async (postId: string | number) => {
       if (!isAuthenticated) return;
       const id = String(postId);
+      const wasSaved = savedPosts.includes(id);
+      setSavedPosts((prev) => (wasSaved ? prev.filter((pid) => pid !== id) : [...prev, id]));
       try {
-        if (savedPosts.includes(id)) {
+        if (wasSaved) {
           await savedPostsAPI.unsavePost(id);
-          setSavedPosts((prev) => prev.filter((pid) => pid !== id));
         } else {
           await savedPostsAPI.savePost(id);
-          setSavedPosts((prev) => [...prev, id]);
         }
       } catch {
-        /* ignore */
+        // Geri al.
+        setSavedPosts((prev) => (wasSaved ? [...prev, id] : prev.filter((pid) => pid !== id)));
       }
     },
     [isAuthenticated, savedPosts]
@@ -75,9 +80,13 @@ export const SavedPostsProvider = ({ children }: { children: React.ReactNode }) 
     fetchSavedPosts();
   }, [isAuthenticated]);
 
-  return (
-    <SavedPostsContext.Provider value={{ savedPosts, loading, toggleSavePost, fetchSavedPosts }}>
-      {children}
-    </SavedPostsContext.Provider>
+  // Aksi hâlde her `toggleSavePost` çağrısında (yeni `savedPosts` referansı
+  // yüzünden) yeni bir `value` nesnesi üretilir ve feed'deki TÜM PostCard'lar
+  // yeniden render olur.
+  const value = useMemo<SavedPostsContextValue>(
+    () => ({ savedPosts, loading, toggleSavePost, fetchSavedPosts }),
+    [savedPosts, loading, toggleSavePost, fetchSavedPosts]
   );
+
+  return <SavedPostsContext.Provider value={value}>{children}</SavedPostsContext.Provider>;
 };

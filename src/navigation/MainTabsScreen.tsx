@@ -5,6 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AppHeader from '../components/layout/AppHeader';
 import KeyboardAvoider from '../components/layout/KeyboardAvoider';
 import WaveTabBar from '../components/layout/WaveTabBar';
+import ContentContainer from '../components/layout/ContentContainer';
 import HomeScreen from '../screens/main/HomeScreen';
 import DepartmentsScreen from '../screens/main/DepartmentsScreen';
 import ToolsScreen from '../screens/main/ToolsScreen';
@@ -51,6 +52,7 @@ export default function MainTabsScreen() {
             Tab bar Tab.Navigator'ın kendi `tabBar` yuvasında olduğu için bu
             itmeden etkilenmiyor — klavyenin altında kalıyor. */}
         <KeyboardAvoider>
+          <ContentContainer>
           <Tab.Navigator
             initialRouteName="Home"
             screenListeners={{
@@ -73,6 +75,7 @@ export default function MainTabsScreen() {
             <Tab.Screen name="CafeteriaMenu" component={CafeteriaMenuScreen} />
             <Tab.Screen name="Profile" component={ProfileScreen} />
           </Tab.Navigator>
+          </ContentContainer>
         </KeyboardAvoider>
       </View>
     </View>

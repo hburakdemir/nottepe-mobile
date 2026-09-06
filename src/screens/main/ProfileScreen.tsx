@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming, runOnJS } from 'react-native-reanimated';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -454,25 +455,54 @@ export default function ProfileScreen() {
   // yok, bkz. render). Bu yüzden `onEndReached` yerine ScrollView'in kendi
   // kaydırma olayından, görünür yüksekliğin yarısı kadar bir eşikle
   // ("onEndReachedThreshold={0.5}" karşılığı) tetikliyoruz.
+  //
+  // Artık iki sayfa (`posts`/`saved`) Reanimated'in `useAnimatedScrollHandler`
+  // ile kaydırılıyor (bkz. aşağıdaki kayan başlık bloğu) — bu yüzden `tab`
+  // parametresiyle çağrılıyor ve `nativeEvent`'i doğrudan (sarmalanmamış)
+  // alıyor. `activeTab !== tab` kontrolü, yalnızca gerçekten görünür sayfa
+  // sonraki sayfayı çekebilsin diye korunuyor.
   const handleScroll = useCallback(
-    ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
-      if (activeTab !== 'posts' && activeTab !== 'saved') return;
+    (tab: 'posts' | 'saved', nativeEvent: NativeScrollEvent) => {
+      if (activeTab !== tab) return;
       const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
       const distanceToEnd = contentSize.height - contentOffset.y - layoutMeasurement.height;
       if (distanceToEnd > layoutMeasurement.height * 0.5) return;
-      if (activeTab === 'posts') loadMoreMyPosts();
+      if (tab === 'posts') loadMoreMyPosts();
       else loadMoreSavedPosts();
     },
     [activeTab, loadMoreMyPosts, loadMoreSavedPosts]
   );
 
-  // Pager'ı sürüklerken (bırakmadan önce) sekme şeridinin de anlık takip
-  // etmesi için — orta noktayı geçer geçmez `activeTab` güncelleniyor, sadece
-  // bırakınca değil. Bu sayede aktif sekmenin içeriği de (bkz. render, her
-  // sayfa kendi `activeTab === key` koşuluyla basılıyor) tam kaydırma
-  // sırasında boş kalmıyor.
+  // ÖNEMLİ (off-by-one düzeltmesi): eskiden pager'ın `contentOffset` prop'u
+  // HER render'da canlı olarak yeniden yazılıyordu. `handleTabPress`'in
+  // başlattığı `scrollTo({animated:true})` sürerken bu `onScroll` (32ms
+  // throttle) ara bir indeksi yuvarlayıp `setActiveTab` çağırıyordu, bu da
+  // `contentOffset`'i o ara sayfaya çakıp animasyonu BİR SAYFA ERKEN
+  // durduruyordu — "tablarda gezerken neye tıkladıysam bir sağına ya da bir
+  // soluna gidiyor" şikâyeti buydu. Artık `contentOffset` prop'u yok (bkz.
+  // render), kesin doğru sayfa `onMomentumScrollEnd`'den geliyor;
+  // `handlePagerScroll` yalnızca sürüklerken şeridin/sayfanın önizlemesi
+  // için çalışıyor ve KENDİ programatik `scrollTo`'muz sürerken (bu kilit
+  // sayesinde) devre dışı kalıyor.
+  const isProgrammaticScrollRef = useRef(false);
+
   const handlePagerScroll = useCallback(
     ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (isProgrammaticScrollRef.current) return;
+      if (screenWidth <= 0) return;
+      const idx = Math.round(nativeEvent.contentOffset.x / screenWidth);
+      const key = TABS[idx]?.key;
+      if (key && key !== activeTab) setActiveTab(key);
+    },
+    [screenWidth, activeTab]
+  );
+
+  // Kaydırma bittiğinde (elle sürükleyip bırakınca DA, `pagingEnabled`
+  // sayfayı kendi kendine hizaya oturttuğunda DA) gerçek sayfa burada kesin
+  // olarak belirleniyor — hiçbir sayfa boş/yanlış sekmede takılı kalmıyor.
+  const handlePagerMomentumEnd = useCallback(
+    ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
+      isProgrammaticScrollRef.current = false;
       if (screenWidth <= 0) return;
       const idx = Math.round(nativeEvent.contentOffset.x / screenWidth);
       const key = TABS[idx]?.key;
@@ -483,11 +513,36 @@ export default function ProfileScreen() {
 
   const handleTabPress = useCallback(
     (index: number) => {
+      isProgrammaticScrollRef.current = true;
       setActiveTab(TABS[index].key);
       pagerRef.current?.scrollTo({ x: index * screenWidth, animated: true });
     },
     [screenWidth]
   );
+
+  // --- Sekme şeridini aktif sekmeye ortalama --------------------------------
+  // Eskiden şeridin ne `ref`'i ne `onLayout`'u ne de bir `scrollTo` çağrısı
+  // vardı — sekmeler hiçbir zaman ortalanmıyordu, 5-7. sekmeler ekran dışında
+  // kalıyordu ("tablar asla olması gereken yerde ortada render olmuyor").
+  // Her sekmenin x/width'i `onLayout` ile ölçülüp (bkz. render) aktif sekme
+  // değiştiğinde şerit o sekmeyi ortasına getirecek şekilde kaydırılıyor.
+  const stripRef = useRef<ScrollView>(null);
+  const stripWidthRef = useRef(0);
+  const stripContentWidthRef = useRef(0);
+  const tabLayoutsRef = useRef<Partial<Record<TabKey, { x: number; width: number }>>>({});
+
+  const centerStripOn = useCallback((key: TabKey) => {
+    const item = tabLayoutsRef.current[key];
+    const stripWidth = stripWidthRef.current;
+    if (!item || stripWidth <= 0) return;
+    const maxScroll = Math.max(0, stripContentWidthRef.current - stripWidth);
+    const target = Math.min(Math.max(item.x + item.width / 2 - stripWidth / 2, 0), maxScroll);
+    stripRef.current?.scrollTo({ x: target, animated: true });
+  }, []);
+
+  useEffect(() => {
+    centerStripOn(activeTab);
+  }, [activeTab, centerStripOn]);
 
   useEffect(() => {
     if (activeTab !== 'lists' || myChecklists !== null) return;
@@ -651,6 +706,104 @@ export default function ProfileScreen() {
     }
   };
 
+  // --- Kayan (collapsing) profil başlığı -----------------------------------
+  // Eskiden profil kartı + sekme şeridi pager'ın DIŞINDA, sabit duruyordu —
+  // "aşağı kaydırdıkça profil kısmı sabit kalmamalı, kaymalı, en üstte tablar
+  // kalacak kadar yok olabilmeli" şikâyeti buydu. Artık kart ölçülüp
+  // (`cardHeight`) sayfa içeriği o kadar boşlukla başlıyor; kart+şerit,
+  // sayfanın ÜSTÜNDE mutlak konumlu bir katman olarak `scrollY` kadar yukarı
+  // kayıyor. Sayfanın kendi native kaydırması içeriği zaten normal şekilde
+  // yukarı taşıdığı için (paddingTop sabit kalıyor), üstteki katman sadece
+  // "kart kadar" yukarı gidip duruyor — şerit böylece ekranın en üstünde
+  // yapışık kalıyor, kart tamamen kayboluyor.
+  const scrollY = useSharedValue(0);
+  const [cardHeight, setCardHeight] = useState(0);
+  const [stripHeight, setStripHeight] = useState(0);
+  const headerTotalHeight = cardHeight + stripHeight;
+  // Her sekmenin KENDİ dikey kaydırma konumu — sekme değiştirince (bkz. aşağı)
+  // `scrollY` o sekmenin son bilinen konumuna senkronlanıyor; aksi hâlde
+  // başlık, önceki sekmede nerede kalmışsa orada donuk kalırdı.
+  const pageScrollOffsets = useRef<Record<TabKey, number>>({
+    posts: 0,
+    saved: 0,
+    lists: 0,
+    akts: 0,
+    schedule: 0,
+    follows: 0,
+    forums: 0,
+  });
+  const rememberPageOffset = useCallback((key: TabKey, y: number) => {
+    pageScrollOffsets.current[key] = y;
+  }, []);
+
+  useEffect(() => {
+    scrollY.value = withTiming(pageScrollOffsets.current[activeTab] ?? 0, { duration: 180 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  const headerAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: -Math.min(scrollY.value, cardHeight) }],
+  }));
+  const cardAnimStyle = useAnimatedStyle(() => ({
+    opacity: cardHeight > 0 ? 1 - Math.min(scrollY.value, cardHeight * 0.7) / (cardHeight * 0.7) : 1,
+  }));
+
+  // İki gönderi sekmesi hem `scrollY`'yi besliyor hem de sonsuz kaydırma
+  // eşiğini (bkz. handleScroll) kontrol ediyor; kalan beş sekme yalnızca
+  // `scrollY`'yi besliyor. Sekme sayısı sabit (7) olduğu için hook'lar burada
+  // döngüsüz, tek tek çağrılıyor.
+  const postsScrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+      runOnJS(handleScroll)('posts', event);
+    },
+    onEndDrag: (event) => runOnJS(rememberPageOffset)('posts', event.contentOffset.y),
+    onMomentumEnd: (event) => runOnJS(rememberPageOffset)('posts', event.contentOffset.y),
+  });
+  const savedScrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+      runOnJS(handleScroll)('saved', event);
+    },
+    onEndDrag: (event) => runOnJS(rememberPageOffset)('saved', event.contentOffset.y),
+    onMomentumEnd: (event) => runOnJS(rememberPageOffset)('saved', event.contentOffset.y),
+  });
+  const listsScrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+    onEndDrag: (event) => runOnJS(rememberPageOffset)('lists', event.contentOffset.y),
+    onMomentumEnd: (event) => runOnJS(rememberPageOffset)('lists', event.contentOffset.y),
+  });
+  const aktsScrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+    onEndDrag: (event) => runOnJS(rememberPageOffset)('akts', event.contentOffset.y),
+    onMomentumEnd: (event) => runOnJS(rememberPageOffset)('akts', event.contentOffset.y),
+  });
+  const scheduleScrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+    onEndDrag: (event) => runOnJS(rememberPageOffset)('schedule', event.contentOffset.y),
+    onMomentumEnd: (event) => runOnJS(rememberPageOffset)('schedule', event.contentOffset.y),
+  });
+  const followsScrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+    onEndDrag: (event) => runOnJS(rememberPageOffset)('follows', event.contentOffset.y),
+    onMomentumEnd: (event) => runOnJS(rememberPageOffset)('follows', event.contentOffset.y),
+  });
+  const forumsScrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollY.value = event.contentOffset.y;
+    },
+    onEndDrag: (event) => runOnJS(rememberPageOffset)('forums', event.contentOffset.y),
+    onMomentumEnd: (event) => runOnJS(rememberPageOffset)('forums', event.contentOffset.y),
+  });
+
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center">
@@ -659,10 +812,326 @@ export default function ProfileScreen() {
     );
   }
 
+  const pageContentStyle = { paddingBottom: TAB_BAR_SAFE_PADDING, paddingTop: headerTotalHeight };
+  // NativeWind'in `className` derleme-zamanı dönüşümü yalnızca 'react-native'
+  // içinden doğrudan import edilen bileşenleri tanıyor — `Animated.ScrollView`
+  // (react-native-reanimated) bu listede değil, `contentContainerClassName`
+  // burada sessizce hiçbir şey yapmazdı. Aynı "px-4 gap-2.5" değerleri (16px
+  // yatay dolgu, 10px boşluk) doğrudan style olarak veriliyor.
+  const paddedPageContentStyle = { ...pageContentStyle, paddingHorizontal: 16, gap: 10 };
+
   return (
     <View className="flex-1 bg-ground">
-      <View>
-        <View className="bg-surface p-4 m-4 mb-5 rounded-lg" style={SHADOW_MD}>
+      {/* Pager ÖNCE render ediliyor: başlık katmanı ondan SONRA gelip üstüne
+          mutlak konumla biniyor (bkz. aşağı), böylece pager'ın kaydırması
+          başlığın altından "akıyor" gibi görünüyor. Her sayfanın üst dolgusu
+          (`paddingTop: headerTotalHeight`) sabit — sayfa kendi native
+          kaydırmasıyla zaten yukarı akıyor, üstteki katman sadece kart kadar
+          (`cardHeight`) yukarı giderek onunla aynı hizada kalıyor; kart
+          tamamını kat ettikten sonra şerit ekranın en üstünde sabitleniyor. */}
+      <ScrollView
+        ref={pagerRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onScroll={handlePagerScroll}
+        onScrollBeginDrag={() => {
+          isProgrammaticScrollRef.current = false;
+        }}
+        onMomentumScrollEnd={handlePagerMomentumEnd}
+        scrollEventThrottle={32}
+        style={{ flex: 1 }}
+      >
+        <Animated.ScrollView
+          style={{ width: screenWidth }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={pageContentStyle}
+          onScroll={postsScrollHandler}
+          scrollEventThrottle={16}
+        >
+          {activeTab === 'posts' &&
+            (myPosts.length === 0 ? (
+              <EmptyState icon={FileText} text="Henüz not paylaşmadınız." />
+            ) : (
+              <>
+                {myPosts.map((post) => (
+                  <PostCard key={postKey(post)} post={post} showStatus showRating={false} onDelete={handlePostDelete} />
+                ))}
+                {myPostsLoadingMore && <TabLoading />}
+              </>
+            ))}
+        </Animated.ScrollView>
+
+        <Animated.ScrollView
+          style={{ width: screenWidth }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={pageContentStyle}
+          onScroll={savedScrollHandler}
+          scrollEventThrottle={16}
+        >
+          {activeTab === 'saved' &&
+            (savedPostsData === null ? (
+              <TabLoading />
+            ) : savedPostsData.length === 0 ? (
+              <EmptyState icon={FileText} text="Henüz not kaydetmediniz." />
+            ) : (
+              <>
+                {savedPostsData.map((post) => (
+                  <PostCard
+                    key={postKey(post)}
+                    post={post}
+                    showStatus
+                    showRating={true}
+                    onDelete={() => {
+                      fetchSavedPosts();
+                      setSavedPostsData((prev) => (prev ? prev.filter((p) => p.id !== post.id) : prev));
+                      setSavedPostsTotal((prev) => (prev === null ? prev : Math.max(0, prev - 1)));
+                    }}
+                  />
+                ))}
+                {savedPostsLoadingMore && <TabLoading />}
+              </>
+            ))}
+        </Animated.ScrollView>
+
+        <Animated.ScrollView
+          style={{ width: screenWidth }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={paddedPageContentStyle}
+          onScroll={listsScrollHandler}
+          scrollEventThrottle={16}
+        >
+          {activeTab === 'lists' &&
+            (myChecklists === null ? (
+              <TabLoading />
+            ) : myChecklists.length === 0 ? (
+              <EmptyState
+                icon={ListChecks}
+                text="Henüz bir checklist oluşturmadın."
+                actionLabel="Checklistlere Git"
+                onAction={() => navigation.navigate('Checklists')}
+              />
+            ) : (
+              myChecklists.map((checklist) => (
+                <ChecklistCard
+                  key={checklist.id}
+                  checklist={checklist}
+                  isOpen={expandedChecklistId === checklist.id}
+                  onToggleOpen={(c) => setExpandedChecklistId((prev) => (prev === c.id ? null : c.id))}
+                  onToggleItem={handleChecklistItemToggle}
+                  onStatsClick={setStatsChecklist}
+                  onEditClick={setEditChecklist}
+                  canEdit={isWithinEditWindow(checklist)}
+                />
+              ))
+            ))}
+        </Animated.ScrollView>
+
+        <Animated.ScrollView
+          style={{ width: screenWidth }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={paddedPageContentStyle}
+          onScroll={aktsScrollHandler}
+          scrollEventThrottle={16}
+        >
+          {activeTab === 'akts' &&
+            (aktsCalcs === null ? (
+              <TabLoading />
+            ) : aktsCalcs.length === 0 ? (
+              <EmptyState
+                icon={Calculator}
+                text="Henüz kayıtlı AKTS hesaplaman yok."
+                actionLabel="Hesaplayıcıya Git"
+                onAction={() => navigation.navigate('AktsCalculator')}
+              />
+            ) : (
+              aktsCalcs.map((calc) => {
+                const semesterCount = calc.data?.semesters?.length || 0;
+                const courseCount = calc.data?.semesters?.reduce((sum, s) => sum + (s.courses?.length || 0), 0) || 0;
+                return (
+                  <View key={calc.id} className="flex-row items-center bg-surface rounded-lg p-3.5 mb-3" style={SHADOW_SM}>
+                    <View className="flex-1">
+                      <Text className="text-sm font-bold text-ink" numberOfLines={1}>
+                        {calc.title}
+                      </Text>
+                      <Text className="text-[11.5px] text-muted2 mt-0.5">
+                        {semesterCount} dönem · {courseCount} ders · {formatDate(calc.updated_at)}
+                      </Text>
+                    </View>
+                    <View className="items-center mr-2.5">
+                      <Text className="text-lg font-extrabold text-accent">{formatGpa(calc.gpa)}</Text>
+                      <Text className="text-xs text-muted2 uppercase">GANO</Text>
+                    </View>
+                    <Pressable
+                      className="bg-brand rounded-lg px-2.5 py-[7px]"
+                      onPress={() => navigation.navigate('AktsCalculator', { loadId: calc.id })}
+                    >
+                      <Text className="text-white text-xs font-bold">Düzenle</Text>
+                    </Pressable>
+                    <Pressable onPress={() => handleAktsDelete(calc.id)} hitSlop={8} className="ml-2">
+                      <Trash2 size={17} color="#dc2626" />
+                    </Pressable>
+                  </View>
+                );
+              })
+            ))}
+        </Animated.ScrollView>
+
+        <Animated.ScrollView
+          style={{ width: screenWidth }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={paddedPageContentStyle}
+          onScroll={scheduleScrollHandler}
+          scrollEventThrottle={16}
+        >
+          {activeTab === 'schedule' &&
+            (mySchedule === null ? (
+              <TabLoading />
+            ) : mySchedule.length === 0 ? (
+              <EmptyState
+                icon={CalendarDays}
+                text="Henüz ders programı oluşturmadın."
+                actionLabel="Ders Programı Oluştur"
+                onAction={() => navigation.navigate('Schedule')}
+              />
+            ) : (
+              <View>
+                <Pressable
+                  className="flex-row self-end items-center gap-1.5 bg-brand rounded-lg px-3 py-2 mb-2.5"
+                  onPress={() => navigation.navigate('Schedule')}
+                >
+                  <Edit2 size={13} color="#fff" />
+                  <Text className="text-white text-xs font-bold">Düzenle</Text>
+                </Pressable>
+                {[1, 2, 3, 4, 5, 6].map((day) => {
+                  const dayCourses = mySchedule.filter((c) => c.day === day).sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
+                  if (dayCourses.length === 0) return null;
+                  return (
+                    <View key={day} className="bg-surface rounded-lg p-3.5 mb-3" style={SHADOW_SM}>
+                      <Text className="text-[13px] font-bold text-ink mb-2">{DAY_NAMES[day]}</Text>
+                      {dayCourses.map((c) => (
+                        <View key={c.id} className="flex-row items-center gap-2 py-1.5">
+                          <View className="w-1 h-[26px] rounded-sm" style={{ backgroundColor: getCourseColor(c.colorIdx).hex }} />
+                          <View className="flex-1">
+                            <Text className="text-[12.5px] font-semibold text-ink" numberOfLines={1}>
+                              {c.name}
+                            </Text>
+                            <Text className="text-[11px] text-muted mt-px">
+                              {c.start}–{c.end}
+                              {c.location ? ` · ${c.location}` : ''}
+                            </Text>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  );
+                })}
+              </View>
+            ))}
+        </Animated.ScrollView>
+
+        <Animated.ScrollView
+          style={{ width: screenWidth }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={paddedPageContentStyle}
+          onScroll={followsScrollHandler}
+          scrollEventThrottle={16}
+        >
+          {activeTab === 'follows' &&
+            (follows === null ? (
+              <TabLoading />
+            ) : follows.length === 0 ? (
+              <EmptyState
+                icon={Bell}
+                text='Henüz bölüm takip etmiyorsun. Bölüm sayfasındaki "Takip Et" butonuyla haberdar olabilirsin.'
+                actionLabel="Bölümlere Göz At"
+                onAction={() => goToTab(navigation, 'Departments')}
+              />
+            ) : (
+              follows.map((f) => (
+                <View
+                  key={`${f.faculty}-${f.department}`}
+                  className="flex-row items-center bg-surface rounded-lg p-3.5 mb-3"
+                  style={SHADOW_SM}
+                >
+                  <Pressable
+                    className="flex-1"
+                    onPress={() => navigation.navigate('DepartmentDetail', { faculty: f.faculty, department: f.department })}
+                  >
+                    <Text className="text-sm font-bold text-ink" numberOfLines={1}>
+                      {f.department}
+                    </Text>
+                    <Text className="text-[11.5px] text-muted2 mt-0.5">{f.faculty}</Text>
+                  </Pressable>
+                  <Pressable
+                    className="flex-row items-center gap-[5px] border border-line rounded-lg px-2.5 py-[7px]"
+                    onPress={() => handleUnfollow(f.faculty, f.department)}
+                  >
+                    <BellOff size={13} color={isDark ? '#9ca3af' : '#6b7280'} />
+                    <Text className="text-[11.5px] text-muted font-semibold">Bırak</Text>
+                  </Pressable>
+                </View>
+              ))
+            ))}
+        </Animated.ScrollView>
+
+        <Animated.ScrollView
+          style={{ width: screenWidth }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={paddedPageContentStyle}
+          onScroll={forumsScrollHandler}
+          scrollEventThrottle={16}
+        >
+          {activeTab === 'forums' &&
+            (forumLoading || forumItems === null ? (
+              <TabLoading />
+            ) : forumItems.length === 0 ? (
+              <EmptyState icon={MessagesSquare} text="Henüz bir foruma katılmadı." />
+            ) : (
+              forumItems.map((item) => (
+                <Pressable
+                  key={item.key}
+                  className="flex-row gap-2 bg-surface rounded-lg p-3.5 mb-3"
+                  style={SHADOW_SM}
+                  onPress={() =>
+                    item.kind === 'faq'
+                      ? navigation.navigate('FaqDetail', { id: item.targetId })
+                      : navigation.navigate('SuggestionDetail', { id: item.targetId })
+                  }
+                >
+                  {item.kind === 'faq' ? (
+                    <HelpCircle size={15} color={isDark ? '#5A9690' : '#2F5755'} />
+                  ) : (
+                    <Lightbulb size={15} color={isDark ? '#5A9690' : '#2F5755'} />
+                  )}
+                  <View className="flex-1">
+                    <Text className="text-[11.5px] font-semibold text-muted">{item.title}</Text>
+                    {!!item.body && (
+                      <Text className="text-sm text-ink2 mt-[3px]" numberOfLines={2}>
+                        {item.body}
+                      </Text>
+                    )}
+                    <Text className="text-[10.5px] text-muted2 mt-1">{formatDate(item.created_at)}</Text>
+                  </View>
+                </Pressable>
+              ))
+            ))}
+        </Animated.ScrollView>
+      </ScrollView>
+
+      {/* Başlık katmanı: pager'ın ÜSTÜNDE mutlak konumlu. Kart, `cardAnimStyle`
+          ile hem kayıyor hem soluyor; şerit hep tam opak ve `headerAnimStyle`
+          ile kartla birlikte yukarı gidip kartın yüksekliğinde duruyor —
+          böylece ekranın en üstünde "yapışmış" gibi kalıyor. */}
+      <Animated.View pointerEvents="box-none" style={[{ position: 'absolute', top: 0, left: 0, right: 0 }, headerAnimStyle]}>
+        {/* NativeWind'in `className` derleme dönüşümü yalnızca 'react-native'den
+            doğrudan import edilen bileşenleri (View, ScrollView, ...) tanıyor —
+            `Animated.View` (reanimated) bu listede değil, üzerine className
+            koymak sessizce hiçbir şey yapmaz. Bu yüzden görsel sınıflar (arka
+            plan/dolgu/köşe) düz bir `View`de kalıyor; `Animated.View` yalnızca
+            saydamlık/kayma animasyonunu taşıyor. */}
+        <Animated.View onLayout={(e) => setCardHeight(e.nativeEvent.layout.height)} style={cardAnimStyle}>
+          <View className="bg-surface p-4 m-4 mb-5 rounded-lg" style={SHADOW_MD}>
           <View className="flex-row gap-3.5">
             <View className="w-20 h-20">
               <View className="w-20 h-20 rounded-[20px] bg-brand items-center justify-center overflow-hidden">
@@ -712,17 +1181,30 @@ export default function ProfileScreen() {
             <Edit2 size={15} color="#fff" />
             <Text className="text-white text-[13px] font-bold">Düzenle</Text>
           </Pressable>
-        </View>
+          </View>
+        </Animated.View>
 
         {/* Sekme şeridi bilinçli olarak kendi kutusunda: altında ince bir çizgi
             ve gölge var ki profil kartından ayrı, kendi başına bir yapı olduğu
             görünsün (kullanıcı isteği). */}
-        <View className="bg-surface rounded-lg mx-4 mb-5 border-b border-line-soft" style={SHADOW_MD}>
+        <View
+          onLayout={(e) => setStripHeight(e.nativeEvent.layout.height)}
+          className="bg-surface rounded-lg mx-4 mb-5 border-b border-line-soft"
+          style={SHADOW_MD}
+        >
           <ScrollView
+            ref={stripRef}
             showsVerticalScrollIndicator={false}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerClassName="px-3"
+            onLayout={(e) => {
+              stripWidthRef.current = e.nativeEvent.layout.width;
+              centerStripOn(activeTab);
+            }}
+            onContentSizeChange={(w) => {
+              stripContentWidthRef.current = w;
+            }}
           >
             {TABS.map(({ key, label, icon: Icon }, index) => {
               // Tembel yüklenen sekmelerde sayaç ancak veri geldiğinde
@@ -751,6 +1233,10 @@ export default function ProfileScreen() {
                   key={key}
                   className={`flex-row items-center gap-[5px] py-3 mr-[18px] border-b-2 ${active ? 'border-b-brand' : 'border-b-transparent'}`}
                   onPress={() => handleTabPress(index)}
+                  onLayout={(e) => {
+                    tabLayoutsRef.current[key] = { x: e.nativeEvent.layout.x, width: e.nativeEvent.layout.width };
+                    if (active) centerStripOn(key);
+                  }}
                 >
                   <Icon size={14} color={active ? (isDark ? '#5A9690' : '#2F5755') : '#9ca3af'} />
                   <Text className={`text-[12.5px] font-semibold ${active ? 'text-accent' : 'text-muted2'}`}>
@@ -762,289 +1248,7 @@ export default function ProfileScreen() {
             })}
           </ScrollView>
         </View>
-      </View>
-
-      <ScrollView
-        ref={pagerRef}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onScroll={handlePagerScroll}
-        scrollEventThrottle={32}
-        contentOffset={{ x: TABS.findIndex((t) => t.key === activeTab) * screenWidth, y: 0 }}
-        style={{ flex: 1 }}
-      >
-        <ScrollView
-          style={{ width: screenWidth }}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-        >
-          {activeTab === 'posts' &&
-            (myPosts.length === 0 ? (
-              <EmptyState icon={FileText} text="Henüz not paylaşmadınız." />
-            ) : (
-              <>
-                {myPosts.map((post) => (
-                  <PostCard key={postKey(post)} post={post} showStatus showRating={false} onDelete={handlePostDelete} />
-                ))}
-                {myPostsLoadingMore && <TabLoading />}
-              </>
-            ))}
-        </ScrollView>
-
-        <ScrollView
-          style={{ width: screenWidth }}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-        >
-          {activeTab === 'saved' &&
-            (savedPostsData === null ? (
-              <TabLoading />
-            ) : savedPostsData.length === 0 ? (
-              <EmptyState icon={FileText} text="Henüz not kaydetmediniz." />
-            ) : (
-              <>
-                {savedPostsData.map((post) => (
-                  <PostCard
-                    key={postKey(post)}
-                    post={post}
-                    showStatus
-                    showRating={true}
-                    onDelete={() => {
-                      fetchSavedPosts();
-                      setSavedPostsData((prev) => (prev ? prev.filter((p) => p.id !== post.id) : prev));
-                      setSavedPostsTotal((prev) => (prev === null ? prev : Math.max(0, prev - 1)));
-                    }}
-                  />
-                ))}
-                {savedPostsLoadingMore && <TabLoading />}
-              </>
-            ))}
-        </ScrollView>
-
-        <ScrollView
-          style={{ width: screenWidth }}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}
-          contentContainerClassName="px-4 gap-2.5"
-        >
-          {activeTab === 'lists' &&
-            (myChecklists === null ? (
-              <TabLoading />
-            ) : myChecklists.length === 0 ? (
-              <EmptyState
-                icon={ListChecks}
-                text="Henüz bir checklist oluşturmadın."
-                actionLabel="Checklistlere Git"
-                onAction={() => navigation.navigate('Checklists')}
-              />
-            ) : (
-              myChecklists.map((checklist) => (
-                <ChecklistCard
-                  key={checklist.id}
-                  checklist={checklist}
-                  isOpen={expandedChecklistId === checklist.id}
-                  onToggleOpen={(c) => setExpandedChecklistId((prev) => (prev === c.id ? null : c.id))}
-                  onToggleItem={handleChecklistItemToggle}
-                  onStatsClick={setStatsChecklist}
-                  onEditClick={setEditChecklist}
-                  canEdit={isWithinEditWindow(checklist)}
-                />
-              ))
-            ))}
-        </ScrollView>
-
-        <ScrollView
-          style={{ width: screenWidth }}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}
-          contentContainerClassName="px-4 gap-2.5"
-        >
-          {activeTab === 'akts' &&
-            (aktsCalcs === null ? (
-              <TabLoading />
-            ) : aktsCalcs.length === 0 ? (
-              <EmptyState
-                icon={Calculator}
-                text="Henüz kayıtlı AKTS hesaplaman yok."
-                actionLabel="Hesaplayıcıya Git"
-                onAction={() => navigation.navigate('AktsCalculator')}
-              />
-            ) : (
-              aktsCalcs.map((calc) => {
-                const semesterCount = calc.data?.semesters?.length || 0;
-                const courseCount = calc.data?.semesters?.reduce((sum, s) => sum + (s.courses?.length || 0), 0) || 0;
-                return (
-                  <View key={calc.id} className="flex-row items-center bg-surface rounded-lg p-3.5 mb-3" style={SHADOW_SM}>
-                    <View className="flex-1">
-                      <Text className="text-sm font-bold text-ink" numberOfLines={1}>
-                        {calc.title}
-                      </Text>
-                      <Text className="text-[11.5px] text-muted2 mt-0.5">
-                        {semesterCount} dönem · {courseCount} ders · {formatDate(calc.updated_at)}
-                      </Text>
-                    </View>
-                    <View className="items-center mr-2.5">
-                      <Text className="text-lg font-extrabold text-accent">{formatGpa(calc.gpa)}</Text>
-                      <Text className="text-xs text-muted2 uppercase">GANO</Text>
-                    </View>
-                    <Pressable
-                      className="bg-brand rounded-lg px-2.5 py-[7px]"
-                      onPress={() => navigation.navigate('AktsCalculator', { loadId: calc.id })}
-                    >
-                      <Text className="text-white text-xs font-bold">Düzenle</Text>
-                    </Pressable>
-                    <Pressable onPress={() => handleAktsDelete(calc.id)} hitSlop={8} className="ml-2">
-                      <Trash2 size={17} color="#dc2626" />
-                    </Pressable>
-                  </View>
-                );
-              })
-            ))}
-        </ScrollView>
-
-        <ScrollView
-          style={{ width: screenWidth }}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}
-          contentContainerClassName="px-4 gap-2.5"
-        >
-          {activeTab === 'schedule' &&
-            (mySchedule === null ? (
-              <TabLoading />
-            ) : mySchedule.length === 0 ? (
-              <EmptyState
-                icon={CalendarDays}
-                text="Henüz ders programı oluşturmadın."
-                actionLabel="Ders Programı Oluştur"
-                onAction={() => navigation.navigate('Schedule')}
-              />
-            ) : (
-              <View>
-                <Pressable
-                  className="flex-row self-end items-center gap-1.5 bg-brand rounded-lg px-3 py-2 mb-2.5"
-                  onPress={() => navigation.navigate('Schedule')}
-                >
-                  <Edit2 size={13} color="#fff" />
-                  <Text className="text-white text-xs font-bold">Düzenle</Text>
-                </Pressable>
-                {[1, 2, 3, 4, 5, 6].map((day) => {
-                  const dayCourses = mySchedule.filter((c) => c.day === day).sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
-                  if (dayCourses.length === 0) return null;
-                  return (
-                    <View key={day} className="bg-surface rounded-lg p-3.5 mb-3" style={SHADOW_SM}>
-                      <Text className="text-[13px] font-bold text-ink mb-2">{DAY_NAMES[day]}</Text>
-                      {dayCourses.map((c) => (
-                        <View key={c.id} className="flex-row items-center gap-2 py-1.5">
-                          <View className="w-1 h-[26px] rounded-sm" style={{ backgroundColor: getCourseColor(c.colorIdx).hex }} />
-                          <View className="flex-1">
-                            <Text className="text-[12.5px] font-semibold text-ink" numberOfLines={1}>
-                              {c.name}
-                            </Text>
-                            <Text className="text-[11px] text-muted mt-px">
-                              {c.start}–{c.end}
-                              {c.location ? ` · ${c.location}` : ''}
-                            </Text>
-                          </View>
-                        </View>
-                      ))}
-                    </View>
-                  );
-                })}
-              </View>
-            ))}
-        </ScrollView>
-
-        <ScrollView
-          style={{ width: screenWidth }}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}
-          contentContainerClassName="px-4 gap-2.5"
-        >
-          {activeTab === 'follows' &&
-            (follows === null ? (
-              <TabLoading />
-            ) : follows.length === 0 ? (
-              <EmptyState
-                icon={Bell}
-                text='Henüz bölüm takip etmiyorsun. Bölüm sayfasındaki "Takip Et" butonuyla haberdar olabilirsin.'
-                actionLabel="Bölümlere Göz At"
-                onAction={() => goToTab(navigation, 'Departments')}
-              />
-            ) : (
-              follows.map((f) => (
-                <View
-                  key={`${f.faculty}-${f.department}`}
-                  className="flex-row items-center bg-surface rounded-lg p-3.5 mb-3"
-                  style={SHADOW_SM}
-                >
-                  <Pressable
-                    className="flex-1"
-                    onPress={() => navigation.navigate('DepartmentDetail', { faculty: f.faculty, department: f.department })}
-                  >
-                    <Text className="text-sm font-bold text-ink" numberOfLines={1}>
-                      {f.department}
-                    </Text>
-                    <Text className="text-[11.5px] text-muted2 mt-0.5">{f.faculty}</Text>
-                  </Pressable>
-                  <Pressable
-                    className="flex-row items-center gap-[5px] border border-line rounded-lg px-2.5 py-[7px]"
-                    onPress={() => handleUnfollow(f.faculty, f.department)}
-                  >
-                    <BellOff size={13} color={isDark ? '#9ca3af' : '#6b7280'} />
-                    <Text className="text-[11.5px] text-muted font-semibold">Bırak</Text>
-                  </Pressable>
-                </View>
-              ))
-            ))}
-        </ScrollView>
-
-        <ScrollView
-          style={{ width: screenWidth }}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}
-          contentContainerClassName="px-4 gap-2.5"
-        >
-          {activeTab === 'forums' &&
-            (forumLoading || forumItems === null ? (
-              <TabLoading />
-            ) : forumItems.length === 0 ? (
-              <EmptyState icon={MessagesSquare} text="Henüz bir foruma katılmadı." />
-            ) : (
-              forumItems.map((item) => (
-                <Pressable
-                  key={item.key}
-                  className="flex-row gap-2 bg-surface rounded-lg p-3.5 mb-3"
-                  style={SHADOW_SM}
-                  onPress={() =>
-                    item.kind === 'faq'
-                      ? navigation.navigate('FaqDetail', { id: item.targetId })
-                      : navigation.navigate('SuggestionDetail', { id: item.targetId })
-                  }
-                >
-                  {item.kind === 'faq' ? (
-                    <HelpCircle size={15} color={isDark ? '#5A9690' : '#2F5755'} />
-                  ) : (
-                    <Lightbulb size={15} color={isDark ? '#5A9690' : '#2F5755'} />
-                  )}
-                  <View className="flex-1">
-                    <Text className="text-[11.5px] font-semibold text-muted">{item.title}</Text>
-                    {!!item.body && (
-                      <Text className="text-sm text-ink2 mt-[3px]" numberOfLines={2}>
-                        {item.body}
-                      </Text>
-                    )}
-                    <Text className="text-[10.5px] text-muted2 mt-1">{formatDate(item.created_at)}</Text>
-                  </View>
-                </Pressable>
-              ))
-            ))}
-        </ScrollView>
-      </ScrollView>
+      </Animated.View>
 
       {statsChecklist && <ChecklistStatsModal checklist={statsChecklist} onClose={() => setStatsChecklist(null)} />}
       {editChecklist && (
