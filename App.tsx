@@ -4,12 +4,12 @@ applyGlobalFont();
 import 'react-native-gesture-handler';
 import './global.css';
 import React from 'react';
-import { View } from 'react-native';
+import { Image, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DarkTheme, DefaultTheme, NavigationContainer, type Theme } from '@react-navigation/native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import {
   useFonts as useSoraFonts,
   Sora_400Regular,
@@ -24,21 +24,20 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import { navigationRef, drainPendingTarget } from './src/navigation/navigationRef';
 import PushBridge from './src/components/PushBridge';
+import { queryClient } from './src/lib/queryClient';
 
-// Varsayılanlar eskiden boştu: react-query'nin kendi varsayılanı 3 tekrar +
-// üstel bekleme demek — çevrimdışıyken bir ekran dakikalarca "yükleniyor"
-// kalabiliyordu. `staleTime` de her odaklanmada/mount'ta gereksiz ağ isteğini
-// önlüyor (bkz. HomeScreen.tsx odak efekti). Bir hook kendi `retry`/`staleTime`
-// değerini verirse (ör. useUnreadNotifications) o değer burayı ezer.
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30_000,
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
+// Fontlar hazır olana kadar (kullanıcı isteği: açılışta logo + altında
+// "Nottepe" yazmalı) — native splash bu JS bileşeni ekrana gelmeden önce
+// kendiliğinden kayboluyor (preventAutoHideAsync yönetimi yok), bu yüzden
+// boş bir "flash" yaşanmaması için ilk çizilen kare zaten markalı.
+function BootScreen() {
+  return (
+    <View style={{ flex: 1, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
+      <Image source={require('./assets/splash-icon.png')} style={{ width: 96, height: 96, resizeMode: 'contain' }} />
+      <Text style={{ marginTop: 12, fontSize: 20, fontWeight: '800', color: '#2F5755', letterSpacing: 0.5 }}>Nottepe</Text>
+    </View>
+  );
+}
 
 // Expo SDK 57'de Android edge-to-edge zorunlu ve expo-status-bar artik ayri bir
 // backgroundColor kabul etmiyor (durum cubugu her zaman saydam, altindaki icerik
@@ -81,7 +80,7 @@ export default function App() {
   const [fontsReady] = useSoraFonts({ Sora_400Regular, Sora_500Medium, Sora_600SemiBold, Sora_700Bold, Sora_800ExtraBold });
 
   if (!fontsReady) {
-    return <View style={{ flex: 1, backgroundColor: '#fff' }} />;
+    return <BootScreen />;
   }
 
   return (

@@ -116,12 +116,9 @@ export default function PostDetailScreen() {
   const files = post.file_urls ?? [];
 
   return (
-    <ScrollView
-      showsVerticalScrollIndicator={false}
-      style={{ flex: 1, backgroundColor: t.ground }}
-      contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}
-    >
-      <View style={[styles.head, cardSurface]}>
+    <View style={{ flex: 1, backgroundColor: t.ground }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}>
+        <View style={[styles.head, cardSurface]}>
         {/* Profil en üstte: avatar + kullanıcı adı + rozetler + tarih, sağda
             kaydet/sil. Fakülte ve bölüm künyesi en alta indi. */}
         <View style={styles.authorRow}>
@@ -146,16 +143,13 @@ export default function PostDetailScreen() {
             </View>
           </Pressable>
 
-          <View style={styles.actions}>
-            {isOwner && (
+          {isOwner && (
+            <View style={styles.actions}>
               <Pressable onPress={handleDeletePost} hitSlop={8}>
                 <Trash2 size={18} color={t.danger} strokeWidth={2} />
               </Pressable>
-            )}
-            {isAuthenticated && (
-              <SaveButton saved={isSaved} onPress={() => toggleSavePost(postId)} size={19} color={t.ink2} savedColor={t.ink} />
-            )}
-          </View>
+            </View>
+          )}
         </View>
 
         <Text style={[styles.title, { color: t.ink }]}>{post.title}</Text>
@@ -208,12 +202,22 @@ export default function PostDetailScreen() {
           onRatingChange={({ avg_rating, rating_count }) => setPost((prev) => (prev ? { ...prev, avg_rating, rating_count } : prev))}
         />
       </View>
-    </ScrollView>
+      </ScrollView>
+
+      {/* Kaydet ikonu artık yazar satırının içinde kaymıyor — ekranın en sağ
+          üstünde sabit (kullanıcı isteği), kaydırma boyunca yerinde kalıyor. */}
+      {isAuthenticated && (
+        <View style={[styles.floatingSave, { backgroundColor: t.ground }]} pointerEvents="box-none">
+          <SaveButton saved={isSaved} onPress={() => toggleSavePost(postId)} size={20} color={t.ink2} savedColor={t.ink} />
+        </View>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  floatingSave: { position: 'absolute', top: 8, right: 8, borderRadius: 24 },
   // Gönderi ve yorumlar iki ayrı kart — akıştaki kartlarla aynı dil.
   head: {
     marginHorizontal: 12,

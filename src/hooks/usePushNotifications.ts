@@ -3,7 +3,8 @@ import { AppState } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
-import { UNREAD_NOTIFICATIONS_KEY } from './useUnreadNotifications';
+import { useUnreadNotifications, UNREAD_NOTIFICATIONS_KEY } from './useUnreadNotifications';
+import { useUnreadAnnouncements } from './useUnreadAnnouncements';
 import { ensurePushPermission, registerToken } from '../lib/push/registration';
 import { parsePushTarget, openPushTarget, savePendingPushTarget, takePendingPushTarget } from '../lib/push/targets';
 import { isNotificationsScreenFocused } from '../lib/push/pushState';
@@ -15,6 +16,18 @@ import { isNotificationsScreenFocused } from '../lib/push/pushState';
 export function usePushNotifications(): void {
   const { user, isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
+  // Uygulama İÇİNDEKİ rozetler (bkz. AppHeader zili + MenuDrawerContent zil/
+  // megafon) ayrı ayrı Aktivite/Duyuru sayıyor; uygulama DIŞINDAKİ (OS) rozet
+  // ise TEK bir sayı ("okunmayan bildirim sayısı" — kullanıcı ayrım
+  // istemiyor). Eskiden bu rozet yalnız push bildirimi geldiğinde ve yalnız
+  // Aktivite sayısıyla güncelleniyordu; "hepsini okundu yap" sonrası ya da
+  // Duyuru tarafında hiç sıfırlanmıyordu.
+  const activityUnread = useUnreadNotifications();
+  const announcementsUnread = useUnreadAnnouncements();
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    Notifications.setBadgeCountAsync(activityUnread + announcementsUnread).catch(() => {});
+  }, [isAuthenticated, activityUnread, announcementsUnread]);
   // Soğuk açılış yanıtı `useLastNotificationResponse` yerine elle okunuyor:
   // o hook her remount'ta AYNI yanıtı yeniden tetikleyip kullanıcıyı oturum
   // ortasında zıplatıyor. `identifier` ile tek seferlik tüketim burada.
@@ -75,9 +88,10 @@ export function usePushNotifications(): void {
       }
       if (typeof data?.unread_count === 'number') {
         // Gönderim sonrası kesin değer — poll'u beklemeden tek `setQueryData`
-        // hem üst bar hem menü zilini günceller.
+        // hem üst bar hem menü zilini günceller. OS rozeti burada AYRICA
+        // set edilmiyor: yukarıdaki birleşik efekt (Aktivite + Duyuru toplamı)
+        // bu `setQueryData` sonrası zaten yeniden çalışıp doğru toplamı yazıyor.
         queryClient.setQueryData(UNREAD_NOTIFICATIONS_KEY, data.unread_count);
-        Notifications.setBadgeCountAsync(data.unread_count).catch(() => {});
       } else {
         // Sunucu kesin sayı göndermediyse iyimser +1; bir sonraki poll düzeltir.
         queryClient.setQueryData(UNREAD_NOTIFICATIONS_KEY, (prev: number = 0) => prev + 1);

@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   Bell,
   BellOff,
@@ -1273,18 +1274,27 @@ export default function ProfileScreen() {
       {showDeleteModal && <DeleteAccountModal onClose={() => setShowDeleteModal(false)} />}
 
       <Modal visible={showAvatarBuilder} animationType="slide" onRequestClose={() => setShowAvatarBuilder(false)}>
-        <AvatarBuilderScreen
-          initialConfig={avatar?.config || {}}
-          isStaff={isStaff}
-          onClose={() => setShowAvatarBuilder(false)}
-          onSaved={(newCfg) => {
-            queryClient.setQueryData(MY_AVATAR_KEY, (prev: AvatarData | null | undefined) => ({
-              ...(prev || {}),
-              config: newCfg,
-            }));
-            invalidateMyAvatar();
-          }}
-        />
+        {/* RN'in `Modal`ı iOS'ta içeriğini AYRI bir native pencerede sunuyor —
+            uygulama kökündeki `SafeAreaProvider` (App.tsx) o pencere için insets'i
+            (özellikle notch/Dynamic Island'ın üst boşluğu) doğru ölçemiyor,
+            AvatarBuilderScreen içindeki `SafeAreaView edges={['top']}` bu yüzden
+            iOS'ta 0'a yakın bir üst boşlukla çiziyordu ("avatar çok üstte
+            kalıyor"). Modal'ın kendi `SafeAreaProvider`'ı içeride yeniden
+            ölçüm yaptırıyor — bilinen bir react-native-safe-area-context deseni. */}
+        <SafeAreaProvider>
+          <AvatarBuilderScreen
+            initialConfig={avatar?.config || {}}
+            isStaff={isStaff}
+            onClose={() => setShowAvatarBuilder(false)}
+            onSaved={(newCfg) => {
+              queryClient.setQueryData(MY_AVATAR_KEY, (prev: AvatarData | null | undefined) => ({
+                ...(prev || {}),
+                config: newCfg,
+              }));
+              invalidateMyAvatar();
+            }}
+          />
+        </SafeAreaProvider>
       </Modal>
     </View>
   );

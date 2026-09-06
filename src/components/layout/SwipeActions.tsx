@@ -9,6 +9,7 @@ import Animated, {
   useSharedValue,
   withSpring,
   withTiming,
+  type SharedValue,
 } from 'react-native-reanimated';
 import type { LucideIcon } from 'lucide-react-native';
 
@@ -26,6 +27,56 @@ const OPEN_THRESHOLD = 0.4;
 // Sona gelince parmak "duvara çarpmış" gibi hissettirmesin diye hafif bir
 // lastik payı — üst sınır tam `width` değil, biraz ötesi.
 const RUBBER_BAND = 1.15;
+
+// Tek bir aksiyon butonu: BÜYÜKLÜĞÜ kaydırma mesafesine bağlı (kullanıcı
+// isteği — eskiden şerit sabit boyutta gelip yalnız opaklığı değişiyordu,
+// "az kaydırınca az az gözükmeli, büyüyerek gelmeli" istendi). Her buton
+// kendi payına düşen aralıkta (`index*ACTION_WIDTH` → `(index+1)*ACTION_WIDTH`)
+// 0'dan 1'e büyüyor — soldaki (ekranın kenarına en yakın) buton önce, sağdaki
+// parmak daha ileri gidince büyümeye başlıyor. `translateX` tek paylaşılan
+// değer olduğu için açılış (spring/timing ile) ve kapanış TAMAMEN simetrik:
+// aynı interpolasyon ekrana geri sarılırken küçülmeyi de otomatik veriyor.
+function SwipeActionButton({
+  action,
+  index,
+  translateX,
+  onPress,
+}: {
+  action: SwipeAction;
+  index: number;
+  translateX: SharedValue<number>;
+  onPress: () => void;
+}) {
+  const { icon: Icon, label, color } = action;
+  const rangeStart = index * ACTION_WIDTH;
+  const rangeEnd = rangeStart + ACTION_WIDTH;
+
+  // Arka plan rengi de büyümeye dahil — yalnız ikon/yazı değil, TÜM buton
+  // (rengiyle birlikte) ufacık başlayıp tam boyuta büyüyor. `opacity` ayrıca
+  // gerekli: `scale` küçükken View'ın kendisi hâlâ tam boyutta yer kaplar,
+  // saydamlık olmadan yarı büyümüş bir buton hep "orada duruyormuş" gibi
+  // görünürdü.
+  const style = useAnimatedStyle(() => {
+    const progress = interpolate(translateX.value, [rangeStart, rangeEnd], [0, 1], Extrapolation.CLAMP);
+    return {
+      opacity: progress,
+      transform: [{ scale: interpolate(progress, [0, 1], [0.3, 1], Extrapolation.CLAMP) }],
+    };
+  });
+
+  return (
+    <View style={{ width: ACTION_WIDTH, overflow: 'hidden' }}>
+      <Animated.View style={[{ flex: 1, backgroundColor: color, alignItems: 'center', justifyContent: 'center', gap: 4 }, style]}>
+        <Pressable className="items-center justify-center gap-1" onPress={onPress} accessibilityLabel={label} hitSlop={4}>
+          <Icon size={19} color="#fff" />
+          <Text className="text-white text-[11px] font-semibold" numberOfLines={1}>
+            {label}
+          </Text>
+        </Pressable>
+      </Animated.View>
+    </View>
+  );
+}
 
 // Satırı sağa çekince SOLDAN açılan aksiyon şeridi (kullanıcı isteği:
 // "sağa kaydırınca okunmadı ve sil ikonları çıkmalı yan yana").
@@ -50,9 +101,9 @@ const RUBBER_BAND = 1.15;
 //
 // Aksiyon katmanı artık HER ZAMAN mount'lu (eskiden yalnızca `open` iken
 // render ediliyordu, bu da butonların sürüklerken değil ancak bırakınca "pat"
-// diye belirmesine yol açıyordu) — görünürlüğü `translateX`'e bağlı bir
-// opaklık geçişiyle kademeli, kapalıyken `pointerEvents="none"` ile dokunuşu
-// yutmuyor.
+// diye belirmesine yol açıyordu) — görünürlüğü ve boyutunu `translateX`'e bağlı
+// her butonun kendi büyüme animasyonu belirliyor, kapalıyken `pointerEvents="none"`
+// ile dokunuşu yutmuyor.
 //
 // Çekmece jesti bu ekranda bilerek kapalı (bkz. drawerConstants
 // NO_DRAWER_SWIPE_ROUTES); açık olsaydı sağa çekiş menüyü açardı.
@@ -80,9 +131,6 @@ export default function SwipeActions({ actions, children }: { actions: SwipeActi
     });
 
   const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));
-  const actionsStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(translateX.value, [0, width * 0.5], [0, 1], Extrapolation.CLAMP),
-  }));
 
   return (
     <GestureDetector gesture={pan}>
@@ -96,24 +144,19 @@ export default function SwipeActions({ actions, children }: { actions: SwipeActi
             hit-test dikdörtgeni ne derse desin doğrudan buraya geliyor. */}
         <Animated.View
           pointerEvents={open ? 'auto' : 'none'}
-          style={[{ position: 'absolute', left: 0, top: 0, bottom: 0, width, flexDirection: 'row' }, actionsStyle]}
+          style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width, flexDirection: 'row' }}
         >
-          {actions.map(({ key, icon: Icon, label, color, onPress }) => (
-            <Pressable
-              key={key}
-              className="items-center justify-center gap-1"
-              style={{ width: ACTION_WIDTH, backgroundColor: color }}
+          {actions.map((action, index) => (
+            <SwipeActionButton
+              key={action.key}
+              action={action}
+              index={index}
+              translateX={translateX}
               onPress={() => {
                 close();
-                onPress();
+                action.onPress();
               }}
-              accessibilityLabel={label}
-            >
-              <Icon size={19} color="#fff" />
-              <Text className="text-white text-[11px] font-semibold" numberOfLines={1}>
-                {label}
-              </Text>
-            </Pressable>
+            />
           ))}
         </Animated.View>
       </View>

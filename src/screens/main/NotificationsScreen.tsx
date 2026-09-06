@@ -25,7 +25,16 @@ import NotificationSettingsSheet from '../../components/notifications/Notificati
 import { useNotificationPrefs } from '../../lib/notificationPrefs';
 import { setNotificationsScreenFocused } from '../../lib/push/pushState';
 import { useMarkNotificationsRead } from '../../hooks/useUnreadNotifications';
+import { useInvalidateUnreadAnnouncements } from '../../hooks/useUnreadAnnouncements';
 import { useNotificationCategories } from '../../hooks/useNotificationCategories';
+
+// Admin bağlantıyı şemasız girebiliyor ("nottepe.com", "www...") — `Linking.openURL`
+// şemasız bir URL'i REDDEDİYOR (native tarafta sessizce hiçbir şey olmuyormuş gibi
+// görünüyordu, "daha fazla bilgi çalışmıyor" şikayeti buradan geliyordu).
+function normalizeExternalUrl(raw: string): string {
+  const trimmed = raw.trim();
+  return /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('tr-TR', {
@@ -144,7 +153,10 @@ function AnnouncementCard({ notif, unread }: { notif: Announcement; unread?: boo
       <Text className="text-[15.5px] font-bold text-ink mb-1.5">{notif.title}</Text>
       <Text className="text-[13.5px] text-muted leading-[19px]">{notif.content}</Text>
       {!!notif.link && (
-        <Pressable className="flex-row items-center gap-1.5 mt-2.5" onPress={() => Linking.openURL(notif.link!)}>
+        <Pressable
+          className="flex-row items-center gap-1.5 mt-2.5"
+          onPress={() => Linking.openURL(normalizeExternalUrl(notif.link!)).catch(() => {})}
+        >
           <ExternalLink size={14} color={isDark ? '#60a5fa' : '#1d4ed8'} />
           <Text className="text-[13px] text-info font-semibold">Daha fazla bilgi</Text>
         </Pressable>
@@ -219,6 +231,7 @@ export default function NotificationsScreen() {
   const activityInFlight = useRef(false);
   const prefs = useNotificationPrefs();
   const markNotificationsRead = useMarkNotificationsRead();
+  const invalidateAnnouncementsUnread = useInvalidateUnreadAnnouncements();
 
   // Silinen son satırın id'si — "Geri al" şeridi bunu hedefliyor.
   const [undoId, setUndoId] = useState<string | null>(null);
@@ -232,6 +245,45 @@ export default function NotificationsScreen() {
       .catch(() => setAnnouncements([]))
       .finally(() => setLoadingAnnouncements(false));
   }, [activeCategory]);
+
+  // Sunucuda duyurular için toplu "okundu yap" ucu yok — tekil `POST
+  // /notifications/:id/view` var (bkz. lib/api.ts notificationAPI.markViewed).
+  // Aynı id için üst üste isteği engelliyor: aksi hâlde art arda gelen
+  // render'larda (aşağıdaki efekt + kaydırma aksiyonu) aynı id ikinci kez
+  // uçuşa çıkabilir.
+  const viewingAnnouncementIds = useRef<Set<string>>(new Set());
+  const markAnnouncementViewed = useCallback(
+    (id: string | number) => {
+      const key = String(id);
+      if (viewingAnnouncementIds.current.has(key)) return;
+      viewingAnnouncementIds.current.add(key);
+      notificationAPI
+        .markViewed(id)
+        .catch(() => {})
+        .finally(() => viewingAnnouncementIds.current.delete(key));
+      const now = new Date().toISOString();
+      setAnnouncements((prev) =>
+        prev.map((a) => (String(a.id) === key ? { ...a, is_viewed: true, viewed_at: a.viewed_at ?? now } : a))
+      );
+      // Kullanıcı elle "okunmadı" demişse o tercih baskın kalsın istemiyoruz:
+      // "okundu" artık gerçek (sunucu) bir aksiyon, yerel geçersiz kılmayı temizliyor.
+      prefs.markRead(id);
+      invalidateAnnouncementsUnread();
+    },
+    [prefs.markRead, invalidateAnnouncementsUnread]
+  );
+
+  // Kullanıcı isteği: Duyurular sekmesine girilince listedeki görüntülenmemiş
+  // duyurular otomatik okundu sayılmalı (Aktivite sekmesindeki "girince hepsi
+  // okundu" deseniyle aynı — bkz. fetchActivity). `announcements` her
+  // `markAnnouncementViewed` çağrısından sonra `is_viewed: true` ile
+  // güncellendiği için bu efekt kendi kendini söndürüyor (bir sonraki
+  // çalışmada `unviewed` boş çıkıyor), sonsuz döngü olmuyor.
+  useEffect(() => {
+    if (tab !== 'duyurular' || loadingAnnouncements) return;
+    const unviewed = announcements.filter((a) => !a.is_viewed);
+    unviewed.forEach((a) => markAnnouncementViewed(a.id));
+  }, [tab, loadingAnnouncements, announcements, markAnnouncementViewed]);
 
   // Aktivite listesi sayfa sayfa çekiliyor (desen: FaqScreen). Eskiden tek
   // seferde `limit: 30` isteniyordu, yani 30'dan eski hiçbir bildirim ekranda
@@ -330,13 +382,22 @@ export default function NotificationsScreen() {
     []
   );
 
-  const rowActions = (id: string | number, isUnread: boolean) => [
+  // `kind`: Duyurularda "Okundu" sunucuya (`markAnnouncementViewed`) gitmeli —
+  // eskiden burada da `prefs.markRead` çağrılıyordu, ki bu yalnızca yerel
+  // "okunmadı" GEÇERSİZ KILMASINI temizliyordu; sunucudaki `is_viewed` hâlâ
+  // false kaldığı için kart "Yeni" görünmeye devam ediyordu ("okundu/okunmadı
+  // kartı çalışmıyor" şikayeti). Aktivitede bu ayrıma gerek yok: o liste
+  // zaten girişte tamamen okundu sayılıyor (bkz. fetchActivity).
+  const rowActions = (id: string | number, isUnread: boolean, kind: 'announcement' | 'activity') => [
     {
       key: 'read',
       icon: MailOpen,
       label: isUnread ? 'Okundu' : 'Okunmadı',
       color: colors.accent,
-      onPress: () => (isUnread ? prefs.markRead(id) : prefs.markUnread(id)),
+      onPress: () => {
+        if (!isUnread) return prefs.markUnread(id);
+        return kind === 'announcement' ? markAnnouncementViewed(id) : prefs.markRead(id);
+      },
     },
     { key: 'delete', icon: Trash2, label: 'Sil', color: colors.danger, onPress: () => handleDelete(id) },
   ];
@@ -386,7 +447,7 @@ export default function NotificationsScreen() {
             // karttaki rozet aynı değerden çıkıyor.
             const isUnread = prefs.unread.has(String(item.id)) || !item.is_viewed;
             return (
-              <SwipeActions actions={rowActions(item.id, isUnread)}>
+              <SwipeActions actions={rowActions(item.id, isUnread, 'announcement')}>
                 <AnnouncementCard notif={item} unread={isUnread} />
               </SwipeActions>
             );
@@ -429,7 +490,7 @@ export default function NotificationsScreen() {
           renderItem={({ item }) => {
             const isUnread = prefs.unread.has(String(item.id)) || !item.read_at;
             return (
-              <SwipeActions actions={rowActions(item.id, isUnread)}>
+              <SwipeActions actions={rowActions(item.id, isUnread, 'activity')}>
                 <ActivityCard notif={item} unread={isUnread} />
               </SwipeActions>
             );

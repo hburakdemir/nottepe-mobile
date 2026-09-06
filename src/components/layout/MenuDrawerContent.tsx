@@ -30,9 +30,10 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme, type ThemePreference } from '../../context/ThemeContext';
-import { departmentFollowAPI, postsAPI, savedPostsAPI, notificationAPI } from '../../lib/api';
+import { departmentFollowAPI, postsAPI, savedPostsAPI } from '../../lib/api';
 import { useMyAvatar } from '../../hooks/useMyAvatar';
 import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
+import { useUnreadAnnouncements } from '../../hooks/useUnreadAnnouncements';
 import AvatarDisplay from '../avatar/AvatarDisplay';
 import DeerIcon from '../icons/DeerIcon';
 import { goToTab, navigateApp } from '../../navigation/navigateApp';
@@ -341,7 +342,12 @@ export default function MenuDrawerContent({ navigation }: DrawerContentComponent
   const shadowFadeStyle = useAnimatedStyle(() => ({ opacity: drawerProgress.value }));
 
   const avatar = useMyAvatar();
-  const [broadcastUnread, setBroadcastUnread] = useState(0);
+  // Eskiden `notificationAPI.getActive().length` rozet sayısı sanılıyordu —
+  // yani GÖRÜNTÜLENMİŞ duyurular da sayılıyordu ("duyurularda okundu/okunmadı
+  // çalışmıyor" şikayeti). Artık aynı `is_viewed` filtresini kullanan paylaşılan
+  // react-query kancasından geliyor; Bildirimler ekranı bir duyuruyu görüntülenmiş
+  // işaretlediğinde bu anahtar geçersiz kılınıyor, rozet anında düşüyor.
+  const broadcastUnread = useUnreadAnnouncements();
   // Üst bardaki zille AYNI kaynaktan (bkz. hooks/useUnreadNotifications.ts) —
   // eskiden burada ayrı bir fetch vardı, iki rozet birbirinden sapabiliyordu.
   const personalUnread = useUnreadNotifications();
@@ -353,10 +359,6 @@ export default function MenuDrawerContent({ navigation }: DrawerContentComponent
   // (her seferinde taze mount olan) davranışla aynı garanti korunuyor.
   useEffect(() => {
     if (!isOpen) return;
-    notificationAPI
-      .getActive()
-      .then((res) => setBroadcastUnread(res.data?.length || 0))
-      .catch(() => setBroadcastUnread(0));
     postsAPI
       .getMyPosts()
       .then((res) => setMyPostsCount(res.data?.length || 0))

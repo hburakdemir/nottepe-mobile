@@ -4,6 +4,7 @@ import { authAPI } from '../lib/api';
 import { getAccessToken, setAccessToken, clearAccessToken, setRefreshToken, clearRefreshToken } from '../lib/tokenStore';
 import { onSessionExpired } from '../lib/authEvents';
 import { unregisterToken } from '../lib/push/registration';
+import { queryClient } from '../lib/queryClient';
 import type { User } from '../types/user';
 
 const STORAGE_KEY = 'nottepe_auth_user';
@@ -42,6 +43,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await clearRefreshToken();
     await AsyncStorage.removeItem(STORAGE_KEY);
     setUser(null);
+    // react-query cache'i kullanıcıya göre ayrıştırılmadan (avatar, profil,
+    // bildirim sayaçları hep aynı anahtarlar) sadece `staleTime` ile duruyordu
+    // — bu hesaptan çıkıp başka bir hesaba girince eski hesabın verisi (ör.
+    // avatar) staleTime dolana kadar ekranda kalıyordu. Çıkışta tamamen
+    // temizlemek bu sızıntıyı kapatıyor.
+    queryClient.clear();
   }, []);
 
   // İlk açılışta: SecureStore'da token varsa oturumu geri yükle.
