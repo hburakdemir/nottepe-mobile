@@ -1,4 +1,4 @@
-export const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
+export const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://nottepe.com/api';
 
 export const API_BASE = API_URL.replace(/\/api\/?$/, '');
 
