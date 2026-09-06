@@ -116,21 +116,21 @@ export default function PostCardModern({ post, showStatus = false, showRating = 
         </View>
       )}
 
-      {/* Künye: fakülte soluk, bölüm net — ikisi farklı veri, ikisi de görünüyor. */}
-      <Text style={[styles.crumb, { color: t.ink3 }]} numberOfLines={2}>
-        {post.faculty}
-        {!!post.faculty && !!post.department && <Text style={{ color: t.line }}>{'  ›  '}</Text>}
-        <Text style={[styles.crumbDept, { color: t.ink2 }]}>{post.department}</Text>
-      </Text>
-
-      {/* Başlık satırı: kaydet ikonu artık burada, sağ üstte — eskiden alt
-          sayaç satırında, komşu ikonlara çok yakın ve zor dokunulur bir yerdeydi. */}
-      <View style={styles.titleRow}>
-        <Text style={[styles.title, { color: t.ink, flex: 1 }]}>{post.title}</Text>
+      {/* Künye: fakülte soluk, bölüm net. Kaydet ikonu de bu satırla aynı
+          hizada, en sağda — kullanıcı isteği: eskiden başlık satırındaydı,
+          künye ile aynı yükseklikte olması istendi. */}
+      <View style={styles.crumbRow}>
+        <Text style={[styles.crumb, { color: t.ink3, flex: 1 }]} numberOfLines={2}>
+          {post.faculty}
+          {!!post.faculty && !!post.department && <Text style={{ color: t.line }}>{'  ›  '}</Text>}
+          <Text style={[styles.crumbDept, { color: t.ink2 }]}>{post.department}</Text>
+        </Text>
         {isAuthenticated && (
           <SaveButton saved={isSaved} onPress={() => toggleSavePost(postId)} color={t.ink2} savedColor={t.ink} />
         )}
       </View>
+
+      <Text style={[styles.title, { color: t.ink }]}>{post.title}</Text>
 
       {!!content && <Text style={[styles.body, { color: t.ink2 }]}>{displayText}</Text>}
       {isLong && (
@@ -211,9 +211,9 @@ const styles = StyleSheet.create({
   },
   statusBadge: { alignSelf: 'flex-start', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 3 },
   statusBadgeText: { fontSize: 10.5, fontWeight: '700' },
+  crumbRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   crumb: { fontSize: 12, lineHeight: 17 },
   crumbDept: { fontWeight: '600' },
-  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   title: { fontSize: 18, fontWeight: '600', lineHeight: 24, letterSpacing: -0.2 },
   body: { fontSize: 13.5, lineHeight: 21 },
   more: { fontSize: 13, fontWeight: '600' },

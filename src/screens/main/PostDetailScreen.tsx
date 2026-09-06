@@ -204,8 +204,8 @@ export default function PostDetailScreen() {
       </View>
       </ScrollView>
 
-      {/* Kaydet ikonu artık yazar satırının içinde kaymıyor — ekranın en sağ
-          üstünde sabit (kullanıcı isteği), kaydırma boyunca yerinde kalıyor. */}
+      {/* Kaydet ikonu ekranın en sağ üstünde sabit (kullanıcı isteği),
+          kaydırma boyunca yerinde kalıyor. */}
       {isAuthenticated && (
         <View style={[styles.floatingSave, { backgroundColor: t.ground }]} pointerEvents="box-none">
           <SaveButton saved={isSaved} onPress={() => toggleSavePost(postId)} size={20} color={t.ink2} savedColor={t.ink} />
@@ -218,6 +218,8 @@ export default function PostDetailScreen() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   floatingSave: { position: 'absolute', top: 8, right: 8, borderRadius: 24 },
+  crumb: { fontSize: 12.5, lineHeight: 18 },
+  crumbDept: { fontWeight: '600' },
   // Gönderi ve yorumlar iki ayrı kart — akıştaki kartlarla aynı dil.
   head: {
     marginHorizontal: 12,
@@ -228,8 +230,6 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     gap: 13,
   },
-  crumb: { fontSize: 12.5, lineHeight: 18 },
-  crumbDept: { fontWeight: '600' },
   title: { fontSize: 23, fontWeight: '600', lineHeight: 30, letterSpacing: -0.3 },
   body: { fontSize: 14.5, lineHeight: 23 },
   linkRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },

@@ -34,6 +34,19 @@ async function writeIds(key: string, ids: IdSet): Promise<void> {
   AsyncStorage.setItem(key, JSON.stringify(arr)).catch(() => {});
 }
 
+// `useNotificationPrefs` her çağrıldığı yerde KENDİ React state'ini tutuyor
+// (bkz. yukarıdaki yorum) — `NotificationsScreen`'deki liste ile rozet
+// sayısını hesaplayan `useUnreadAnnouncements` (farklı bir bileşende/hook'ta)
+// birbirinden habersiz iki ayrı örnek. Elle "okunmadı" yapılan bir duyuru bu
+// yüzden listede okunmamış görünse de rozet sayısına hiç yansımıyordu. Bu
+// fonksiyon, React state'e hiç girmeden AsyncStorage'daki GÜNCEL tercihleri
+// tek seferlik okuyor — rozet sorgusu her çalıştığında (invalidate sonrası)
+// bunu çağırıp sunucu verisiyle birleştiriyor.
+export async function readNotificationPrefsSnapshot(): Promise<{ hidden: IdSet; unread: IdSet }> {
+  const [hidden, unread] = await Promise.all([readIds(HIDDEN_KEY), readIds(UNREAD_KEY)]);
+  return { hidden, unread };
+}
+
 export interface NotificationPrefs {
   ready: boolean;
   /** Kullanıcının sildiği (gizlediği) bildirim id'leri. */

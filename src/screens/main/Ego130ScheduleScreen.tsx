@@ -252,7 +252,7 @@ export default function Ego130ScheduleScreen() {
   // satırlar tırtıklı çıkıyordu. Genişlik ızgaranın KENDİ ölçüsünden (onLayout)
   // türetiliyor — pencere genişliğinden hesaplamak AppShell'in kendi yatay
   // payını hesaba katmadığı için satıra 4 yerine 3 kutucuk sığdırıyordu.
-  const tileWidth = gridWidth > 0 ? (gridWidth - GRID_GAP * (COLUMNS - 1)) / COLUMNS : 0;
+  const tileWidth = gridWidth > 0 ? Math.floor((gridWidth - GRID_GAP * (COLUMNS - 1)) / COLUMNS) : 0;
 
   return (
     <ScrollView

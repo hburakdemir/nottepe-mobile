@@ -1,7 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import Animated, { useAnimatedScrollHandler, useAnimatedStyle, useSharedValue, withTiming, runOnJS } from 'react-native-reanimated';
+import Animated, {
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  runOnJS,
+} from 'react-native-reanimated';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -166,6 +173,22 @@ function extractPostsPage(data: unknown): { posts: Post[]; total: number | null 
 function appendUniquePosts(prev: Post[], rows: Post[]): Post[] {
   const seen = new Set(prev.map(postKey));
   return [...prev, ...rows.filter((p) => !seen.has(postKey(p)))];
+}
+
+// Tam ekran yükleme durumu artık jenerik bir spinner değil, markanın geyik
+// ikonu — hafif bir nabız (opacity) animasyonuyla "yükleniyor" hissi veriyor.
+function LoadingDeer() {
+  const pulse = useSharedValue(0.4);
+  useEffect(() => {
+    pulse.value = withRepeat(withTiming(1, { duration: 700 }), -1, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
+  return (
+    <Animated.View style={pulseStyle}>
+      <DeerIcon size={48} color="#2F5755" />
+    </Animated.View>
+  );
 }
 
 export default function ProfileScreen() {
@@ -808,7 +831,7 @@ export default function ProfileScreen() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color="#2F5755" />
+        <LoadingDeer />
       </View>
     );
   }

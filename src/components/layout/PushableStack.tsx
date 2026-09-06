@@ -1,9 +1,20 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
-import Animated, { interpolate, interpolateColor, runOnJS, useAnimatedReaction, useAnimatedStyle } from 'react-native-reanimated';
+import Animated, {
+  interpolate,
+  interpolateColor,
+  runOnJS,
+  useAnimatedProps,
+  useAnimatedReaction,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
+import Svg, { Path } from 'react-native-svg';
 import { useDrawerProgress } from '@react-navigation/drawer';
 import { DrawerActions, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../context/ThemeContext';
+
+const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 // X (Twitter) tarzı "itme" efekti. İTMENİN KENDİSİ ARTIK BU DOSYADA DEĞİL:
 // Drawer.Navigator `drawerType: 'back'` kullanıyor (bkz. RootNavigator.tsx),
@@ -57,26 +68,46 @@ export default function PushableStack({ children }: { children: React.ReactNode 
 
   const edgeColor = theme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.40)';
 
-  // Ayırıcı çizgi ESKİDEN ayrı, düz kenarlı bir `View`di (sabit
-  // `left:0,top:0,bottom:0`) — köşe yuvarlamasını hiç TAŞIMIYORDU, üstündeki
-  // katmanda da `overflow:'hidden'` yoktu. Sonuç: sayfanın köşeleri
-  // yuvarlanırken çizgi tepeden tabana DÜMDÜZ inip köşede kesişmiyordu
-  // ("iOS'ta menü drawer açılınca köşeleri yuvarlanıyor ama hep bir düz çizgi
-  // oluyor" şikâyeti buydu). Artık ayrı bir View yok — çizgi, zaten
-  // `radiusStyle` + `overflow:'hidden'` taşıyan İÇ katmanın kendi
-  // `borderLeftWidth`'i: kenarlık köşe eğrisini otomatik takip ediyor ve
-  // eğrinin bittiği yerde sonlanıyor. Kapalıyken (`progress===0`) renk
-  // saydam, ayrı bir opaklık katmanına gerek kalmadı.
-  const innerStyle = useAnimatedStyle(() => ({
-    borderLeftWidth: StyleSheet.hairlineWidth,
-    borderLeftColor: interpolateColor(progress.value, [0, 1], ['transparent', edgeColor]),
-  }));
+  // Ayırıcı çizgi ESKİDEN İÇ katmanın `borderLeftWidth`'iydi — fikir "kenarlık
+  // köşe eğrisini otomatik takip eder" idi ama iOS'ta ASİMETRİK köşe yarıçapı
+  // (yalnızca sol iki köşe yuvarlak, sağ ikisi 0) + kenarlık kombinasyonunda
+  // RN'in native kenarlık çizimi köşede DÜZGÜN kavis çizmiyor: köşe KIRPMA
+  // (clip/overflow:hidden, ayrı bir çizim yolu) doğru yuvarlanıyor ama
+  // kenarlığın kendisi köşede küt/düz bir kesim bırakıyordu — "köşeler
+  // yuvarlanıyor ama hep bir düz çizgi de oluyor" şikâyeti tam olarak buydu ve
+  // yalnızca iOS'ta görülüyordu (Android'in kenarlık çizim yolu asimetrik
+  // yarıçapı doğru işliyor).
+  //
+  // Artık çizgi native `border` DEĞİL: aynı köşe yarıçapını (`radius`,
+  // View'daki köşe kırpmasıyla BİREBİR aynı değer) izleyen bir SVG yolu
+  // (`react-native-svg`) — üst kenardan köşe yayına, düz dikeye, alt köşe
+  // yayına. SVG kendi çizim motorunu kullandığı için platformdan bağımsız,
+  // her zaman View'ın kırptığı köşeyle piksel piksel örtüşüyor.
+  const height = useSharedValue(0);
+  // Svg'nin kendi `width`/`viewBox`'ı sabit sayısal piksel istiyor — reanimated
+  // shared value'yu doğrudan JSX prop'una veremeyiz, bu yüzden aynı ölçüm
+  // React state'ine de yazılıyor.
+  const [heightPx, setHeightPx] = useState(0);
+
+  const pathProps = useAnimatedProps(() => {
+    const radius = interpolate(progress.value, [0, 1], [0, CORNER_RADIUS]);
+    const h = Math.max(height.value, radius * 2);
+    const d = `M ${radius} 0 A ${radius} ${radius} 0 0 0 0 ${radius} L 0 ${h - radius} A ${radius} ${radius} 0 0 0 ${radius} ${h}`;
+    return {
+      d,
+      stroke: interpolateColor(progress.value, [0, 1], ['transparent', edgeColor]),
+    };
+  });
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFill, radiusStyle, { backgroundColor: surfaceColor }]}>
-      <Animated.View
-        style={[StyleSheet.absoluteFill, radiusStyle, innerStyle, { overflow: 'hidden', backgroundColor: surfaceColor }]}
-      >
+    <Animated.View
+      style={[StyleSheet.absoluteFill, radiusStyle, { backgroundColor: surfaceColor }]}
+      onLayout={(e) => {
+        height.value = e.nativeEvent.layout.height;
+        setHeightPx(e.nativeEvent.layout.height);
+      }}
+    >
+      <Animated.View style={[StyleSheet.absoluteFill, radiusStyle, { overflow: 'hidden', backgroundColor: surfaceColor }]}>
         {children}
         {overlayActive && (
           <Pressable
@@ -86,6 +117,17 @@ export default function PushableStack({ children }: { children: React.ReactNode 
           />
         )}
       </Animated.View>
+      {heightPx > 0 && (
+        <Svg
+          pointerEvents="none"
+          width={CORNER_RADIUS}
+          height={heightPx}
+          viewBox={`0 0 ${CORNER_RADIUS} ${heightPx}`}
+          style={{ position: 'absolute', left: 0, top: 0 }}
+        >
+          <AnimatedPath animatedProps={pathProps} fill="none" strokeWidth={StyleSheet.hairlineWidth} />
+        </Svg>
+      )}
     </Animated.View>
   );
 }

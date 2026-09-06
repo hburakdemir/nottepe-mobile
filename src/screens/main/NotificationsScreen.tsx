@@ -395,7 +395,15 @@ export default function NotificationsScreen() {
       label: isUnread ? 'Okundu' : 'Okunmadı',
       color: colors.accent,
       onPress: () => {
-        if (!isUnread) return prefs.markUnread(id);
+        if (!isUnread) {
+          prefs.markUnread(id);
+          // `prefs` bu ekrana özel bir React state kopyası (bkz.
+          // notificationPrefs.ts) — rozeti hesaplayan `useUnreadAnnouncements`
+          // ayrı bir örnek, bu yazmayı kendiliğinden görmüyor. Duyuru için
+          // rozet sorgusunu elle tazeliyoruz ki "okunmadı" yapınca sayı da artsın.
+          if (kind === 'announcement') invalidateAnnouncementsUnread();
+          return;
+        }
         return kind === 'announcement' ? markAnnouncementViewed(id) : prefs.markRead(id);
       },
     },

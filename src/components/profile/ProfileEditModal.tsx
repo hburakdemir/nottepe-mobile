@@ -1,5 +1,17 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import {
+  Modal,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { AlertCircle, CheckCircle, Eye, EyeOff, Trash2, X } from 'lucide-react-native';
 import { profileupdateAPI } from '../../lib/api';
@@ -40,6 +52,18 @@ interface Props {
 export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onClose, onDeleteAccountRequest }: Props) {
   const { user, updateUser } = useAuth();
   const { theme, colors } = useTheme();
+  // `sheet`'in yüksekliği eskiden yalnızca `maxHeight: '90%'`(içerik-tabanlı,
+  // BELİRSİZ bir yükseklik) idi — içindeki pager sarmalayıcısı `flex: 1` ile
+  // "kalan alanı doldur" diyordu ama Yoga'da tanımsız yükseklikli bir ebeveyn
+  // içinde flex:1 dağıtılacak alan bulamayıp 0'a çöküyor. Sonuç: modal
+  // açılıyor (başlık/sekmeler/Kaydet-İptal görünüyor) ama TÜM form alanı
+  // (İsim, Kullanıcı Adı, Fakülte...) görünmez oluyordu — kullanıcıya "Düzenle
+  // butonuna basınca hiçbir şey açılmıyor" gibi geliyordu. Sabit, SAYISAL bir
+  // yükseklik vermek (yüzde string DEĞİL) Yoga'nın flex:1'i doğru dağıtmasını
+  // sağlıyor; ayrıca yatay sayfalayıcının iki sayfasının da aynı sabit
+  // yükseklikte olması zaten paging için gerekliydi.
+  const { height: windowHeight } = useWindowDimensions();
+  const sheetHeight = windowHeight * 0.82;
   const isDark = theme === 'dark';
   const mutedIconColor = isDark ? '#DFD0B8' : '#6b7280';
   const dangerIconColor = isDark ? '#f87171' : '#dc2626';
@@ -153,7 +177,7 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <KeyboardAvoider>
         <View style={styles.overlay}>
-          <View className="bg-surface" style={styles.sheet}>
+          <View className="bg-surface" style={[styles.sheet, { height: sheetHeight }]}>
             <View style={styles.headerRow}>
               <Text className="text-ink" style={styles.title}>
                 Profili Düzenle
@@ -443,7 +467,7 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 16 },
-  sheet: { borderRadius: 16, padding: 20, maxHeight: '90%' },
+  sheet: { borderRadius: 16, padding: 20 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   title: { fontSize: 20, fontWeight: '800' },
   tabRow: { flexDirection: 'row', borderBottomWidth: 1, marginTop: 12 },
