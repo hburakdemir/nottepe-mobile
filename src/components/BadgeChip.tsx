@@ -1,7 +1,7 @@
-import React from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { Award } from 'lucide-react-native';
+import { Award, X } from 'lucide-react-native';
 import { BADGE_ICONS } from '../constants/badgeIcons';
 import { getFileUrl } from '../lib/config';
 
@@ -37,31 +37,69 @@ function BadgeIcon({ badge, size = 16 }: { badge: Badge; size?: number }) {
   return <Icon size={size} color={badge.icon_color || '#C59560'} />;
 }
 
+// Native `Alert.alert` görsel/ikon gösteremiyor (yalnızca metin) — rozete
+// dokununca ikonun da görünmesi istendiği için (kullanıcı isteği) kendi
+// modalimiz var. Ayrıca rozet chip'i çoğu yerde (Leaderboard satırı,
+// PostCardClassic ownerRow) profile gitmek için TÜM satırı saran bir dış
+// `Pressable`in İÇİNDE duruyor — `stopPropagation` olmadan dokunuş dış
+// Pressable'a sızıp "açıklama yerine profile gidiyor" gibi görünen asıl
+// şikayete yol açıyordu.
+function BadgeDescriptionModal({ badge, visible, onClose }: { badge: Badge; visible: boolean; onClose: () => void }) {
+  const { icon_color, bg_color, text_color } = badge;
+  const backgroundColor = bg_color || (icon_color ? hexToBg(icon_color) : '#2F575519');
+  const textColor = text_color || icon_color || bg_color || '#2F5755';
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
+        <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+          <Pressable onPress={onClose} hitSlop={10} style={styles.modalClose}>
+            <X size={18} color="#8a8f98" />
+          </Pressable>
+          <View style={[styles.modalIconWrap, { backgroundColor }]}>
+            <BadgeIcon badge={badge} size={34} />
+          </View>
+          <Text style={[styles.modalTitle, { color: textColor }]}>{badge.name}</Text>
+          <Text style={styles.modalDescription}>{badge.description?.trim() || 'Bu rozet için açıklama eklenmemiş.'}</Text>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 export default function BadgeChip({ badge, compact = false }: { badge: Badge; compact?: boolean }) {
   const { icon_color, bg_color, text_color } = badge;
   const backgroundColor = bg_color || (icon_color ? hexToBg(icon_color) : '#2F575519');
   const borderColor = icon_color ? `${icon_color}66` : bg_color || '#2F575533';
   const textColor = text_color || icon_color || bg_color || '#2F5755';
+  const [showModal, setShowModal] = useState(false);
 
-  const showDescription = () => {
-    Alert.alert(badge.name, badge.description?.trim() || 'Bu rozet için açıklama eklenmemiş.');
+  const showDescription = (e: { stopPropagation?: () => void }) => {
+    e.stopPropagation?.();
+    setShowModal(true);
   };
 
   if (compact) {
     return (
-      <Pressable onPress={showDescription} style={[styles.compactChip, { backgroundColor, borderColor }]}>
-        <BadgeIcon badge={badge} size={13} />
-      </Pressable>
+      <>
+        <Pressable onPress={showDescription} hitSlop={6} style={[styles.compactChip, { backgroundColor, borderColor }]}>
+          <BadgeIcon badge={badge} size={13} />
+        </Pressable>
+        <BadgeDescriptionModal badge={badge} visible={showModal} onClose={() => setShowModal(false)} />
+      </>
     );
   }
 
   return (
-    <Pressable onPress={showDescription} style={[styles.chip, { backgroundColor, borderColor }]}>
-      <BadgeIcon badge={badge} size={15} />
-      <Text style={[styles.chipText, { color: textColor }]} numberOfLines={1}>
-        {badge.name}
-      </Text>
-    </Pressable>
+    <>
+      <Pressable onPress={showDescription} style={[styles.chip, { backgroundColor, borderColor }]}>
+        <BadgeIcon badge={badge} size={15} />
+        <Text style={[styles.chipText, { color: textColor }]} numberOfLines={1}>
+          {badge.name}
+        </Text>
+      </Pressable>
+      <BadgeDescriptionModal badge={badge} visible={showModal} onClose={() => setShowModal(false)} />
+    </>
   );
 }
 
@@ -85,4 +123,30 @@ const styles = StyleSheet.create({
     maxWidth: 160,
   },
   chipText: { fontSize: 11.5, fontWeight: '600' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 320,
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 20,
+    alignItems: 'center',
+  },
+  modalClose: { position: 'absolute', top: 12, right: 12, padding: 4 },
+  modalIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  modalTitle: { fontSize: 17, fontWeight: '700', marginBottom: 6, textAlign: 'center' },
+  modalDescription: { fontSize: 13.5, color: '#4b5563', textAlign: 'center', lineHeight: 19 },
 });
