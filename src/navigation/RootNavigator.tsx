@@ -1,6 +1,5 @@
 import React, { Suspense, useMemo } from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { useAuth } from '../context/AuthContext';
@@ -10,7 +9,7 @@ import OfflineEgoScreen from '../components/OfflineEgoScreen';
 import AuthNavigator from './AuthNavigator';
 import { withAppShell } from '../components/layout/AppShell';
 import MenuDrawerContent from '../components/layout/MenuDrawerContent';
-import PushableStack, { PUSHABLE_STACK_CORNER_RADIUS } from '../components/layout/PushableStack';
+import PushableStack from '../components/layout/PushableStack';
 import MainTabsScreen from './MainTabsScreen';
 import { EDGE_SWIPE_WIDTH, ROOT_DRAWER_ID, useDrawerWidth } from './drawerConstants';
 import { STACK_ANIMATION } from './stackAnimation';
@@ -93,7 +92,6 @@ const Notifications = withAppShell(NotificationsScreen);
 export default function RootNavigator() {
   const { isAuthenticated, loading, user } = useAuth();
   const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
   const isOffline = useIsOffline();
   const drawerWidth = useDrawerWidth();
 
@@ -190,40 +188,26 @@ export default function RootNavigator() {
 
   const needsOnboardingGate = !!user && (!user.kvkkConsentAt || !user.faculty || !user.department);
 
-  // PushableStack, itilen içeriğin sol-üst/sol-alt köşesini yuvarlarken küçük
-  // bir "çentik" açığa çıkarıyor — o çentiğin arkasında bizim renklendirdiğimiz
-  // hiçbir View yoksa Android'in varsayılan (beyaz) pencere arka planı görünüyor.
-  // Bu kök View, Drawer.Navigator'ın ardında her zaman temaya uygun bir zemin
-  // sağlayarak o çentiği (ve benzer boşlukları) doğru renkte tutuyor.
-  const rootBg = colors.surface;
+  // İTİLEN SAYFANIN ARKASINDA KALAN HER ŞEY MENÜNÜN ZEMİNİYLE AYNI RENK.
+  //
+  // PushableStack açılırken sol köşelerini yuvarlıyor; yuvarlamanın açtığı
+  // "çentik" saydam kalıyor ve arkasındaki İLK OPAK katman ne ise onu
+  // gösteriyor. Bu ağaçta o katman tek: aşağıdaki kök View. Rengi menü
+  // panelinin rengiyle birebir aynı (MenuDrawerContent kökü `bg-surface`),
+  // yani çentik menünün devamı gibi görünüyor ve köşe yuvarlaması kendini
+  // yalnızca PushableStack'in kenar çizgisiyle belli ediyor.
+  //
+  // ⚠️ BU AĞACA İKİNCİ BİR OPAK KATMAN EKLEME. Daha önce burada üç ayrı zemin
+  // vardı: kök View, üstte/altta tam genişlikte iki dolgu şeridi ve —asıl
+  // sorun— PushableStack'in HEMEN ARKASINDA `flex: 1` opak bir View. O View
+  // kırpılmadığı için çentiği de boyuyordu; itilen sayfanın sol kenarında
+  // yukarıdan aşağı DÜZ bir çizgi oluşuyor ve köşe yuvarlamasını tamamen yok
+  // ediyordu. Şeritler de gereksizdi: kök View zaten tüm ekranı aynı renkle
+  // boyuyor. Zemin TEK katman kalmalı ve menüyle aynı renk olmalı.
+  const menuBg = colors.surface;
 
   return (
-    <View style={{ flex: 1, backgroundColor: rootBg }}>
-      {/* Menü panelinin kendi kutusu (react-native-drawer-layout) durum çubuğu
-          şeridine kadar uzanmıyor — o şeritte hiçbir şey boyanmadığı için
-          PushableStack'in üst-sol köşe yuvarlaması altındaki "çentik" hep
-          rootBg'nin DEĞİL, altındaki (temaya uymayan) zeminin görünmesine yol
-          açıyordu. Durum çubuğu + köşe payı kadar yükseklikte sabit bir dolgu
-          o boşluğu kapatıyor.
-
-          GENİŞLİK ARTIK TÜM EKRAN. Önce `DRAWER_WIDTH`, sonra
-          `DRAWER_WIDTH + köşe yarıçapı` denendi; ikisinde de üst şeritte
-          boyanmamış bir bölge kalıyordu ve kullanıcı "menü açılınca arka plan
-          rengi hâlâ duruyor" diye bildirmeye devam etti. Bu katman en altta ve
-          `pointerEvents="none"` olduğu için tam genişlik hiçbir risk taşımıyor:
-          üstündeki her şey (menü paneli `bg-surface`, itilen sayfa kendi
-          zeminiyle) zaten opak. Böylece boyanmamış bölge ihtimali sıfırlanıyor. */}
-      <View
-        pointerEvents="none"
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: Math.max(insets.top, 44) + PUSHABLE_STACK_CORNER_RADIUS,
-          backgroundColor: rootBg,
-        }}
-      />
+    <View style={{ flex: 1, backgroundColor: menuBg }}>
       <Drawer.Navigator
         id={ROOT_DRAWER_ID as never}
         screenOptions={{
@@ -263,13 +247,11 @@ export default function RootNavigator() {
       >
         <Drawer.Screen name="Main">
           {() => (
-            // PushableStack'in kendi zemini köşe yarıçapıyla KIRPILIYOR, yani
-            // yuvarlatılan köşenin açtığı çentiği dolduramıyor — çentikte
-            // arkadaki katmanın (açık temada `ground` grisi) görünmesinin
-            // sebebi buydu. Kırpılmayan, opak bir `surface` katmanı doğrudan
-            // PushableStack'in ARKASINA konuyor: çentik artık menü paneliyle
-            // aynı rengi gösteriyor.
-            <View style={{ flex: 1, backgroundColor: rootBg }}>
+            // BU VIEW'A ARKA PLAN VERME — sadece düzen (flex) için burada.
+            // Opak bir zemin verilirse köşe çentiği de boyanır ve yuvarlama
+            // düz bir kenara döner; çentik kasten saydam bırakılıp arkadaki
+            // kök `menuBg` katmanının görünmesi sağlanıyor.
+            <View style={{ flex: 1 }}>
               <PushableStack>{mainStack}</PushableStack>
             </View>
           )}

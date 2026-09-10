@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { notificationAPI } from '../lib/api';
-import { readNotificationPrefsSnapshot } from '../lib/notificationPrefs';
+import { hasLocalOverride, readNotificationPrefsSnapshot } from '../lib/notificationPrefs';
 
 // Duyurular için ayrı bir "okunmamış sayısı" ucu yok (bkz. notificationAPI) —
 // `getActive` zaten aktif duyuruların TAMAMINI dönüyor, sayaç bunun içinden
@@ -23,9 +23,8 @@ export function useUnreadAnnouncements() {
       const [res, { hidden, unread }] = await Promise.all([notificationAPI.getActive(), readNotificationPrefsSnapshot()]);
       const rows = (res.data || []) as Array<{ id: string | number; is_viewed?: boolean }>;
       return rows.filter((r) => {
-        const id = String(r.id);
-        if (hidden.has(id)) return false;
-        return unread.has(id) || !r.is_viewed;
+        if (hasLocalOverride(hidden, 'announcement', r.id)) return false;
+        return hasLocalOverride(unread, 'announcement', r.id) || !r.is_viewed;
       }).length;
     },
     staleTime: 30_000,

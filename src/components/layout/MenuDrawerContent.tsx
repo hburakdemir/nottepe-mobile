@@ -1,12 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
-import { useDrawerProgress, useDrawerStatus } from '@react-navigation/drawer';
+import { useDrawerStatus } from '@react-navigation/drawer';
 import {
   Bell,
   BadgeHelp,
@@ -306,20 +305,22 @@ function ThemePickerModal({ visible, onClose }: { visible: boolean; onClose: () 
   );
 }
 
-// İtilen içerik panelin ÖNÜNDE göründüğü için gölge burada, panelin sağ
-// kenarında — kenara en yakın yer en koyu, dışa (sola) doğru şeffaflaşıyor
-// (bkz. shadowFadeStyle kullanım yeri).
+// PANELİN SAĞ KENARINDA GÖLGE YOK — BİR DAHA EKLEME.
 //
-// ESKİDEN bu, üst üste binen 5 yarı saydam şeritle (3/6/10/16/24dp,
-// 0.45/0.32/0.22/0.13/0.06) taklit ediliyordu. Şeritler `right: 0` ile
-// ÜST ÜSTE bindiği için alfalar çarpışıyordu: en sağdaki 3dp'de birikmiş
-// koyuluk 1−(0.55×0.68×0.78×0.87×0.94) ≈ 0.76 oluyordu. Sonuç, yumuşak bir
-// gölge değil, %76 siyah, 5 basamaklı sert bir bant — panelin sağında dikey
-// bir çizgi gibi görünüyordu. Yerine tek bir gerçek gradyan çiziyoruz:
-// basamak yok, birikme yok, koyuluk tek sayıdan geliyor.
-const SHADOW_WIDTH = 11;
-const SHADOW_ALPHA_DARK = 0;
-const SHADOW_ALPHA_LIGHT = 0.05;
+// Burada `right:0, top:0, bottom:0, width:11` ölçülerinde, tam yükseklikte bir
+// SVG gradyan şeridi vardı ("kenar gölgesi"). Dikdörtgen olduğu için ekranın
+// tepesinden dibine kesintisiz, DÜZ bir dikey bant çiziyordu ve itilen sayfanın
+// yuvarlatılmış köşesinin tam yanından geçiyordu: köşe yuvarlaması bandın düz
+// kenarına çarpıp yok oluyordu. Emülatörde ölçüldü — her satırda x≈845-887
+// arası #fdfdfd→#f4f4f4 gradyan, y=0'dan y=2400'e kadar sabit.
+//
+// Bu bant daha önce iki kez "yumuşatılarak" düzeltilmeye çalışıldı (önce üst
+// üste binen 5 yarı saydam şerit, sonra tek gradyan + yumuşak uç); ikisinde de
+// sorun sürdü, çünkü sorun gradyanın sertliği DEĞİL, şeridin tam yükseklikte
+// DİKDÖRTGEN olması. PushableStack.tsx'teki "gölge şu an bilinçli olarak yok /
+// bant başka bir katmandan geliyor" notunun aradığı katman buydu.
+//
+// Ayrım artık tamamen PushableStack'in köşe yaylarından geliyor.
 
 // Web'in Navbar.jsx `isMenuOpen` panelinin mobil karşılığı — X (Twitter)
 // uygulamasındaki gibi soldan açılan, arkadaki sayfayı iten gerçek bir Drawer
@@ -333,13 +334,6 @@ export default function MenuDrawerContent({ navigation }: DrawerContentComponent
   const iconColor = theme === 'dark' ? '#DFD0B8' : '#374151';
   const brandColor = theme === 'dark' ? '#5A9690' : '#2F5755';
   const isOpen = useDrawerStatus() === 'open';
-  const drawerProgress = useDrawerProgress();
-  // İtilen sayfa önde göründüğü için gölge onun kendi kenarında değil, ARKADA
-  // KALAN bu panelin sağ kenarında hissedilmeli (bkz. PushableStack.tsx —
-  // native Android shadow/elevation bu iç içe Drawer.Navigator + Reanimated
-  // kombinasyonunda render olmuyor, o yüzden burada da elle katmanlanmış
-  // yarı saydam şeritlerle taklit ediyoruz).
-  const shadowFadeStyle = useAnimatedStyle(() => ({ opacity: drawerProgress.value }));
 
   const avatar = useMyAvatar();
   // Eskiden `notificationAPI.getActive().length` rozet sayısı sanılıyordu —
@@ -497,29 +491,6 @@ export default function MenuDrawerContent({ navigation }: DrawerContentComponent
 
       <ThemePickerModal visible={showThemePicker} onClose={() => setShowThemePicker(false)} />
 
-      <Animated.View style={[StyleSheet.absoluteFill, shadowFadeStyle]} pointerEvents="none">
-        <View style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: SHADOW_WIDTH }}>
-          <Svg width="100%" height="100%">
-            <Defs>
-              <LinearGradient id="drawerEdgeShadow" x1="0" y1="0" x2="1" y2="0">
-                <Stop offset="0" stopColor="#000" stopOpacity={0} />
-                {/* Eskiden gradyan doğrudan 0 → tam alfada bitiyordu — en sağ
-                    sütun tam koyulukta SERT bir kenar oluşturuyordu (bir
-                    öncekiyle aynı sınıftan hata: kademesiz, ani bir sınır
-                    "çizgi gibi" görünüyor). Son %8'lik kısımda tekrar hafifçe
-                    geri çekilip yumuşak bir uçla bitiriyor. */}
-                <Stop offset="0.92" stopColor="#000" stopOpacity={theme === 'dark' ? SHADOW_ALPHA_DARK : SHADOW_ALPHA_LIGHT} />
-                <Stop
-                  offset="1"
-                  stopColor="#000"
-                  stopOpacity={(theme === 'dark' ? SHADOW_ALPHA_DARK : SHADOW_ALPHA_LIGHT) * 0.5}
-                />
-              </LinearGradient>
-            </Defs>
-            <Rect x="0" y="0" width="100%" height="100%" fill="url(#drawerEdgeShadow)" />
-          </Svg>
-        </View>
-      </Animated.View>
     </View>
   );
 }
