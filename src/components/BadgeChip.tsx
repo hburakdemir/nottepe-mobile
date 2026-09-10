@@ -25,7 +25,7 @@ function BadgeIcon({ badge, size = 16 }: { badge: Badge; size?: number }) {
   if (badge.icon_type === 'upload' && badge.icon_value) {
     return (
       <Image
-        source={{ uri: getFileUrl(badge.icon_value) }}
+        source={{ uri: getFileUrl(`badges/${badge.icon_value}`) }}
         style={{ width: size, height: size, borderRadius: size / 4 }}
         contentFit="cover"
         transition={150}
