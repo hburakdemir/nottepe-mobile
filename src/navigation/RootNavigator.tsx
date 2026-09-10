@@ -1,9 +1,8 @@
-import React, { useEffect, useMemo } from 'react';
-import { ActivityIndicator, Dimensions, View } from 'react-native';
+import React, { Suspense, useMemo } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createDrawerNavigator } from '@react-navigation/drawer';
-import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useIsOffline } from '../hooks/useIsOffline';
@@ -13,15 +12,8 @@ import { withAppShell } from '../components/layout/AppShell';
 import MenuDrawerContent from '../components/layout/MenuDrawerContent';
 import PushableStack, { PUSHABLE_STACK_CORNER_RADIUS } from '../components/layout/PushableStack';
 import MainTabsScreen from './MainTabsScreen';
-import { useActiveRouteName } from './useActiveRouteName';
-import {
-  BACK_SWIPE_ROUTES,
-  EDGE_SWIPE_WIDTH,
-  FULL_WIDTH_SWIPE_ROUTES,
-  NO_DRAWER_SWIPE_ROUTES,
-  ROOT_DRAWER_ID,
-  useDrawerWidth,
-} from './drawerConstants';
+import { EDGE_SWIPE_WIDTH, ROOT_DRAWER_ID, useDrawerWidth } from './drawerConstants';
+import { STACK_ANIMATION } from './stackAnimation';
 import AddPostScreen from '../screens/main/AddPostScreen';
 import PostDetailScreen from '../screens/main/PostDetailScreen';
 import DepartmentDetailScreen from '../screens/main/DepartmentDetailScreen';
@@ -29,7 +21,6 @@ import SavedPostsScreen from '../screens/main/SavedPostsScreen';
 import UserProfileScreen from '../screens/main/UserProfileScreen';
 import ChecklistsScreen from '../screens/main/ChecklistsScreen';
 import AktsCalculatorScreen from '../screens/main/AktsCalculatorScreen';
-import ScheduleScreen from '../screens/main/ScheduleScreen';
 import NoteRequestsScreen from '../screens/main/NoteRequestsScreen';
 import FaqScreen from '../screens/main/FaqScreen';
 import FaqDetailScreen from '../screens/main/FaqDetailScreen';
@@ -44,6 +35,32 @@ import type { RootDrawerParamList, RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Drawer = createDrawerNavigator<RootDrawerParamList>();
+
+// `ScheduleScreen` BİLEREK TEMBEL YÜKLENİYOR (tek istisna; diğer 17 ekran
+// normal import). Sebep: o ekran `react-native-view-shot` kullanıyor ve o
+// paketin spec'i `TurboModuleRegistry.getEnforcing` çağırıyor — native modül
+// yoksa modül IMPORT EDİLİRKEN fırlatıyor. Bu dosya ScheduleScreen'i en üstte
+// import ettiği için, view-shot'ın bulunmadığı ortamlarda (ör. Expo Go)
+// uygulama daha açılış anında çöküyordu. `React.lazy` ile paket ancak kullanıcı
+// Program ekranına girdiğinde çözümleniyor; böylece geliştirme sırasında EAS
+// build harcamadan Expo Go üzerinden test edilebiliyor (Program ekranının
+// görsel dışa aktarımı orada çalışmaz, gerçek derlemede çalışır).
+// Yan fayda: açılışta bir modül daha az yükleniyor.
+const ScheduleScreenLazy = React.lazy(() => import('../screens/main/ScheduleScreen'));
+
+function ScheduleScreenSuspended() {
+  return (
+    <Suspense
+      fallback={
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color="#1d4ed8" />
+        </View>
+      }
+    >
+      <ScheduleScreenLazy />
+    </Suspense>
+  );
+}
 
 // ÖNEMLİ: `withAppShell(...)` MODÜL kapsamında, bir kez çağrılıyor.
 //
@@ -62,7 +79,7 @@ const SavedPosts = withAppShell(SavedPostsScreen);
 const UserProfile = withAppShell(UserProfileScreen);
 const Checklists = withAppShell(ChecklistsScreen);
 const AktsCalculator = withAppShell(AktsCalculatorScreen);
-const Schedule = withAppShell(ScheduleScreen);
+const Schedule = withAppShell(ScheduleScreenSuspended);
 const NoteRequests = withAppShell(NoteRequestsScreen);
 const Ego130Schedule = withAppShell(Ego130ScheduleScreen);
 const Faq = withAppShell(FaqScreen);
@@ -72,25 +89,6 @@ const SuggestionDetail = withAppShell(SuggestionDetailScreen);
 const Leaderboard = withAppShell(LeaderboardScreen);
 const Help = withAppShell(HelpScreen);
 const Notifications = withAppShell(NotificationsScreen);
-
-// Çekmecenin jest seçenekleri tek yerde duruyor (Drawer'ın tek bir "Main"
-// ekranı var, bu yüzden ekran bazlı screenOptions kullanılamıyor). Eskiden bunu
-// her ekranın AppShell'i kendi `useFocusEffect`'inde yapıyordu; sekmeler artık
-// AppShell kullanmadığı için burada, o an odaklı ekrana bakarak yapılıyor.
-function DrawerSwipeSync() {
-  const navigation = useNavigation();
-  const routeName = useActiveRouteName();
-
-  useEffect(() => {
-    if (!routeName) return;
-    navigation.setOptions({
-      swipeEnabled: !BACK_SWIPE_ROUTES.includes(routeName) && !NO_DRAWER_SWIPE_ROUTES.includes(routeName),
-      swipeEdgeWidth: FULL_WIDTH_SWIPE_ROUTES.includes(routeName) ? Dimensions.get('window').width : EDGE_SWIPE_WIDTH,
-    });
-  }, [navigation, routeName]);
-
-  return null;
-}
 
 export default function RootNavigator() {
   const { isAuthenticated, loading, user } = useAuth();
@@ -127,7 +125,11 @@ export default function RootNavigator() {
         // kaydırıyordu. Tek başlık, sabit yükseklik. Sayfa adı AppHeader'ın
         // ortasında yazıyor (bkz. routeTitles.ts).
         screenOptions={{
-          animation: 'slide_from_right',
+          // iOS'ta `default` OLMAK ZORUNDA — sebebi uzun ve kritik,
+          // bkz. stackAnimation.ts. Kısaca: özel bir animasyon seçmek iOS'ta
+          // kenardan geri kaydırmayı öldürüyor VE push edilmiş ekranlarda sol
+          // kenara yakın butonların dokunuşlarını iptal ettiriyordu.
+          animation: STACK_ANIMATION,
           headerShown: false,
           // Ekranların altındaki varsayılan zemin de ana sayfanınkiyle aynı
           // olsun: yüklenirken kendi arka planını boyamayan ekranlarda (sadece
@@ -200,21 +202,25 @@ export default function RootNavigator() {
       {/* Menü panelinin kendi kutusu (react-native-drawer-layout) durum çubuğu
           şeridine kadar uzanmıyor — o şeritte hiçbir şey boyanmadığı için
           PushableStack'in üst-sol köşe yuvarlaması altındaki "çentik" hep
-          rootBg'nin DEĞİL, Android'in kendi (temaya uymayan) zeminin görünmesine
-          yol açıyordu. Menü genişliği kadar, durum çubuğu + köşe payı kadar
-          yükseklikte sabit bir dolgu koyup o boşluğu kapatıyoruz.
-          Genişlik `DRAWER_WIDTH` DEĞİL, ona köşe yarıçapı eklenmiş hâli:
-          tam `DRAWER_WIDTH`'te dursaydı bu yamanın kendi sağ kenarı,
-          PushableStack'in köşe eğrisinin biraz ötesinde keskin bir renk
-          sınırı olarak görünebilirdi — eğrinin ötesine taşırıyoruz. */}
+          rootBg'nin DEĞİL, altındaki (temaya uymayan) zeminin görünmesine yol
+          açıyordu. Durum çubuğu + köşe payı kadar yükseklikte sabit bir dolgu
+          o boşluğu kapatıyor.
+
+          GENİŞLİK ARTIK TÜM EKRAN. Önce `DRAWER_WIDTH`, sonra
+          `DRAWER_WIDTH + köşe yarıçapı` denendi; ikisinde de üst şeritte
+          boyanmamış bir bölge kalıyordu ve kullanıcı "menü açılınca arka plan
+          rengi hâlâ duruyor" diye bildirmeye devam etti. Bu katman en altta ve
+          `pointerEvents="none"` olduğu için tam genişlik hiçbir risk taşımıyor:
+          üstündeki her şey (menü paneli `bg-surface`, itilen sayfa kendi
+          zeminiyle) zaten opak. Böylece boyanmamış bölge ihtimali sıfırlanıyor. */}
       <View
         pointerEvents="none"
         style={{
           position: 'absolute',
           top: 0,
           left: 0,
-          width: drawerWidth + PUSHABLE_STACK_CORNER_RADIUS,
-          height: insets.top + 40,
+          right: 0,
+          height: Math.max(insets.top, 44) + PUSHABLE_STACK_CORNER_RADIUS,
           backgroundColor: rootBg,
         }}
       />
@@ -246,17 +252,26 @@ export default function RootNavigator() {
             borderTopRightRadius: 0,
             borderBottomRightRadius: 0,
           },
-          // Başlangıç değeri; odaklanan ekrana göre DrawerSwipeSync güncelliyor.
+          // Şerit genişliği sabit. Jestin AÇIK/KAPALI olması ise ekrandan
+          // geliyor: `MainTabsScreen` açıyor, `AppShell` (yani push edilmiş her
+          // ekran) kapatıyor — bkz. drawerConstants.ts `useDrawerSwipeEnabled`.
+          // Push edilmiş ekranlarda sol kenar tamamen iOS'un native geri
+          // jestine ait olsun diye.
           swipeEdgeWidth: EDGE_SWIPE_WIDTH,
         }}
         drawerContent={(props) => <MenuDrawerContent {...props} />}
       >
         <Drawer.Screen name="Main">
           {() => (
-            <PushableStack>
-              <DrawerSwipeSync />
-              {mainStack}
-            </PushableStack>
+            // PushableStack'in kendi zemini köşe yarıçapıyla KIRPILIYOR, yani
+            // yuvarlatılan köşenin açtığı çentiği dolduramıyor — çentikte
+            // arkadaki katmanın (açık temada `ground` grisi) görünmesinin
+            // sebebi buydu. Kırpılmayan, opak bir `surface` katmanı doğrudan
+            // PushableStack'in ARKASINA konuyor: çentik artık menü paneliyle
+            // aynı rengi gösteriyor.
+            <View style={{ flex: 1, backgroundColor: rootBg }}>
+              <PushableStack>{mainStack}</PushableStack>
+            </View>
           )}
         </Drawer.Screen>
       </Drawer.Navigator>

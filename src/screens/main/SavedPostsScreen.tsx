@@ -60,6 +60,8 @@ export default function SavedPostsScreen() {
     fetchSavedPostsData();
   }, [fetchSavedPostsData]);
 
+  const renderPost = useCallback(({ item }: { item: Post }) => <PostCard post={item} />, []);
+
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center py-[60px]">
@@ -76,7 +78,11 @@ export default function SavedPostsScreen() {
       contentContainerStyle={{ paddingTop: 4, paddingBottom: TAB_BAR_SAFE_PADDING, flexGrow: 1 }}
       data={posts}
       keyExtractor={(item) => String(item.id ?? item.post_id)}
-      renderItem={({ item }) => <PostCard post={item} />}
+      renderItem={renderPost}
+      removeClippedSubviews
+      maxToRenderPerBatch={6}
+      windowSize={7}
+      initialNumToRender={6}
       ListEmptyComponent={
         <View className="bg-white rounded-lg p-8 items-center" style={SHADOW_MD}>
           <Bookmark size={48} color="#9ca3af" style={{ marginBottom: 16 }} />

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   interpolate,
   interpolateColor,
@@ -107,7 +107,18 @@ export default function PushableStack({ children }: { children: React.ReactNode 
         setHeightPx(e.nativeEvent.layout.height);
       }}
     >
-      <Animated.View style={[StyleSheet.absoluteFill, radiusStyle, { overflow: 'hidden', backgroundColor: surfaceColor }]}>
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFill,
+          radiusStyle,
+          // Köşe kırpması yalnızca çekmece hareket hâlinde/açıkken gerekli
+          // (kapalıyken yarıçap zaten 0). Sürekli 'hidden' tutmak her ekran
+          // için sürekli bir offscreen/composite katmanı zorluyordu — bu da
+          // özellikle tablette geçiş sırasında GPU'yu gereksiz yere zorlayıp
+          // ısınma/flash'a katkı sağlıyordu (bkz. plan Öncelik 2.2).
+          { overflow: overlayActive ? 'hidden' : 'visible', backgroundColor: surfaceColor },
+        ]}
+      >
         {children}
         {overlayActive && (
           <Pressable
@@ -117,16 +128,41 @@ export default function PushableStack({ children }: { children: React.ReactNode 
           />
         )}
       </Animated.View>
-      {heightPx > 0 && (
-        <Svg
-          pointerEvents="none"
-          width={CORNER_RADIUS}
-          height={heightPx}
-          viewBox={`0 0 ${CORNER_RADIUS} ${heightPx}`}
-          style={{ position: 'absolute', left: 0, top: 0 }}
-        >
-          <AnimatedPath animatedProps={pathProps} fill="none" strokeWidth={StyleSheet.hairlineWidth} />
-        </Svg>
+      {/* ⚠️ BU KATMAN UYGULAMANIN SOL KENARINI ÖLDÜRMÜŞTÜ — bir daha
+          `pointerEvents="none"`in tek başına yeteceğini varsayma.
+
+          Bu Svg `left:0`, genişliği köşe yarıçapı (50dp) ve yüksekliği TÜM
+          EKRAN; üstelik dış katmanın SON çocuğu olduğu için her şeyin üstünde
+          duruyor. `pointerEvents="none"` yazılıydı ama iOS'ta HİÇBİR ETKİSİ
+          YOK: react-native-svg kendi `hitTest:`'ini yazıyor
+          (apple/Elements/RNSVGSvgView.mm) ve o override, UIKit'in standart
+          `hitTest:`'inin ilk satırı olan `userInteractionEnabled` kontrolünü
+          atlayıp `return isPointInside ? self : nil;` diyor — yani sınırları
+          içindeki HER dokunuşu yutuyor.
+
+          Sonuç: ekranın sol 50 pikselindeki her şey ölüydü. Menü avatarı,
+          geri oku, Duyurular'daki en soldaki "Tümü" çipi (sağdakiler
+          çalışıyordu), kartların sol kenarı... Ve iOS'un native geri-kaydırma
+          jesti, çünkü RNScreens'in kenar tanıyıcıları `RNSScreenStackView`'a
+          bağlı ve bu Svg onun ATASI değil, üstündeki bir kardeşi — sol
+          kenardaki dokunuş o tanıyıcılara hiç ulaşmıyordu. Çekmecenin kendi
+          kaydırması ise çalışıyordu, çünkü onun jesti bu Svg'nin ATASINA
+          bağlı. Android'de sorun yok (RNSVGSvgViewAndroid normal bir ViewGroup).
+
+          İki katmanlı koruma:
+          1) Svg, `pointerEvents="none"` olan DÜZ BİR RN View'ın içinde. Düz
+             View'ın hit-test'i RN'in kendi implementasyonu, `pointerEvents`e
+             uyuyor: dokunuş daha içeri inmeden eleniyor.
+          2) Ayrıca yalnızca çekmece hareket hâlindeyken mount ediliyor.
+             Kapalıyken zaten görünmüyordu (yarıçap 0, çizgi `transparent`),
+             yani görsel kayıp yok — ama sol kenar artık kapalıyken FİZİKSEL
+             OLARAK boş. */}
+      {heightPx > 0 && overlayActive && (
+        <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0 }}>
+          <Svg width={CORNER_RADIUS} height={heightPx} viewBox={`0 0 ${CORNER_RADIUS} ${heightPx}`}>
+            <AnimatedPath animatedProps={pathProps} fill="none" strokeWidth={StyleSheet.hairlineWidth} />
+          </Svg>
+        </View>
       )}
     </Animated.View>
   );

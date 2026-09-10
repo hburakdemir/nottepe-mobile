@@ -121,7 +121,7 @@ export default function PostDetailScreen() {
         <View style={[styles.head, cardSurface]}>
         {/* Profil en üstte: avatar + kullanıcı adı + rozetler + tarih, sağda
             kaydet/sil. Fakülte ve bölüm künyesi en alta indi. */}
-        <View style={styles.authorRow}>
+        <View style={[styles.authorRow, isAuthenticated && styles.authorRowWithSave]}>
           <Pressable style={styles.who} onPress={() => goToUserProfile(post.username)} hitSlop={6}>
             <View style={[styles.avatar, { backgroundColor: t.inset }]}>
               {authorAvatar ? <AvatarDisplay avatar={authorAvatar} size={36} showBg={false} /> : <User size={18} color={t.ink3} />}
@@ -188,6 +188,14 @@ export default function PostDetailScreen() {
             {ratingCount > 0 ? `${avgRating.toFixed(1)}/5 · ${ratingCount} puan` : 'Henüz puan yok'}
           </Text>
         </View>
+
+        {/* Kaydet ikonu kartın sağ üst köşesine hizalı — kart scroll olurken
+            onunla birlikte hareket eder (ekrana değil, karta sabit). */}
+        {isAuthenticated && (
+          <View style={[styles.floatingSave, { backgroundColor: t.ground }]} pointerEvents="box-none">
+            <SaveButton saved={isSaved} onPress={() => toggleSavePost(postId)} size={20} color={t.ink2} savedColor={t.ink} />
+          </View>
+        )}
       </View>
 
       <View style={[styles.comments, cardSurface]}>
@@ -203,25 +211,21 @@ export default function PostDetailScreen() {
         />
       </View>
       </ScrollView>
-
-      {/* Kaydet ikonu ekranın en sağ üstünde sabit (kullanıcı isteği),
-          kaydırma boyunca yerinde kalıyor. */}
-      {isAuthenticated && (
-        <View style={[styles.floatingSave, { backgroundColor: t.ground }]} pointerEvents="box-none">
-          <SaveButton saved={isSaved} onPress={() => toggleSavePost(postId)} size={20} color={t.ink2} savedColor={t.ink} />
-        </View>
-      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  // Artık head'in (karta) göre konumlanıyor — head'deki position:'relative'
+  // referans alınıyor, ekranın değil kartın sağ üst köşesine hizalı ve
+  // kartla birlikte scroll oluyor.
   floatingSave: { position: 'absolute', top: 8, right: 8, borderRadius: 24 },
   crumb: { fontSize: 12.5, lineHeight: 18 },
   crumbDept: { fontWeight: '600' },
   // Gönderi ve yorumlar iki ayrı kart — akıştaki kartlarla aynı dil.
   head: {
+    position: 'relative',
     marginHorizontal: 12,
     marginTop: 12,
     paddingHorizontal: 16,
@@ -235,6 +239,11 @@ const styles = StyleSheet.create({
   linkRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   linkText: { fontSize: 12.5, fontWeight: '500' },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // Kaydet ikonu head'in sağ üst köşesine mutlak konumla biniyor (bkz.
+  // styles.floatingSave); bu satır o alanla çakışmasın diye sağa pay
+  // bırakıyor — hem uzun kullanıcı adı/rozetler hem de (sahip görünümünde)
+  // silme ikonu ikonun altına girmesin diye.
+  authorRowWithSave: { paddingRight: 44 },
   nameLine: { flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' },
   who: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1, minWidth: 0 },
   avatar: { width: 36, height: 36, borderRadius: 18, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },

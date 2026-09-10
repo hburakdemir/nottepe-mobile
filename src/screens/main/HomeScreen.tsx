@@ -135,6 +135,8 @@ export default function HomeScreen() {
   const total = data?.pages[0]?.total ?? 0;
   const hasMore = posts.length < total;
 
+  const renderPost = useCallback(({ item }: { item: Post }) => <PostCard post={item} />, []);
+
   // Ana sayfa başlığı yeniden kurgulandı (kullanıcı isteği): EN ÜSTTE arama,
   // hemen altında yan yana iki kare kısayol — "Bölümüne Git" ve "Not İstekleri".
   // Önceki düzende arama en alttaydı, üstünde açılır-kapanır bir bölüm seçici
@@ -240,7 +242,11 @@ export default function HomeScreen() {
         contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING, flexGrow: 1 }}
         data={posts}
         keyExtractor={(item) => String(item.id ?? item.post_id)}
-        renderItem={({ item }) => <PostCard post={item} />}
+        renderItem={renderPost}
+        removeClippedSubviews
+        maxToRenderPerBatch={6}
+        windowSize={7}
+        initialNumToRender={6}
         ListHeaderComponent={filterBar}
         refreshControl={<RefreshControl refreshing={isManualRefresh} onRefresh={handleManualRefresh} />}
         onEndReachedThreshold={0.4}

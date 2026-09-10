@@ -6,6 +6,7 @@ import './global.css';
 import React from 'react';
 import { Image, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { enableFreeze } from 'react-native-screens';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DarkTheme, DefaultTheme, NavigationContainer, type Theme } from '@react-navigation/native';
@@ -25,6 +26,12 @@ import RootNavigator from './src/navigation/RootNavigator';
 import { navigationRef, drainPendingTarget } from './src/navigation/navigationRef';
 import PushBridge from './src/components/PushBridge';
 import { queryClient } from './src/lib/queryClient';
+import { LIGHT_VARS, DARK_VARS } from './src/theme/palette';
+
+// react-native-screens: odakta olmayan (arka plandaki) ekranlari dondurup
+// gereksiz re-render/layout'u engeller — native-stack gecislerinde performans
+// icin modul yuklenirken bir kere aktiflestirilmesi yeterli.
+enableFreeze(true);
 
 // Fontlar hazır olana kadar (kullanıcı isteği: açılışta logo + altında
 // "Nottepe" yazmalı) — native splash bu JS bileşeni ekrana gelmeden önce
@@ -64,7 +71,7 @@ function ThemedNavigationContainer({ children }: { children: React.ReactNode }) 
   // yeniden yerlesim demek. Tek bagimlilik temanin kendisi.
   const navTheme: Theme = React.useMemo(() => {
     const base = isDark ? DarkTheme : DefaultTheme;
-    return { ...base, colors: { ...base.colors, background: isDark ? '#222831' : '#FFFFFF' } };
+    return { ...base, colors: { ...base.colors, background: isDark ? DARK_VARS['--surface'] : LIGHT_VARS['--surface'] } };
   }, [isDark]);
   // `ref` + `onReady`: push bildirimine soğuk açılışta dokunulduğunda hedef
   // konteyner hazır olmadan elimize geçiyor, `onReady` o kuyruğu boşaltıyor

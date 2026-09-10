@@ -12,6 +12,7 @@ import ToolsScreen from '../screens/main/ToolsScreen';
 import CafeteriaMenuScreen from '../screens/main/CafeteriaMenuScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
 import { routeTitle } from './routeTitles';
+import { useDrawerSwipeEnabled } from './drawerConstants';
 import type { MainTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -34,6 +35,11 @@ export default function MainTabsScreen() {
   // kendisi türetemiyor (bkz. AppHeader.tsx'teki not), navigator kendi state
   // olayından bildiriyor.
   const [activeTab, setActiveTab] = useState<keyof MainTabParamList>('Home');
+
+  // Bu ekran stack'in KÖKÜ — geri gidilecek bir ekran yok, dolayısıyla sol
+  // kenar boşta: soldan kaydırma menüyü açsın. Push edilmiş ekranlarda AppShell
+  // bunu kapatıyor (bkz. drawerConstants.ts `useDrawerSwipeEnabled`).
+  useDrawerSwipeEnabled(true);
 
   return (
     <View style={{ flex: 1 }}>

@@ -105,8 +105,10 @@ function SwipeActionButton({
 // her butonun kendi büyüme animasyonu belirliyor, kapalıyken `pointerEvents="none"`
 // ile dokunuşu yutmuyor.
 //
-// Çekmece jesti bu ekranda bilerek kapalı (bkz. drawerConstants
-// NO_DRAWER_SWIPE_ROUTES); açık olsaydı sağa çekiş menüyü açardı.
+// Çekmece jesti bu ekranda kapalı: bu bileşen yalnızca push edilen ekranlarda
+// kullanılıyor ve çekmece kaydırması artık yalnızca sekme ekranlarında açık
+// (bkz. RootNavigator/DrawerSwipeSync + drawerConstants TAB_ROUTES). Açık
+// olsaydı sağa çekiş satır aksiyonları yerine menüyü açardı.
 export default function SwipeActions({ actions, children }: { actions: SwipeAction[]; children: React.ReactNode }) {
   const width = ACTION_WIDTH * actions.length;
   const translateX = useSharedValue(0);

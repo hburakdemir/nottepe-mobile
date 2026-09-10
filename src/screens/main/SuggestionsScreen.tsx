@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -92,6 +92,28 @@ export default function SuggestionsScreen() {
     </View>
   );
 
+  const renderItem = useCallback(
+    ({ item }: { item: Suggestion }) => (
+      <Pressable
+        className="flex-row items-start gap-2.5 bg-surface rounded-xl p-3.5 mb-2.5"
+        onPress={() => navigation.navigate('SuggestionDetail', { id: item.id })}
+      >
+        <View className="flex-1">
+          <Text className="text-[13.5px] text-ink2 leading-[19px]" numberOfLines={3}>
+            {item.content}
+          </Text>
+          <View className="flex-row items-center gap-[5px] mt-2">
+            <Text className="text-[11px] text-muted2">{item.full_name}</Text>
+            <MessageSquare size={12} color={isDark ? '#6b7280' : '#9ca3af'} />
+            <Text className="text-[11px] text-muted2">{item.comment_count} yorum</Text>
+          </View>
+        </View>
+        <ChevronRight size={18} color={isDark ? '#6b7280' : '#d1d5db'} />
+      </Pressable>
+    ),
+    [navigation, isDark]
+  );
+
   return (
     <View className="flex-1 bg-ground">
       {loading ? (
@@ -104,25 +126,12 @@ export default function SuggestionsScreen() {
           contentContainerClassName="p-4 pb-[110px]"
           data={suggestions}
           keyExtractor={(item) => String(item.id)}
+          removeClippedSubviews
+          maxToRenderPerBatch={6}
+          windowSize={7}
+          initialNumToRender={6}
           ListHeaderComponent={header}
-          renderItem={({ item }) => (
-            <Pressable
-              className="flex-row items-start gap-2.5 bg-surface rounded-xl p-3.5 mb-2.5"
-              onPress={() => navigation.navigate('SuggestionDetail', { id: item.id })}
-            >
-              <View className="flex-1">
-                <Text className="text-[13.5px] text-ink2 leading-[19px]" numberOfLines={3}>
-                  {item.content}
-                </Text>
-                <View className="flex-row items-center gap-[5px] mt-2">
-                  <Text className="text-[11px] text-muted2">{item.full_name}</Text>
-                  <MessageSquare size={12} color={isDark ? '#6b7280' : '#9ca3af'} />
-                  <Text className="text-[11px] text-muted2">{item.comment_count} yorum</Text>
-                </View>
-              </View>
-              <ChevronRight size={18} color={isDark ? '#6b7280' : '#d1d5db'} />
-            </Pressable>
-          )}
+          renderItem={renderItem}
           ListEmptyComponent={
             <View className="items-center py-[50px] gap-2.5">
               <Inbox size={40} color={isDark ? '#6b7280' : '#d1d5db'} />

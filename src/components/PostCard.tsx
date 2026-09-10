@@ -1,3 +1,4 @@
+import React from 'react';
 import PostCardClassic from './PostCardClassic';
 import PostCardModern from './PostCardModern';
 
@@ -11,6 +12,6 @@ import PostCardModern from './PostCardModern';
 //   'classic' → PostCardClassic.tsx (eski tasarım, olduğu gibi korundu)
 const POSTCARD_VARIANT: 'modern' | 'classic' = 'modern';
 
-const PostCard = POSTCARD_VARIANT === 'modern' ? PostCardModern : PostCardClassic;
+const PostCard = React.memo(POSTCARD_VARIANT === 'modern' ? PostCardModern : PostCardClassic);
 
 export default PostCard;

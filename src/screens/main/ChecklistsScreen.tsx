@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, ListRenderItem, Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { ListChecks, Plus, Trash2, X } from 'lucide-react-native';
 import { checklistAPI } from '../../lib/api';
@@ -105,6 +105,21 @@ export default function ChecklistsScreen() {
     }
   };
 
+  const renderChecklist = useCallback<ListRenderItem<Checklist>>(
+    ({ item }) => (
+      <ChecklistCard
+        checklist={item}
+        isOpen={expandedId === item.id}
+        onToggleOpen={toggleExpand}
+        onToggleItem={handleToggleItem}
+        onStatsClick={setStatsChecklist}
+        onEditClick={setEditChecklist}
+        canEdit={item.list_type === 'user' && item.created_by === user?.id && isWithinEditWindow(item)}
+      />
+    ),
+    [expandedId, user?.id, toggleExpand, handleToggleItem]
+  );
+
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center">
@@ -134,17 +149,11 @@ export default function ChecklistsScreen() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: TAB_BAR_SAFE_PADDING, flexGrow: 1 }}
         data={checklists}
         keyExtractor={(item) => String(item.id)}
-        renderItem={({ item }) => (
-          <ChecklistCard
-            checklist={item}
-            isOpen={expandedId === item.id}
-            onToggleOpen={toggleExpand}
-            onToggleItem={handleToggleItem}
-            onStatsClick={setStatsChecklist}
-            onEditClick={setEditChecklist}
-            canEdit={item.list_type === 'user' && item.created_by === user?.id && isWithinEditWindow(item)}
-          />
-        )}
+        renderItem={renderChecklist}
+        removeClippedSubviews
+        maxToRenderPerBatch={6}
+        windowSize={7}
+        initialNumToRender={6}
         ListHeaderComponent={header}
         ListEmptyComponent={
           <View className="items-center gap-3 bg-surface rounded-lg p-12" style={SHADOW_MD}>

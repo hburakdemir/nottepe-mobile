@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import Animated, {
   useAnimatedScrollHandler,
@@ -73,6 +73,7 @@ import { goToTab } from '../../navigation/navigateApp';
 import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
 import { useTheme, useThemeColors } from '../../context/ThemeContext';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
+import { useMetrics } from '../../theme/metrics';
 
 interface AktsCalc {
   id: number;
@@ -113,6 +114,10 @@ function formatDate(dateString: string): string {
 }
 
 const postKey = (post: Post) => String(post.id ?? post.post_id);
+
+// Etkin olmayan sekmenin listesine verilen SABİT boş dizi — her render'da `[]`
+// yazmak FlatList'e yeni bir referans gösterip gereksiz iş çıkarırdı.
+const NO_POSTS: Post[] = [];
 
 // `/saved-posts/getPost` bazı sürümlerde comment_count döndürmüyor — eksik
 // olanlar tekil gönderi ucundan (postsAPI.getById) tamamlanıyor. Bkz. aynı
@@ -205,7 +210,12 @@ export default function ProfileScreen() {
   // Sekmeler artık yatay kaydırmalı bir "pager" (bkz. render) — sekme
   // butonuna basınca ya da kaydırma bitince ikisi birbirini senkron tutuyor.
   const pagerRef = useRef<ScrollView>(null);
-  const { width: screenWidth } = useWindowDimensions();
+  // Pager gerçekte ContentContainer'ın (bkz. src/theme/metrics.ts) sınırladığı
+  // `contentMaxWidth` genişliğinde render ediliyor, tam ekran genişliğinde
+  // değil — tablette bu ikisi (screenWidth vs. gerçek pager genişliği)
+  // birbirinden ayrışınca sekmeler arası kayma/flash oluyordu.
+  const { width: windowWidth, contentMaxWidth } = useMetrics();
+  const screenWidth = Math.min(windowWidth, contentMaxWidth);
 
   // Mount'ta çekilenler: yalnızca ilk açılan "Postlar" sekmesi ve profil
   // kartındaki rozetler.
@@ -629,12 +639,38 @@ export default function ProfileScreen() {
     });
   }, [activeTab, forumItems, user?.id]);
 
-  const handlePostDelete = (deletedId: string | number) => {
+  // `useCallback` ŞART: `PostCard` `React.memo` ile sarılı ve bu fonksiyon ona
+  // prop olarak gidiyor. Her render'da yeniden yaratıldığında referans eşitliği
+  // bozuluyor, memo hiçbir kartı atlayamıyor ve kaydırma sırasında TÜM liste
+  // yeniden render oluyordu — memo'nun bu ekranda etkisiz kalmasının sebebi.
+  const handlePostDelete = useCallback((deletedId: string | number) => {
     setMyPosts((prev) => prev.filter((p) => postKey(p) !== String(deletedId)));
     // Toplam da düşmeli, yoksa "hepsi yüklendi mi?" hesabı (length >= total)
     // bir daha tutmaz ve liste sonuna gelindiğinde boşuna istek atılır.
     setMyPostsTotal((prev) => (prev === null ? prev : Math.max(0, prev - 1)));
-  };
+  }, []);
+
+  // Kaydedilenler sekmesindeki kartlara ESKİDEN her render'da yeniden yaratılan
+  // satır içi bir ok fonksiyonu veriliyordu — aynı memo kırılması. Silinen
+  // kartın kimliği artık kapanıştan (closure) değil parametreden geliyor.
+  const handleSavedPostDelete = useCallback(
+    (deletedId: string | number) => {
+      fetchSavedPosts();
+      setSavedPostsData((prev) => (prev ? prev.filter((p) => postKey(p) !== String(deletedId)) : prev));
+      setSavedPostsTotal((prev) => (prev === null ? prev : Math.max(0, prev - 1)));
+    },
+    [fetchSavedPosts]
+  );
+
+  const renderMyPost = useCallback(
+    ({ item }: { item: Post }) => <PostCard post={item} showStatus showRating={false} onDelete={handlePostDelete} />,
+    [handlePostDelete]
+  );
+
+  const renderSavedPost = useCallback(
+    ({ item }: { item: Post }) => <PostCard post={item} showStatus showRating onDelete={handleSavedPostDelete} />,
+    [handleSavedPostDelete]
+  );
 
   const handleChecklistItemToggle = async (checklistId: number, item: ChecklistItem) => {
     const newChecked = !item.checked;
@@ -742,6 +778,7 @@ export default function ProfileScreen() {
   // yapışık kalıyor, kart tamamen kayboluyor.
   const scrollY = useSharedValue(0);
   const [cardHeight, setCardHeight] = useState(0);
+  const cardHeightShared = useSharedValue(0);
   const [stripHeight, setStripHeight] = useState(0);
   const headerTotalHeight = cardHeight + stripHeight;
   // Her sekmenin KENDİ dikey kaydırma konumu — sekme değiştirince (bkz. aşağı)
@@ -766,10 +803,10 @@ export default function ProfileScreen() {
   }, [activeTab]);
 
   const headerAnimStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: -Math.min(scrollY.value, cardHeight) }],
+    transform: [{ translateY: -Math.min(scrollY.value, cardHeightShared.value) }],
   }));
   const cardAnimStyle = useAnimatedStyle(() => ({
-    opacity: cardHeight > 0 ? 1 - Math.min(scrollY.value, cardHeight * 0.7) / (cardHeight * 0.7) : 1,
+    opacity: cardHeightShared.value > 0 ? 1 - Math.min(scrollY.value, cardHeightShared.value * 0.7) / (cardHeightShared.value * 0.7) : 1,
   }));
 
   // İki gönderi sekmesi hem `scrollY`'yi besliyor hem de sonsuz kaydırma
@@ -779,7 +816,10 @@ export default function ProfileScreen() {
   const postsScrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollY.value = event.contentOffset.y;
-      runOnJS(handleScroll)('posts', event);
+      const distanceToEnd = event.contentSize.height - event.contentOffset.y - event.layoutMeasurement.height;
+      if (distanceToEnd <= event.layoutMeasurement.height * 0.5) {
+        runOnJS(handleScroll)('posts', event);
+      }
     },
     onEndDrag: (event) => runOnJS(rememberPageOffset)('posts', event.contentOffset.y),
     onMomentumEnd: (event) => runOnJS(rememberPageOffset)('posts', event.contentOffset.y),
@@ -787,7 +827,10 @@ export default function ProfileScreen() {
   const savedScrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollY.value = event.contentOffset.y;
-      runOnJS(handleScroll)('saved', event);
+      const distanceToEnd = event.contentSize.height - event.contentOffset.y - event.layoutMeasurement.height;
+      if (distanceToEnd <= event.layoutMeasurement.height * 0.5) {
+        runOnJS(handleScroll)('saved', event);
+      }
     },
     onEndDrag: (event) => runOnJS(rememberPageOffset)('saved', event.contentOffset.y),
     onMomentumEnd: (event) => runOnJS(rememberPageOffset)('saved', event.contentOffset.y),
@@ -836,7 +879,10 @@ export default function ProfileScreen() {
     );
   }
 
-  const pageContentStyle = { paddingBottom: TAB_BAR_SAFE_PADDING, paddingTop: headerTotalHeight };
+  // `headerTotalHeight` kadar dolgu içeriği şeridin TAM altına yapıştırıyordu
+  // (ör. Program sekmesindeki "Düzenle" butonu şeride bitişik duruyordu);
+  // sekme şeridiyle içerik arasında sabit bir nefes payı bırakılıyor.
+  const pageContentStyle = { paddingBottom: TAB_BAR_SAFE_PADDING, paddingTop: headerTotalHeight + 14 };
   // NativeWind'in `className` derleme-zamanı dönüşümü yalnızca 'react-native'
   // içinden doğrudan import edilen bileşenleri tanıyor — `Animated.ScrollView`
   // (react-native-reanimated) bu listede değil, `contentContainerClassName`
@@ -866,64 +912,63 @@ export default function ProfileScreen() {
         scrollEventThrottle={32}
         style={{ flex: 1 }}
       >
-        <Animated.ScrollView
+        {/* Gönderiler ve Kaydedilenler sekmeleri ARTIK SANALLAŞTIRILMIŞ.
+            Eskiden `Animated.ScrollView` içinde düz bir `.map()` vardı: liste
+            ne kadar uzunsa o kadar kart aynı anda mount kalıyor, hepsi her
+            render'da yeniden çiziliyordu — profilde kaydırma kasmasının ve
+            ısınmanın asıl kaynağı buydu. Kayan başlık düzeni aynen korunuyor:
+            `onScroll` yine aynı worklet, üst dolgu yine `pageContentStyle`. */}
+        <Animated.FlatList
           style={{ width: screenWidth }}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={pageContentStyle}
           onScroll={postsScrollHandler}
           scrollEventThrottle={16}
-        >
-          {activeTab === 'posts' &&
-            (myPosts.length === 0 ? (
-              <EmptyState icon={FileText} text="Henüz not paylaşmadınız." />
-            ) : (
-              <>
-                {myPosts.map((post) => (
-                  <PostCard key={postKey(post)} post={post} showStatus showRating={false} onDelete={handlePostDelete} />
-                ))}
-                {myPostsLoadingMore && <TabLoading />}
-              </>
-            ))}
-        </Animated.ScrollView>
+          data={activeTab === 'posts' ? myPosts : NO_POSTS}
+          keyExtractor={postKey}
+          renderItem={renderMyPost}
+          // `removeClippedSubviews` BİLEREK KAPALI: kartlar dokunulabilir ve bu
+          // prop'un ekrandan çıkıp giren satırlarda dokunmayı yutması bilinen
+          // bir sorun. Sanallaştırmanın asıl kazancı zaten aşağıdaki üç ayarda.
+          removeClippedSubviews={false}
+          maxToRenderPerBatch={5}
+          windowSize={7}
+          initialNumToRender={5}
+          ListEmptyComponent={
+            activeTab === 'posts' ? <EmptyState icon={FileText} text="Henüz not paylaşmadınız." /> : null
+          }
+          ListFooterComponent={myPostsLoadingMore ? <TabLoading /> : null}
+        />
 
-        <Animated.ScrollView
+        <Animated.FlatList
           style={{ width: screenWidth }}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={pageContentStyle}
           onScroll={savedScrollHandler}
           scrollEventThrottle={16}
-        >
-          {activeTab === 'saved' &&
-            (savedPostsData === null ? (
+          data={activeTab === 'saved' && savedPostsData ? savedPostsData : NO_POSTS}
+          keyExtractor={postKey}
+          renderItem={renderSavedPost}
+          removeClippedSubviews={false}
+          maxToRenderPerBatch={5}
+          windowSize={7}
+          initialNumToRender={5}
+          ListEmptyComponent={
+            activeTab !== 'saved' ? null : savedPostsData === null ? (
               <TabLoading />
-            ) : savedPostsData.length === 0 ? (
-              <EmptyState icon={FileText} text="Henüz not kaydetmediniz." />
             ) : (
-              <>
-                {savedPostsData.map((post) => (
-                  <PostCard
-                    key={postKey(post)}
-                    post={post}
-                    showStatus
-                    showRating={true}
-                    onDelete={() => {
-                      fetchSavedPosts();
-                      setSavedPostsData((prev) => (prev ? prev.filter((p) => p.id !== post.id) : prev));
-                      setSavedPostsTotal((prev) => (prev === null ? prev : Math.max(0, prev - 1)));
-                    }}
-                  />
-                ))}
-                {savedPostsLoadingMore && <TabLoading />}
-              </>
-            ))}
-        </Animated.ScrollView>
+              <EmptyState icon={FileText} text="Henüz not kaydetmediniz." />
+            )
+          }
+          ListFooterComponent={savedPostsLoadingMore ? <TabLoading /> : null}
+        />
 
         <Animated.ScrollView
           style={{ width: screenWidth }}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={paddedPageContentStyle}
           onScroll={listsScrollHandler}
-          scrollEventThrottle={16}
+          scrollEventThrottle={32}
         >
           {activeTab === 'lists' &&
             (myChecklists === null ? (
@@ -956,7 +1001,7 @@ export default function ProfileScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={paddedPageContentStyle}
           onScroll={aktsScrollHandler}
-          scrollEventThrottle={16}
+          scrollEventThrottle={32}
         >
           {activeTab === 'akts' &&
             (aktsCalcs === null ? (
@@ -1006,7 +1051,7 @@ export default function ProfileScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={paddedPageContentStyle}
           onScroll={scheduleScrollHandler}
-          scrollEventThrottle={16}
+          scrollEventThrottle={32}
         >
           {activeTab === 'schedule' &&
             (mySchedule === null ? (
@@ -1059,7 +1104,7 @@ export default function ProfileScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={paddedPageContentStyle}
           onScroll={followsScrollHandler}
-          scrollEventThrottle={16}
+          scrollEventThrottle={32}
         >
           {activeTab === 'follows' &&
             (follows === null ? (
@@ -1104,7 +1149,7 @@ export default function ProfileScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={paddedPageContentStyle}
           onScroll={forumsScrollHandler}
-          scrollEventThrottle={16}
+          scrollEventThrottle={32}
         >
           {activeTab === 'forums' &&
             (forumLoading || forumItems === null ? (
@@ -1154,7 +1199,14 @@ export default function ProfileScreen() {
             koymak sessizce hiçbir şey yapmaz. Bu yüzden görsel sınıflar (arka
             plan/dolgu/köşe) düz bir `View`de kalıyor; `Animated.View` yalnızca
             saydamlık/kayma animasyonunu taşıyor. */}
-        <Animated.View onLayout={(e) => setCardHeight(e.nativeEvent.layout.height)} style={cardAnimStyle}>
+        <Animated.View
+          onLayout={(e) => {
+            const h = e.nativeEvent.layout.height;
+            setCardHeight(h);
+            cardHeightShared.value = h;
+          }}
+          style={cardAnimStyle}
+        >
           <View className="bg-surface p-4 m-4 mb-5 rounded-lg" style={SHADOW_MD}>
           <View className="flex-row gap-3.5">
             <View className="w-20 h-20">

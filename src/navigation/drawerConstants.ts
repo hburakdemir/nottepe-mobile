@@ -1,3 +1,5 @@
+import { useCallback } from 'react';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getMetricsSnapshot, useMetrics } from '../theme/metrics';
 
 // Menü panelinin genişliği — RootNavigator'daki Drawer.Navigator'ın
@@ -30,28 +32,44 @@ export function getDrawerWidthSnapshot(): number {
 // jest seçeneklerini `navigation.getParent(ROOT_DRAWER_ID)` ile güncelliyor.
 export const ROOT_DRAWER_ID = 'RootDrawer';
 
-// Bu ekranlarda sağa kaydırmak GERİ gidiyor (çekmece jesti kapalı) — jestin
-// kendisi AppShell'de elle yazıldı, çünkü native-stack'in `gestureEnabled`'ı
-// yalnızca iOS'ta çalışıyor.
-// (Profil artık bir SEKME — bkz. MainTabsScreen.tsx — geri gidilecek ekranı
-// olmadığı için listeden çıktı.)
-export const BACK_SWIPE_ROUTES: string[] = ['PostDetail', 'UserProfile'];
-
-// Bu ekranlarda menü ekranın HERHANGİ bir yerinden sağa çekilerek açılıyor
-// (kenar şartı yok). Listede yatay ScrollView barındıran ekranlar bilinçli
-// olarak yok (CafeteriaMenu gün şeridi, AktsCalculator, NoteRequests…) —
-// oralarda tam genişlik jest, şeritlerin kaydırmasını çalardı.
-export const FULL_WIDTH_SWIPE_ROUTES: string[] = ['Home', 'Departments', 'Tools'];
-
-// Bu ekranlarda çekmece jesti TAMAMEN kapalı: satırların kendi yatay kaydırma
-// aksiyonları var (bildirim satırında "okunmadı" + "sil"), kenardan açılan
-// çekmece onlarla çakışıyordu (kullanıcı isteği).
-export const NO_DRAWER_SWIPE_ROUTES: string[] = ['Notifications'];
-
-// Tam genişlik jestin geçerli olmadığı ekranlarda soldan kaç px'lik şeritten
-// çekilirse menü açılır (react-native-drawer-layout `swipeEdgeWidth`).
+// Soldan kaç px'lik şeritten çekilirse menü açılır
+// (react-native-drawer-layout `swipeEdgeWidth`).
+//
+// BİR ARA 28'E DÜŞÜRÜLMÜŞTÜ, GERİ ALINDI. Gerekçe şuydu: kütüphane bu şeridi
+// jestine `hitSlop` olarak veriyor (`{ left: 0, width: swipeEdgeWidth }`,
+// Drawer.native.tsx ~151), şerit ekranın TÜM YÜKSEKLİĞİ boyunca uzanıyor ve
+// üst bardaki menü avatarı bu şeridin içinde kalıyor — avatarın basılamamasının
+// sebebi bu sanılmıştı. YANLIŞTI: jest `activeOffsetX([-20,20])` ile kurulu
+// (Drawer.native.tsx ~295), yani PARMAK HAREKET ETMEDEN AKTİFLEŞMİYOR;
+// hareketsiz bir dokunuşu hiçbir zaman yutamaz. Avatarın gerçek sebebi
+// Reanimated sargısıydı (bkz. AppHeader.tsx). Daraltmanın tek etkisi, menüyü
+// açan kenar şeridini kullanılamaz hâle getirmek oldu ("ana sayfada kaydırarak
+// menü açılmıyor") — o yüzden eski değere dönüldü.
 export const EDGE_SWIPE_WIDTH = 56;
 
-// Geri jestinin tamamlanmış sayılma eşikleri (bkz. AppShell.tsx).
-export const BACK_SWIPE_DISTANCE = 80;
-export const BACK_SWIPE_VELOCITY = 500;
+// Çekmecenin kaydırma jestini AÇAN/KAPATAN kanca — ekran odağa girdiğinde
+// çalışıyor.
+//
+// ESKİDEN bunu RootNavigator içindeki `DrawerSwipeSync` yapıyordu: o an odaklı
+// route'un ADINI iç içe navigator state'inden (drawer → stack → tab) türetip
+// bir `TAB_ROUTES` listesiyle karşılaştırıyordu. Kırılgandı — AppHeader'daki
+// mevcut not (bkz. `derivedTitle` yorumu) bu türetmenin sekmelerde güvenilmez
+// olduğunu, odaklı route'un hep `MainTabs` çıkabildiğini zaten belgeliyor;
+// öyle bir durumda hiçbir sekmede menü kaydırmayla açılamaz. Ayrıca
+// `useNavigationState` her navigasyon değişiminde yeniden render olup
+// `setOptions` çağırıyor, bu da Drawer + PushableStack + tüm Stack ağacını
+// gereksiz yere yeniden çizdiriyordu.
+//
+// Ayrım aslında rota adına hiç bakmadan, MİMARİDEN kesin biliniyor:
+// `MainTabsScreen` = stack'in kökü, geri gidilecek ekran yok → jest AÇIK.
+// `AppShell` = tanım gereği yalnızca push edilmiş ekranları sarmalıyor → jest
+// KAPALI (sol kenar oradaki native geri jestine ait).
+export function useDrawerSwipeEnabled(enabled: boolean): void {
+  const navigation = useNavigation();
+
+  useFocusEffect(
+    useCallback(() => {
+      navigation.getParent(ROOT_DRAWER_ID as never)?.setOptions({ swipeEnabled: enabled });
+    }, [navigation, enabled])
+  );
+}

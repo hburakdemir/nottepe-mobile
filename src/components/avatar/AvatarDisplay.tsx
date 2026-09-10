@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Image, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Image } from 'expo-image';
 import { getFileUrl } from '../../lib/config';
 import type { AvatarConfig } from '../../constants/avatarConfig';
 import { AvatarSVG } from './AvatarSVG';
@@ -27,7 +28,14 @@ export default function AvatarDisplay({ avatar, size = 40, showBg = true }: Prop
 
   if (showPhoto) {
     return (
-      <Image source={{ uri: getFileUrl(`avatars/${avatar!.photo_path}`) }} style={{ width: size, height: size, borderRadius: size / 2 }} />
+      <Image
+        source={{ uri: getFileUrl(`avatars/${avatar!.photo_path}`) }}
+        style={{ width: size, height: size, borderRadius: size / 2 }}
+        contentFit="cover"
+        transition={150}
+        cachePolicy="memory-disk"
+        recyclingKey={avatar!.photo_path}
+      />
     );
   }
 
@@ -37,6 +45,10 @@ export default function AvatarDisplay({ avatar, size = 40, showBg = true }: Prop
         <Image
           source={{ uri: getFileUrl(`avatars/${avatar!.photo_path}`) }}
           style={{ width: size, height: size, borderRadius: size / 2 }}
+          contentFit="cover"
+          transition={150}
+          cachePolicy="memory-disk"
+          recyclingKey={avatar!.photo_path}
         />
       );
     }
@@ -46,6 +58,10 @@ export default function AvatarDisplay({ avatar, size = 40, showBg = true }: Prop
           <Image
             source={{ uri: getFileUrl(`avatars/${avatar!.photo_path}`) }}
             style={{ width: size, height: size, borderRadius: size / 2 }}
+            contentFit="cover"
+            transition={150}
+            cachePolicy="memory-disk"
+            recyclingKey={avatar!.photo_path}
           />
         ) : (
           <AvatarSVG config={config} size={size} showBg={showBg} />
