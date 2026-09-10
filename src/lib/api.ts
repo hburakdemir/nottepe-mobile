@@ -52,6 +52,13 @@ const toQueryString = (params: Record<string, unknown> = {}) => {
 
 const api = axios.create({
   baseURL: API_URL,
+  // Eskiden timeout yoktu: bağlantı koptuğunda istek OS'nin kendi TCP
+  // zaman aşımına (bazı cihazlarda 60-120 sn+) kadar askıda kalıyor, ekrandaki
+  // spinner da o süre boyunca dönüyordu ("internet gittiğinde loading spinner
+  // çok uzun dönüyor" şikâyeti). 12 sn sonra istek başarısız sayılır, react
+  // query'nin (App.tsx) `retry: 1` ayarıyla birleşince ekran birkaç saniye
+  // içinde hata/çevrimdışı durumuna düşer.
+  timeout: 12000,
   headers: {
     'Content-Type': 'application/json',
     // Backend'e "cookie jar'ım yok, Bearer + refresh token akışı kullan" sinyali

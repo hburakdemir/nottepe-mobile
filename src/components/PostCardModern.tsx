@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Bookmark, Link2, MessageSquare, Star, Trash2, User } from 'lucide-react-native';
+import { Link2, MessageSquare, Star, Trash2, User } from 'lucide-react-native';
 import type { Post } from '../types/post';
 import { postsAPI, ratingAPI } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
@@ -13,6 +13,7 @@ import { useGoToUserProfile } from '../hooks/useGoToUserProfile';
 import { buildPostAuthorAvatar } from '../lib/postAuthorAvatar';
 import AvatarDisplay from './avatar/AvatarDisplay';
 import FileTiles from './FileTiles';
+import SaveButton from './SaveButton';
 
 const MAX_LENGTH = 200;
 
@@ -115,12 +116,19 @@ export default function PostCardModern({ post, showStatus = false, showRating = 
         </View>
       )}
 
-      {/* Künye: fakülte soluk, bölüm net — ikisi farklı veri, ikisi de görünüyor. */}
-      <Text style={[styles.crumb, { color: t.ink3 }]} numberOfLines={2}>
-        {post.faculty}
-        {!!post.faculty && !!post.department && <Text style={{ color: t.line }}>{'  ›  '}</Text>}
-        <Text style={[styles.crumbDept, { color: t.ink2 }]}>{post.department}</Text>
-      </Text>
+      {/* Künye: fakülte soluk, bölüm net. Kaydet ikonu de bu satırla aynı
+          hizada, en sağda — kullanıcı isteği: eskiden başlık satırındaydı,
+          künye ile aynı yükseklikte olması istendi. */}
+      <View style={styles.crumbRow}>
+        <Text style={[styles.crumb, { color: t.ink3, flex: 1 }]} numberOfLines={2}>
+          {post.faculty}
+          {!!post.faculty && !!post.department && <Text style={{ color: t.line }}>{'  ›  '}</Text>}
+          <Text style={[styles.crumbDept, { color: t.ink2 }]}>{post.department}</Text>
+        </Text>
+        {isAuthenticated && (
+          <SaveButton saved={isSaved} onPress={() => toggleSavePost(postId)} color={t.ink2} savedColor={t.ink} />
+        )}
+      </View>
 
       <Text style={[styles.title, { color: t.ink }]}>{post.title}</Text>
 
@@ -171,11 +179,6 @@ export default function PostCardModern({ post, showStatus = false, showRating = 
               <Trash2 size={16} color={t.ink3} strokeWidth={2} />
             </Pressable>
           )}
-          {isAuthenticated && (
-            <Pressable onPress={() => toggleSavePost(postId)} hitSlop={8} accessibilityLabel="Kaydet">
-              <Bookmark size={17} color={isSaved ? t.ink : t.ink2} fill={isSaved ? t.ink : 'none'} strokeWidth={2} />
-            </Pressable>
-          )}
         </View>
       </View>
 
@@ -208,6 +211,7 @@ const styles = StyleSheet.create({
   },
   statusBadge: { alignSelf: 'flex-start', borderRadius: 100, paddingHorizontal: 10, paddingVertical: 3 },
   statusBadgeText: { fontSize: 10.5, fontWeight: '700' },
+  crumbRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   crumb: { fontSize: 12, lineHeight: 17 },
   crumbDept: { fontWeight: '600' },
   title: { fontSize: 18, fontWeight: '600', lineHeight: 24, letterSpacing: -0.2 },

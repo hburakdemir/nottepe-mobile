@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -30,6 +30,7 @@ import { formatGpa } from '../../utils/gano';
 import type { Checklist } from '../../types/checklist';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
+import StateView from '../../components/StateView';
 
 interface PublicProfile {
   id: number;
@@ -106,9 +107,35 @@ export default function UserProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [banned, setBanned] = useState(false);
+  // Sunucudan yanıt gelmeden başarısız olan istekler (zaman aşımı, bağlantı
+  // kopması) eskiden de "Kullanıcı bulunamadı" gösteriyordu — yanıltıcıydı.
+  // `err.response` yoksa bu bir ağ hatası, gerçek bir 404 değil.
+  const [loadError, setLoadError] = useState(false);
+  const [loadRetryTick, setLoadRetryTick] = useState(0);
 
   const [activeTab, setActiveTab] = useState<TabKey>('posts');
   const [loadedTabs, setLoadedTabs] = useState<Set<TabKey>>(new Set());
+
+  // Sekmeler hiçbir zaman ortalanmıyordu (bkz. ProfileScreen.tsx'teki aynı
+  // düzeltme) — burada pager yok, sadece şeridin kendisi ölçülüp aktif sekme
+  // ortasına kaydırılıyor.
+  const stripRef = useRef<ScrollView>(null);
+  const stripWidthRef = useRef(0);
+  const stripContentWidthRef = useRef(0);
+  const tabLayoutsRef = useRef<Partial<Record<TabKey, { x: number; width: number }>>>({});
+
+  const centerStripOn = useCallback((key: TabKey) => {
+    const item = tabLayoutsRef.current[key];
+    const stripWidth = stripWidthRef.current;
+    if (!item || stripWidth <= 0) return;
+    const maxScroll = Math.max(0, stripContentWidthRef.current - stripWidth);
+    const target = Math.min(Math.max(item.x + item.width / 2 - stripWidth / 2, 0), maxScroll);
+    stripRef.current?.scrollTo({ x: target, animated: true });
+  }, []);
+
+  useEffect(() => {
+    centerStripOn(activeTab);
+  }, [activeTab, centerStripOn]);
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [postsTotal, setPostsTotal] = useState(0);
@@ -130,6 +157,7 @@ export default function UserProfileScreen() {
       setLoading(true);
       setNotFound(false);
       setBanned(false);
+      setLoadError(false);
       setActiveTab('posts');
       setLoadedTabs(new Set());
       try {
@@ -150,6 +178,7 @@ export default function UserProfileScreen() {
       } catch (err: any) {
         if (cancelled) return;
         if (err.response?.status === 403) setBanned(true);
+        else if (!err.response) setLoadError(true);
         else setNotFound(true);
       } finally {
         if (!cancelled) setLoading(false);
@@ -158,7 +187,7 @@ export default function UserProfileScreen() {
     return () => {
       cancelled = true;
     };
-  }, [username]);
+  }, [username, loadRetryTick]);
 
   useEffect(() => {
     if (!profile || profile.is_public === false) return;
@@ -247,7 +276,7 @@ export default function UserProfileScreen() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center gap-3 px-8 bg-ground">
-        <ActivityIndicator size="large" color={isDark ? '#5A9690' : '#2F5755'} />
+        <StateView kind="loading" loadingColor={isDark ? '#5A9690' : '#2F5755'} />
       </View>
     );
   }
@@ -257,6 +286,14 @@ export default function UserProfileScreen() {
       <View className="flex-1 items-center justify-center gap-3 px-8 bg-ground">
         <ShieldOff size={48} color="#f87171" />
         <Text className="text-[15px] font-semibold text-ink2 text-center">Profil görüntülemeniz admin tarafından yasaklanmıştır</Text>
+      </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <View className="flex-1 items-center justify-center gap-3 px-8 bg-ground">
+        <StateView kind="error" title="Profil yüklenemedi." onAction={() => setLoadRetryTick((n) => n + 1)} />
       </View>
     );
   }
@@ -324,11 +361,19 @@ export default function UserProfileScreen() {
         <>
           <View className="bg-surface rounded-lg mb-8" style={SHADOW_MD}>
             <ScrollView
+              ref={stripRef}
               showsVerticalScrollIndicator={false}
               horizontal
               showsHorizontalScrollIndicator={false}
               className="border-b border-line"
               contentContainerStyle={{ paddingHorizontal: 16 }}
+              onLayout={(e) => {
+                stripWidthRef.current = e.nativeEvent.layout.width;
+                centerStripOn(activeTab);
+              }}
+              onContentSizeChange={(w) => {
+                stripContentWidthRef.current = w;
+              }}
             >
               {tabs.map(({ key, label, icon: Icon }) => {
                 const active = activeTab === key;
@@ -337,6 +382,10 @@ export default function UserProfileScreen() {
                     key={key}
                     className={`flex-row items-center gap-1.5 py-3 mr-5 border-b-2 ${active ? 'border-b-[#1e40af]' : 'border-b-transparent'}`}
                     onPress={() => setActiveTab(key)}
+                    onLayout={(e) => {
+                      tabLayoutsRef.current[key] = { x: e.nativeEvent.layout.x, width: e.nativeEvent.layout.width };
+                      if (active) centerStripOn(key);
+                    }}
                   >
                     <Icon size={16} color={active ? (isDark ? '#60a5fa' : '#1e3a8a') : isDark ? '#9ca3af' : '#6b7280'} />
                     <Text className={`text-xs font-medium ${active ? 'text-info' : 'text-muted'}`}>{label}</Text>

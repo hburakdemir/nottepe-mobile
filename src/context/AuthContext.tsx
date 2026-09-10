@@ -1,9 +1,10 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authAPI } from '../lib/api';
 import { getAccessToken, setAccessToken, clearAccessToken, setRefreshToken, clearRefreshToken } from '../lib/tokenStore';
 import { onSessionExpired } from '../lib/authEvents';
 import { unregisterToken } from '../lib/push/registration';
+import { queryClient } from '../lib/queryClient';
 import type { User } from '../types/user';
 
 const STORAGE_KEY = 'nottepe_auth_user';
@@ -42,6 +43,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await clearRefreshToken();
     await AsyncStorage.removeItem(STORAGE_KEY);
     setUser(null);
+    // react-query cache'i kullanıcıya göre ayrıştırılmadan (avatar, profil,
+    // bildirim sayaçları hep aynı anahtarlar) sadece `staleTime` ile duruyordu
+    // — bu hesaptan çıkıp başka bir hesaba girince eski hesabın verisi (ör.
+    // avatar) staleTime dolana kadar ekranda kalıyordu. Çıkışta tamamen
+    // temizlemek bu sızıntıyı kapatıyor.
+    queryClient.clear();
   }, []);
 
   // İlk açılışta: SecureStore'da token varsa oturumu geri yükle.
@@ -61,7 +68,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => onSessionExpired(() => clearSession()), [clearSession]);
 
-  const login = async (credentials: { username: string; password: string }): Promise<LoginResult> => {
+  const login = useCallback(async (credentials: { username: string; password: string }): Promise<LoginResult> => {
     try {
       const response = await authAPI.login(credentials);
       const { user: userData, accessToken, refreshToken } = response.data;
@@ -81,9 +88,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         email: error.response?.data?.email || null,
       };
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     // `unregisterToken` ÖNCE: POST'un canlı Bearer'a ihtiyacı var, `clearSession`
     // SecureStore'u siliyor. `clearSession`'a KONULMADI — orası aynı zamanda
     // `onSessionExpired` yolu, o durumda token zaten ölü ve POST 401 alıp refresh
@@ -96,25 +103,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } finally {
       await clearSession();
     }
-  };
+  }, [clearSession]);
 
-  const updateUser = (patch: Partial<User>) => {
+  const updateUser = useCallback((patch: Partial<User>) => {
     setUser((prev) => {
       if (!prev) return null;
       const next = { ...prev, ...patch };
       AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next)).catch(() => {});
       return next;
     });
-  };
+  }, []);
 
-  const value: AuthContextValue = {
-    user,
-    loading,
-    isAuthenticated: !!user,
-    login,
-    logout,
-    updateUser,
-  };
+  // Provider `value`'su MEMO'LANMALI: aksi hâlde her AuthProvider render'ında
+  // (ör. `loading`/`user` değişmese bile üst ağacın render'ı yüzünden) yeni bir
+  // nesne üretilir ve `useAuth()` çağıran her tüketici (başta RootNavigator)
+  // gereksiz yere yeniden render olur — bkz. RootNavigator.tsx'teki
+  // `withAppShell` modül-seviyesi taşıma notu, buradaki gereksiz render'lar
+  // sorunun ikinci büyütecidir.
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user,
+      loading,
+      isAuthenticated: !!user,
+      login,
+      logout,
+      updateUser,
+    }),
+    [user, loading, login, logout, updateUser]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

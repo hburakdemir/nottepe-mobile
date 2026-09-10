@@ -5,12 +5,14 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AppHeader from '../components/layout/AppHeader';
 import KeyboardAvoider from '../components/layout/KeyboardAvoider';
 import WaveTabBar from '../components/layout/WaveTabBar';
+import ContentContainer from '../components/layout/ContentContainer';
 import HomeScreen from '../screens/main/HomeScreen';
 import DepartmentsScreen from '../screens/main/DepartmentsScreen';
 import ToolsScreen from '../screens/main/ToolsScreen';
 import CafeteriaMenuScreen from '../screens/main/CafeteriaMenuScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
 import { routeTitle } from './routeTitles';
+import { useDrawerSwipeEnabled } from './drawerConstants';
 import type { MainTabParamList } from './types';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -34,6 +36,11 @@ export default function MainTabsScreen() {
   // olayından bildiriyor.
   const [activeTab, setActiveTab] = useState<keyof MainTabParamList>('Home');
 
+  // Bu ekran stack'in KÖKÜ — geri gidilecek bir ekran yok, dolayısıyla sol
+  // kenar boşta: soldan kaydırma menüyü açsın. Push edilmiş ekranlarda AppShell
+  // bunu kapatıyor (bkz. drawerConstants.ts `useDrawerSwipeEnabled`).
+  useDrawerSwipeEnabled(true);
+
   return (
     <View style={{ flex: 1 }}>
       {/* Web'de Navbar viewport'un en tepesine kadar aynı renkte uzanır (sticky,
@@ -51,6 +58,7 @@ export default function MainTabsScreen() {
             Tab bar Tab.Navigator'ın kendi `tabBar` yuvasında olduğu için bu
             itmeden etkilenmiyor — klavyenin altında kalıyor. */}
         <KeyboardAvoider>
+          <ContentContainer>
           <Tab.Navigator
             initialRouteName="Home"
             screenListeners={{
@@ -73,6 +81,7 @@ export default function MainTabsScreen() {
             <Tab.Screen name="CafeteriaMenu" component={CafeteriaMenuScreen} />
             <Tab.Screen name="Profile" component={ProfileScreen} />
           </Tab.Navigator>
+          </ContentContainer>
         </KeyboardAvoider>
       </View>
     </View>

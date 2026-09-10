@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { Lightbulb } from 'lucide-react-native';
 import { suggestionAPI } from '../../lib/api';
@@ -8,6 +8,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useGoToUserProfile } from '../../hooks/useGoToUserProfile';
 import ForumCommentList, { type ForumComment } from '../../components/forum/ForumCommentList';
 import type { RootStackParamList } from '../../navigation/types';
+import StateView from '../../components/StateView';
 
 interface SuggestionDetail {
   id: number;
@@ -34,16 +35,18 @@ export default function SuggestionDetailScreen() {
   const [comments, setComments] = useState<ForumComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [commentsLoading, setCommentsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setCommentsLoading(true);
+    setLoadError(false);
     try {
       const [suggestionRes, commentsRes] = await Promise.all([suggestionAPI.getById(id), suggestionAPI.getComments(id)]);
       setSuggestion(suggestionRes.data.suggestion);
       setComments(commentsRes.data.comments || []);
     } catch {
-      Alert.alert('Hata', 'Öneri yüklenemedi.');
+      setLoadError(true);
     } finally {
       setLoading(false);
       setCommentsLoading(false);
@@ -94,7 +97,15 @@ export default function SuggestionDetailScreen() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color={isDark ? '#5A9690' : '#2F5755'} />
+        <StateView kind="loading" loadingColor={isDark ? '#5A9690' : '#2F5755'} />
+      </View>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <View className="flex-1 items-center justify-center">
+        <StateView kind="error" title="Öneri yüklenemedi." onAction={fetchAll} />
       </View>
     );
   }
@@ -102,7 +113,7 @@ export default function SuggestionDetailScreen() {
   if (!suggestion) {
     return (
       <View className="flex-1 items-center justify-center">
-        <Text className="text-muted text-sm">Öneri bulunamadı.</Text>
+        <StateView kind="empty" title="Öneri bulunamadı." />
       </View>
     );
   }

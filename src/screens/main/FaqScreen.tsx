@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -83,6 +83,29 @@ export default function FaqScreen() {
     </View>
   );
 
+  const renderItem = useCallback(
+    ({ item }: { item: FaqEntry }) => (
+      <Pressable
+        className="flex-row items-start gap-2.5 bg-surface rounded-xl p-3.5 mb-2.5"
+        onPress={() => navigation.navigate('FaqDetail', { id: item.id })}
+      >
+        <View className="flex-1">
+          <Text className="text-[14.5px] font-bold text-ink">{item.question}</Text>
+          <Text className="text-[12.5px] text-muted mt-1 leading-[17px]" numberOfLines={2}>
+            {item.answer}
+          </Text>
+          <View className="flex-row items-center gap-[5px] mt-2">
+            <MessageSquare size={12} color={isDark ? '#9ca3af' : '#6b7280'} />
+            <Text className="text-[11px] text-muted2">{item.comment_count} yorum</Text>
+            {!!item.author_name && <Text className="text-[11px] text-muted2">· {item.author_name}</Text>}
+          </View>
+        </View>
+        <ChevronRight size={18} color={isDark ? '#4b5563' : '#d1d5db'} />
+      </Pressable>
+    ),
+    [navigation, isDark]
+  );
+
   return (
     <View className="flex-1 bg-ground">
       {loading ? (
@@ -95,26 +118,12 @@ export default function FaqScreen() {
           contentContainerClassName="p-4 pb-[110px]"
           data={entries}
           keyExtractor={(item) => String(item.id)}
+          removeClippedSubviews
+          maxToRenderPerBatch={6}
+          windowSize={7}
+          initialNumToRender={6}
           ListHeaderComponent={header}
-          renderItem={({ item }) => (
-            <Pressable
-              className="flex-row items-start gap-2.5 bg-surface rounded-xl p-3.5 mb-2.5"
-              onPress={() => navigation.navigate('FaqDetail', { id: item.id })}
-            >
-              <View className="flex-1">
-                <Text className="text-[14.5px] font-bold text-ink">{item.question}</Text>
-                <Text className="text-[12.5px] text-muted mt-1 leading-[17px]" numberOfLines={2}>
-                  {item.answer}
-                </Text>
-                <View className="flex-row items-center gap-[5px] mt-2">
-                  <MessageSquare size={12} color={isDark ? '#9ca3af' : '#6b7280'} />
-                  <Text className="text-[11px] text-muted2">{item.comment_count} yorum</Text>
-                  {!!item.author_name && <Text className="text-[11px] text-muted2">· {item.author_name}</Text>}
-                </View>
-              </View>
-              <ChevronRight size={18} color={isDark ? '#4b5563' : '#d1d5db'} />
-            </Pressable>
-          )}
+          renderItem={renderItem}
           ListEmptyComponent={
             <View className="items-center py-[50px] gap-2.5">
               <Inbox size={40} color={isDark ? '#4b5563' : '#d1d5db'} />

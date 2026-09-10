@@ -7,6 +7,7 @@ import VerifyEmailScreen from '../screens/auth/VerifyEmailScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import ResetPasswordScreen from '../screens/auth/ResetPasswordScreen';
 import { useTheme } from '../context/ThemeContext';
+import { STACK_ANIMATION } from './stackAnimation';
 import type { AuthStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
@@ -20,7 +21,7 @@ export default function AuthNavigator() {
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
-        animation: 'slide_from_right',
+        animation: STACK_ANIMATION,
         headerStyle: { backgroundColor: headerBg },
         headerTintColor: headerTint,
         headerShadowVisible: false,

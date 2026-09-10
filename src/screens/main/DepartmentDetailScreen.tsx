@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
@@ -12,6 +12,7 @@ import { useTheme } from '../../context/ThemeContext';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
+import StateView from '../../components/StateView';
 
 interface PostsPage {
   posts: Post[];
@@ -56,7 +57,7 @@ export default function DepartmentDetailScreen() {
     }
   };
 
-  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } = useInfiniteQuery({
     queryKey: ['department-posts', faculty, department],
     queryFn: async ({ pageParam }) => {
       const res = await postsAPI.getAllPosts({ page: pageParam, faculty, department });
@@ -72,10 +73,12 @@ export default function DepartmentDetailScreen() {
   const posts = useMemo(() => data?.pages.flatMap((p) => p.posts) ?? [], [data]);
   const total = data?.pages[0]?.total ?? 0;
 
+  const renderPost = useCallback(({ item }: { item: Post }) => <PostCard post={item} />, []);
+
   const header = (
-    <View className="pb-8">
-      <View className="flex-row items-center flex-wrap gap-3">
-        <Text className="text-xl font-bold text-ink flex-shrink">{department}</Text>
+    <View className="pb-8 px-4 items-center">
+      <View className="flex-row items-center justify-center flex-wrap gap-3">
+        <Text className="text-xl font-bold text-ink flex-shrink text-center">{department}</Text>
         <Pressable
           className={`flex-row items-center gap-2 rounded-lg px-4 py-2 ${isFollowing ? 'bg-transparent border border-accent' : 'bg-brand'}`}
           onPress={toggleFollow}
@@ -87,15 +90,16 @@ export default function DepartmentDetailScreen() {
           </Text>
         </Pressable>
       </View>
-      <Text className="text-base text-muted mt-2">{faculty}</Text>
-      {total > 0 && <Text className="text-sm text-muted2 mt-1">{total} not bulundu</Text>}
+      {/* Fakülte adı artık üst barda yazıyor (bkz. AppHeader.tsx derivedTitle) —
+          burada ikinci kez göstermek tekrar oluyordu. */}
+      {total > 0 && <Text className="text-sm text-muted2 mt-2 text-center">{total} not bulundu</Text>}
     </View>
   );
 
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center py-[60px]">
-        <ActivityIndicator size="large" color={isDark ? '#5A9690' : '#1d4ed8'} />
+        <StateView kind="loading" loadingColor={isDark ? '#5A9690' : '#1d4ed8'} />
       </View>
     );
   }
@@ -103,7 +107,7 @@ export default function DepartmentDetailScreen() {
   if (isError) {
     return (
       <View className="flex-1 items-center justify-center py-[60px]">
-        <Text className="text-muted text-sm">Notlar yüklenemedi.</Text>
+        <StateView kind="error" title="Notlar yüklenemedi." onAction={() => refetch()} />
       </View>
     );
   }
@@ -116,7 +120,11 @@ export default function DepartmentDetailScreen() {
       contentContainerStyle={{ paddingTop: 4, paddingBottom: TAB_BAR_SAFE_PADDING, flexGrow: 1 }}
       data={posts}
       keyExtractor={(item) => String(item.id ?? item.post_id)}
-      renderItem={({ item }) => <PostCard post={item} />}
+      renderItem={renderPost}
+      removeClippedSubviews
+      maxToRenderPerBatch={6}
+      windowSize={7}
+      initialNumToRender={6}
       ListHeaderComponent={header}
       onEndReachedThreshold={0.4}
       onEndReached={() => {

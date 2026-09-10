@@ -207,6 +207,20 @@ export default function NoteRequestsScreen() {
     </View>
   );
 
+  const renderItem = useCallback(
+    ({ item }: { item: NoteRequest }) => (
+      <RequestCard
+        request={item}
+        onFulfill={setFulfillTarget}
+        onSupport={handleSupport}
+        onClose={handleClose}
+        onReopen={handleReopen}
+        onDelete={handleDelete}
+      />
+    ),
+    [setFulfillTarget, handleSupport, handleClose, handleReopen, handleDelete]
+  );
+
   return (
     <View className="flex-1 bg-ground">
       {loading ? (
@@ -219,17 +233,12 @@ export default function NoteRequestsScreen() {
           contentContainerClassName="p-4 pb-[110px]"
           data={requests}
           keyExtractor={(item) => String(item.id)}
+          removeClippedSubviews
+          maxToRenderPerBatch={6}
+          windowSize={7}
+          initialNumToRender={6}
           ListHeaderComponent={header}
-          renderItem={({ item }) => (
-            <RequestCard
-              request={item}
-              onFulfill={setFulfillTarget}
-              onSupport={handleSupport}
-              onClose={handleClose}
-              onReopen={handleReopen}
-              onDelete={handleDelete}
-            />
-          )}
+          renderItem={renderItem}
           ListEmptyComponent={
             <View className="items-center bg-surface rounded-lg py-12 gap-4" style={SHADOW_MD}>
               <Inbox size={64} color={isDark ? '#6b7280' : '#9ca3af'} />

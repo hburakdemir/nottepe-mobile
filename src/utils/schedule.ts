@@ -38,6 +38,15 @@ export const toMinutes = (hhmm: string) => {
   return h * 60 + m;
 };
 
+// `toMinutes`'ın tersi — negatif/24 saati aşan değerleri bir güne sarmalar
+// (ör. 130 Ring tarifesinde bir durağın saatini diğerinden türetirken).
+export const minutesToTime = (totalMinutes: number) => {
+  const wrapped = ((totalMinutes % 1440) + 1440) % 1440;
+  const h = Math.floor(wrapped / 60);
+  const m = wrapped % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+
 export function coursesOverlap(a: ScheduleCourse, b: ScheduleCourse): boolean {
   if (a.day !== b.day) return false;
   return toMinutes(a.start) < toMinutes(b.end) && toMinutes(b.start) < toMinutes(a.end);

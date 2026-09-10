@@ -3,14 +3,14 @@
     "name": "Nottepe",
     "slug": "nottepe-mobile",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "scheme": "nottepe",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.nottepe.app",
-      "buildNumber": "3",
+      "buildNumber": "10",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -46,11 +46,11 @@
         }
       ]
     ],
+    "owner": "hakanburakdemir",
     "extra": {
       "eas": {
-        "projectId": "ed1c23ab-a3cf-42c1-990a-ee6139c60515"
+        "projectId": "56affcdc-3232-42b9-8ca1-865f6ee94872"
       }
-    },
-    "owner": "hburakdmr"
+    }
   }
 }

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { Award } from 'lucide-react-native';
 import { BADGE_ICONS } from '../constants/badgeIcons';
 import { getFileUrl } from '../lib/config';
@@ -12,6 +13,7 @@ export interface Badge {
   icon_value?: string;
   icon_color?: string | null;
   bg_color?: string | null;
+  text_color?: string | null;
   is_visible?: boolean;
 }
 
@@ -23,9 +25,11 @@ function BadgeIcon({ badge, size = 16 }: { badge: Badge; size?: number }) {
   if (badge.icon_type === 'upload' && badge.icon_value) {
     return (
       <Image
-        source={{ uri: getFileUrl(badge.icon_value) }}
+        source={{ uri: getFileUrl(`badges/${badge.icon_value}`) }}
         style={{ width: size, height: size, borderRadius: size / 4 }}
-        resizeMode="cover"
+        contentFit="cover"
+        transition={150}
+        cachePolicy="memory-disk"
       />
     );
   }
@@ -34,10 +38,10 @@ function BadgeIcon({ badge, size = 16 }: { badge: Badge; size?: number }) {
 }
 
 export default function BadgeChip({ badge, compact = false }: { badge: Badge; compact?: boolean }) {
-  const { icon_color, bg_color } = badge;
+  const { icon_color, bg_color, text_color } = badge;
   const backgroundColor = bg_color || (icon_color ? hexToBg(icon_color) : '#2F575519');
   const borderColor = icon_color ? `${icon_color}66` : bg_color || '#2F575533';
-  const textColor = icon_color || bg_color || '#2F5755';
+  const textColor = text_color || icon_color || bg_color || '#2F5755';
 
   const showDescription = () => {
     Alert.alert(badge.name, badge.description?.trim() || 'Bu rozet için açıklama eklenmemiş.');

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Bookmark, Calendar, FileText, MessageSquare, Star, Trash2, User } from 'lucide-react-native';
+import { Calendar, FileText, MessageSquare, Star, Trash2, User } from 'lucide-react-native';
 import type { Post } from '../types/post';
 import { getFileUrl } from '../lib/config';
 import { postsAPI, ratingAPI } from '../lib/api';
@@ -14,6 +14,7 @@ import { useGoToUserProfile } from '../hooks/useGoToUserProfile';
 import { buildPostAuthorAvatar } from '../lib/postAuthorAvatar';
 import AvatarDisplay from './avatar/AvatarDisplay';
 import BadgeChip from './BadgeChip';
+import SaveButton from './SaveButton';
 
 const MAX_LENGTH = 200;
 
@@ -119,13 +120,13 @@ export default function PostCardClassic({ post, showStatus = false, showRating =
           </Pressable>
         )}
         {isAuthenticated && (
-          <Pressable onPress={() => toggleSavePost(postId)} hitSlop={8}>
-            <Bookmark
-              size={19}
-              color={isDark ? '#DFD0B8' : isSaved ? '#003161' : '#111827'}
-              fill={isSaved ? (isDark ? '#DFD0B8' : '#003161') : 'none'}
-            />
-          </Pressable>
+          <SaveButton
+            saved={isSaved}
+            onPress={() => toggleSavePost(postId)}
+            size={19}
+            color={isDark ? '#DFD0B8' : '#111827'}
+            savedColor={isDark ? '#DFD0B8' : '#003161'}
+          />
         )}
       </View>
       <Text className="text-ink2" style={styles.content}>

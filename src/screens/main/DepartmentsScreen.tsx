@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { FlatList, ListRenderItem, Pressable, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronRight, Library, Search } from 'lucide-react-native';
@@ -43,6 +43,53 @@ export default function DepartmentsScreen() {
     if (facultyWithMatch) setExpandedFaculty(facultyWithMatch);
   }, [term]);
 
+  const renderFaculty = useCallback<ListRenderItem<string>>(
+    ({ item: faculty }) => {
+      const isExpanded = expandedFaculty === faculty;
+      const facultyDepts = departments[faculty] || [];
+      // Arama bir bölüm adıyla eşleşiyorsa yalnızca eşleşen bölümler
+      // gösterilsin — eskiden fakülte açılınca arama terimi ne olursa
+      // olsun TÜM bölümler listeleniyordu. Eşleşme yalnızca fakülte
+      // adından geliyorsa (bölüm eşleşmesi yoksa) hepsini göstermeye
+      // devam ediyoruz, çünkü daraltacak bir şey yok.
+      const matchingDepts = term ? facultyDepts.filter((d) => d.toLowerCase().includes(term)) : facultyDepts;
+      const deptsToShow = matchingDepts.length > 0 ? matchingDepts : facultyDepts;
+      return (
+        <View className="bg-surface rounded-lg mb-2.5 overflow-hidden" style={SHADOW_MD}>
+          <Pressable
+            className="flex-row items-center justify-between px-3.5 py-3.5"
+            onPress={() => setExpandedFaculty(isExpanded ? null : faculty)}
+          >
+            <View className="flex-row items-center gap-2.5 flex-1">
+              <Library size={24} color={isDark ? '#5A9690' : '#2F5755'} />
+              <Text className="text-base font-semibold text-ink flex-shrink">{faculty}</Text>
+            </View>
+            <ChevronRight
+              size={20}
+              color={isDark ? '#5A9690' : '#2F5755'}
+              style={{ transform: [{ rotate: isExpanded ? '90deg' : '0deg' }] }}
+            />
+          </Pressable>
+
+          {isExpanded && (
+            <View className="gap-2 px-3.5 pb-3.5 border-t border-line-soft pt-3 bg-ground">
+              {deptsToShow.map((department) => (
+                <Pressable
+                  key={department}
+                  className="bg-surface border border-line-soft rounded-lg p-3"
+                  onPress={() => navigation.navigate('DepartmentDetail', { faculty, department })}
+                >
+                  <Text className="text-sm text-ink2 font-medium">{department}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+      );
+    },
+    [expandedFaculty, term, isDark, navigation]
+  );
+
   return (
     <View className="flex-1 bg-ground">
       {/* Ekran içi "Fakülteler" başlığı ve alt yazısı kaldırıldı — üst bar
@@ -67,49 +114,11 @@ export default function DepartmentsScreen() {
         data={filteredFaculties}
         keyExtractor={(item) => item}
         ListEmptyComponent={<Text className="text-center text-muted2 mt-10">Arama sonucu bulunamadı.</Text>}
-        renderItem={({ item: faculty }) => {
-          const isExpanded = expandedFaculty === faculty;
-          const facultyDepts = departments[faculty] || [];
-          // Arama bir bölüm adıyla eşleşiyorsa yalnızca eşleşen bölümler
-          // gösterilsin — eskiden fakülte açılınca arama terimi ne olursa
-          // olsun TÜM bölümler listeleniyordu. Eşleşme yalnızca fakülte
-          // adından geliyorsa (bölüm eşleşmesi yoksa) hepsini göstermeye
-          // devam ediyoruz, çünkü daraltacak bir şey yok.
-          const matchingDepts = term ? facultyDepts.filter((d) => d.toLowerCase().includes(term)) : facultyDepts;
-          const deptsToShow = matchingDepts.length > 0 ? matchingDepts : facultyDepts;
-          return (
-            <View className="bg-surface rounded-lg mb-2.5 overflow-hidden" style={SHADOW_MD}>
-              <Pressable
-                className="flex-row items-center justify-between px-3.5 py-3.5"
-                onPress={() => setExpandedFaculty(isExpanded ? null : faculty)}
-              >
-                <View className="flex-row items-center gap-2.5 flex-1">
-                  <Library size={24} color={isDark ? '#5A9690' : '#2F5755'} />
-                  <Text className="text-base font-semibold text-ink flex-shrink">{faculty}</Text>
-                </View>
-                <ChevronRight
-                  size={20}
-                  color={isDark ? '#5A9690' : '#2F5755'}
-                  style={{ transform: [{ rotate: isExpanded ? '90deg' : '0deg' }] }}
-                />
-              </Pressable>
-
-              {isExpanded && (
-                <View className="gap-2 px-3.5 pb-3.5 border-t border-line-soft pt-3 bg-ground">
-                  {deptsToShow.map((department) => (
-                    <Pressable
-                      key={department}
-                      className="bg-surface border border-line-soft rounded-lg p-3"
-                      onPress={() => navigation.navigate('DepartmentDetail', { faculty, department })}
-                    >
-                      <Text className="text-sm text-ink2 font-medium">{department}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              )}
-            </View>
-          );
-        }}
+        renderItem={renderFaculty}
+        removeClippedSubviews
+        maxToRenderPerBatch={6}
+        windowSize={7}
+        initialNumToRender={6}
       />
     </View>
   );

@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Bookmark, Link2, Star, Trash2, User } from 'lucide-react-native';
+import { Link2, Star, Trash2, User } from 'lucide-react-native';
 import { postsAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useSavedPosts } from '../../context/SavedPostContext';
@@ -12,10 +12,12 @@ import { buildPostAuthorAvatar } from '../../lib/postAuthorAvatar';
 import AvatarDisplay from '../../components/avatar/AvatarDisplay';
 import FileTiles from '../../components/FileTiles';
 import BadgeChip from '../../components/BadgeChip';
+import SaveButton from '../../components/SaveButton';
 import CommentSection from '../../components/CommentSection';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
+import StateView from '../../components/StateView';
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('tr-TR', {
@@ -44,12 +46,16 @@ export default function PostDetailScreen() {
   const [post, setPost] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // "Tekrar dene" butonunun useEffect'i yeniden tetikleyebilmesi için basit
+  // bir sayaç — postId değişmeden aynı isteği yeniden atmanın en kısa yolu.
+  const [retryTick, setRetryTick] = useState(0);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         setLoading(true);
+        setError('');
         const res = await postsAPI.getById(postId);
         if (mounted) setPost(res.data.post);
       } catch (err: any) {
@@ -61,7 +67,9 @@ export default function PostDetailScreen() {
     return () => {
       mounted = false;
     };
-  }, [postId]);
+  }, [postId, retryTick]);
+
+  const handleRetry = useCallback(() => setRetryTick((n) => n + 1), []);
 
   const handleDeletePost = () => {
     Alert.alert('Gönderiyi sil', 'Bu gönderiyi silmek istiyor musunuz?', [
@@ -84,7 +92,7 @@ export default function PostDetailScreen() {
   if (loading) {
     return (
       <View style={[styles.center, { backgroundColor: t.ground }]}>
-        <ActivityIndicator size="large" color={t.accent} />
+        <StateView kind="loading" loadingColor={t.accent} />
       </View>
     );
   }
@@ -92,7 +100,11 @@ export default function PostDetailScreen() {
   if (error || !post) {
     return (
       <View style={[styles.center, { backgroundColor: t.ground }]}>
-        <Text style={{ color: t.ink2, fontSize: 14 }}>{error || 'Gönderi bulunamadı.'}</Text>
+        <StateView
+          kind="error"
+          title={error || 'Gönderi bulunamadı.'}
+          onAction={error === 'Gönderi bulunamadı.' ? undefined : handleRetry}
+        />
       </View>
     );
   }
@@ -104,15 +116,12 @@ export default function PostDetailScreen() {
   const files = post.file_urls ?? [];
 
   return (
-    <ScrollView
-      showsVerticalScrollIndicator={false}
-      style={{ flex: 1, backgroundColor: t.ground }}
-      contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}
-    >
-      <View style={[styles.head, cardSurface]}>
+    <View style={{ flex: 1, backgroundColor: t.ground }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}>
+        <View style={[styles.head, cardSurface]}>
         {/* Profil en üstte: avatar + kullanıcı adı + rozetler + tarih, sağda
             kaydet/sil. Fakülte ve bölüm künyesi en alta indi. */}
-        <View style={styles.authorRow}>
+        <View style={[styles.authorRow, isAuthenticated && styles.authorRowWithSave]}>
           <Pressable style={styles.who} onPress={() => goToUserProfile(post.username)} hitSlop={6}>
             <View style={[styles.avatar, { backgroundColor: t.inset }]}>
               {authorAvatar ? <AvatarDisplay avatar={authorAvatar} size={36} showBg={false} /> : <User size={18} color={t.ink3} />}
@@ -134,18 +143,13 @@ export default function PostDetailScreen() {
             </View>
           </Pressable>
 
-          <View style={styles.actions}>
-            {isOwner && (
+          {isOwner && (
+            <View style={styles.actions}>
               <Pressable onPress={handleDeletePost} hitSlop={8}>
                 <Trash2 size={18} color={t.danger} strokeWidth={2} />
               </Pressable>
-            )}
-            {isAuthenticated && (
-              <Pressable onPress={() => toggleSavePost(postId)} hitSlop={8} accessibilityLabel="Kaydet">
-                <Bookmark size={19} color={isSaved ? t.ink : t.ink2} fill={isSaved ? t.ink : 'none'} strokeWidth={2} />
-              </Pressable>
-            )}
-          </View>
+            </View>
+          )}
         </View>
 
         <Text style={[styles.title, { color: t.ink }]}>{post.title}</Text>
@@ -184,6 +188,14 @@ export default function PostDetailScreen() {
             {ratingCount > 0 ? `${avgRating.toFixed(1)}/5 · ${ratingCount} puan` : 'Henüz puan yok'}
           </Text>
         </View>
+
+        {/* Kaydet ikonu kartın sağ üst köşesine hizalı — kart scroll olurken
+            onunla birlikte hareket eder (ekrana değil, karta sabit). */}
+        {isAuthenticated && (
+          <View style={[styles.floatingSave, { backgroundColor: t.ground }]} pointerEvents="box-none">
+            <SaveButton saved={isSaved} onPress={() => toggleSavePost(postId)} size={20} color={t.ink2} savedColor={t.ink} />
+          </View>
+        )}
       </View>
 
       <View style={[styles.comments, cardSurface]}>
@@ -198,14 +210,22 @@ export default function PostDetailScreen() {
           onRatingChange={({ avg_rating, rating_count }) => setPost((prev) => (prev ? { ...prev, avg_rating, rating_count } : prev))}
         />
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  // Artık head'in (karta) göre konumlanıyor — head'deki position:'relative'
+  // referans alınıyor, ekranın değil kartın sağ üst köşesine hizalı ve
+  // kartla birlikte scroll oluyor.
+  floatingSave: { position: 'absolute', top: 8, right: 8, borderRadius: 24 },
+  crumb: { fontSize: 12.5, lineHeight: 18 },
+  crumbDept: { fontWeight: '600' },
   // Gönderi ve yorumlar iki ayrı kart — akıştaki kartlarla aynı dil.
   head: {
+    position: 'relative',
     marginHorizontal: 12,
     marginTop: 12,
     paddingHorizontal: 16,
@@ -214,13 +234,16 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     gap: 13,
   },
-  crumb: { fontSize: 12.5, lineHeight: 18 },
-  crumbDept: { fontWeight: '600' },
   title: { fontSize: 23, fontWeight: '600', lineHeight: 30, letterSpacing: -0.3 },
   body: { fontSize: 14.5, lineHeight: 23 },
   linkRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   linkText: { fontSize: 12.5, fontWeight: '500' },
   authorRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // Kaydet ikonu head'in sağ üst köşesine mutlak konumla biniyor (bkz.
+  // styles.floatingSave); bu satır o alanla çakışmasın diye sağa pay
+  // bırakıyor — hem uzun kullanıcı adı/rozetler hem de (sahip görünümünde)
+  // silme ikonu ikonun altına girmesin diye.
+  authorRowWithSave: { paddingRight: 44 },
   nameLine: { flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' },
   who: { flexDirection: 'row', alignItems: 'center', gap: 10, flexShrink: 1, minWidth: 0 },
   avatar: { width: 36, height: 36, borderRadius: 18, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
