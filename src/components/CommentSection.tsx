@@ -19,6 +19,8 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useGoToUserProfile } from '../hooks/useGoToUserProfile';
 import { useFeedTokens } from '../theme/feedTokens';
+import { buildCommentAuthorAvatar } from '../lib/postAuthorAvatar';
+import AvatarDisplay from './avatar/AvatarDisplay';
 import BadgeChip from './BadgeChip';
 import type { Comment } from '../types/comment';
 
@@ -108,6 +110,7 @@ function CommentCard({ comment, postOwnerId, isAdmin, onDelete, onRestore, onEdi
   const canDelete = !isDeleted && (isAdminUser || isCommentOwner || isPostOwner);
   const canRestore = isDeleted && isAdminUser && isAdmin;
   const canEdit = !isDeleted && isCommentOwner;
+  const authorAvatar = buildCommentAuthorAvatar(comment);
 
   const openEdit = () => {
     setEditContent(comment.content || '');
@@ -148,8 +151,8 @@ function CommentCard({ comment, postOwnerId, isAdmin, onDelete, onRestore, onEdi
     <View style={[styles.commentCard, { backgroundColor: t.inset, borderColor: isDeleted ? t.danger : t.line }]}>
       <View style={styles.commentHeader}>
         <Pressable style={styles.commentUser} onPress={() => goToUserProfile(comment.username)}>
-          <View style={[styles.avatarFallback, { backgroundColor: t.card }]}>
-            <User size={14} color={avatarIconColor} />
+          <View style={[styles.avatarFallback, { backgroundColor: t.card, overflow: 'hidden' }]}>
+            {authorAvatar ? <AvatarDisplay avatar={authorAvatar} size={26} showBg={false} /> : <User size={14} color={avatarIconColor} />}
           </View>
           <View style={{ flex: 1 }}>
             <View style={styles.usernameRow}>
