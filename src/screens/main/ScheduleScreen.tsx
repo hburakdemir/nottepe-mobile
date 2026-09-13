@@ -33,6 +33,9 @@ import {
 const DAYS = [1, 2, 3, 4, 5, 6];
 const SHARE_BASE = 'https://nottepe.com';
 
+// PDF'e gömülecek yakalamanın piksel genişliği — bkz. handleDownload'daki not.
+const PDF_CAPTURE_WIDTH = 1240;
+
 export default function ScheduleScreen() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -147,12 +150,29 @@ export default function ScheduleScreen() {
     setDownloading(true);
     try {
       if (format === 'png') {
-        const uri = await captureRef(shotRef, { format: 'png', quality: 1 });
+        // `result` varsayılanı 'tmpfile' — görüntü diske yazılıp yolu dönüyor,
+        // JS tarafına hiç geçmiyor. Burada çözünürlüğü sınırlamaya gerek yok.
+        // (`quality` kaldırıldı: yalnızca jpg gibi kayıplı formatlarda geçerli,
+        // png'de hiçbir etkisi yoktu.)
+        const uri = await captureRef(shotRef, { format: 'png' });
         if (await Sharing.isAvailableAsync()) {
           await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Ders Programı (.png)' });
         }
       } else {
-        const base64 = await captureRef(shotRef, { format: 'png', quality: 1, result: 'data-uri' });
+        // PDF yolu base64 KULLANMAK ZORUNDA: expo-print'in printToFileAsync'i
+        // HTML içinde yerel `file://` görsellerini desteklemiyor (iOS'ta
+        // WKWebView sınırı, dokümanda açıkça yazılı) — tek yol gömülü data URI.
+        //
+        // Bu da şu demek: görüntü aynı anda üç kopya hâlinde bellekte durur —
+        // bitmap, base64 string ve HTML'in içindeki hâli. view-shot'ın kendi
+        // dokümanı da bu yüzden "yalnızca küçük görüntülerde kullanın" diyor.
+        // Yüksek yoğunluklu bir tablette tam çözünürlük yakalamak düşük RAM'li
+        // cihazlarda çökmeye açık kapı bırakıyordu.
+        //
+        // `width` bunu cihaz yoğunluğundan BAĞIMSIZ olarak sınırlıyor: 1240 px
+        // ≈ A4 genişliği @150 DPI, bir ders programı ızgarası için fazlasıyla
+        // yeterli. Yükseklik verilmiyor — oran korunuyor.
+        const base64 = await captureRef(shotRef, { format: 'png', width: PDF_CAPTURE_WIDTH, result: 'data-uri' });
         const { uri } = await Print.printToFileAsync({
           html: `<html><body style="margin:0"><img src="${base64}" style="width:100%" /></body></html>`,
         });

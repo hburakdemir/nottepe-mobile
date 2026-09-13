@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { Award, Flame, FileText, User } from 'lucide-react-native';
 import { leaderboardAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
@@ -33,7 +33,7 @@ const RANK_COLORS: Record<number, { bg: string; text: string }> = {
   3: { bg: '#b45309', text: '#fff7ed' },
 };
 
-function LeaderboardRow({ entry, metric, isMe }: { entry: LeaderboardEntry; metric: string; isMe: boolean }) {
+const LeaderboardRow = React.memo(function LeaderboardRow({ entry, metric, isMe }: { entry: LeaderboardEntry; metric: string; isMe: boolean }) {
   const goToUserProfile = useGoToUserProfile();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -80,7 +80,7 @@ function LeaderboardRow({ entry, metric, isMe }: { entry: LeaderboardEntry; metr
       <Text className="text-[13px] font-bold text-accent">{metric}</Text>
     </Pressable>
   );
-}
+});
 
 export default function LeaderboardScreen() {
   const { user } = useAuth();
@@ -106,8 +106,27 @@ export default function LeaderboardScreen() {
   const activeSort = SORTS.find((s) => s.key === sort)!;
   const meInTop = me && entries.some((e) => e.id === me.id);
 
-  return (
-    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="p-4 pb-[110px]">
+  // SANALLAŞTIRMA — bu, ileriye dönük bir çökme koruması.
+  //
+  // Eskiden liste düz bir `ScrollView` içinde `entries.map()` idi: sunucu ne
+  // dönerse hepsi tek karede mount ediliyordu, üstelik her satır ayrıca kendi
+  // rozetlerini de map'liyor. Kapalı testte 9 kullanıcıyla sorun çıkmaz; asıl
+  // tehlike üretime çıktıktan sonra kullanıcı sayısı birkaç yüze ulaştığında
+  // ortaya çıkar ve o noktada ekran kilitlenir. FlatList yalnızca görünür
+  // pencereyi çiziyor.
+  //
+  // `removeClippedSubviews` KAPALI: satırlar dokunulabilir (profile gidiyor)
+  // ve bu prop'un Android'de ekrandan çıkıp giren satırlarda dokunuşu yutması
+  // bilinen bir sorun — aynı gerekçe ProfileScreen'deki listelerde de yazılı.
+  const renderRow = useCallback(
+    ({ item }: { item: LeaderboardEntry }) => (
+      <LeaderboardRow entry={item} metric={activeSort.metric(item)} isMe={item.id === user?.id} />
+    ),
+    [activeSort, user?.id]
+  );
+
+  const header = (
+    <>
       {/* Ekran içi "Liderlik Tablosu" başlığı ve alt yazısı kaldırıldı — üst
           bar zaten sayfa adını yazıyor. */}
       <View className="flex-row gap-2 mb-3.5">
@@ -123,30 +142,44 @@ export default function LeaderboardScreen() {
         ))}
       </View>
 
-      {loading ? (
-        <ActivityIndicator style={{ marginTop: 30 }} size="large" color={isDark ? '#5A9690' : '#2F5755'} />
-      ) : entries.length === 0 ? (
-        <View className="items-center py-10 bg-surface rounded-[14px]">
-          <Text className="text-muted2 text-[13.5px] text-center px-6">Henüz kimse bu kategoride sıralamaya girmedi. İlk sen ol!</Text>
-        </View>
-      ) : (
-        <View className="gap-1.5">
-          {entries.map((entry) => (
-            <LeaderboardRow key={entry.id} entry={entry} metric={activeSort.metric(entry)} isMe={entry.id === user?.id} />
-          ))}
-        </View>
-      )}
+      {loading && <ActivityIndicator style={{ marginTop: 30 }} size="large" color={isDark ? '#5A9690' : '#2F5755'} />}
+    </>
+  );
 
-      {!loading && me && !meInTop && (
-        <>
-          <View className="flex-row items-center gap-2.5 my-3.5">
-            <View className="flex-1 h-px bg-inset" />
-            <Text className="text-[11px] text-muted2">senin sıran</Text>
-            <View className="flex-1 h-px bg-inset" />
+  const footer =
+    !loading && me && !meInTop ? (
+      <>
+        <View className="flex-row items-center gap-2.5 my-3.5">
+          <View className="flex-1 h-px bg-inset" />
+          <Text className="text-[11px] text-muted2">senin sıran</Text>
+          <View className="flex-1 h-px bg-inset" />
+        </View>
+        <LeaderboardRow entry={me} metric={activeSort.metric(me)} isMe />
+      </>
+    ) : null;
+
+  return (
+    <FlatList
+      showsVerticalScrollIndicator={false}
+      className="flex-1 bg-ground"
+      contentContainerClassName="p-4 pb-[110px]"
+      data={loading ? [] : entries}
+      keyExtractor={(item) => String(item.id)}
+      renderItem={renderRow}
+      ItemSeparatorComponent={() => <View className="h-1.5" />}
+      ListHeaderComponent={header}
+      ListFooterComponent={footer}
+      ListEmptyComponent={
+        loading ? null : (
+          <View className="items-center py-10 bg-surface rounded-[14px]">
+            <Text className="text-muted2 text-[13.5px] text-center px-6">Henüz kimse bu kategoride sıralamaya girmedi. İlk sen ol!</Text>
           </View>
-          <LeaderboardRow entry={me} metric={activeSort.metric(me)} isMe />
-        </>
-      )}
-    </ScrollView>
+        )
+      }
+      removeClippedSubviews={false}
+      initialNumToRender={12}
+      maxToRenderPerBatch={10}
+      windowSize={9}
+    />
   );
 }

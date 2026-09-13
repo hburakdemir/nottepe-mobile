@@ -54,7 +54,7 @@ import {
   type Course,
   type Overrides,
 } from '../../utils/gano';
-import { exportCoursesToExcel, parseCoursesFromExcel, type ImportedCourse, type ImportError } from '../../utils/ganoExcel';
+import { exportCoursesToExcel, parseCoursesFromExcel, type ImportedCourse, type ImportError, MAX_IMPORT_BYTES, formatBytes } from '../../utils/ganoExcel';
 import KeyboardAvoider, { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 
 interface SavedCalc {
@@ -406,6 +406,20 @@ export default function AktsCalculatorScreen() {
     });
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
+
+    // Parse'a HİÇ başlamadan ele. `parseCoursesFromExcel` içindeki `XLSX.read`
+    // tamamen senkron: başladıktan sonra iptal edilemiyor, JS thread'i bloke
+    // ediyor ve büyük dosyada Android'in "yanıt vermiyor" (ANR) diyalogunu
+    // tetikleyebiliyor. `size` opsiyonel bir alan — gelmezse eleme dosyanın
+    // kendisinden okunarak ganoExcel içinde tekrar yapılıyor.
+    if (typeof asset.size === 'number' && asset.size > MAX_IMPORT_BYTES) {
+      Alert.alert(
+        'Dosya çok büyük',
+        `Seçtiğin dosya ${formatBytes(asset.size)}. En fazla ${formatBytes(MAX_IMPORT_BYTES)} olabilir.\n\nTranskriptini sadece ders satırlarını bırakacak şekilde sadeleştirip tekrar dene.`
+      );
+      return;
+    }
+
     setImportParsing(true);
     try {
       const preview = await parseCoursesFromExcel(asset.uri, asset.name);

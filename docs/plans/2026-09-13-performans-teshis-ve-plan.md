@@ -1,6 +1,6 @@
 # Nottepe Mobil — Performans Teşhisi ve Çözüm Planı
 
-Tarih: 2026-09-13 · Durum: **Faz 1 tamam** — madde 4 ✅, 6 ✅, 7 ✅ · cihazda doğrulama bekliyor
+Tarih: 2026-09-13 · Durum: **Faz 1 tamam** (4 ✅ 6 ✅ 7 ✅) · **R1 ✅ R2 ✅ R3 ✅** · cihazda doğrulama bekliyor
 Doğrulama: Expo SDK 54 (kurulu sürüm) dokümanları + React Navigation 7 / react-native-screens issue takibi
 
 ---
@@ -287,7 +287,7 @@ Tahminle çalışmayalım. Faz 1'den önce ve sonra aynı cihazda:
 
 Testçi raporunda yok ama kodda duruyor. Sıralama gerçekleşme olasılığına göre.
 
-### R1 — AKTS Excel içe aktarma: ANR riski · YÜKSEK
+### R1 ✅ — AKTS Excel içe aktarma: ANR riski · YÜKSEK
 
 [ganoExcel.ts:89-99](../../src/utils/ganoExcel.ts#L89-L99):
 
@@ -304,31 +304,35 @@ const workbook = isCsv
 
 Bir öğrenci 500+ satırlık bir transkript yüklerse uygulama saniyelerce tamamen donar. Android 5 saniyeyi aşarsa **"Uygulama yanıt vermiyor"** diyalogu çıkarır ve bu **Play Console'a ANR olarak düşer** — üretime başvururken bakılan Android Vitals metriğini doğrudan bozar.
 
-**Çözüm:** seçimden sonra boyut kontrolü (>2 MB reddet, net mesajla), parse öncesi engelleyici bir "İşleniyor…" göstergesi, satır sayısı tavanı. Kalıcı çözüm parse'ı bir worklet/worker'a almak ama o büyük iş.
+**✅ Yapıldı:** `MAX_IMPORT_BYTES = 2 MB` ve `MAX_IMPORT_ROWS = 2000` eklendi. Eleme İKİ yerde: ekranda `DocumentPicker`'ın verdiği `size` ile parse'a hiç başlamadan, ve `ganoExcel` içinde dosyanın kendisinden okunarak (çünkü `size` opsiyonel bir alan, bazı platformlarda `undefined` gelebiliyor). Kalıcı çözüm parse'ı bir worker'a almak ama o büyük iş ve artık acil değil.
 
-### R2 — Liderlik tablosu: sınırsız liste · YÜKSEK (zamanla kesin)
+### R2 ✅ — Liderlik tablosu: sınırsız liste · YÜKSEK (zamanla kesin)
 
 [LeaderboardScreen.tsx:134](../../src/screens/main/LeaderboardScreen.tsx#L134) düz bir `ScrollView` içinde `entries.map()` — sayfalama yok, sanallaştırma yok, üstelik her satırda ayrıca `entry.badges.map()` var. Sunucu ne dönerse hepsi tek karede mount ediliyor.
 
 **9 testçiyle sorun çıkmaz.** Kullanıcı sayısı birkaç yüze çıktığında kesin donar — ve bu tam olarak üretime çıktıktan sonra olur.
 
-**Çözüm:** `FlatList` + sayfalama, ya da en azından ilk 100 ile sınırla.
+**✅ Yapıldı:** `ScrollView` + `map` → `FlatList`, satır `React.memo`'ya alındı. `removeClippedSubviews` bilerek KAPALI — satırlar dokunulabilir (profile gidiyor) ve bu prop'un Android'de ekrandan çıkıp giren satırlarda dokunuşu yutması bilinen bir sorun.
 
-### R3 — Program ekranı görsel/PDF dışa aktarımı: bellek · ORTA
+### R3 ✅ — Program ekranı görsel/PDF dışa aktarımı: bellek · ORTA
 
 [ScheduleScreen.tsx:150-156](../../src/screens/main/ScheduleScreen.tsx#L150-L156): `captureRef(..., { quality: 1, result: 'data-uri' })` tam ekran PNG'yi **base64 string olarak belleğe** alıyor, sonra o string HTML'e gömülüp `printToFileAsync`'e veriliyor. Aynı görüntü aynı anda üç kopya hâlinde bellekte: bitmap, base64 string, HTML içindeki hâli.
 
 Düşük RAM'li cihazda çökme riski. Play Console'a crash olarak düşer.
 
-**Çözüm:** `quality: 0.9`, `result: 'data-uri'` yerine dosya yolu kullanıp PDF'e `file://` ile referans ver.
+**⚠️ PLANDAKİ ÇÖZÜM YANLIŞTI.** "Dosya yolu kullan, PDF'e `file://` ile referans ver" dedim — olmuyor: [expo-print dokümanı](https://docs.expo.dev/versions/v54.0.0/sdk/print/) açıkça diyor ki *"On iOS, printing from HTML source doesn't support local asset URLs (due to WKWebView limitations). As a workaround you can use inlined base64-encoded strings."* Base64 zorunlu.
+
+Ayrıca `quality: 0.9` da işe yaramazdı: view-shot'ta `quality` **yalnızca jpg gibi kayıplı formatlarda** geçerli, png'de hiçbir etkisi yok — koddaki `quality: 1` baştan beri ölü bir parametreydi.
+
+**✅ Gerçek çözüm:** yakalamanın piksel genişliği sınırlandı (`width: 1240` ≈ A4 @150 DPI). Bu, bellek tepe noktasını cihaz yoğunluğundan BAĞIMSIZ olarak sınırlıyor — asıl tehlike yüksek yoğunluklu tablette tam çözünürlük yakalamaktı. PNG paylaşım yolu dokunulmadı: orada `result` varsayılanı `tmpfile`, görüntü JS tarafına hiç geçmiyor.
 
 ### R4 — AKTS hesaplayıcı ekranı: sanallaştırma yok · ORTA
 
 `AktsCalculatorScreen` düz `ScrollView` içinde 30 ayrı `.map()` çağrısı barındırıyor. Ders sayısı arttıkça (4 yıllık transkript ~50-60 ders) her render'da hepsi çiziliyor.
 
-### R5 — Not ekleme: dosya boyutu kontrolü yok · ORTA
+### R5 — ❌ YANLIŞ ALARM, risk yok
 
-[AddPostScreen.tsx:64](../../src/screens/main/AddPostScreen.tsx#L64)'teki `DocumentPicker.getDocumentAsync`'te de limit yok. Büyük bir PDF seçilirse yükleme sırasında bellek ve ağ sorunu.
+İlk taramada "not eklemede boyut kontrolü yok" demiştim. **Yanlıştı.** [AddPostScreen.tsx](../../src/screens/main/AddPostScreen.tsx) hem `MAX_FILES` hem `MAX_SIZE` (10 MB) kontrolü yapıyor; grep penceresi kontrolün birkaç satır dışında kaldığı için gözden kaçmış. Bu maddede yapılacak bir şey yok.
 
 ### Risk olmadığını doğruladıklarım
 
