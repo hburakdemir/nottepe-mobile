@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, Text, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
 import { Award, Flame, FileText, User } from 'lucide-react-native';
 import { leaderboardAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
@@ -82,26 +83,41 @@ const LeaderboardRow = React.memo(function LeaderboardRow({ entry, metric, isMe 
   );
 });
 
+const LEADERBOARD_STALE_MS = 2 * 60 * 1000;
+
+const EMPTY_ENTRIES: LeaderboardEntry[] = [];
+
 export default function LeaderboardScreen() {
   const { user } = useAuth();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [sort, setSort] = useState<(typeof SORTS)[number]['key']>('streak');
-  const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
-  const [me, setMe] = useState<LeaderboardEntry | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    setLoading(true);
-    leaderboardAPI
-      .get(sort)
-      .then((res) => {
-        setEntries(res.data.entries || []);
-        setMe(res.data.me || null);
-      })
-      .catch(() => Alert.alert('Hata', 'Liderlik tablosu yüklenemedi.'))
-      .finally(() => setLoading(false));
-  }, [sort]);
+  // Sıralama ölçütü anahtarın parçası: kullanıcı "seri"den "puan"a geçip geri
+  // döndüğünde ilk liste cache'ten anında geliyor. Eskiden her geçiş yeni
+  // istek atıp tabloyu boşaltıyordu.
+  //
+  // Liderlik tablosu saniye saniye değişen bir şey değil ama "canlı" hissi
+  // önemli: 2 dakika, sekmeler arası gidip gelmeyi bedavaya getirirken
+  // kullanıcının kendi hamlesinin karşılığını görmesini de geciktirmiyor.
+  const { data, isLoading } = useQuery({
+    queryKey: ['leaderboard', sort],
+    queryFn: async () => {
+      const res = await leaderboardAPI.get(sort);
+      return {
+        entries: (res.data.entries || []) as LeaderboardEntry[],
+        me: (res.data.me || null) as LeaderboardEntry | null,
+      };
+    },
+    staleTime: LEADERBOARD_STALE_MS,
+  });
+
+  // Yükleme hatası artık Alert değil: tablo boş kalıyor ve altındaki boş-durum
+  // metni görünüyor. Arka planda tazelenen bir sorgu için uyarı kutusu açmak,
+  // kullanıcı başka bir şey yaparken önünü keserdi.
+  const entries = data?.entries ?? EMPTY_ENTRIES;
+  const me = data?.me ?? null;
+  const loading = isLoading;
 
   const activeSort = SORTS.find((s) => s.key === sort)!;
   const meInTop = me && entries.some((e) => e.id === me.id);
