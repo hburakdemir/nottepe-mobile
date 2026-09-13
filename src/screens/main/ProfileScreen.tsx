@@ -160,6 +160,22 @@ function mergeFreshFields(prev: Post[], fresh: Post[]): Post[] {
   });
 }
 
+// `mergeFreshFields` YALNIZCA `prev` içinde zaten var olan satırların üzerine
+// yazıyor — listede henüz olmayan bir gönderiyi eklemiyor. Bu, kullanıcı not
+// paylaşıp profile yönlendirildiğinde (AddPostScreen sonunda
+// `goToTab(navigation, 'Profile')` var) yeni notun listede HİÇ görünmemesine
+// yol açıyordu: profil kalıcı mount'lu bir sekme olduğu için yeniden
+// yüklenmiyor, odak tazelemesi de yeni satırı atıyordu.
+//
+// Burada eksik olanları başa ekliyoruz — sunucu zaten en yeniyi önce
+// döndürüyor.
+function mergeFreshPage(prev: Post[], fresh: Post[]): Post[] {
+  const merged = mergeFreshFields(prev, fresh);
+  const known = new Set(merged.map(postKey));
+  const added = fresh.filter((p) => !known.has(postKey(p)));
+  return added.length > 0 ? [...added, ...merged] : merged;
+}
+
 // `/posts/my-posts` ve `/saved-posts/getPost` `page` verilince zarfa
 // ({ posts, total }) girmesi gerekiyor, ama sunucu tarafı bu davranışı
 // desteklemeyen bir sürümdeyse (ör. henüz dağıtılmamış bir backend değişikliği)
@@ -203,7 +219,7 @@ export default function ProfileScreen() {
   const route = useRoute<RouteProp<MainTabParamList, 'Profile'>>();
   const { user } = useAuth();
   const isStaff = user?.role === 'admin' || user?.role === 'moderator';
-  const { savedPosts, fetchSavedPosts } = useSavedPosts();
+  const { savedPosts, loading: savedIdsLoading, fetchSavedPosts } = useSavedPosts();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
@@ -412,6 +428,39 @@ export default function ProfileScreen() {
     fetchSavedFirstPage();
   }, [activeTab, savedPostsData, fetchSavedFirstPage]);
 
+  // KAYDEDİLENLER SAYACI: bir not kaydedilince/çıkarılınca burayı tazele.
+  //
+  // Hata şuydu: sayaç `savedPostsTotal ?? savedPosts.length` diye yazılıyor ve
+  // niyeti "sunucu toplamı biliniyorsa onu, bilinmiyorsa context'in id
+  // sayısını göster" idi. Ama `??` yalnızca null/undefined için yedeğe düşer —
+  // hiç kaydedilmiş notu olmayan biri profili açtığında `savedPostsTotal` 0
+  // yazılıyor ve 0 GEÇERLİ bir değer olduğu için bir daha ASLA yedeğe
+  // düşmüyordu. Kullanıcı not kaydediyor, context 1 oluyor, ekranda hâlâ
+  // `0 ?? 1` = 0 görünüyordu.
+  //
+  // Çözüm sayacı yamamak değil, bayatlığı kaynağında bitirmek: kaydedilen id
+  // listesinin uzunluğu değiştiyse bu ekranın kendi verisi artık geçersiz.
+  // İkisini de sentinel'e (`null`) çekiyoruz — sayaç anında context'e düşüyor
+  // (doğru değer), liste de sekmeye girildiğinde yeniden çekiliyor.
+  //
+  // `savedIdsLoading` beklemesi şart: context ilk yüklemesini yaparken dizi
+  // önce `[]` sonra gerçek değer oluyor; o geçişi "kullanıcı bir şey kaydetti"
+  // sanıp mount'ta gereksiz bir yeniden çekme tetiklemeyelim. Temel değer,
+  // context ilk kez oturduğunda alınıyor.
+  const savedIdsCountRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (savedIdsLoading) return;
+    const count = savedPosts.length;
+    if (savedIdsCountRef.current === null) {
+      savedIdsCountRef.current = count;
+      return;
+    }
+    if (savedIdsCountRef.current === count) return;
+    savedIdsCountRef.current = count;
+    setSavedPostsTotal(null);
+    setSavedPostsData(null);
+  }, [savedPosts, savedIdsLoading]);
+
   // Profil, Home gibi kalıcı mount'lu bir SEKME (bkz. MainTabsScreen.tsx) —
   // bir gönderiye girip yorum ekleyip geri dönmek bu ekranı yeniden mount
   // ETMİYOR, dolayısıyla `myPosts`/`savedPostsData` içindeki yorum sayısı
@@ -434,15 +483,27 @@ export default function ProfileScreen() {
       let cancelled = false;
       (async () => {
         try {
+          // `total` ESKİDEN ATILIYORDU. Sayaçlar (`myPostsTotal` /
+          // `savedPostsTotal`) yalnızca mount'taki ilk çekimden geliyordu, yani
+          // not paylaşıldıktan sonra bayat kalıyordu — hiç gönderisi olmayan
+          // biri için kalıcı olarak "0". Artık her odak tazelemesinde sunucunun
+          // söylediği toplam yazılıyor. (`null` ise dokunmuyoruz: eski backend
+          // şeklinde zarf yok, bilgiyi kaybetmeyelim.)
           if (activeTab === 'posts') {
             const res = await postsAPI.getMyPosts({ page: 1, limit: POST_PAGE_LIMIT });
-            const { posts: fresh } = extractPostsPage(res.data);
-            if (!cancelled) setMyPosts((prev) => mergeFreshFields(prev, fresh));
+            const { posts: fresh, total } = extractPostsPage(res.data);
+            if (!cancelled) {
+              setMyPosts((prev) => mergeFreshPage(prev, fresh));
+              if (total !== null) setMyPostsTotal(total);
+            }
           } else if (activeTab === 'saved') {
             const res = await savedPostsAPI.getSavedPosts({ page: 1, limit: POST_PAGE_LIMIT });
-            const { posts: fresh } = extractPostsPage(res.data);
+            const { posts: fresh, total } = extractPostsPage(res.data);
             const enrichedFresh = await enrichMissingCommentCounts(fresh);
-            if (!cancelled) setSavedPostsData((prev) => (prev ? mergeFreshFields(prev, enrichedFresh) : prev));
+            if (!cancelled) {
+              setSavedPostsData((prev) => (prev ? mergeFreshPage(prev, enrichedFresh) : prev));
+              if (total !== null) setSavedPostsTotal(total);
+            }
           }
         } catch {
           /* sessiz geç: kullanıcı zaten mevcut (bayat da olsa) veriyi görüyor */
