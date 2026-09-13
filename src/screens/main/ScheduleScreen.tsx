@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
   CalendarDays,
@@ -21,6 +22,7 @@ import * as Clipboard from 'expo-clipboard';
 import { scheduleAPI } from '../../lib/api';
 import CourseFormModal from '../../components/schedule/CourseFormModal';
 import { useTheme } from '../../context/ThemeContext';
+import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
 import {
   DAY_NAMES,
   findConflictIds,
@@ -33,17 +35,24 @@ import {
 const DAYS = [1, 2, 3, 4, 5, 6];
 const SHARE_BASE = 'https://nottepe.com';
 
+const SCHEDULE_KEY = ['schedule', 'mine'] as const;
+
+interface ScheduleData {
+  courses: ScheduleCourse[];
+  shareId: string | null;
+  shareEnabled: boolean;
+}
+
+const EMPTY_COURSES: ScheduleCourse[] = [];
+
 // PDF'e gömülecek yakalamanın piksel genişliği — bkz. handleDownload'daki not.
 const PDF_CAPTURE_WIDTH = 1240;
 
 export default function ScheduleScreen() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const [courses, setCourses] = useState<ScheduleCourse[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [modalCourse, setModalCourse] = useState<ScheduleCourse | 'new' | null>(null);
-  const [shareId, setShareId] = useState<string | null>(null);
-  const [shareEnabled, setShareEnabled] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const [downloadOpen, setDownloadOpen] = useState(false);
@@ -54,39 +63,67 @@ export default function ScheduleScreen() {
   // doğrudan default export edilen ViewShot bileşen sınıfının örneği.
   const shotRef = useRef<ViewShot>(null);
 
+  // `staleTime: Infinity` BİLİNÇLİ VE BURADA ZORUNLU.
+  //
+  // Bu ekran bir okuma ekranı değil, bir DÜZENLEYİCİ: ders eklemek `persist`
+  // ile önce cache'i yazıyor, sunucuya kaydı 500 ms sonra gidiyor. Arka planda
+  // kendiliğinden çalışan bir tazeleme o aralığa denk gelirse kullanıcının
+  // yeni eklediği dersi sunucunun eski hâliyle EZER. Programı düzenleyen tek
+  // yer burası olduğu için otomatik tazelemeye zaten ihtiyaç yok; başka bir
+  // cihazdan (web) yapılan değişiklik uygulama yeniden açıldığında geliyor.
+  //
+  // Kullanıcıya görünen kazanç: Araçlar → Program → geri → Program artık hiç
+  // yükleme göstermiyor, ekran anında çiziliyor.
+  const { data, isLoading, isError } = useQuery({
+    queryKey: SCHEDULE_KEY,
+    queryFn: async () => {
+      const res = await scheduleAPI.getMine();
+      const loaded = Array.isArray(res.data?.courses) ? res.data.courses.map(sanitizeCourse).filter(Boolean) : [];
+      return {
+        courses: loaded as ScheduleCourse[],
+        shareId: (res.data?.shareId || null) as string | null,
+        shareEnabled: !!res.data?.shareEnabled,
+      };
+    },
+    staleTime: Infinity,
+  });
+
+  const courses = data?.courses ?? EMPTY_COURSES;
+  const shareId = data?.shareId ?? null;
+  const shareEnabled = data?.shareEnabled ?? false;
+
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await scheduleAPI.getMine();
-        const loaded = Array.isArray(res.data?.courses)
-          ? res.data.courses.map(sanitizeCourse).filter(Boolean)
-          : [];
-        setCourses(loaded as ScheduleCourse[]);
-        setShareId(res.data?.shareId || null);
-        setShareEnabled(!!res.data?.shareEnabled);
-      } catch {
-        Alert.alert('Hata', 'Program yüklenemedi.');
-      } finally {
-        setLoading(false);
-      }
-    })();
-    return () => {
+    if (isError) Alert.alert('Hata', 'Program yüklenemedi.');
+  }, [isError]);
+
+  // Cache'e kısmi yazma yardımcısı: aşağıdaki her yerde tekrar etmesin diye.
+  const patchSchedule = useCallback(
+    (fields: Partial<{ courses: ScheduleCourse[]; shareId: string | null; shareEnabled: boolean }>) => {
+      queryClient.setQueryData(SCHEDULE_KEY, (prev: ScheduleData | undefined) =>
+        prev ? { ...prev, ...fields } : prev
+      );
+    },
+    [queryClient]
+  );
+
+  useEffect(
+    () => () => {
       if (saveTimer.current) clearTimeout(saveTimer.current);
       if (clearTimer.current) clearTimeout(clearTimer.current);
-    };
-  }, []);
+    },
+    []
+  );
 
   const conflictIds = useMemo(() => findConflictIds(courses), [courses]);
   const shareUrl = shareId ? `${SHARE_BASE}/program/paylasilan/${shareId}` : null;
 
   const persist = (next: ScheduleCourse[]) => {
-    setCourses(next);
+    patchSchedule({ courses: next });
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       try {
         const res = await scheduleAPI.save(next);
-        setShareId(res.data?.shareId || null);
-        setShareEnabled(!!res.data?.shareEnabled);
+        patchSchedule({ shareId: res.data?.shareId || null, shareEnabled: !!res.data?.shareEnabled });
       } catch {
         Alert.alert('Hata', 'Program sunucuya kaydedilemedi.');
       }
@@ -107,8 +144,7 @@ export default function ScheduleScreen() {
     setSharing(true);
     try {
       const res = await scheduleAPI.setShare(true);
-      setShareId(res.data?.shareId || null);
-      setShareEnabled(!!res.data?.shareEnabled);
+      patchSchedule({ shareId: res.data?.shareId || null, shareEnabled: !!res.data?.shareEnabled });
       const url = res.data?.shareId ? `${SHARE_BASE}/program/paylasilan/${res.data.shareId}` : null;
       if (url) await Clipboard.setStringAsync(url);
     } catch {
@@ -121,7 +157,7 @@ export default function ScheduleScreen() {
   const handleStopShare = async () => {
     try {
       await scheduleAPI.setShare(false);
-      setShareEnabled(false);
+      patchSchedule({ shareEnabled: false });
     } catch {
       Alert.alert('Hata', 'İşlem başarısız.');
     }
@@ -187,11 +223,35 @@ export default function ScheduleScreen() {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color="#2F5755" />
-      </View>
+      <SkeletonGroup>
+        <View className="flex-1 bg-ground p-4 gap-3">
+          <View className="flex-row gap-2">
+            <Skeleton width={100} height={34} radius={10} />
+            <Skeleton width={100} height={34} radius={10} />
+          </View>
+          {/* Gün sütunlu ızgaranın kaba şekli: 5 gün × 4 satır. */}
+          <View className="bg-surface rounded-xl p-3 gap-2 border border-line-soft">
+            <View className="flex-row gap-1.5">
+              {[0, 1, 2, 3, 4].map((d) => (
+                <View key={d} className="flex-1">
+                  <Skeleton height={11} style={{ width: '100%' }} />
+                </View>
+              ))}
+            </View>
+            {[0, 1, 2, 3].map((row) => (
+              <View key={row} className="flex-row gap-1.5">
+                {[0, 1, 2, 3, 4].map((d) => (
+                  <View key={d} className="flex-1">
+                    <Skeleton height={44} radius={8} style={{ width: '100%' }} />
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
+        </View>
+      </SkeletonGroup>
     );
   }
 

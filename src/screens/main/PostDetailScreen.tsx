@@ -1,9 +1,17 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Link2, Star, Trash2, User } from 'lucide-react-native';
 import { postsAPI } from '../../lib/api';
+
+// Bir notun içeriği (başlık, açıklama, dosyalar) neredeyse hiç değişmiyor;
+// değişen şey yorumlar ve puan, onları CommentSection ve puan bileşeni kendi
+// içinde yönetiyor. 5 dakika, akış↔detay gidiş gelişini bedavaya getiriyor.
+const POST_DETAIL_STALE_MS = 5 * 60 * 1000;
+
+const postDetailKey = (postId: string | number) => ['post', 'detail', String(postId)] as const;
 import { useAuth } from '../../context/AuthContext';
 import { useSavedPosts } from '../../context/SavedPostContext';
 import { useCardSurface, useFeedTokens } from '../../theme/feedTokens';
@@ -43,33 +51,37 @@ export default function PostDetailScreen() {
   const { postId } = route.params as RootStackParamList['PostDetail'];
   const isSaved = savedPosts.includes(String(postId));
 
-  const [post, setPost] = useState<Post | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  // "Tekrar dene" butonunun useEffect'i yeniden tetikleyebilmesi için basit
-  // bir sayaç — postId değişmeden aynı isteği yeniden atmanın en kısa yolu.
-  const [retryTick, setRetryTick] = useState(0);
+  const queryClient = useQueryClient();
+  const queryKey = useMemo(() => postDetailKey(postId), [postId]);
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        setLoading(true);
-        setError('');
-        const res = await postsAPI.getById(postId);
-        if (mounted) setPost(res.data.post);
-      } catch (err: any) {
-        if (mounted) setError(err.response?.status === 404 ? 'Gönderi bulunamadı.' : 'Gönderi yüklenemedi.');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [postId, retryTick]);
+  // Akıştan bir nota girip geri dönmek en sık yapılan hareket; aynı notu
+  // tekrar açmak artık istek atmıyor, ekran anında çiziliyor.
+  //
+  // Elle tutulan `mounted` bayrağı, `error` metni ve "tekrar dene" sayacı
+  // kalktı: react-query isteğin iptalini, hata durumunu ve yeniden denemeyi
+  // kendisi yönetiyor. 404 ise yeniden denemenin anlamı yok — `retry: false`
+  // ve ayrımı aşağıda HTTP durumundan okuyoruz.
+  const {
+    data: post = null,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey,
+    queryFn: async () => {
+      const res = await postsAPI.getById(postId);
+      return res.data.post as Post;
+    },
+    retry: false,
+    staleTime: POST_DETAIL_STALE_MS,
+  });
 
-  const handleRetry = useCallback(() => setRetryTick((n) => n + 1), []);
+  const notFound = (error as { response?: { status?: number } } | null)?.response?.status === 404;
+
+  const handleRetry = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
   const handleDeletePost = () => {
     Alert.alert('Gönderiyi sil', 'Bu gönderiyi silmek istiyor musunuz?', [
@@ -89,7 +101,7 @@ export default function PostDetailScreen() {
     ]);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <View style={[styles.center, { backgroundColor: t.ground }]}>
         <StateView kind="loading" loadingColor={t.accent} />
@@ -97,13 +109,13 @@ export default function PostDetailScreen() {
     );
   }
 
-  if (error || !post) {
+  if (isError || !post) {
     return (
       <View style={[styles.center, { backgroundColor: t.ground }]}>
         <StateView
           kind="error"
-          title={error || 'Gönderi bulunamadı.'}
-          onAction={error === 'Gönderi bulunamadı.' ? undefined : handleRetry}
+          title={notFound ? 'Gönderi bulunamadı.' : 'Gönderi yüklenemedi.'}
+          onAction={notFound ? undefined : handleRetry}
         />
       </View>
     );
@@ -211,7 +223,9 @@ export default function PostDetailScreen() {
           // Yorumlar açık geliyor: kullanıcı ayrıca dokunmadan yükleniyorlar.
           defaultCollapsed={false}
           isAdmin={user?.role === 'admin' || user?.role === 'moderator'}
-          onRatingChange={({ avg_rating, rating_count }) => setPost((prev) => (prev ? { ...prev, avg_rating, rating_count } : prev))}
+          onRatingChange={({ avg_rating, rating_count }) =>
+            queryClient.setQueryData(queryKey, (prev: Post | undefined) => (prev ? { ...prev, avg_rating, rating_count } : prev))
+          }
         />
       </View>
       </KeyboardAwareScroll>
