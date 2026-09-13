@@ -281,41 +281,80 @@ export default function ProfileScreen() {
   // context'in tek seferlik sonucu, aynı oturumda başka yerden değişen gerçek
   // veriyle senkron kalmıyordu. Artık diğer sekmeler gibi burada kendi
   // `/saved-posts/getPost` isteğiyle taze çekiliyor, context'e bağımlılık yok.
+  // YEDİ İSTEK HÂLÂ MOUNT'TA ATILIYOR — bu bilinçli, yukarıdaki nota bakın
+  // (sekme sayaçları tıklamadan dolsun diye). DEĞİŞEN ŞEY: artık hiçbiri
+  // ekranın çizilmesini BEKLETMİYOR.
+  //
+  // Eskiden yedisi tek bir `Promise.allSettled`'da toplanıyor ve `setLoading`
+  // hepsi bitince kapanıyordu — yani profil, EN YAVAŞ isteğin süresi kadar
+  // tam ekran spinner gösteriyordu. Kullanıcı şikayeti ("profil sayfasının
+  // yüklenmesi çok uzun sürüyor") tam olarak buydu: yedi istekten altısının
+  // ilk karede hiçbir işi yok, sadece sekme şeridindeki sayıyı yazıyorlar.
+  //
+  // Artık ekranın ilk karesini YALNIZCA kendi gönderilerin belirliyor; geri
+  // kalan altısı ateşlenip kendi cevabı geldiğinde kendi state'ini yazıyor.
+  // Sayaçlar yine tıklamadan doluyor, sadece birkaç yüz ms sonra.
   const fetchCore = useCallback(async () => {
     setLoading(true);
     myPostsInFlight.current = true;
-    const [postsRes, savedRes, badgesRes, checklistsRes, aktsRes, scheduleRes, followsRes] = await Promise.allSettled([
-      postsAPI.getMyPosts({ page: 1, limit: POST_PAGE_LIMIT }),
-      savedPostsAPI.getSavedPosts({ page: 1, limit: POST_PAGE_LIMIT }),
-      badgeAPI.getMine(),
-      checklistAPI.getMine(),
-      aktsAPI.getAll(),
-      scheduleAPI.getMine(),
-      departmentFollowAPI.getMine(),
-    ]);
-    const { posts: firstPage, total } = extractPostsPage(postsRes.status === 'fulfilled' ? postsRes.value.data : null);
-    setMyPosts(firstPage);
-    setMyPostsPage(1);
-    setMyPostsTotal(total ?? firstPage.length);
-    const { posts: savedFirstPage, total: savedTotal } = extractPostsPage(savedRes.status === 'fulfilled' ? savedRes.value.data : null);
-    setSavedPostsData(savedFirstPage);
-    setSavedPostsPage(1);
-    setSavedPostsTotal(savedTotal ?? savedFirstPage.length);
-    // Context'in id kümesini de tazele — aksi hâlde bookmark ikonu bu sekmedeki
-    // (zaten kayıtlı olduğu bilinen) postlar için "dolu" görünmeyebiliyordu,
-    // çünkü PostCard'ın isSaved kontrolü context'in (uygulama açılışında bir
-    // kez çekilen) savedPosts listesine bakıyor.
-    fetchSavedPosts();
-    if (savedFirstPage.length > 0) {
-      enrichMissingCommentCounts(savedFirstPage).then(setSavedPostsData);
+
+    // --- Bekletmeyenler: geldiklerinde kendi state'lerine düşüyorlar --------
+    badgeAPI
+      .getMine()
+      .then((res) => setBadges(res.data.badges || []))
+      .catch(() => setBadges([]));
+    checklistAPI
+      .getMine()
+      .then((res) => setMyChecklists(res.data.checklists || []))
+      .catch(() => setMyChecklists([]));
+    aktsAPI
+      .getAll()
+      .then((res) => setAktsCalcs(res.data.calculations || []))
+      .catch(() => setAktsCalcs([]));
+    scheduleAPI
+      .getMine()
+      .then((res) => setMySchedule(res.data?.courses || []))
+      .catch(() => setMySchedule([]));
+    departmentFollowAPI
+      .getMine()
+      .then((res) => setFollows(res.data.follows || []))
+      .catch(() => setFollows([]));
+
+    savedPostsAPI
+      .getSavedPosts({ page: 1, limit: POST_PAGE_LIMIT })
+      .then((res) => {
+        const { posts: savedFirstPage, total: savedTotal } = extractPostsPage(res.data);
+        setSavedPostsData(savedFirstPage);
+        setSavedPostsPage(1);
+        setSavedPostsTotal(savedTotal ?? savedFirstPage.length);
+        // Context'in id kümesini de tazele — aksi hâlde bookmark ikonu bu
+        // sekmedeki (zaten kayıtlı olduğu bilinen) postlar için "dolu"
+        // görünmeyebiliyordu, çünkü PostCard'ın isSaved kontrolü context'in
+        // (uygulama açılışında bir kez çekilen) savedPosts listesine bakıyor.
+        fetchSavedPosts();
+        if (savedFirstPage.length > 0) {
+          enrichMissingCommentCounts(savedFirstPage).then(setSavedPostsData);
+        }
+      })
+      .catch(() => {
+        setSavedPostsData([]);
+        setSavedPostsTotal(0);
+      });
+
+    // --- Ekranın ilk karesini belirleyen tek istek -------------------------
+    try {
+      const res = await postsAPI.getMyPosts({ page: 1, limit: POST_PAGE_LIMIT });
+      const { posts: firstPage, total } = extractPostsPage(res.data);
+      setMyPosts(firstPage);
+      setMyPostsPage(1);
+      setMyPostsTotal(total ?? firstPage.length);
+    } catch {
+      setMyPosts([]);
+      setMyPostsTotal(0);
+    } finally {
+      myPostsInFlight.current = false;
+      setLoading(false);
     }
-    setBadges(badgesRes.status === 'fulfilled' ? badgesRes.value.data.badges || [] : []);
-    setMyChecklists(checklistsRes.status === 'fulfilled' ? checklistsRes.value.data.checklists || [] : []);
-    setAktsCalcs(aktsRes.status === 'fulfilled' ? aktsRes.value.data.calculations || [] : []);
-    setMySchedule(scheduleRes.status === 'fulfilled' ? scheduleRes.value.data?.courses || [] : []);
-    setFollows(followsRes.status === 'fulfilled' ? followsRes.value.data.follows || [] : []);
-    myPostsInFlight.current = false;
-    setLoading(false);
   }, [fetchSavedPosts]);
 
   useEffect(() => {
@@ -871,6 +910,42 @@ export default function ProfileScreen() {
     onMomentumEnd: (event) => runOnJS(rememberPageOffset)('forums', event.contentOffset.y),
   });
 
+  // SAYFA PENCERELEME.
+  //
+  // Pager yatay bir ScrollView ve yedi sayfasının YEDİSİ de mount'luydu: yedi
+  // native scroll view + yedi Reanimated scroll worklet, profil ekranda olmasa
+  // bile ayakta. Testçilerin "profilde daha çok donuyor" demesinin payı buydu.
+  //
+  // Artık yalnızca aktif sekme ve İKİ KOMŞUSU gerçek scroll view olarak
+  // mount'lu; geri kalanlar yerlerinde `screenWidth` genişliğinde boş bir View
+  // tutuyor (pager'ın geometrisi bozulmasın, `scrollTo(idx * screenWidth)`
+  // çalışmaya devam etsin diye).
+  //
+  // ±1 penceresi kasıtlı: `handlePagerScroll` sayfayı YARIYA gelindiğinde
+  // değiştiriyor (`Math.round`), yani hedef sayfa siz oraya varmadan ÖNCE
+  // zaten mount olmuş oluyor — parmakla kaydırırken boş sayfa görünmüyor.
+  //
+  // Bir kez mount olan sayfa mount'lu KALIYOR: kaydırma konumu (bkz.
+  // `pageScrollOffsets`) ve yüklenmiş verisi korunsun diye.
+  //
+  // İlk iki sayfa (Postlar, Kayıtlı) bu listede yok — indeksleri 0 ve 1,
+  // varsayılan sekme de Postlar olduğu için pencere zaten ikisini de kapsıyor;
+  // koşula sokmak sadece gereksiz dallanma olurdu.
+  const activeIndex = TABS.findIndex((t) => t.key === activeTab);
+  const [mountedTabs, setMountedTabs] = useState<TabKey[]>(() => ['posts', 'saved']);
+  useEffect(() => {
+    setMountedTabs((prev) => {
+      const next = new Set(prev);
+      for (let i = activeIndex - 1; i <= activeIndex + 1; i += 1) {
+        const k = TABS[i]?.key;
+        if (k) next.add(k);
+      }
+      // Referansı boşuna değiştirme: her kaydırmada yeni dizi = gereksiz render.
+      return next.size === prev.length ? prev : Array.from(next);
+    });
+  }, [activeIndex]);
+  const isTabMounted = useCallback((key: TabKey) => mountedTabs.includes(key), [mountedTabs]);
+
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center">
@@ -963,6 +1038,7 @@ export default function ProfileScreen() {
           ListFooterComponent={savedPostsLoadingMore ? <TabLoading /> : null}
         />
 
+        {isTabMounted('lists') ? (
         <Animated.ScrollView
           style={{ width: screenWidth }}
           showsVerticalScrollIndicator={false}
@@ -995,7 +1071,11 @@ export default function ProfileScreen() {
               ))
             ))}
         </Animated.ScrollView>
+        ) : (
+          <View style={{ width: screenWidth }} />
+        )}
 
+        {isTabMounted('akts') ? (
         <Animated.ScrollView
           style={{ width: screenWidth }}
           showsVerticalScrollIndicator={false}
@@ -1045,7 +1125,11 @@ export default function ProfileScreen() {
               })
             ))}
         </Animated.ScrollView>
+        ) : (
+          <View style={{ width: screenWidth }} />
+        )}
 
+        {isTabMounted('schedule') ? (
         <Animated.ScrollView
           style={{ width: screenWidth }}
           showsVerticalScrollIndicator={false}
@@ -1098,7 +1182,11 @@ export default function ProfileScreen() {
               </View>
             ))}
         </Animated.ScrollView>
+        ) : (
+          <View style={{ width: screenWidth }} />
+        )}
 
+        {isTabMounted('follows') ? (
         <Animated.ScrollView
           style={{ width: screenWidth }}
           showsVerticalScrollIndicator={false}
@@ -1143,7 +1231,11 @@ export default function ProfileScreen() {
               ))
             ))}
         </Animated.ScrollView>
+        ) : (
+          <View style={{ width: screenWidth }} />
+        )}
 
+        {isTabMounted('forums') ? (
         <Animated.ScrollView
           style={{ width: screenWidth }}
           showsVerticalScrollIndicator={false}
@@ -1186,6 +1278,9 @@ export default function ProfileScreen() {
               ))
             ))}
         </Animated.ScrollView>
+        ) : (
+          <View style={{ width: screenWidth }} />
+        )}
       </ScrollView>
 
       {/* Başlık katmanı: pager'ın ÜSTÜNDE mutlak konumlu. Kart, `cardAnimStyle`

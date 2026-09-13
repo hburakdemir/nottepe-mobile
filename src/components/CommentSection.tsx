@@ -278,14 +278,6 @@ interface Props {
   isAdmin?: boolean;
   defaultCollapsed?: boolean;
   onRatingChange: (stats: RatingStats) => void;
-  /**
-   * Yorum kutusuna odaklanıldığında çağrılır. Sayfayı saran
-   * KeyboardAvoidingView içeriği yukarı itiyor ama kaydırma konumunu
-   * DEĞİŞTİRMİYOR: yorum formu uzun bir ScrollView'ın en altında olduğu için
-   * klavye açılınca kullanıcı hiçbir şeyin hareket etmediğini görüyordu.
-   * Sayfa bu geri çağırımla forma kaydırıyor (bkz. PostDetailScreen.tsx).
-   */
-  onInputFocus?: () => void;
 }
 
 // `defaultCollapsed` varsayılanı artık FALSE: gönderi detayında yorumlar
@@ -298,7 +290,6 @@ export default function CommentSection({
   isAdmin = false,
   defaultCollapsed = false,
   onRatingChange,
-  onInputFocus,
 }: Props) {
   const { isAuthenticated, user } = useAuth();
   const t = useFeedTokens();
@@ -493,7 +484,6 @@ export default function CommentSection({
                 style={[styles.input, { backgroundColor: t.card, borderColor: t.line, color: t.ink }]}
                 value={content}
                 onChangeText={setContent}
-                onFocus={onInputFocus}
                 placeholder="Yorumunuz..."
                 placeholderTextColor={t.ink3}
                 multiline

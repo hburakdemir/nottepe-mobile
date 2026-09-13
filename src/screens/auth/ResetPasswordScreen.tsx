@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AlertCircle, Eye, EyeOff, Lock } from 'lucide-react-native';
 import { passwordApi } from '../../lib/api';
 import { useThemeColors } from '../../context/ThemeContext';
+import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 import AuthHeader from '../../components/auth/AuthHeader';
 import type { AuthStackParamList } from '../../navigation/types';
 
@@ -61,7 +62,12 @@ export default function ResetPasswordScreen({ route, navigation }: Props) {
   };
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} style={[styles.container, { backgroundColor: colors.ground }]} contentContainerStyle={styles.content}>
+    <KeyboardAwareScroll
+      showsVerticalScrollIndicator={false}
+      style={[styles.container, { backgroundColor: colors.ground }]}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+    >
       <AuthHeader
         icon={<Lock size={26} color={colors.accent} />}
         title="Yeni Şifre Belirle"
@@ -126,7 +132,7 @@ export default function ResetPasswordScreen({ route, navigation }: Props) {
       <Pressable style={styles.resendLink} onPress={() => navigation.navigate('ForgotPassword')}>
         <Text style={[styles.resendLinkText, { color: colors.accent }]}>Kodu tekrar gönder</Text>
       </Pressable>
-    </ScrollView>
+    </KeyboardAwareScroll>
   );
 }
 

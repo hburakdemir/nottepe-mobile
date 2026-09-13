@@ -6,6 +6,7 @@ import './global.css';
 import React from 'react';
 import { Image, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { enableFreeze } from 'react-native-screens';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -92,24 +93,34 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <ThemeProvider>
-          <QueryClientProvider client={queryClient}>
-            <AuthProvider>
-              <SavedPostsProvider>
-                <ThemedNavigationContainer>
-                  <RootNavigator />
-                  <ThemedStatusBar />
-                  {/* NavigationContainer'ın kardeşi: `useNavigation` ağacın
-                      içinde çalışıyor, PushBridge ise dışarıdan (soğuk açılış,
-                      AppState) yönlendirme yapmak zorunda (bkz. navigationRef.ts). */}
-                  <PushBridge />
-                </ThemedNavigationContainer>
-              </SavedPostsProvider>
-            </AuthProvider>
-          </QueryClientProvider>
-        </ThemeProvider>
-      </SafeAreaProvider>
+      {/* KeyboardProvider ağacın TEPESİNDE olmak zorunda: klavye yüksekliğini
+          native taraftan tek bir yerden okuyup aşağıdaki bütün
+          KeyboardAvoidingView / KeyboardAwareScrollView tüketicilerine
+          dağıtıyor. Expo SDK 54'te Android edge-to-edge zorunlu ve o modda
+          pencere `adjustResize` ile KÜÇÜLMÜYOR — RN'in kendi
+          KeyboardAvoidingView'ı bu yüzden Android'de hiçbir şey yapmıyordu
+          (bkz. KeyboardAvoider.tsx). Bu paket klavye çerçevesini WindowInsets
+          üzerinden okuduğu için iki platformda da doğru çalışıyor. */}
+      <KeyboardProvider>
+        <SafeAreaProvider>
+          <ThemeProvider>
+            <QueryClientProvider client={queryClient}>
+              <AuthProvider>
+                <SavedPostsProvider>
+                  <ThemedNavigationContainer>
+                    <RootNavigator />
+                    <ThemedStatusBar />
+                    {/* NavigationContainer'ın kardeşi: `useNavigation` ağacın
+                        içinde çalışıyor, PushBridge ise dışarıdan (soğuk açılış,
+                        AppState) yönlendirme yapmak zorunda (bkz. navigationRef.ts). */}
+                    <PushBridge />
+                  </ThemedNavigationContainer>
+                </SavedPostsProvider>
+              </AuthProvider>
+            </QueryClientProvider>
+          </ThemeProvider>
+        </SafeAreaProvider>
+      </KeyboardProvider>
     </GestureHandlerRootView>
   );
 }

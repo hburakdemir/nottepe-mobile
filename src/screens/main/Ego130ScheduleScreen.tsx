@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { ArrowUpDown, Bus, Clock } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useCardSurface, useFeedTokens, type FeedTokens } from '../../theme/feedTokens';
@@ -32,8 +32,20 @@ type MarkerKind = 'kopru' | 'durak' | 'free' | 'konserv';
 
 const MARKER_SIZE = 7;
 
+// Not metinleri tarife boyunca tekrar ediyor (~100 sefer, bir avuç farklı not),
+// bu yüzden sonuç modül seviyesinde önbelleğe alınıyor. ESKİDEN her kutucuk HER
+// render'da `toLocaleUpperCase('tr')` + dört `includes` çalıştırıyordu; gün
+// değiştirmede 95+ kutucuk × bu iş, ekranın takılmasının payıydı. Dönen dizi de
+// paylaşılıyor — `Tile` memoize olduğu için referansın sabit kalması şart
+// (yeni dizi = yeni prop = boşuna yeniden çizim).
+const EMPTY_MARKERS: MarkerKind[] = [];
+const markerCache = new Map<string, MarkerKind[]>();
+
 function markersFor(note?: string): MarkerKind[] {
-  if (!note) return [];
+  if (!note) return EMPTY_MARKERS;
+  const cached = markerCache.get(note);
+  if (cached) return cached;
+
   const n = note.toLocaleUpperCase('tr');
   const out: MarkerKind[] = [];
   if (n.includes('KÖPRÜ')) out.push('kopru');
@@ -42,10 +54,14 @@ function markersFor(note?: string): MarkerKind[] {
   // konservatuvar işareti, efsanede "ücretsiz" olduğu yazıyor.
   if (n.includes('KONSERV')) out.push('konserv');
   else if (n.includes('ÜCRETSİZ')) out.push('free');
+
+  markerCache.set(note, out);
   return out;
 }
 
-function Marker({ kind, t }: { kind: MarkerKind; t: FeedTokens }) {
+// `t` (useFeedTokens) modül seviyesindeki sabit LIGHT/DARK nesnelerinden biri —
+// referansı tema değişene kadar sabit, bu yüzden memo gerçekten tutuyor.
+const Marker = React.memo(function Marker({ kind, t }: { kind: MarkerKind; t: FeedTokens }) {
   const base = { width: MARKER_SIZE, height: MARKER_SIZE, borderRadius: MARKER_SIZE / 2 };
   switch (kind) {
     case 'free':
@@ -57,7 +73,7 @@ function Marker({ kind, t }: { kind: MarkerKind; t: FeedTokens }) {
     default:
       return <View style={[base, { borderWidth: 1.5, borderColor: t.ink3 }]} />;
   }
-}
+});
 
 const LEGEND: { kind: MarkerKind; label: string }[] = [
   { kind: 'free', label: 'Ücretsiz sefer' },
@@ -144,33 +160,52 @@ function DayTabs({
   );
 }
 
-// Gün/kalkış değişince ızgara bir an için iskelet kutucuklara dönüyor: 95+
-// kutucuğun yeniden çizimi tek karede bitmediği için ekran "takıldı" gibi
-// görünüyordu, iskelet bunu bilinçli bir bekleme hâline çeviriyor.
-const SKELETON_COUNT = 16;
-
-function SkeletonGrid({ tileWidth }: { tileWidth: number }) {
-  const t = useFeedTokens();
-  const pulse = useSharedValue(0.5);
-
-  useEffect(() => {
-    pulse.value = withRepeat(withTiming(1, { duration: 850 }), -1, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
-
+// TEK KUTUCUK — memoize.
+//
+// ESKİDEN gün/kalkış değişiminde ızgara 450 ms'lik yapay bir iskelete dönüyordu
+// (`setTimeout(() => setLoading(false), 450)`). O iskelet gerçek sorunu —
+// 95+ kutucuğun tek karede çizilmesini — çözmüyor, üstünü örtüyordu: kullanıcı
+// beklemeyi "donma" olarak görüyordu (bkz. docs/plans/2026-09-13-performans-*).
+//
+// Maliyet artık gerçekten düşük olduğu için gecikme kaldırıldı. Üç şart var ve
+// üçü de bu dosyada korunmalı, yoksa memo boşa düşer:
+//   1. `surface` ve `marks` referansları sabit olmalı (biri `useMemo`, diğeri
+//      modül seviyesindeki `markerCache`'ten geliyor).
+//   2. `t` zaten sabit (LIGHT/DARK modül sabitleri).
+//   3. Kutucuğa satır içi nesne prop'u GEÇME — `isNext` gibi primitifler kalsın.
+//
+// Bunun asıl kazancı gün değişiminde değil: "sıradaki sefer" için saat 30
+// saniyede bir güncelleniyor (aşağıdaki `nowMinutes`), yani ekran açıkken her
+// yarım dakikada bir tüm ızgara yeniden çiziliyordu. Artık yalnızca `isNext`'i
+// değişen tek kutucuk çiziliyor.
+const Tile = React.memo(function Tile({
+  time,
+  marks,
+  width,
+  isNext,
+  surface,
+  t,
+}: {
+  time: string;
+  marks: MarkerKind[];
+  width: number;
+  isNext: boolean;
+  surface: object;
+  t: FeedTokens;
+}) {
   return (
-    <View style={styles.grid}>
-      {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
-        <Animated.View
-          key={i}
-          style={[styles.tile, { width: tileWidth, backgroundColor: t.inset }, pulseStyle]}
-        />
-      ))}
+    <View style={[styles.tile, surface, { width }, isNext && { borderColor: t.accent, borderWidth: 1.5 }]}>
+      <Text style={[styles.time, { color: isNext ? t.accent : t.ink }]}>{time}</Text>
+      {/* İşaret satırı not olmasa da duruyor: kutucukların yüksekliği satırdan
+          satıra oynamasın diye. */}
+      <View style={styles.markers}>
+        {marks.map((kind) => (
+          <Marker key={kind} kind={kind} t={t} />
+        ))}
+      </View>
     </View>
   );
-}
+});
 
 export default function Ego130ScheduleScreen() {
   const { theme } = useTheme();
@@ -179,25 +214,29 @@ export default function Ego130ScheduleScreen() {
   // Kutucuklar kartın kendi yüzeyinde duruyor (açık temada beyaz üstüne beyaz),
   // bu yüzden ayrımı açıkta yumuşak gölge + ince çizgi, koyuda bir kademe açık
   // zemin + biraz daha belirgin çizgi yapıyor — koyu temada gölge görünmüyor.
-  const tileSurface =
-    theme === 'dark'
-      ? { backgroundColor: '#212934', borderColor: '#39434F', borderWidth: StyleSheet.hairlineWidth }
-      : {
-          backgroundColor: t.card,
-          borderColor: t.line,
-          borderWidth: StyleSheet.hairlineWidth,
-          shadowColor: '#000',
-          shadowOpacity: 0.07,
-          shadowRadius: 5,
-          shadowOffset: { width: 0, height: 2 },
-          elevation: 2,
-        };
+  // `useMemo` ŞART: bu nesne her `Tile`'a prop olarak gidiyor. Her render'da
+  // yeniden kurulsaydı 95 kutucuğun memo'su da her render'da düşerdi.
+  const tileSurface = React.useMemo(
+    () =>
+      theme === 'dark'
+        ? { backgroundColor: '#212934', borderColor: '#39434F', borderWidth: StyleSheet.hairlineWidth }
+        : {
+            backgroundColor: t.card,
+            borderColor: t.line,
+            borderWidth: StyleSheet.hairlineWidth,
+            shadowColor: '#000',
+            shadowOpacity: 0.07,
+            shadowRadius: 5,
+            shadowOffset: { width: 0, height: 2 },
+            elevation: 2,
+          },
+    [theme, t.card, t.line]
+  );
   const [gridWidth, setGridWidth] = useState(0);
   // Ekran cihazın O ANKİ gününe düşüyor — eskiden sabit `'weekday'` idi,
   // Pazar günü giren biri "Hafta İçi" tarifesiyle karşılaşıyordu.
   const [activeDay, setActiveDay] = useState<Ego130DayKey>(() => dayKeyForOffset(0));
   const [origin, setOrigin] = useState<Origin>('campus');
-  const [loading, setLoading] = useState(true);
 
   // Cihaz saati dakikada bir tazeleniyor — "sıradaki sefer" kartının canlı
   // kalması için (kullanıcı isteği: "cihaz saati okunup sırada ring saati
@@ -214,14 +253,6 @@ export default function Ego130ScheduleScreen() {
     return () => clearInterval(id);
   }, []);
 
-  // Açılışta ve her değişimde kısa bir iskelet: liste yerel olduğu için veri
-  // beklemiyoruz, beklenen şey 95+ kutucuğun çizimi.
-  useEffect(() => {
-    setLoading(true);
-    const id = setTimeout(() => setLoading(false), 450);
-    return () => clearTimeout(id);
-  }, [activeDay, origin]);
-
   const handleSelectDay = (key: Ego130DayKey) => {
     if (key !== activeDay) setActiveDay(key);
   };
@@ -232,7 +263,8 @@ export default function Ego130ScheduleScreen() {
     return scheduleSource.find((s) => s.key === activeDay)!;
   }, [activeDay, scheduleSource]);
 
-  const isToday = activeDay === dayKeyForOffset(0);
+  // Her render'da `new Date()` kurmak yerine güne bağlı tek hesap.
+  const isToday = useMemo(() => activeDay === dayKeyForOffset(0), [activeDay]);
 
   // "Sıradaki sefer": aktif tarife bugünse cihaz saatinden büyük/eşit ilk
   // kalkışı bul. Ham veri gece yarısını geçen seferleri (00:10, 00:40, 01:25)
@@ -253,6 +285,19 @@ export default function Ego130ScheduleScreen() {
   // türetiliyor — pencere genişliğinden hesaplamak AppShell'in kendi yatay
   // payını hesaba katmadığı için satıra 4 yerine 3 kutucuk sığdırıyordu.
   const tileWidth = gridWidth > 0 ? Math.floor((gridWidth - GRID_GAP * (COLUMNS - 1)) / COLUMNS) : 0;
+
+  // Kutucuk verisi tarife başına bir kere: `markersFor` artık önbellekli ama
+  // 95 çağrıyı da her render'da yapmanın anlamı yok. `nowMinutes` 30 saniyede
+  // bir değiştiği için bu liste O render'larda da aynı kalmalı — bağımlılık
+  // sadece aktif tarife.
+  const tiles = useMemo(
+    () => activeSchedule.departures.map((d) => ({ time: d.time, marks: markersFor(d.note) })),
+    [activeSchedule]
+  );
+
+  // Vurgulanacak sefer: yalnızca bugünkü, henüz gelmemiş sefer (yarına düşen
+  // fallback'te ızgara farklı bir gün-tipi olabileceğinden vurgulanmıyor).
+  const nextTileTime = isToday && nextInfo && !nextInfo.tomorrow ? nextInfo.time : null;
 
   return (
     <ScrollView
@@ -327,42 +372,21 @@ export default function Ego130ScheduleScreen() {
 
       <View style={[styles.card, cardSurface]}>
         <View onLayout={(e) => setGridWidth(e.nativeEvent.layout.width)}>
-          {tileWidth > 0 &&
-            (loading ? (
-              <SkeletonGrid tileWidth={tileWidth} />
-            ) : (
-              <View style={styles.grid}>
-                {activeSchedule.departures.map((d, i) => {
-                  const marks = markersFor(d.note);
-                  // Sıradaki seferin kutucuğu vurgulanıyor — yalnızca bugünkü,
-                  // henüz gelmemiş sefer için (yarına düşen fallback'te grid
-                  // zaten farklı bir gün-tipi olabileceğinden vurgulanmıyor).
-                  const isNext = isToday && !!nextInfo && !nextInfo.tomorrow && d.time === nextInfo.time;
-                  return (
-                    <View
-                      key={`${d.time}-${i}`}
-                      style={[
-                        styles.tile,
-                        tileSurface,
-                        { width: tileWidth },
-                        isNext && { borderColor: t.accent, borderWidth: 1.5 },
-                      ]}
-                    >
-                      <Text style={[styles.time, { color: isNext ? t.accent : t.ink }]}>
-                        {d.time}
-                      </Text>
-                      {/* İşaret satırı not olmasa da duruyor: kutucukların yüksekliği
-                          satırdan satıra oynamasın diye. */}
-                      <View style={styles.markers}>
-                        {marks.map((kind) => (
-                          <Marker key={kind} kind={kind} t={t} />
-                        ))}
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            ))}
+          {tileWidth > 0 && (
+            <View style={styles.grid}>
+              {tiles.map((tile, i) => (
+                <Tile
+                  key={`${tile.time}-${i}`}
+                  time={tile.time}
+                  marks={tile.marks}
+                  width={tileWidth}
+                  isNext={tile.time === nextTileTime}
+                  surface={tileSurface}
+                  t={t}
+                />
+              ))}
+            </View>
+          )}
         </View>
       </View>
 

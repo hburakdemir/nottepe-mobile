@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AlertCircle, Check, Eye, EyeOff, Lock, Mail, Phone, User, UserPlus } from 'lucide-react-native';
 import { authAPI } from '../../lib/api';
 import { useThemeColors } from '../../context/ThemeContext';
+import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 import AuthHeader from '../../components/auth/AuthHeader';
 import type { AuthStackParamList } from '../../navigation/types';
 
@@ -93,8 +94,17 @@ export default function RegisterScreen({ navigation }: Props) {
   };
 
   return (
-    <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.ground }]} behavior="padding">
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    // İKİ BİLEŞEN TEKE İNDİ. Eskiden dıştaki KeyboardAvoidingView konteynere
+    // dolgu ekliyor, içteki ScrollView ise odaklanan input'u görünür alana HİÇ
+    // kaydırmıyordu — uzun kayıt formunun alt alanlarında (telefon, şifre
+    // tekrar) kutu klavyenin altında kalıyordu. KeyboardAwareScroll ikisini
+    // birden yapıyor (bkz. components/layout/KeyboardAvoider.tsx).
+    <KeyboardAwareScroll
+      style={[styles.container, { backgroundColor: colors.ground }]}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+    >
         <AuthHeader
           icon={<UserPlus size={26} color={colors.accent} />}
           title="Kayıt Ol"
@@ -246,8 +256,7 @@ export default function RegisterScreen({ navigation }: Props) {
             Zaten hesabınız var mı? <Text style={[styles.linkStrong, { color: colors.accent }]}>Giriş Yap</Text>
           </Text>
         </Pressable>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScroll>
   );
 }
 

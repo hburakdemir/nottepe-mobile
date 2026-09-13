@@ -1,10 +1,11 @@
 import React, { useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AlertCircle, Eye, EyeOff, Lock, LogIn, Send, User } from 'lucide-react-native';
 import { authAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useThemeColors } from '../../context/ThemeContext';
+import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 import AuthHeader from '../../components/auth/AuthHeader';
 import type { AuthStackParamList } from '../../navigation/types';
 
@@ -64,8 +65,17 @@ export default function LoginScreen({ navigation }: Props) {
   };
 
   return (
-    <KeyboardAvoidingView style={[styles.container, { backgroundColor: colors.ground }]} behavior="padding">
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    // İKİ BİLEŞEN TEKE İNDİ. Eskiden dıştaki KeyboardAvoidingView konteynere
+    // dolgu ekliyor, içteki ScrollView ise odaklanan input'u görünür alana HİÇ
+    // kaydırmıyordu — uzun kayıt formunun alt alanlarında (telefon, şifre
+    // tekrar) kutu klavyenin altında kalıyordu. KeyboardAwareScroll ikisini
+    // birden yapıyor (bkz. components/layout/KeyboardAvoider.tsx).
+    <KeyboardAwareScroll
+      style={[styles.container, { backgroundColor: colors.ground }]}
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+    >
         <AuthHeader icon={<LogIn size={26} color={colors.accent} />} title="Giriş Yap" subtitle="Hesabınıza giriş yapın" />
 
         {!!error && (
@@ -147,8 +157,7 @@ export default function LoginScreen({ navigation }: Props) {
             Hesabınız yok mu? <Text style={[styles.linkStrong, { color: colors.accent }]}>Kayıt Ol</Text>
           </Text>
         </Pressable>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScroll>
   );
 }
 

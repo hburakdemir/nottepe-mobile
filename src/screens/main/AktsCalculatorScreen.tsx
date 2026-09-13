@@ -55,7 +55,7 @@ import {
   type Overrides,
 } from '../../utils/gano';
 import { exportCoursesToExcel, parseCoursesFromExcel, type ImportedCourse, type ImportError } from '../../utils/ganoExcel';
-import KeyboardAvoider from '../../components/layout/KeyboardAvoider';
+import KeyboardAvoider, { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 
 interface SavedCalc {
   id: number;
@@ -481,7 +481,7 @@ export default function AktsCalculatorScreen() {
   const judgedAkts = baseTotals.passedAkts + baseTotals.failedAkts;
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="px-4 pt-6 pb-[110px] gap-4">
+    <KeyboardAwareScroll showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="px-4 pt-6 pb-[110px] gap-4" keyboardShouldPersistTaps="handled">
       {/* Başlık */}
       <View className="gap-1">
         <View className="flex-row items-center gap-2.5">
@@ -1310,7 +1310,7 @@ export default function AktsCalculatorScreen() {
           </View>
         </KeyboardAvoider>
       </Modal>
-    </ScrollView>
+    </KeyboardAwareScroll>
   );
 }
 
