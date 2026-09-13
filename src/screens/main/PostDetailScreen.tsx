@@ -83,6 +83,17 @@ export default function PostDetailScreen() {
     refetch();
   }, [refetch]);
 
+  // Satır içi ok fonksiyonu DEĞİL: `CommentSection` bunu kendi memoize
+  // callback'lerinin bağımlılığı olarak taşıyor ve oradan `CommentCard`'ın
+  // memo'suna kadar zincirleniyor. Her render'da yeni referans üretmek o
+  // zincirin tamamını kırardı (bkz. CommentSection.tsx'teki notlar).
+  const handleRatingChange = useCallback(
+    ({ avg_rating, rating_count }: { avg_rating: number | string; rating_count: number }) => {
+      queryClient.setQueryData(queryKey, (prev: Post | undefined) => (prev ? { ...prev, avg_rating, rating_count } : prev));
+    },
+    [queryClient, queryKey]
+  );
+
   const handleDeletePost = () => {
     Alert.alert('Gönderiyi sil', 'Bu gönderiyi silmek istiyor musunuz?', [
       { text: 'Vazgeç', style: 'cancel' },
@@ -223,9 +234,7 @@ export default function PostDetailScreen() {
           // Yorumlar açık geliyor: kullanıcı ayrıca dokunmadan yükleniyorlar.
           defaultCollapsed={false}
           isAdmin={user?.role === 'admin' || user?.role === 'moderator'}
-          onRatingChange={({ avg_rating, rating_count }) =>
-            queryClient.setQueryData(queryKey, (prev: Post | undefined) => (prev ? { ...prev, avg_rating, rating_count } : prev))
-          }
+          onRatingChange={handleRatingChange}
         />
       </View>
       </KeyboardAwareScroll>

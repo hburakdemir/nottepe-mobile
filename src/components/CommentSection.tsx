@@ -76,7 +76,28 @@ interface CommentCardProps {
   onEditRatingChange: (stats: RatingStats) => void;
 }
 
-function CommentCard({ comment, postOwnerId, isAdmin, onDelete, onRestore, onEdit, onEditRatingChange }: CommentCardProps) {
+// ⚠️ `React.memo` ZORUNLU.
+//
+// Yorum satırları `CommentSection`'ın gövdesinde `.map()` ile çiziliyor ve
+// yorum YAZMA kutusunun state'i (`content`, `rating`) de aynı bileşende
+// duruyor. Memo olmadan HER TUŞ VURUŞU bütün yorum satırlarını yeniden
+// çiziyordu — her satırda bir avatar var, o avatar da piksel-sanat bir SVG
+// (~40 düğüm, bkz. AvatarSVG.tsx). 20 yorumluk bir gönderide bu, her harfte
+// ~800 native SVG düğümünün yeniden değerlendirilmesi demekti. Testçilerin
+// "gönderilere girince yorumlar çok geç yükleniyor" dediği maliyetin bir
+// kısmı buydu.
+//
+// Memo'nun tutması için `onDelete`/`onRestore`/`onEdit` çağrı yerinde
+// `useCallback` olmak zorunda — aşağıda öyleler.
+const CommentCard = React.memo(function CommentCard({
+  comment,
+  postOwnerId,
+  isAdmin,
+  onDelete,
+  onRestore,
+  onEdit,
+  onEditRatingChange,
+}: CommentCardProps) {
   const { user } = useAuth();
   const goToUserProfile = useGoToUserProfile();
   // Renkler artık akış/gönderi tasarımıyla AYNI kaynaktan (theme/feedTokens.ts).
@@ -110,7 +131,9 @@ function CommentCard({ comment, postOwnerId, isAdmin, onDelete, onRestore, onEdi
   const canDelete = !isDeleted && (isAdminUser || isCommentOwner || isPostOwner);
   const canRestore = isDeleted && isAdminUser && isAdmin;
   const canEdit = !isDeleted && isCommentOwner;
-  const authorAvatar = buildCommentAuthorAvatar(comment);
+  // `buildCommentAuthorAvatar` her çağrıda YENİ bir nesne üretiyor; memoize
+  // edilmezse `AvatarDisplay`'in kendi memo'su hiçbir zaman tutmaz.
+  const authorAvatar = React.useMemo(() => buildCommentAuthorAvatar(comment), [comment]);
 
   const openEdit = () => {
     setEditContent(comment.content || '');
@@ -270,7 +293,7 @@ function CommentCard({ comment, postOwnerId, isAdmin, onDelete, onRestore, onEdi
       )}
     </View>
   );
-}
+});
 
 interface Props {
   postId: string | number;
@@ -369,7 +392,9 @@ export default function CommentSection({
     }
   };
 
-  const handleDelete = async (commentId: number, deleteReason: string) => {
+  // Üçü de `useCallback`: `CommentCard` memoize ve bu fonksiyonlar onun
+  // prop'ları — referansları her render'da değişirse memo hiçbir işe yaramaz.
+  const handleDelete = React.useCallback(async (commentId: number, deleteReason: string) => {
     try {
       const res = await commentAPI.delete(commentId, deleteReason);
       if (isAdmin) {
@@ -404,9 +429,9 @@ export default function CommentSection({
     } catch {
       Alert.alert('Hata', 'Yorum silinemedi.');
     }
-  };
+  }, [isAdmin, user?.id, user?.username, total, page, fetchPage, onRatingChange]);
 
-  const handleRestore = async (commentId: number) => {
+  const handleRestore = React.useCallback(async (commentId: number) => {
     try {
       const res = await adminCommentAPI.restore(commentId);
       setComments((prev) => prev.map((c) => (c.id === commentId ? { ...c, deleted_at: null, delete_reason: null } : c)));
@@ -415,11 +440,12 @@ export default function CommentSection({
     } catch {
       Alert.alert('Hata', 'Geri yüklenemedi.');
     }
-  };
+  }, [onRatingChange]);
 
-  const handleEdit = (commentId: number, updated: Comment) => {
+  // Bağımlılıksız: yalnızca setState kullanıyor, referansı hiç değişmiyor.
+  const handleEdit = React.useCallback((commentId: number, updated: Comment) => {
     setComments((prev) => prev.map((c) => (c.id === commentId ? { ...c, ...updated } : c)));
-  };
+  }, []);
 
   return (
     <View style={styles.container}>
