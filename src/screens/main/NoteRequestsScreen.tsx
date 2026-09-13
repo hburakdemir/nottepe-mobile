@@ -1,8 +1,10 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, Text, View } from 'react-native';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, Inbox, Plus } from 'lucide-react-native';
 import { noteRequestAPI } from '../../lib/api';
 import { faculties, departments } from '../../data/departments';
+import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
 import RequestCard, { type NoteRequest } from '../../components/requests/RequestCard';
 import CreateRequestModal from '../../components/requests/CreateRequestModal';
 import FulfillModal from '../../components/requests/FulfillModal';
@@ -15,6 +17,17 @@ type ViewMode = 'board' | 'mine';
 type Status = 'open' | 'fulfilled';
 type Sort = 'new' | 'top';
 
+const NOTE_REQUESTS_STALE_MS = 60 * 1000;
+
+const MINE_KEY = ['noteRequests', 'mine'] as const;
+
+interface BoardPage {
+  requests: NoteRequest[];
+  total: number;
+}
+
+const EMPTY_REQUESTS: NoteRequest[] = [];
+
 export default function NoteRequestsScreen() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -26,54 +39,56 @@ export default function NoteRequestsScreen() {
   const [showFacultyPicker, setShowFacultyPicker] = useState(false);
   const [showDeptPicker, setShowDeptPicker] = useState(false);
 
-  const [requests, setRequests] = useState<NoteRequest[]>([]);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-
   const [showCreate, setShowCreate] = useState(false);
   const [fulfillTarget, setFulfillTarget] = useState<NoteRequest | null>(null);
+  const queryClient = useQueryClient();
 
-  const fetchBoard = useCallback(
-    async (pageToFetch: number, reset = false) => {
-      if (reset) setLoading(true);
-      else setLoadingMore(true);
-      try {
-        const res = await noteRequestAPI.getAll({ page: pageToFetch, limit: PAGE_LIMIT, faculty, department, status, sort });
-        const { requests: rows, total: newTotal } = res.data;
-        setRequests((prev) => (reset ? rows : [...prev, ...rows]));
-        setTotal(newTotal);
-        setPage(pageToFetch);
-      } catch {
-        Alert.alert('Hata', 'İstekler yüklenemedi');
-      } finally {
-        setLoading(false);
-        setLoadingMore(false);
-      }
-    },
+  // BÜTÜN FİLTRELER ANAHTARIN PARÇASI. Kazanç burada çok somut: kullanıcı
+  // "açık"tan "kapalı"ya geçip geri döndüğünde, ya da bir fakülte seçip
+  // temizlediğinde, her kombinasyon kendi cache'inde duruyor — eskiden her
+  // dokunuş listeyi boşaltıp sıfırdan istek atıyordu.
+  const boardKey = useMemo(
+    () => ['noteRequests', 'board', { faculty, department, status, sort }] as const,
     [faculty, department, status, sort]
   );
 
-  const fetchMine = useCallback(async () => {
-    setLoading(true);
-    try {
+  const board = useInfiniteQuery({
+    queryKey: boardKey,
+    queryFn: async ({ pageParam }) => {
+      const res = await noteRequestAPI.getAll({ page: pageParam, limit: PAGE_LIMIT, faculty, department, status, sort });
+      return res.data as BoardPage;
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => {
+      const loaded = allPages.reduce((sum, p) => sum + p.requests.length, 0);
+      return loaded < lastPage.total ? allPages.length + 1 : undefined;
+    },
+    enabled: view === 'board',
+    staleTime: NOTE_REQUESTS_STALE_MS,
+  });
+
+  const mine = useQuery({
+    queryKey: MINE_KEY,
+    queryFn: async () => {
       const res = await noteRequestAPI.getMine();
-      setRequests(res.data.requests || []);
-      setTotal((res.data.requests || []).length);
-    } catch {
-      Alert.alert('Hata', 'İsteklerin yüklenemedi');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return (res.data.requests || []) as NoteRequest[];
+    },
+    enabled: view === 'mine',
+    staleTime: NOTE_REQUESTS_STALE_MS,
+  });
 
-  useEffect(() => {
-    if (view === 'mine') fetchMine();
-    else fetchBoard(1, true);
-  }, [view, fetchBoard, fetchMine]);
+  const boardRequests = useMemo(() => board.data?.pages.flatMap((p) => p.requests) ?? EMPTY_REQUESTS, [board.data]);
+  const requests = view === 'mine' ? mine.data ?? EMPTY_REQUESTS : boardRequests;
+  const loading = view === 'mine' ? mine.isLoading : board.isLoading;
 
-  const refresh = () => (view === 'mine' ? fetchMine() : fetchBoard(1, true));
+  // Kapatma/açma/silme sonrası: iki liste de bayatlıyor (kapatılan istek
+  // panodan düşer, "benimkiler"de durumu değişir), o yüzden ikisi birden
+  // geçersiz kılınıyor. `noteRequests` ön ekiyle eşleşen tüm filtre
+  // kombinasyonları da dahil — kullanıcı filtreyi değiştirdiğinde eski
+  // sonucu görmesin.
+  const refresh = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['noteRequests'] });
+  }, [queryClient]);
 
   const handleClose = async (request: NoteRequest) => {
     try {
@@ -115,13 +130,19 @@ export default function NoteRequestsScreen() {
     try {
       const res = request.supported_by_me ? await noteRequestAPI.unsupport(request.id) : await noteRequestAPI.support(request.id);
       const { supporter_count, supported_by_me } = res.data;
-      setRequests((prev) => prev.map((r) => (r.id === request.id ? { ...r, supporter_count, supported_by_me } : r)));
+      // Destek sayacı iyimser güncelleniyor: hangi listedeysek onun cache'ine
+      // yazıyoruz, böylece yeniden istek atmadan sayı anında değişiyor.
+      const mapRow = (r: NoteRequest) => (r.id === request.id ? { ...r, supporter_count, supported_by_me } : r);
+      queryClient.setQueryData(MINE_KEY, (prev: NoteRequest[] | undefined) => prev?.map(mapRow));
+      queryClient.setQueryData(boardKey, (prev: { pages: BoardPage[]; pageParams: unknown[] } | undefined) =>
+        prev ? { ...prev, pages: prev.pages.map((pg) => ({ ...pg, requests: pg.requests.map(mapRow) })) } : prev
+      );
     } catch (err: any) {
       Alert.alert('Hata', err.response?.data?.message || 'İşlem başarısız');
     }
   };
 
-  const hasMore = view === 'board' && requests.length < total;
+  const hasMore = view === 'board' && !!board.hasNextPage;
 
   const header = (
     <View className="mb-4">
@@ -224,9 +245,20 @@ export default function NoteRequestsScreen() {
   return (
     <View className="flex-1 bg-ground">
       {loading ? (
-        <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#2F5755" />
-        </View>
+        <SkeletonGroup>
+          <View className="p-4 gap-2.5">
+            {[0, 1, 2, 3].map((i) => (
+              <View key={i} className="bg-surface rounded-xl p-3.5 border border-line-soft gap-2.5">
+                <Skeleton width="75%" height={14} />
+                <Skeleton width="45%" height={11} />
+                <View className="flex-row items-center justify-between">
+                  <Skeleton width={70} height={22} radius={11} />
+                  <Skeleton width={54} height={22} radius={11} />
+                </View>
+              </View>
+            ))}
+          </View>
+        </SkeletonGroup>
       ) : (
         <FlatList
           showsVerticalScrollIndicator={false}
@@ -249,10 +281,10 @@ export default function NoteRequestsScreen() {
             hasMore ? (
               <Pressable
                 className="items-center border border-brand rounded-lg py-2.5 mt-2"
-                onPress={() => fetchBoard(page + 1)}
-                disabled={loadingMore}
+                onPress={() => board.fetchNextPage()}
+                disabled={board.isFetchingNextPage}
               >
-                {loadingMore ? (
+                {board.isFetchingNextPage ? (
                   <ActivityIndicator color="#2F5755" />
                 ) : (
                   <Text className="text-accent text-[13px] font-semibold">Daha Fazla Göster</Text>

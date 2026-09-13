@@ -1,6 +1,6 @@
 # Nottepe Mobil — Performans Teşhisi ve Çözüm Planı
 
-Tarih: 2026-09-13 · Durum: **Faz 1 ✅ · Faz 2 ✅ · R1-R3 ✅ · Madde 3 ✅** — cihazda doğrulama bekliyor. Kalan: Faz 3 (10, 5), R4, madde 9 ölçümü.
+Tarih: 2026-09-13 · Durum: **Faz 1 ✅ · Faz 2 ✅ · Faz 3 ✅ · R1-R3 ✅** — cihazda doğrulama bekliyor. Kalan: R4, madde 9 ölçümü, madde 10 katman 2 (kalıcı cache).
 Doğrulama: Expo SDK 54 (kurulu sürüm) dokümanları + React Navigation 7 / react-native-screens issue takibi
 
 ---
@@ -13,13 +13,13 @@ Doğrulama: Expo SDK 54 (kurulu sürüm) dokümanları + React Navigation 7 / re
 | 2 ✅ | Sekme geçişi 2 kere oynuyor | `setActiveTab` animasyon ortasında ağacı yeniden çiziyor | Yüksek | %75 | 3s |
 | 3 ✅ | Arka plandan dönünce alt bar donuyor | Sekmelerde `enableFreeze` (screens#1478/#2384/#2150) + bar `KeyboardAvoider`'ın içindeydi | Yüksek | %80 | 3s |
 | 4 ✅ | 130 sekmelerinde donma | **Yapay 450 ms iskelet** + 95 kutucuk tek karede | Kesin | %95 | 2s |
-| 5 | Yemekhane spinner | Ham `useEffect`, cache yok | Kesin | %95 | 2s |
+| 5 ✅ | Yemekhane spinner | Ham `useEffect`, cache yok | Kesin | %95 | 2s |
 | 6 ✅ | Klavye inputu kapatıyor | `KeyboardAvoidingView` sadece padding veriyor, kaydırmıyor | Kesin | %90 | 4s |
 | 7 ✅ | Profil çok yavaş | 7 paralel istek tek `loading` bayrağına bağlı | Kesin | %90 | 4s |
 | 8 ✅ | Avatar "Kapat" butonu | Tasarım eksiği | Kesin | %100 | 30dk |
 | 9 | Her geçişte yavaşlık | 14 ekran cache'siz (react-query'siz) | Yüksek | %70 | birleşik |
 | 9b ✅ | **Fakülteler / Profil daha çok** | Profil: 7 sayfa + 8 scroll worklet · Fakülteler: debounce yok | Yüksek | %85 | 1g |
-| 10 | Sürekli yükleme animasyonu | react-query yalnızca 5 dosyada; 14 ekran elle fetch ediyor | Kesin | %95 | birleşik |
+| 10 ✅ | Sürekli yükleme animasyonu | react-query yalnızca 5 dosyada; 11 ekran elle fetch ediyordu | Kesin | %95 | birleşik |
 
 **Önce şu üçü:** 4 → 7 → 6. En yüksek etki/efor oranı bunlarda ve üçü de kesin teşhis.
 
@@ -158,7 +158,7 @@ Her gün/kalkış değişiminde **450 ms zorunlu bekleme.** Koddaki yorum sebebi
 
 ---
 
-## 5 — Yemekhane menüsü iskelet
+## 5 — Yemekhane menüsü iskelet ✅
 
 [CafeteriaMenuScreen.tsx:143-167](../../src/screens/main/CafeteriaMenuScreen.tsx#L143-L167) ham `useState` + `useEffect` ile `menuAPI.getToday()` + `getWeek()` çekiyor, tam ekran `ActivityIndicator` gösteriyor ([satır 211](../../src/screens/main/CafeteriaMenuScreen.tsx#L211)). Cache yok — ekran her mount olduğunda sıfırdan yükleniyor.
 
@@ -258,13 +258,31 @@ Bu maddenin tek bir sebebi yok; yukarıdakilerin toplamı. Ölçülebilir üç a
 
 react-query zaten kurulu ve çalışıyor ([queryClient.ts](../../src/lib/queryClient.ts)) ama 23 ekranın yalnızca 2'sinde kullanılıyor. "Her seferinde yükleme animasyonu" şikayetinin tek sebebi bu.
 
-**Katman 1 — bellek içi cache (ücretsiz, risksiz).** Ekranları react-query'ye taşı. Veri tipine göre `staleTime`:
-| Veri | staleTime | Gerekçe |
+**✅ Katman 1 yapıldı — 11 ekran taşındı.** Uygulanan `staleTime` tablosu:
+
+| Ekran | staleTime | Gerekçe |
 |---|---|---|
-| Yemekhane menüsü | 30 dk | Gün içinde değişmiyor |
-| Bölümler, SSS, Yardım | 24 saat | Neredeyse statik |
-| Profil, rozetler | 60 sn | Kullanıcı kendi değiştirir |
-| Akış, bildirimler | 30 sn | Mevcut ayar doğru |
+| Yemekhane (hafta + ay) | 30 dk | Menü gün içinde değişmiyor |
+| SSS listesi | 24 saat | Moderasyondan geçiyor, neredeyse statik |
+| SSS detay, Öneri detay, Not detay | 5 dk | Gövde sabit; yorum/oy zaten cache'e doğrudan yazılıyor |
+| Öneriler listesi, Kontrol listeleri | 5 dk | Yavaş değişiyor; kendi eylemi anahtarı geçersiz kılıyor |
+| Liderlik | 2 dk | Sıralama ölçütü anahtarın parçası |
+| Kaydedilenler, Not istekleri | 60 sn | Kendi eylemi anında geçersiz kılıyor |
+| **Program** | **∞** | Düzenleyici ekran — aşağıdaki nota bak |
+
+**Program'ın `Infinity`'si bilinçli bir istisna.** O ekran okuma değil DÜZENLEME ekranı: ders eklemek önce cache'i yazıyor, sunucuya kayıt 500 ms sonra gidiyor. Arka planda kendiliğinden çalışan bir tazeleme o aralığa denk gelse kullanıcının yeni eklediği dersi sunucunun eski hâliyle ezerdi. Programı düzenleyen tek yer o ekran olduğu için otomatik tazelemeye zaten ihtiyaç yok.
+
+**Taşınmayan iki ekran, ikisi de bilerek:**
+
+- **Bildirimler** — verisi zaten 30 sn'de bayatlaması *gereken* tek şey, yani cache kazancı en düşük olan ekran. Buna karşılık okundu işaretleme, geri alma ve kategori akışlarıyla en fazla kapatılmış hata barındıran ekran. Kazanç küçük, regresyon riski büyük.
+- **Kullanıcı profili** — 606 satır, sekme başına tembel yükleme. Kendi Profil ekranıyla aynı yapıda ve orada da aynı sebeple dokunulmamıştı.
+
+**Yol üstünde düzelen üç ayrı hata:**
+1. `refetchOnWindowFocus` React Native'de ölüydü — `focusManager` `AppState`'e bağlandı.
+2. Kaydedilenler'den bir not çıkarınca liste güncellenmiyordu — `toggleSavePost` artık anahtarı geçersiz kılıyor.
+3. Kontrol listelerinde slug ile gelindiğinde ilgili bölümü açan kod veri çekme fonksiyonunun içindeydi; liste her tazelendiğinde kullanıcının elle kapattığı bölüm zorla yeniden açılıyordu.
+
+**Yeni bileşen: [Skeleton.tsx](../../src/components/Skeleton.tsx).** Nabız `SkeletonGroup` içinde bir kez kurulup context ile paylaşılıyor — her blok kendi shared value'sini kursaydı 12 bloklu bir ekranda 12 worklet UI thread'inde birden dönerdi. Testçilerde eski Android cihazlar da var.
 
 **Katman 2 — diske kalıcılık (dikkatli).** `@tanstack/query-async-storage-persister` ile seçili anahtarları AsyncStorage'a yaz: uygulama kapanıp açılsa bile menü/bölümler anında gelir. **Sadece yavaş değişen, küçük veriler** — akış ve bildirimler asla. Böylece cihaz yavaşlamaz, talebiniz karşılanır.
 
@@ -287,8 +305,8 @@ react-query zaten kurulu ve çalışıyor ([queryClient.ts](../../src/lib/queryC
 **Faz 3 — cache ve dayanıklılık (1-2 gün)**
 - ✅ Madde 3: sekmelerde `freezeOnBlur: false` + bar'ı `KeyboardAvoider`'ın dışına çıkar
 - ✅ react-query `focusManager`'ı `AppState`'e bağla (aşağıdaki nota bak)
-- Madde 10 katman 1: 14 ekranı react-query'ye taşı
-- Madde 5: yemekhane iskelet (10 ile birlikte gelir)
+- ✅ Madde 10 katman 1: 11 ekran react-query'ye taşındı
+- ✅ Madde 5: yemekhane iskeleti (paylaşılan `Skeleton` bileşeniyle, 8 ekranda)
 
 **Faz 3'te yol üstünde bulunan sessiz hata — ✅ düzeltildi.** `useUnreadNotifications` ve `useUnreadAnnouncements` `refetchOnWindowFocus: true` yazıyordu ama **React Native'de bu ayar ölüydü**: react-query odağı tarayıcının `visibilitychange` olayından okur, RN'de öyle bir olay yok. İki rozet de yalnızca 5 dakikalık poll ile tazeleniyordu. [queryClient.ts](../../src/lib/queryClient.ts)'de `focusManager` artık `AppState`'e bağlı. Genel varsayılan bilerek `refetchOnWindowFocus: false` kaldı — açık olsaydı uygulama her öne geldiğinde tüm sorgular aynı anda istek atardı, ki donmanın en kırılgan olduğu an tam da o.
 
