@@ -7,7 +7,7 @@ import { useNavigation, useNavigationState } from '@react-navigation/native';
 import { Home, Library, UtensilsCrossed, Wrench, type LucideIcon } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useMyAvatar } from '../../hooks/useMyAvatar';
-import AvatarDisplay from '../avatar/AvatarDisplay';
+import AvatarDisplay, { type AvatarData } from '../avatar/AvatarDisplay';
 import DeerIcon from '../icons/DeerIcon';
 import { TAB_ROUTE_NAMES, navigateApp } from '../../navigation/navigateApp';
 import { useMetrics } from '../../theme/metrics';
@@ -33,6 +33,91 @@ import { useMetrics } from '../../theme/metrics';
 const TAB_ROUTES = TAB_ROUTE_NAMES;
 
 const PROFILE_ROUTE = 'Profile';
+
+// TEK BİR SEKME YUVASI — AYRI VE MEMOİZE.
+//
+// Eskiden beş yuva da `WaveTabBar`ın gövdesinde satır içi `map` ile
+// çiziliyordu. Bunun bedeli şuydu: bir sekmeye dokunulduğunda `activeRouteName`
+// değişiyor, WaveTabBar baştan render oluyor ve BEŞ yuva birden yeniden
+// kuruluyordu — profil yuvasındaki avatar dahil. O avatar piksel-sanat bir SVG
+// (~40 `SvgRect`, bkz. AvatarSVG.tsx), yani her dokunuşta ~40 native SVG
+// düğümü sökülüp yeniden kuruluyordu. Testçilerin "sayfa geçişlerinde tabbar
+// donuyor" dediği şey buydu.
+//
+// Artık her yuva kendi prop'larına bakıyor: bir geçişte yalnızca İKİ yuvanın
+// `isFocused`'ı değişiyor (eskisi false olur, yenisi true), kalan üçü prop
+// olarak aynı kaldığı için hiç çizilmiyor. Avatar da ayrıca memoize
+// (AvatarDisplay + AvatarSVG), dolayısıyla profil yuvası odak değiştirse bile
+// SVG yeniden kurulmuyor — yalnızca çevresindeki halkanın kalınlığı değişiyor.
+//
+// ⚠️ `onPress` çağrı yerinde bağımlılıksız `useCallback` olmak ZORUNDA;
+// referansı her render'da değişirse memo hiçbir işe yaramaz.
+interface TabSlotProps {
+  routeName: (typeof TAB_ROUTES)[number];
+  isFocused: boolean;
+  onPress: (routeName: string) => void;
+  barHeight: number;
+  iconSize: number;
+  avatarSize: number;
+  activeColor: string;
+  inactiveColor: string;
+  avatar: AvatarData | null;
+}
+
+const TabSlot = React.memo(function TabSlot({
+  routeName,
+  isFocused,
+  onPress,
+  barHeight,
+  iconSize,
+  avatarSize,
+  activeColor,
+  inactiveColor,
+  avatar,
+}: TabSlotProps) {
+  const Icon = ICONS[routeName];
+
+  const handlePress = React.useCallback(() => {
+    if (isFocused) return;
+    onPress(routeName);
+  }, [isFocused, onPress, routeName]);
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={routeName}
+      accessibilityState={isFocused ? { selected: true } : {}}
+      className="flex-1 items-center justify-center"
+      style={{ height: barHeight }}
+    >
+      {routeName === PROFILE_ROUTE ? (
+        // Son slotta ikon yerine kullanıcının kendi avatarı; aktifken diğer
+        // sekmelerin kalın çizgisinin karşılığı ince marka halkası.
+        <View
+          style={{
+            width: avatarSize + 4,
+            height: avatarSize + 4,
+            borderRadius: (avatarSize + 4) / 2,
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            borderWidth: isFocused ? 1.5 : 0,
+            borderColor: activeColor,
+          }}
+        >
+          {avatar ? (
+            <AvatarDisplay avatar={avatar} size={avatarSize} showBg={false} />
+          ) : (
+            <DeerIcon size={avatarSize - 6} color={isFocused ? activeColor : inactiveColor} />
+          )}
+        </View>
+      ) : (
+        <Icon size={iconSize} color={isFocused ? activeColor : inactiveColor} strokeWidth={isFocused ? 2.3 : 1.8} />
+      )}
+    </Pressable>
+  );
+});
 
 const ICONS: Record<string, LucideIcon> = {
   Home,
@@ -126,6 +211,18 @@ export default function WaveTabBar({ activeRouteName }: { activeRouteName?: stri
     transform: [{ translateX: capsuleX.value }],
   }));
 
+  // Yalnızca `navigation`'a bağlı — referansı sabit kalsın ki `TabSlot`'un
+  // memo'su tutsun. Sekmeler Tab.Navigator'ın ekranları olduğu için
+  // `navigateApp` `MainTabs`e iç içe navigate ediyor; sekme mount'lu kaldığından
+  // veri yeniden çekilmiyor. Push edilmiş bir ekrandayken (ör. gönderi detayı)
+  // aynı çağrı stack'i MainTabs'e geri sarıyor.
+  const handlePress = React.useCallback(
+    (routeName: string) => {
+      navigateApp(navigation, routeName);
+    },
+    [navigation]
+  );
+
   // Klavye açıkken bar gizleniyor. Sekme sahneleri KeyboardAvoider'ın içinde
   // (bkz. MainTabsScreen.tsx) — bar da onunla birlikte yukarı itilseydi
   // klavyenin hemen üstünde yüzen tuhaf bir hap olarak kalırdı.
@@ -196,58 +293,20 @@ export default function WaveTabBar({ activeRouteName }: { activeRouteName?: stri
           )}
 
           <View className="flex-1 flex-row items-center">
-            {TAB_ROUTES.map((routeName, index) => {
-              const isFocused = index === activeIndex;
-              const Icon = ICONS[routeName];
-
-              const onPress = () => {
-                if (isFocused) return;
-                // Sekmeler artık Tab.Navigator'ın ekranları: `navigateApp`
-                // `MainTabs`e iç içe navigate ediyor, sekme mount'lu kaldığı için
-                // veri yeniden çekilmiyor ve geçişi bottom-tabs'in kendi 'shift'
-                // animasyonu yapıyor (bkz. MainTabsScreen.tsx). Push edilmiş bir
-                // ekrandayken (ör. gönderi detayı) aynı çağrı stack'i MainTabs'e
-                // geri sarıyor.
-                navigateApp(navigation, routeName);
-              };
-
-              return (
-                <Pressable
-                  key={routeName}
-                  onPress={onPress}
-                  accessibilityRole="button"
-                  accessibilityLabel={routeName}
-                  accessibilityState={isFocused ? { selected: true } : {}}
-                  className="flex-1 items-center justify-center"
-                  style={{ height: BAR_HEIGHT }}
-                >
-                  {routeName === PROFILE_ROUTE ? (
-                    // Son slotta ikon yerine kullanıcının kendi avatarı; aktifken
-                    // diğer sekmelerin kalın çizgisinin karşılığı ince marka halkası.
-                    <View
-                      style={{
-                        width: AVATAR_SIZE + 4,
-                        height: AVATAR_SIZE + 4,
-                        borderRadius: (AVATAR_SIZE + 4) / 2,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        overflow: 'hidden',
-                        borderWidth: isFocused ? 1.5 : 0,
-                        borderColor: c.active,
-                      }}
-                    >
-                      {avatar ? (
-                        <AvatarDisplay avatar={avatar} size={AVATAR_SIZE} showBg={false} />
-                      ) : (
-                        <DeerIcon size={AVATAR_SIZE - 6} color={isFocused ? c.active : c.inactive} />
-                      )}
-                    </View>
-                  ) : (
-                    <Icon size={ICON_SIZE} color={isFocused ? c.active : c.inactive} strokeWidth={isFocused ? 2.3 : 1.8} />
-                  )}
-                </Pressable>
-              );
-            })}
+            {TAB_ROUTES.map((routeName, index) => (
+              <TabSlot
+                key={routeName}
+                routeName={routeName}
+                isFocused={index === activeIndex}
+                onPress={handlePress}
+                barHeight={BAR_HEIGHT}
+                iconSize={ICON_SIZE}
+                avatarSize={AVATAR_SIZE}
+                activeColor={c.active}
+                inactiveColor={c.inactive}
+                avatar={avatar}
+              />
+            ))}
           </View>
         </View>
       </BlurView>

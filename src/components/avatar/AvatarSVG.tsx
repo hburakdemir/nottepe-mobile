@@ -27,7 +27,24 @@ function clamp(idx: number | undefined | null, len: number): number {
   return Math.min(Math.max(idx ?? 0, 0), len - 1);
 }
 
-export function AvatarSVG({
+// ⚠️ `React.memo` ZORUNLU, süs değil.
+//
+// Bu avatar piksel-sanat: aşağıdaki altı dizi (kıyafet, yüz, sakal, saç, kaş,
+// göz) map'lenip her parça ayrı bir `<SvgRect>` oluyor — seçilen stillere göre
+// tek bir avatar kabaca 30-50 SVG düğümü demek. Android'de react-native-svg
+// bunların HER BİRİ için native bir view kuruyor.
+//
+// Memo olmadan bu bileşen, onu barındıran ağaç her kıpırdadığında baştan
+// çiziliyordu. WaveTabBar'da bu, HER SEKME DOKUNUŞUNDA ~40 native SVG
+// düğümünün sökülüp yeniden kurulması anlamına geliyordu — testçilerin
+// "sayfa geçişlerinde tabbar donuyor" dediği şey buydu. Üstelik aşağıdaki
+// stil fonksiyonları (`BEARD_STYLES[i](renk)` gibi) her render'da yeniden
+// çağrılıp yeni diziler üretiyor.
+//
+// Prop'ların üçü de sığ karşılaştırmaya uygun: `config` react-query
+// cache'inden geliyor (veri değişmedikçe referansı sabit), `size` ve `showBg`
+// ilkel değerler.
+export const AvatarSVG = React.memo(function AvatarSVG({
   config,
   size = 40,
   showBg = true,
@@ -101,6 +118,6 @@ export function AvatarSVG({
       <SvgRect x={14} y={21} width={4} height={1} fill={lc} />
     </Svg>
   );
-}
+});
 
 export default AvatarSVG;

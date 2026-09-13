@@ -416,6 +416,24 @@ Ayrıca `quality: 0.9` da işe yaramazdı: view-shot'ta `quality` **yalnızca jp
 ---
 
 
+## Tab bar donması — sekme geçişinde ✅
+
+**2026-09-13, 1.0.2 test dönüşü.** *"none işe yaramış ama tabbar donuyor."* Yani sayfa geçişi temizlendi, geriye bar'ın kendi render maliyeti kaldı.
+
+Ölçüm: [AvatarSVG.tsx](../../src/components/avatar/AvatarSVG.tsx) piksel-sanat bir avatar — altı ayrı dizi (kıyafet, yüz, sakal, saç, kaş, göz) map'lenip her parça ayrı bir `<SvgRect>` oluyor. `avatarConfig.ts`'teki stil dizilerinden sayıldı: seçilen stillere göre tek bir avatar kabaca **30-50 SVG düğümü**. Android'de react-native-svg bunların her biri için native bir view kuruyor.
+
+Zincir şuydu: sekmeye dokun → `activeTab` değişir → `WaveTabBar` render olur → beş yuva birden yeniden kurulur → profil yuvasındaki avatar dahil → **~40 native SVG düğümü sökülüp yeniden kurulur.** Üstüne 4 lucide ikonu (onlar da SVG) ve her render'da yeniden çağrılan stil fonksiyonları (`BEARD_STYLES[i](renk)` gibi yeni dizi üretiyor).
+
+**✅ Üç katman memoizasyon:**
+1. `AvatarSVG` → `React.memo`. Prop'ları sığ karşılaştırmaya uygun (`config` react-query cache'inden, referansı sabit).
+2. `AvatarDisplay` → `React.memo`. İç state'i (`showPhotoInBoth`) korunuyor.
+3. `TabSlot` → ayrı, memoize bileşen. Bir geçişte yalnızca İKİ yuvanın `isFocused`'ı değişiyor; kalan üçü hiç çizilmiyor. `onPress` bağımlılıksıza yakın `useCallback` (yalnız `navigation`) — memo'nun ön şartı.
+
+Sonuç: geçişte avatar SVG'si artık hiç yeniden kurulmuyor, yalnızca çevresindeki halkanın kalınlığı değişiyor.
+
+---
+
+
 ## Açık sorular
 
 ### Cevaplananlar
