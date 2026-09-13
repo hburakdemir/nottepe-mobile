@@ -5,6 +5,7 @@ import { getAccessToken, setAccessToken, clearAccessToken, setRefreshToken, clea
 import { onSessionExpired } from '../lib/authEvents';
 import { unregisterToken } from '../lib/push/registration';
 import { queryClient } from '../lib/queryClient';
+import { clearPersistedQueryCache } from '../lib/queryPersist';
 import type { User } from '../types/user';
 
 const STORAGE_KEY = 'nottepe_auth_user';
@@ -49,6 +50,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // avatar) staleTime dolana kadar ekranda kalıyordu. Çıkışta tamamen
     // temizlemek bu sızıntıyı kapatıyor.
     queryClient.clear();
+    // Bellekteki cache'i temizlemek yetmiyor: bir kısmı DİSKE de yazılıyor
+    // (bkz. queryPersist.ts) ve o yazma topaklanmış olduğu için çıkıştan hemen
+    // sonra uygulama kapatılırsa diskteki eski kopya sağ kalır. Açıkça siliyoruz.
+    await clearPersistedQueryCache();
   }, []);
 
   // İlk açılışta: SecureStore'da token varsa oturumu geri yükle.

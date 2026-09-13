@@ -11,7 +11,7 @@ import { enableFreeze } from 'react-native-screens';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DarkTheme, DefaultTheme, NavigationContainer, type Theme } from '@react-navigation/native';
-import { QueryClientProvider } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import {
   useFonts as useSoraFonts,
   Sora_400Regular,
@@ -27,6 +27,7 @@ import RootNavigator from './src/navigation/RootNavigator';
 import { navigationRef, drainPendingTarget } from './src/navigation/navigationRef';
 import PushBridge from './src/components/PushBridge';
 import { queryClient } from './src/lib/queryClient';
+import { persistOptions } from './src/lib/queryPersist';
 import { LIGHT_VARS, DARK_VARS } from './src/theme/palette';
 
 // react-native-screens: odakta olmayan (arka plandaki) ekranlari dondurup
@@ -116,7 +117,13 @@ export default function App() {
       <KeyboardProvider>
         <SafeAreaProvider>
           <ThemeProvider>
-            <QueryClientProvider client={queryClient}>
+            {/* Cache diske de yazılıyor (madde 10 katman 2): yemek listesi, SSS
+                ve takip edilen bölümler uygulama kapanıp açılsa bile anında
+                geliyor, ağ isteği arkada sessizce tazeliyor. HANGİ verinin
+                yazıldığı bilerek çok dar tutuldu — gerekçeler queryPersist.ts'te.
+                Çocuklar beklemeden çiziliyor; geri yükleme tamamlanana kadar
+                sorgular kısa süre "restoring" durumunda kalıyor. */}
+            <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
               <AuthProvider>
                 <SavedPostsProvider>
                   <ThemedNavigationContainer>
@@ -129,7 +136,7 @@ export default function App() {
                   </ThemedNavigationContainer>
                 </SavedPostsProvider>
               </AuthProvider>
-            </QueryClientProvider>
+            </PersistQueryClientProvider>
           </ThemeProvider>
         </SafeAreaProvider>
       </KeyboardProvider>

@@ -81,6 +81,19 @@ const UNCREDITED_LABELS: Record<string, string> = {
   H: 'Hariç — ne başarılı ne başarısız sayılır',
   M: 'Muaf — başarılı sayılır, ortalamaya girmez',
 };
+// İÇE AKTARMA ÖNİZLEMESİNDE ÇİZİLEN EN FAZLA SATIR.
+//
+// Bu bir kozmetik sınır değil, ANR koruması. `ganoExcel.ts` dosyayı en fazla
+// 2000 satırda okuyor (MAX_IMPORT_ROWS); o sınır PARSE'ı koruyordu ama
+// önizleme o 2000 satırın HEPSİNİ tek karede çiziyordu — yani ANR bir adım
+// öteye taşınmış oluyordu. 2000 satır × 2 Text = 6000 bileşen, modal içindeki
+// düz bir ScrollView'de, tek karede.
+//
+// Önizlemenin işi listeyi baştan sona okutmak değil, "dosya doğru okundu mu"
+// sorusunu cevaplatmak. İlk 50 satır bunu zaten yapıyor; geri kalanı sayıyla
+// söyleniyor ve onaylandığında hepsi aktarılıyor.
+const PREVIEW_ROW_LIMIT = 50;
+
 const scoreRangeByGrade: Record<string, string> = Object.fromEntries(SCORE_RANGES.map((r) => [r.grade, `${r.min}-${r.max}`]));
 
 function formatDate(dateString: string): string {
@@ -1278,7 +1291,7 @@ export default function AktsCalculatorScreen() {
                       <Text className="text-muted2 text-sm py-1">Geçerli satır yok.</Text>
                     ) : (
                       <View className="gap-1.5">
-                        {importPreview.valid.map((c, i) => (
+                        {importPreview.valid.slice(0, PREVIEW_ROW_LIMIT).map((c, i) => (
                           <View key={i} className="bg-inset rounded-lg px-3 py-2">
                             <Text className="text-sm text-gray-800 font-medium" numberOfLines={1}>
                               {c.code ? `${c.code} · ` : ''}
@@ -1289,6 +1302,11 @@ export default function AktsCalculatorScreen() {
                             </Text>
                           </View>
                         ))}
+                        {importPreview.valid.length > PREVIEW_ROW_LIMIT && (
+                          <Text className="text-[12.5px] text-muted2 px-1 pt-1">
+                            …ve {importPreview.valid.length - PREVIEW_ROW_LIMIT} ders daha. Onaylarsan hepsi aktarılacak.
+                          </Text>
+                        )}
                       </View>
                     )}
                     {importPreview.errors.length > 0 && (
@@ -1297,12 +1315,17 @@ export default function AktsCalculatorScreen() {
                           <AlertTriangle size={15} color={isDark ? '#dc2626' : '#8C1007'} />
                           <Text className="text-sm font-semibold text-fail">Hatalı satırlar ({importPreview.errors.length})</Text>
                         </View>
-                        {importPreview.errors.map((err, i) => (
+                        {importPreview.errors.slice(0, PREVIEW_ROW_LIMIT).map((err, i) => (
                           <Text key={i} className="text-[12.5px] text-ink2 mb-1">
                             Satır {err.rowNumber}
                             {err.lessonName ? ` (${err.lessonName})` : ''}: {err.message}
                           </Text>
                         ))}
+                        {importPreview.errors.length > PREVIEW_ROW_LIMIT && (
+                          <Text className="text-[12.5px] text-muted2 mb-1">
+                            …ve {importPreview.errors.length - PREVIEW_ROW_LIMIT} hatalı satır daha.
+                          </Text>
+                        )}
                       </View>
                     )}
                   </View>
