@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AppHeader from '../components/layout/AppHeader';
@@ -26,32 +26,41 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 // başlıyordu. Testçilerin "ekran direkt kaymıyor, 2 kere kayıyor" dediği şey
 // buydu (bkz. docs/plans/2026-09-13-performans-teshis-ve-plan.md, madde 2).
 //
-// `animation: 'none'` — 2026-09-13'te İKİNCİ kez değişti, bu sefer kesin.
+// SEKME GEÇİŞ ANİMASYONU PLATFORMA GÖRE AYRILDI — iOS'ta kayma var,
+// Android'de yok. Aynı mantık stack tarafında da uygulanıyor, bkz.
+// stackAnimation.ts.
 //
-// Sıra şöyleydi: önce `shift` vardı → testçiler "iki kere kayıyor" dedi →
-// render zincirini düzelttik (bkz. plan, madde 2a) → testçiler bu sefer
-// "geçişlerde bir an başka sayfa görünüyor, iğrenç" dedi. Araştırınca bu,
-// bizim yazdığımız bir hata değil, react-navigation'ın kendi belgelenmiş,
-// hâlâ AÇIK hatası çıktı:
+// Sıra şöyleydi: önce her iki platformda `shift` vardı → testçiler "iki kere
+// kayıyor" dedi → render zincirini düzelttik (bkz. plan, madde 2a) → testçiler
+// bu sefer "geçişlerde bir an başka sayfa görünüyor, iğrenç" dedi. Araştırınca
+// bu, bizim yazdığımız bir hata değil, react-navigation'ın kendi belgelenmiş,
+// hâlâ AÇIK hatası çıktı — ve ÜÇÜ DE ANDROID'E ÖZGÜ:
 //   · react-navigation#12862 — "Previous screen flashing when using shift
-//     transition after upgrading to Expo SDK 54": Android'e özgü, `shift`
-//     animasyonunda önceki ekranın tek karelik yanıp sönmesi. Bildiren kişi
-//     `shift`'i `none`'a çevirince sorunun TAMAMEN kaybolduğunu doğrulamış.
+//     transition after upgrading to Expo SDK 54". Bildiren kişinin kendi
+//     cümlesi: "On iOS everything works perfectly." `shift`'i `none`'a
+//     çevirince sorunun TAMAMEN kaybolduğunu da doğrulamış.
 //   · react-navigation#12928 — reanimated'li bir sekmeye (bizde: Profil,
 //     11 yerde reanimated) bir kere girildikten SONRA diğer sekmelerde de
-//     titremenin başladığını gösteriyor; kurulu reanimated sürümümüzle
-//     (4.1.1) birebir aynı ortamda bildirilmiş.
+//     titreme; kurulu reanimated sürümümüzle (4.1.1) birebir aynı ortamda
+//     bildirilmiş, ağırlıklı olarak Android.
 //   · react-navigation#12377 — Android + Yeni Mimari (`newArchEnabled`,
-//     bizim kurulumumuz) kombinasyonuna özel.
-// Üçü de upstream'de açık, düzeltilmemiş. Tek doğrulanmış çözüm `none`.
+//     bizim kurulumumuz) kombinasyonuna özel, "Android exclusively".
 //
-// KULLANICI KARARI: kayma efekti kalksın, geçiş anında olsun — kesin ve
-// garantili olan bu. `transitionSpec` içinde süresi zaten 0ms (bkz.
-// BottomTabView.tsx NAMED_TRANSITIONS_PRESETS.none), yani bu aynı zamanda
-// EN HIZLI seçenek: hiç interpolasyon çalışmıyor.
+// Hata Android'e özgü olduğu için çözümü de Android'e özgü tutuyoruz:
+// iOS'ta kayma efekti KALIYOR (orada sorunsuz çalıştığı üç issue'da da
+// yazılı), Android'de kapatılıyor. Böylece kimse gereksiz yere efekt
+// kaybetmiyor — kullanıcı isteği buydu.
 //
-// `freezeOnBlur: false` ise BİLEREK ve `none`'a geçince DAHA ÖNEMLİ hâle
-// geldi: aşağıdaki nota bak.
+// Android'de `none` ayrıca EN HIZLI seçenek: `transitionSpec` süresi 0ms
+// (bkz. BottomTabView.tsx NAMED_TRANSITIONS_PRESETS.none), hiç interpolasyon
+// çalışmıyor.
+//
+// ⚠️ iOS'ta titreme görülürse tek yapılacak şey aşağıdaki satırı
+// `Platform.OS === 'ios' ? 'none' : 'none'` yapmak — ya da koşulu tamamen
+// kaldırmak. Tek satır, geri alınabilir.
+const TAB_ANIMATION = Platform.OS === 'ios' ? 'shift' : 'none';
+
+// `freezeOnBlur: false` BİLEREK duruyor: aşağıdaki nota bak.
 //
 // Sekmelerde react-freeze KAPALI (madde 3'ün teşhisi).
 // `App.tsx`'teki `enableFreeze(true)` her Screen'in `freezeOnBlur` VARSAYILANINI
@@ -66,21 +75,24 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 //   · react-native-screens#2150 — Fabric + bottom-tabs: "dokunulabilirlerin
 //     hepsi donuyor, ANİMASYONLAR ÇALIŞMAYA DEVAM EDİYOR" — "bar duruyor ama
 //     tepki vermiyor" tablosunun aynısı
-// `enableFreeze(true)` genel olarak AÇIK kalıyor (push edilen stack ekranları
-// için kazancı gerçek ve orada bu hata belgelenmemiş); yalnızca sekmelerde
-// kapatıyoruz. Sekmeler zaten `detachInactiveScreens` varsayılanıyla native
-// tarafta ayrılıyor, dolayısıyla kaybedilen şey sadece JS re-render'ı.
+// GÜNCEL DURUM: bu satır ARTIK GEREKSİZ. İlk turda `enableFreeze(true)`
+// genel olarak açık bırakılıp yalnızca sekmelerde kapatılmıştı; ikinci turda
+// testçiler "arka plandan dönünce 2-3 saniye TÜM UYGULAMA donuyor" deyince
+// görüldü ki push edilen stack ekranlarında da aynı hata var ve orası
+// korumasız kalmış — bu yüzden `App.tsx`'te kaynak tamamen kapatıldı
+// (`enableFreeze(false)`).
 //
-// EK NOT (`animation: 'none'`'a geçince): BottomTabView.tsx'teki
-// `hasAnimation()` artık `false` dönüyor, yani odaktan çıkan sekme için
-// "animasyon sürüyor" ara hâli (`STATE_TRANSITIONING_OR_BELOW_TOP`) hiç
-// oluşmuyor — odağı kaybeden sekme ANINDA `STATE_INACTIVE` oluyor. Bu,
-// `freezeOnBlur: false` YAZMASAYDIK dondurmanın öncekinden de agresif
-// çalışacağı anlamına gelirdi (geçiş süresince bile artık bir bekleme payı
-// yok). Yani bu satır `shift` zamanında olduğundan DAHA kritik hâle geldi.
+// Yine de bilerek duruyor: niyeti belgeliyor ve ileride biri `enableFreeze`'i
+// tekrar açarsa sekmeler kendiliğinden korunmuş oluyor.
+//
+// Android'de `animation: 'none'` olduğu için BottomTabView'daki
+// `hasAnimation()` false dönüyor, yani odaktan çıkan sekme "animasyon
+// sürüyor" ara hâlinden (`STATE_TRANSITIONING_OR_BELOW_TOP`) hiç geçmeden
+// ANINDA `STATE_INACTIVE` oluyor — dondurma açık olsaydı bu, geçiş
+// süresince bile bekleme payı bırakmazdı.
 const SCREEN_OPTIONS = {
   headerShown: false,
-  animation: 'none',
+  animation: TAB_ANIMATION,
   freezeOnBlur: false,
   sceneStyle: { backgroundColor: 'transparent' },
 } as const;
