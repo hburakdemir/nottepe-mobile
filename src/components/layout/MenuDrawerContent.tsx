@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { DrawerContentComponentProps } from '@react-navigation/drawer';
@@ -78,6 +79,9 @@ function Divider() {
   return <View className="h-px bg-inset my-3" />;
 }
 
+// Menü her açıldığında yeniden çekilmesin diye paylaşılan anahtar.
+export const FOLLOWED_DEPARTMENTS_KEY = ['departments', 'followed'] as const;
+
 interface FollowedDepartment {
   faculty: string;
   department: string;
@@ -100,7 +104,24 @@ function FollowedDepartmentsSection({
   onNavigate: (fn: () => void) => void;
 }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [follows, setFollows] = useState<FollowedDepartment[] | null>(null);
+  // ESKİDEN menü HER AÇILDIĞINDA `departmentFollowAPI.getMine()` atılıyordu ve
+  // cevap gelene kadar bu bölüm `null` dönüyordu — istek dönünce panelin
+  // ORTASINA bir blok ekleniyor, çekmece animasyonu sürerken görünür bir
+  // sıçrama oluyordu. Kullanıcının "menü 3 aşamada açılıyor gibi" dediği şeyin
+  // en belirgin parçası buydu.
+  //
+  // Artık react-query: ilk açılışta bir kez çekiliyor, 5 dakika taze sayılıyor,
+  // sonraki açılışlarda veri ZATEN elde olduğu için hiç istek atılmıyor ve
+  // panel ilk kareden itibaren tam hâliyle çiziliyor.
+  const { data: follows = null } = useQuery({
+    queryKey: FOLLOWED_DEPARTMENTS_KEY,
+    queryFn: async () => {
+      const res = await departmentFollowAPI.getMine();
+      return (res.data?.follows || []) as FollowedDepartment[];
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
   const [showAll, setShowAll] = useState(false);
   // Başlık artık "Araçlar" gibi açılır-kapanır (kullanıcı isteği: yanında aşağı
   // ok butonu olmalı) — ok Reanimated ile 180° dönüyor, statik transform değil.
@@ -110,16 +131,13 @@ function FollowedDepartmentsSection({
   useEffect(() => {
     // Menü kapanınca liste başa dönsün — bir sonraki açılışta panel hep en
     // baştaki haliyle karşılasın (bkz. MenuDrawerContent scroll sıfırlaması).
+    // Veri çekme ARTIK BURADA DEĞİL (yukarıdaki react-query'ye taşındı); bu
+    // efekt yalnızca açılır/kapanır durumunu sıfırlıyor.
     if (!isOpen) {
       setShowAll(false);
       setOpen(true);
       rotation.value = 180;
-      return;
     }
-    departmentFollowAPI
-      .getMine()
-      .then((res) => setFollows(res.data?.follows || []))
-      .catch(() => setFollows([]));
   }, [isOpen, rotation]);
 
   const chevronStyle = useAnimatedStyle(() => ({ transform: [{ rotate: `${rotation.value}deg` }] }));
@@ -130,7 +148,11 @@ function FollowedDepartmentsSection({
     rotation.value = withTiming(next ? 180 : 0, { duration: 200 });
   };
 
-  if (follows === null) return null;
+  // İLK açılışta (cache henüz boşken) `null` dönmek panelin altındaki her şeyi
+  // yukarı çekiyor, veri gelince de aşağı itiyordu — sıçramanın kendisi buydu.
+  // Bunun yerine başlık satırıyla AYNI yükseklikte bir yer tutucu bırakıyoruz:
+  // veri geldiğinde yerine geçiyor, panel hiç kıpırdamıyor.
+  if (follows === null) return <View className="h-[52px]" />;
 
   const header = (
     <Pressable onPress={toggle} className="flex-row items-center gap-4 px-3 py-3.5 rounded-md active:bg-inset">

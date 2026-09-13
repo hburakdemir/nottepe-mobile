@@ -1,6 +1,6 @@
 # Nottepe Mobil — Performans Teşhisi ve Çözüm Planı
 
-Tarih: 2026-09-13 · Durum: **Faz 1 tamam** (4 ✅ 6 ✅ 7 ✅) · **R1 ✅ R2 ✅ R3 ✅** · cihazda doğrulama bekliyor
+Tarih: 2026-09-13 · Durum: **Faz 1 ✅ · Faz 2 ✅ · R1-R3 ✅** — cihazda doğrulama bekliyor. Kalan: Faz 3 (10, 3, 5), R4, madde 9 ölçümü.
 Doğrulama: Expo SDK 54 (kurulu sürüm) dokümanları + React Navigation 7 / react-native-screens issue takibi
 
 ---
@@ -9,16 +9,16 @@ Doğrulama: Expo SDK 54 (kurulu sürüm) dokümanları + React Navigation 7 / re
 
 | # | Belirti | Kök sebep | Teşhis kesinliği | Çözüm oranı | Efor |
 |---|---------|-----------|------------------|-------------|------|
-| 1 | Menü 3 aşamada açılıyor | Açılışta ağ isteği + panel içinde 2 ayrı setState | Yüksek | %85 | 2s |
-| 2 | Sekme geçişi 2 kere oynuyor | `setActiveTab` animasyon ortasında ağacı yeniden çiziyor | Yüksek | %75 | 3s |
+| 1 ✅ | Menü 3 aşamada açılıyor | Açılışta ağ isteği + panel içinde 2 ayrı setState | Yüksek | %85 | 2s |
+| 2 ✅ | Sekme geçişi 2 kere oynuyor | `setActiveTab` animasyon ortasında ağacı yeniden çiziyor | Yüksek | %75 | 3s |
 | 3 | Arka plandan dönünce alt bar donuyor | `keyboardOpen` bayrağı takılı kalıyor (WaveTabBar) | Yüksek | %85 | 2s |
 | 4 ✅ | 130 sekmelerinde donma | **Yapay 450 ms iskelet** + 95 kutucuk tek karede | Kesin | %95 | 2s |
 | 5 | Yemekhane spinner | Ham `useEffect`, cache yok | Kesin | %95 | 2s |
 | 6 ✅ | Klavye inputu kapatıyor | `KeyboardAvoidingView` sadece padding veriyor, kaydırmıyor | Kesin | %90 | 4s |
 | 7 ✅ | Profil çok yavaş | 7 paralel istek tek `loading` bayrağına bağlı | Kesin | %90 | 4s |
-| 8 | Avatar "Kapat" butonu | Tasarım eksiği | Kesin | %100 | 30dk |
+| 8 ✅ | Avatar "Kapat" butonu | Tasarım eksiği | Kesin | %100 | 30dk |
 | 9 | Her geçişte yavaşlık | 21/23 ekran cache'siz + donmuş ekran optimizasyonu çalışmıyor | Yüksek | %70 | birleşik |
-| 9b | **Fakülteler / Profil daha çok** | Profil: 7 sayfa + 8 scroll worklet · Fakülteler: debounce yok | Yüksek | %85 | 1g |
+| 9b ✅ | **Fakülteler / Profil daha çok** | Profil: 7 sayfa + 8 scroll worklet · Fakülteler: debounce yok | Yüksek | %85 | 1g |
 | 10 | Sürekli yükleme animasyonu | react-query 23 ekranın 2'sinde | Kesin | %95 | birleşik |
 
 **Önce şu üçü:** 4 → 7 → 6. En yüksek etki/efor oranı bunlarda ve üçü de kesin teşhis.
@@ -45,7 +45,11 @@ Play Console'un önerdiği **R8 bu listedeki hiçbir maddeyi çözmez.** R8 kull
 - Takip edilen bölümleri react-query'ye taşı (`staleTime: 5dk`), menü açılışında istek atma; veri yoksa **sabit yükseklikte iskelet** göster ki panel zıplamasın.
 - `setOverlayActive`'i kaldır: `overflow` sabit `'hidden'`, SVG kenar çizgisi sürekli mount'lu kalsın, görünürlüğü sadece `stroke` opaklığıyla (zaten Reanimated'de) değişsin. Böylece açılış anında hiç JS re-render'ı olmaz.
 
-**Oran: %85.** Kalan %15: çekmece animasyonunun kendisi Reanimated'de, düşük RAM'li cihazda yine 1-2 kare düşebilir.
+**✅ Yapıldı — ama yalnızca birinci madde.** Takip edilen bölümler react-query'ye taşındı (`FOLLOWED_DEPARTMENTS_KEY`, `staleTime: 5dk`): menü artık her açılışta istek atmıyor, ilk açılıştan sonra veri hazır geliyor. `return null` yerine başlık satırıyla aynı yükseklikte yer tutucu kondu, böylece ilk açılışta da panel kıpırdamıyor. Takip/takipten çıkma yapılan üç yerde (DepartmentDetail, Profil, KVKK kapısı) anahtar geçersiz kılınıyor — cache bayat kalmasın.
+
+**`PushableStack`'teki `setOverlayActive` BİLEREK DOKUNULMADAN BIRAKILDI.** Plan "kaldır, `overflow` sabit `hidden` kalsın" diyordu; kodu açınca görüldü ki o koşul bilinçli konmuş: sürekli `hidden` tutmak her ekran için kalıcı bir offscreen/composite katmanı zorluyor ve özellikle tablette ısınmaya katkı sağlıyordu (dosyadaki nota bakın). Ayrıca kapatma katmanı (`Pressable`) gerçekten koşullu olmak zorunda — sürekli mount'lu kalırsa ekrandaki HER dokunuşu yutar. Yani bu ikisi kaldırılamaz; kaldırsaydım kapatılmış iki sorunu birden geri açardım.
+
+**Oran: %85 → gözlemle doğrulanacak.** Ağ isteği kaynaklı sıçrama gitti; kalan pay çekmece animasyonunun kendisinde.
 **Plan B:** Menü içeriğini `InteractionManager.runAfterInteractions` ile animasyon bitince doldur — sıçrama kalır ama animasyon pürüzsüz olur.
 
 ---
@@ -63,7 +67,11 @@ Testçilerin "2 kere kayıyor" dediği şey bu ve **iki ayrı sebebi var:**
 - Başlığı `setActiveTab` ile değil, `AppHeader` içinden `useNavigationState` ile oku — böylece state değişimi navigator'ı değil sadece başlığı re-render eder.
 - `animation: 'shift'`'i **kaldırmayı ölç**. Kaldırılınca `freezeOnBlur` geri geliyor; kayma efektini kaybedersiniz ama 4 ekran donar. Kullanıcı isteği "kayarak geçmeli" idi — bu bir takas, kararı siz vereceksiniz.
 
-**Oran: %75.** (a) kesin, (b) bilinen hata ama sizin sürümünüzde birebir doğrulanmadı.
+**✅ (a) yapıldı.** `<Tab.Navigator>` ayrı bir `React.memo`'lu bileşene (`MainTabs`) çıkarıldı; `screenOptions` ve `tabBar` modül seviyesinde sabit, `screenListeners` tek bağımlılıklı `useMemo`. Başlık state'i (`activeTab`) artık yalnızca üst barı çiziyor, navigator'a hiç ulaşmıyor — `onTabChange` bağımlılıksız `useCallback`, memo'nun ön şartı.
+
+**(b) — `animation: 'shift'` KASITLI OLARAK KALDI.** Kaldırmak `freezeOnBlur`'ü geri getirir ve 4 ekranı dondururdu, ama kayma efekti açık bir kullanıcı isteğiydi ("kayarak geçmeli"). Bu bir takas ve kullanıcıya sorulmadan yapılmamalı — cevap gelirse tek satır.
+
+**Oran: %75.** (a) uygulandı, (b) beklemede.
 **Plan B:** `animation`'ı koruyup her sekme ekranını kendi içinde `React.memo` + ağır bölümleri `useFocusEffect` ile odakta değilken durdur.
 
 ---
@@ -214,7 +222,7 @@ olurdu; üstelik bekleme artık tek isteğe indiği için çok daha kısa.
 
 [AvatarBuilderScreen.tsx:305-307](../../src/screens/main/AvatarBuilderScreen.tsx#L305-L307) altta tek "Kapat" butonu var; "Kaydet" ise üstte, satır [147-154](../../src/screens/main/AvatarBuilderScreen.tsx#L147-L154).
 
-**Çözüm:** altta iki butonlu bir çubuk — solda **Vazgeç**, sağda **Kaydet** (`saving`/`saved` durumları korunarak). Üstteki Kaydet kaldırılır, rastgele butonu yerinde kalır.
+**✅ Yapıldı.** Altta iki butonlu çubuk: solda **Vazgeç** (çerçeveli), sağda **Kaydet** (`Kaydediliyor…` / `Kaydedildi!` durumları korunarak). Üstteki Kaydet kaldırıldı; rastgele butonu yerinde kaldı ve artık etiketli ("Rastgele") — tek başına kalınca zar ikonu kendini anlatmıyordu.
 
 **Oran: %100.** Saf UI işi.
 

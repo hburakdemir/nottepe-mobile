@@ -63,6 +63,7 @@ import ProfileEditModal from '../../components/profile/ProfileEditModal';
 import DeleteAccountModal from '../../components/profile/DeleteAccountModal';
 import AvatarBuilderScreen from './AvatarBuilderScreen';
 import { MY_AVATAR_KEY, useInvalidateMyAvatar, useMyAvatar } from '../../hooks/useMyAvatar';
+import { FOLLOWED_DEPARTMENTS_KEY } from '../../components/layout/MenuDrawerContent';
 import AvatarDisplay from '../../components/avatar/AvatarDisplay';
 import type { AvatarData } from '../../components/avatar/AvatarDisplay';
 import { isWithinEditWindow, type Checklist, type ChecklistItem } from '../../types/checklist';
@@ -749,6 +750,8 @@ export default function ProfileScreen() {
     setFollows((prev) => (prev ? prev.filter((f) => !(f.faculty === faculty && f.department === department)) : prev));
     try {
       await departmentFollowAPI.unfollow(faculty, department);
+      // Menüdeki liste 5 dk cache'li (bkz. MenuDrawerContent) — tazelensin.
+      queryClient.invalidateQueries({ queryKey: FOLLOWED_DEPARTMENTS_KEY });
     } catch {
       // Sunucu reddettiyse listeyi yeniden çektirmek için sentinel'i sıfırla.
       setFollows(null);

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Alert, Linking, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ChevronDown, GraduationCap, ShieldCheck } from 'lucide-react-native';
 import { onboardingGateAPI, departmentFollowAPI } from '../../lib/api';
@@ -7,6 +8,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { API_BASE } from '../../lib/config';
 import { departmentOptions, facultyOptions, type DepartmentOption } from '../../utils/departmentOptions';
 import OptionSheet from '../layout/OptionSheet';
+import { FOLLOWED_DEPARTMENTS_KEY } from '../layout/MenuDrawerContent';
 
 interface Option {
   value: string;
@@ -62,6 +64,7 @@ function SearchableSelect({
 // KvkkGateModal.jsx'in portu. RootNavigator, user.kvkkConsentAt/faculty/department
 // tamamlanana kadar bunu her ekranın üstünde gösterir.
 export default function KvkkGateModal() {
+  const queryClient = useQueryClient();
   const { user, updateUser } = useAuth();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -101,7 +104,13 @@ export default function KvkkGateModal() {
         kvkkConsent: true,
       });
       updateUser(res.data.user);
-      departmentFollowAPI.follow(selectedFaculty, selectedDepartment).catch(() => {});
+      departmentFollowAPI
+        .follow(selectedFaculty, selectedDepartment)
+        // Menüdeki "Takip Ettiğim Bölümler" listesi 5 dk cache'li
+        // (bkz. MenuDrawerContent) — onboarding'de eklenen ilk bölüm menüye
+        // girerken görünsün diye anahtar geçersiz kılınıyor.
+        .then(() => queryClient.invalidateQueries({ queryKey: FOLLOWED_DEPARTMENTS_KEY }))
+        .catch(() => {});
     } catch (err: any) {
       Alert.alert('Hata', err.response?.data?.message || 'Bir şeyler ters gitti, tekrar deneyin.');
     } finally {
