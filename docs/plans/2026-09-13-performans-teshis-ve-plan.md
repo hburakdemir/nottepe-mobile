@@ -1,6 +1,6 @@
 # Nottepe Mobil — Performans Teşhisi ve Çözüm Planı
 
-Tarih: 2026-09-13 · Durum: **Faz 1 ✅ · Faz 2 ✅ · Faz 3 ✅ · R1-R3 ✅** — cihazda doğrulama bekliyor. Kalan: R4, madde 9 ölçümü, madde 10 katman 2 (kalıcı cache).
+Tarih: 2026-09-13 · Durum: **Faz 1-3 ✅ · R1-R4 ✅** — 1.0.1 testçilerde, iki yeni bulgu geldi ve düzeltildi (aşağıda: madde 2 üçüncü tur, madde 3 ikinci tur). Kalan: madde 9 ölçümü, madde 10 katman 2.
 Doğrulama: Expo SDK 54 (kurulu sürüm) dokümanları + React Navigation 7 / react-native-screens issue takibi
 
 ---
@@ -85,6 +85,16 @@ Kullanıcı zaten "kayma animasyonu kalmalı" dedi; `shift` kalıyor ve hiçbir 
 Bunun ters yönde bir sonucu da var ve madde 3'ü çözen ipucu o oldu: sekmeler GERÇEKTEN donduruluyorsa, `enableFreeze`'in Android'de arka plandan dönüşte yaptığı bilinen hasar bu uygulamayı da vuruyor demektir. Bkz. madde 3.
 
 **Oran: %75.**
+
+**2026-09-13, ÜÇÜNCÜ tur — `shift` tamamen kaldırıldı, `animation: 'none'`.** 1.0.1 testçilerde: "geçişlerde bir an başka sayfa görünüyor, iğrenç". Bu, yukarıdaki analizin öngörmediği AYRI bir upstream hatasıymış:
+
+- [react-navigation#12862](https://github.com/react-navigation/react-navigation/issues/12862) — Android'e özgü, `shift` animasyonunda önceki ekranın tek karelik yanıp sönmesi. Bildiren kişi `shift`→`none` ile sorunun tamamen kaybolduğunu doğrulamış.
+- [react-navigation#12928](https://github.com/react-navigation/react-navigation/issues/12928) — reanimated'li bir sekmeye (bizde: Profil) girildikten sonra diğer sekmelerde de titreme; ortamı reanimated 4.1.1 — bizim kurulu sürümümüzle birebir aynı.
+- [react-navigation#12377](https://github.com/react-navigation/react-navigation/issues/12377) — Android + Yeni Mimari kombinasyonuna özel.
+
+Üçü de açık, düzeltilmemiş. **Kullanıcı kararı: kayma efekti kalksın, geçiş anında olsun.** Bu aynı zamanda en hızlı seçenek — `transitionSpec` süresi 0ms.
+
+**Oran (güncel): %95.**
 **Plan B:** `animation`'ı koruyup her sekme ekranını kendi içinde `React.memo` + ağır bölümleri `useFocusEffect` ile odakta değilken durdur.
 
 ---
@@ -128,6 +138,18 @@ Faz 1'den önce zararsızdı, çünkü orada RN'in kendi `KeyboardAvoidingView`'
 **✅ Yapıldı:** bar `KeyboardAvoider`'ın da Tab.Navigator'ın da dışına, navigator'ın kardeşi olarak çıkarıldı (`tabBar` yuvası boş bırakıldı). AppShell zaten baştan böyle çiziyordu; iki montaj yeri artık yapı olarak birebir aynı. Bar aktif sekmeyi artık kendisi türetemediği için (o konumdan kök stack'i görür, hep "MainTabs" derdi) `activeRouteName` prop'uyla veriliyor — MainTabsScreen o state'i zaten üst bar başlığı için tutuyordu.
 
 **Oran: %80.** İki ayrı sebep birden kapatıldı ama ikisi de aynı belirtiyi verdiği için hangisinin asıl suçlu olduğunu ancak cihaz söyler. Düzelmezse sıradaki tek satır: `enableFreeze(false)`.
+
+---
+
+**2026-09-13, İKİNCİ tur — teşhis EKSİKMİŞ, kapsam çok dardı.** 1.0.1 testçilerde: *"en büyük sorun, arka plandan dönünce ya da kilit açılınca 2-3 saniye TÜM UYGULAMA donuyor."* Bu, "sadece alt bar" tarifinden daha ağır bir belirti.
+
+Sebep: bir önceki turda `freezeOnBlur: false`'u YALNIZCA sekmelere ([MainTabsScreen.tsx](../../src/navigation/MainTabsScreen.tsx)) uygulamıştım, "push edilen stack ekranlarında kazancı gerçek ve orada bu hata bildirilmemiş" varsayımıyla. **Yanlıştı.** [RootNavigator.tsx](../../src/navigation/RootNavigator.tsx)'daki `Stack.Navigator`ın `screenOptions`'ında `freezeOnBlur` için hiçbir override yok — yani hâlâ varsayılan `true`. Uygulama zamanının büyük kısmı push edilen ekranlarda geçiyor (detaylar, listeler, formlar); testçinin tarif ettiği "tüm uygulama donuyor" tam olarak bu — sekmede değil, push edilen herhangi bir ekrandayken aynı Android hata ailesine (#1478/#2384/#2150) giriliyor.
+
+**✅ Yapıldı: kaynak kapatıldı.** [App.tsx](../../App.tsx): `enableFreeze(false)`. İki navigator'a ayrı ayrı `freezeOnBlur: false` eklemek yerine (üçüncü bir yeri unutma riski var) kaynağı kapatmak seçildi — nerede olursa olsun artık dondurma yok. Kaybedilen: odakta olmayan ekranların JS re-render'dan muaf tutulması (bellek/CPU tasarrufu); karşılığı artık ölçülmüş — iki ayrı testçi raporu aynı bayrağa çıktı.
+
+`registerToken` (her ön plana dönüşte çalışıyor) ayrıca kontrol edildi: tamamen async I/O, JS thread'i bloklayan bir şey yok — bu değil.
+
+**Oran (güncel): %90.**
 
 ---
 
@@ -384,6 +406,15 @@ Ayrıca `quality: 0.9` da işe yaramazdı: view-shot'ta `quality` **yalnızca jp
 - `UserProfileScreen` — `ScrollView` + map ama gönderiler `POSTS_LIMIT` ile sayfalanıyor. Düşük risk.
 
 ---
+
+## Yeni genel kural — gecikmeli yükleme ✅
+
+**2026-09-13.** Kullanıcı isteği: *"internet hızı yeterliyse loading spinner ya da skeleton loading olmamalı asla."* [useDelayedLoading.ts](../../src/hooks/useDelayedLoading.ts) eklendi: `isLoading` iskeleti DOĞRUDAN tetiklemiyor, veri 200ms'den önce gelirse iskelet hiç görünmüyor. 200ms seçildi çünkü göz ~100ms altını "anında" algılıyor, ~300ms üstünü "bekleme" olarak kodluyor.
+
+Şimdilik yalnızca sekmelerden erişilen iki ekrana bağlandı: **CafeteriaMenuScreen** (hafta + ay iskeleti) ve **ProfileScreen** (`LoadingDeer`) — "geçişler" bağlamında istenen tam olarak buydu. Diğer react-query'li ekranlarda (SSS, Öneriler, Kontrol listeleri, Program, Not istekleri, Kaydedilenler, detay sayfaları) aynı davranış istenirse tek satırlık bir sarmalama, hepsine aynı hook'la genişletilebilir.
+
+---
+
 
 ## Açık sorular
 

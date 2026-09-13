@@ -16,6 +16,7 @@ import {
 import { menuAPI } from '../../lib/api';
 import { useTheme } from '../../context/ThemeContext';
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
+import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 
 // Yemek listesi gün içinde değişmiyor: bir kez çekildikten sonra 30 dakika
 // taze sayılıyor. Sekmeden çıkıp geri gelmek, uygulamayı arka plandan
@@ -161,7 +162,7 @@ export default function CafeteriaMenuScreen() {
   // Bugünün menüsü ve haftalık liste tek sorguda birleşiyor: ikisi ayrı
   // anahtarda olsaydı ekran iki ayrı yükleme durumu yönetmek zorunda kalırdı,
   // oysa kullanıcı için tek bir şey var — "bu haftanın listesi".
-  const { data: days = EMPTY_DAYS, isLoading } = useQuery({
+  const { data: days = EMPTY_DAYS, isLoading: isLoadingRaw } = useQuery({
     queryKey: ['menu', 'week'],
     queryFn: async () => {
       const [todayRes, weekRes] = await Promise.all([menuAPI.getToday(), menuAPI.getWeek()]);
@@ -174,6 +175,10 @@ export default function CafeteriaMenuScreen() {
     staleTime: MENU_STALE_MS,
   });
 
+  // İnternet hızlıysa (veri 200ms'den önce gelirse) iskelet HİÇ görünmüyor —
+  // yalnızca gerçekten yavaşsa devreye giriyor. bkz. useDelayedLoading.ts
+  const isLoading = useDelayedLoading(isLoadingRaw);
+
   // Seçili gün artık state'te TUTULMUYOR, TÜRETİLİYOR: kullanıcı bir güne
   // dokunduysa o, dokunmadıysa haftanın ilk günü. Eskiden veri gelince çalışan
   // `setSelectedDate` ile yazılıyordu — yani veri her tazelendiğinde
@@ -185,7 +190,7 @@ export default function CafeteriaMenuScreen() {
   // aynı işi anahtar başına yapıyor, üstelik ekran söküldüğünde de kalıyor.
   // `isLoading` (≠ `isFetching`) kilit nokta — daha önce bakılmış bir aya geri
   // dönüldüğünde veri cache'ten geldiği için iskelet HİÇ görünmüyor.
-  const { data: monthDaysList = EMPTY_DAYS, isLoading: monthLoading } = useQuery({
+  const { data: monthDaysList = EMPTY_DAYS, isLoading: monthLoadingRaw } = useQuery({
     queryKey: ['menu', 'month', monthCursor.year, monthCursor.month],
     queryFn: async () => {
       const res = await menuAPI.getMonth(monthCursor.year, monthCursor.month);
@@ -194,6 +199,7 @@ export default function CafeteriaMenuScreen() {
     enabled: viewMode === 'month',
     staleTime: MENU_STALE_MS,
   });
+  const monthLoading = useDelayedLoading(monthLoadingRaw);
 
   const selectedDay = days.find((d) => d.date === selectedDate);
   const hasMenu = selectedDay && Object.values(selectedDay.meals || {}).some((m) => m.status === 'ok');

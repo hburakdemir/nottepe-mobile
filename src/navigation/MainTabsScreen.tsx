@@ -26,15 +26,32 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 // başlıyordu. Testçilerin "ekran direkt kaymıyor, 2 kere kayıyor" dediği şey
 // buydu (bkz. docs/plans/2026-09-13-performans-teshis-ve-plan.md, madde 2).
 //
-// `animation: 'shift'` kalıcı (kullanıcı kararı: "kayma animasyonu kalmalı").
-// Bir zamanlar bunun bedeli olduğunu yazmıştım — React Navigation #12621,
-// "bottom-tabs'te `animation` varken `freezeOnBlur` devre dışı kalır". O BİLGİ
-// ARTIK GEÇERSİZ: kurulu @react-navigation/bottom-tabs 7.18.18'de
-// BottomTabView, `shouldFreeze`'i yalnızca animasyon SÜRERKEN (`isAnimatingRoute`)
-// bastırıyor, animasyon bitince odakta olmayan sekme yine donduruluyor. Yani
-// "kayma mı, dondurma mı" diye bir takas yok; ikisi bir arada çalışıyor.
+// `animation: 'none'` — 2026-09-13'te İKİNCİ kez değişti, bu sefer kesin.
 //
-// `freezeOnBlur: false` ise BİLEREK: aşağıdaki nota bak.
+// Sıra şöyleydi: önce `shift` vardı → testçiler "iki kere kayıyor" dedi →
+// render zincirini düzelttik (bkz. plan, madde 2a) → testçiler bu sefer
+// "geçişlerde bir an başka sayfa görünüyor, iğrenç" dedi. Araştırınca bu,
+// bizim yazdığımız bir hata değil, react-navigation'ın kendi belgelenmiş,
+// hâlâ AÇIK hatası çıktı:
+//   · react-navigation#12862 — "Previous screen flashing when using shift
+//     transition after upgrading to Expo SDK 54": Android'e özgü, `shift`
+//     animasyonunda önceki ekranın tek karelik yanıp sönmesi. Bildiren kişi
+//     `shift`'i `none`'a çevirince sorunun TAMAMEN kaybolduğunu doğrulamış.
+//   · react-navigation#12928 — reanimated'li bir sekmeye (bizde: Profil,
+//     11 yerde reanimated) bir kere girildikten SONRA diğer sekmelerde de
+//     titremenin başladığını gösteriyor; kurulu reanimated sürümümüzle
+//     (4.1.1) birebir aynı ortamda bildirilmiş.
+//   · react-navigation#12377 — Android + Yeni Mimari (`newArchEnabled`,
+//     bizim kurulumumuz) kombinasyonuna özel.
+// Üçü de upstream'de açık, düzeltilmemiş. Tek doğrulanmış çözüm `none`.
+//
+// KULLANICI KARARI: kayma efekti kalksın, geçiş anında olsun — kesin ve
+// garantili olan bu. `transitionSpec` içinde süresi zaten 0ms (bkz.
+// BottomTabView.tsx NAMED_TRANSITIONS_PRESETS.none), yani bu aynı zamanda
+// EN HIZLI seçenek: hiç interpolasyon çalışmıyor.
+//
+// `freezeOnBlur: false` ise BİLEREK ve `none`'a geçince DAHA ÖNEMLİ hâle
+// geldi: aşağıdaki nota bak.
 //
 // Sekmelerde react-freeze KAPALI (madde 3'ün teşhisi).
 // `App.tsx`'teki `enableFreeze(true)` her Screen'in `freezeOnBlur` VARSAYILANINI
@@ -53,9 +70,17 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 // için kazancı gerçek ve orada bu hata belgelenmemiş); yalnızca sekmelerde
 // kapatıyoruz. Sekmeler zaten `detachInactiveScreens` varsayılanıyla native
 // tarafta ayrılıyor, dolayısıyla kaybedilen şey sadece JS re-render'ı.
+//
+// EK NOT (`animation: 'none'`'a geçince): BottomTabView.tsx'teki
+// `hasAnimation()` artık `false` dönüyor, yani odaktan çıkan sekme için
+// "animasyon sürüyor" ara hâli (`STATE_TRANSITIONING_OR_BELOW_TOP`) hiç
+// oluşmuyor — odağı kaybeden sekme ANINDA `STATE_INACTIVE` oluyor. Bu,
+// `freezeOnBlur: false` YAZMASAYDIK dondurmanın öncekinden de agresif
+// çalışacağı anlamına gelirdi (geçiş süresince bile artık bir bekleme payı
+// yok). Yani bu satır `shift` zamanında olduğundan DAHA kritik hâle geldi.
 const SCREEN_OPTIONS = {
   headerShown: false,
-  animation: 'shift',
+  animation: 'none',
   freezeOnBlur: false,
   sceneStyle: { backgroundColor: 'transparent' },
 } as const;

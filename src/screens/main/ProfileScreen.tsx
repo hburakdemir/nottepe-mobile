@@ -11,6 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
+import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
@@ -206,7 +207,10 @@ export default function ProfileScreen() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const [loading, setLoading] = useState(true);
+  const [loadingRaw, setLoading] = useState(true);
+  // İnternet hızlıysa (veri 200ms'den önce gelirse) LoadingDeer HİÇ
+  // görünmüyor. bkz. useDelayedLoading.ts
+  const loading = useDelayedLoading(loadingRaw);
   const [activeTab, setActiveTab] = useState<TabKey>(route.params?.initialTab ?? 'posts');
   // Sekmeler artık yatay kaydırmalı bir "pager" (bkz. render) — sekme
   // butonuna basınca ya da kaydırma bitince ikisi birbirini senkron tutuyor.

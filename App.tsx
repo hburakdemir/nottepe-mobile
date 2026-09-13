@@ -30,22 +30,30 @@ import { queryClient } from './src/lib/queryClient';
 import { persistOptions } from './src/lib/queryPersist';
 import { LIGHT_VARS, DARK_VARS } from './src/theme/palette';
 
-// react-native-screens: odakta olmayan (arka plandaki) ekranlari dondurup
-// gereksiz re-render/layout'u engeller — native-stack gecislerinde performans
-// icin modul yuklenirken bir kere aktiflestirilmesi yeterli.
+// 2026-09-13, İKİNCİ tur: KAPATILDI. Sebebi:
 //
-// DIKKAT: bu cagri her Screen'in `freezeOnBlur` VARSAYILANINI true yapiyor
-// (react-native-screens Screen.tsx: `freezeOnBlur = freezeEnabled()`), yani
-// yalnizca stack'i degil bottom-tabs sekmelerini de kapsiyordu. Android'de
-// arka plandan/kilit ekranindan donuste alt bar'in gorunur ama dokunulamaz
-// kalmasinin belgelenmis sebebi bu (react-native-screens#1478, #2384, #2150 —
-// ayrintili not MainTabsScreen.tsx'te). Bu yuzden SEKMELERDE `freezeOnBlur`
-// acikca false; burasi acik kaliyor cunku push edilen stack ekranlarinda
-// kazanci gercek ve orada ayni hata bildirilmemis.
+// Bir önceki turda bunu yalnızca SEKMELER için kapatmıştım (`freezeOnBlur:
+// false`, bkz. MainTabsScreen.tsx), çünkü "push edilen stack ekranlarında
+// kazancı gerçek ve orada bu hata bildirilmemiş" diye düşünmüştüm. YANLIŞTI.
+// Testçi raporu netleşince görüldü: push edilen ekranlarda (`RootNavigator.tsx`
+// içindeki `Stack.Navigator`) `freezeOnBlur` için hiçbir override YOKTU —
+// yani hâlâ varsayılan `true`. Uygulama zamanının büyük kısmı push edilen
+// ekranlarda geçiyor (detaylar, listeler, formlar); testçinin "en büyük sorun,
+// arka plandan dönünce 2-3 saniye TÜM UYGULAMA donuyor" dediği tam bu —
+// sekmede değil, push edilen ekrandayken yaşanan aynı hata ailesi
+// (react-native-screens#1478, #2384, #2150 — MainTabsScreen.tsx'te ayrıntı).
 //
-// Cihaz testi bunu dogrulamazsa bir sonraki adim bu satiri `enableFreeze(false)`
-// yapmak — tek satir, geri alinabilir.
-enableFreeze(true);
+// İki navigator'a ayrı ayrı `freezeOnBlur: false` eklemek yerine (kolayca bir
+// üçüncü yeri unutma riski var — bir modal stack'i, ileride eklenecek bir
+// navigator) kaynağı kapatmak daha güvenli: `enableFreeze(false)` her
+// Screen'in `freezeOnBlur` varsayılanını false yapıyor, nerede olursa olsun.
+//
+// Kaybedilen şey: odakta olmayan ekranların JS re-render'dan muaf tutulması
+// (bellek/CPU tasarrufu). Bunun karşılığı artık teorik değil, ölçülmüş: iki
+// ayrı testçi raporu (önce "alt bar donuyor", şimdi "tüm uygulama donuyor")
+// aynı bayrağa çıkıyor. MainTabsScreen.tsx'teki `freezeOnBlur: false` artık
+// gereksiz ama zararsız — orada durmaya devam ediyor, niyeti belgeliyor.
+enableFreeze(false);
 
 // Fontlar hazır olana kadar (kullanıcı isteği: açılışta logo + altında
 // "Nottepe" yazmalı) — native splash bu JS bileşeni ekrana gelmeden önce
