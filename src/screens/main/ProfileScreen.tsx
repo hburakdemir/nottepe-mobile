@@ -1355,7 +1355,15 @@ export default function ProfileScreen() {
           ile hem kayıyor hem soluyor; şerit hep tam opak ve `headerAnimStyle`
           ile kartla birlikte yukarı gidip kartın yüksekliğinde duruyor —
           böylece ekranın en üstünde "yapışmış" gibi kalıyor. */}
-      <Animated.View pointerEvents="box-none" style={[{ position: 'absolute', top: 0, left: 0, right: 0 }, headerAnimStyle]}>
+      {/* `collapsable={false}`: bu da arka planı olmayan, yalnızca
+          konumlandırma taşıyan bir `box-none` sarmalayıcı — Android'de
+          düzleştirilip dokunuş yönlendirmesini kaybedebilir (ayrıntılı
+          gerekçe WaveTabBar.tsx'te). Savunma amaçlı. */}
+      <Animated.View
+        pointerEvents="box-none"
+        collapsable={false}
+        style={[{ position: 'absolute', top: 0, left: 0, right: 0 }, headerAnimStyle]}
+      >
         {/* NativeWind'in `className` derleme dönüşümü yalnızca 'react-native'den
             doğrudan import edilen bileşenleri (View, ScrollView, ...) tanıyor —
             `Animated.View` (reanimated) bu listede değil, üzerine className

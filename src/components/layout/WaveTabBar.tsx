@@ -252,6 +252,27 @@ export default function WaveTabBar({ activeRouteName }: { activeRouteName?: stri
         paddingHorizontal: H_MARGIN,
       }}
       pointerEvents="box-none"
+      // ⚠️ `collapsable={false}` — SÜS DEĞİL, DOKUNUŞ HATASININ ÇÖZÜMÜ.
+      //
+      // Yeni Mimari'de (Fabric) React Native, "yalnızca yerleşim için var"
+      // saydığı görünümleri optimizasyon amacıyla native tarafta HİÇ
+      // OLUŞTURMUYOR — buna view flattening (görünüm düzleştirme) deniyor.
+      // Bu View tam o profilde: arka planı yok, kenarlığı yok, yalnızca
+      // konumlandırma ve dolgu taşıyor.
+      //
+      // Ama bu View'in bir işi daha var: `pointerEvents="box-none"` ile
+      // "ben dokunuş almam, çocuklarım alır" diyor. Düzleştirilip yok
+      // edildiğinde o yönlendirme yapacak katman ortadan kalkıyor. Bar
+      // ÇİZİLMEYE devam ediyor (BlurView'in kendi `elevation`'ı var, o gerçek
+      // bir native görünüm) ama dokunuşlar sekmelere ulaşmıyor — testçilerin
+      // "bar duruyor ama basamıyorum" dediği tablo.
+      //
+      // `collapsable={false}` React Native'in bu optimizasyonu kapatmak için
+      // sunduğu resmî yol. Bedeli tek bir fazladan native görünüm.
+      //
+      // Bu teşhis, `enableFreeze(false)` denemesi işe YARAMADIKTAN sonra
+      // kuruldu: donma dondurmayla değil, dokunuş hedefiyle ilgiliymiş.
+      collapsable={false}
     >
       {/* Bar'ın kendisi yüzen bir buzlu-cam hap: gerçek arka plan bulanıklığı
           (BlurView) + yarı saydam dolgu + ince border + gölge. İçinde, aktif
