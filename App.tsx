@@ -32,6 +32,18 @@ import { LIGHT_VARS, DARK_VARS } from './src/theme/palette';
 // react-native-screens: odakta olmayan (arka plandaki) ekranlari dondurup
 // gereksiz re-render/layout'u engeller — native-stack gecislerinde performans
 // icin modul yuklenirken bir kere aktiflestirilmesi yeterli.
+//
+// DIKKAT: bu cagri her Screen'in `freezeOnBlur` VARSAYILANINI true yapiyor
+// (react-native-screens Screen.tsx: `freezeOnBlur = freezeEnabled()`), yani
+// yalnizca stack'i degil bottom-tabs sekmelerini de kapsiyordu. Android'de
+// arka plandan/kilit ekranindan donuste alt bar'in gorunur ama dokunulamaz
+// kalmasinin belgelenmis sebebi bu (react-native-screens#1478, #2384, #2150 —
+// ayrintili not MainTabsScreen.tsx'te). Bu yuzden SEKMELERDE `freezeOnBlur`
+// acikca false; burasi acik kaliyor cunku push edilen stack ekranlarinda
+// kazanci gercek ve orada ayni hata bildirilmemis.
+//
+// Cihaz testi bunu dogrulamazsa bir sonraki adim bu satiri `enableFreeze(false)`
+// yapmak — tek satir, geri alinabilir.
 enableFreeze(true);
 
 // Fontlar hazır olana kadar (kullanıcı isteği: açılışta logo + altında

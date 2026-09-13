@@ -26,24 +26,43 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 // başlıyordu. Testçilerin "ekran direkt kaymıyor, 2 kere kayıyor" dediği şey
 // buydu (bkz. docs/plans/2026-09-13-performans-teshis-ve-plan.md, madde 2).
 //
-// `animation: 'shift'` KASITLI OLARAK DURUYOR: giren/çıkan sahne yön farkına
-// göre ±50px kayıyor, bu açık bir kullanıcı isteğiydi ("kayarak geçmeli").
-// Bedeli var — React Navigation'ın açık hatası #12621 yüzünden bottom-tabs'te
-// bir `animation` ayarlıyken `freezeOnBlur` devre dışı kalıyor, yani odakta
-// olmayan sekmeler de render edilmeye devam ediyor. Kaldırmak 4 ekranı
-// dondururdu ama animasyonu öldürürdü; bu takas kullanıcıya sorulmadan
-// yapılmamalı.
+// `animation: 'shift'` kalıcı (kullanıcı kararı: "kayma animasyonu kalmalı").
+// Bir zamanlar bunun bedeli olduğunu yazmıştım — React Navigation #12621,
+// "bottom-tabs'te `animation` varken `freezeOnBlur` devre dışı kalır". O BİLGİ
+// ARTIK GEÇERSİZ: kurulu @react-navigation/bottom-tabs 7.18.18'de
+// BottomTabView, `shouldFreeze`'i yalnızca animasyon SÜRERKEN (`isAnimatingRoute`)
+// bastırıyor, animasyon bitince odakta olmayan sekme yine donduruluyor. Yani
+// "kayma mı, dondurma mı" diye bir takas yok; ikisi bir arada çalışıyor.
+//
+// `freezeOnBlur: false` ise BİLEREK: aşağıdaki nota bak.
+//
+// Sekmelerde react-freeze KAPALI (madde 3'ün teşhisi).
+// `App.tsx`'teki `enableFreeze(true)` her Screen'in `freezeOnBlur` VARSAYILANINI
+// true yapıyor (react-native-screens Screen.tsx: `freezeOnBlur = freezeEnabled()`).
+// Bu, odakta olmayan 4 sekmeyi Suspense ile donduruyor — ve Android'de arka
+// plandan/kilit ekranından dönüşte bar'ın görünür ama dokunulamaz kalmasının
+// belgelenmiş sebebi tam olarak bu:
+//   · react-native-screens#1478 — tekrar adımları birebir testçilerin tarifi:
+//     enableFreeze(true) → ekranı kilitle → aç → her şey takılı kalıyor
+//   · react-native-screens#2384 — "enableFreeze cause to bottom tab navigator
+//     unresponsive": bar görünür kalıyor, dokunuşlar sekmeyi değiştirmiyor
+//   · react-native-screens#2150 — Fabric + bottom-tabs: "dokunulabilirlerin
+//     hepsi donuyor, ANİMASYONLAR ÇALIŞMAYA DEVAM EDİYOR" — "bar duruyor ama
+//     tepki vermiyor" tablosunun aynısı
+// `enableFreeze(true)` genel olarak AÇIK kalıyor (push edilen stack ekranları
+// için kazancı gerçek ve orada bu hata belgelenmemiş); yalnızca sekmelerde
+// kapatıyoruz. Sekmeler zaten `detachInactiveScreens` varsayılanıyla native
+// tarafta ayrılıyor, dolayısıyla kaybedilen şey sadece JS re-render'ı.
 const SCREEN_OPTIONS = {
   headerShown: false,
   animation: 'shift',
+  freezeOnBlur: false,
   sceneStyle: { backgroundColor: 'transparent' },
 } as const;
 
-// Bar'ı Tab.Navigator'ın `tabBar`'ı olarak veriyoruz: bottom-tabs onu
-// sahnelerin İÇİNDE değil KARDEŞİ olarak çizdiği için geçiş animasyonundan
-// etkilenmiyor, ekranda sabit duruyor. AppHeader da aynı sebeple
-// Tab.Navigator'ın dışında, aşağıdaki sarmalayıcının içinde.
-const renderTabBar = () => <WaveTabBar />;
+// Tab.Navigator'ın kendi `tabBar` yuvası BOŞ bırakılıyor; bar aşağıda
+// navigator'ın kardeşi olarak çiziliyor. Sebebi aşağıdaki nota yazılı.
+const renderNoTabBar = () => null;
 
 // WaveTabBar'ın 5 sekmesi. ESKİDEN bunlar da düz stack route'larıydı ve geçiş
 // `StackActions.replace` ile yapılıyordu: her dokunuşta hedef ekran SIFIRDAN
@@ -73,7 +92,7 @@ const MainTabs = React.memo(function MainTabs({ onTabChange }: { onTabChange: (n
       initialRouteName="Home"
       screenListeners={screenListeners}
       screenOptions={SCREEN_OPTIONS}
-      tabBar={renderTabBar}
+      tabBar={renderNoTabBar}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Departments" component={DepartmentsScreen} />
@@ -114,14 +133,31 @@ export default function MainTabsScreen() {
           theme/palette.ts): sekme kendi arka planını boyamadan yüklenirken
           bile arkada doğru renk duruyor. */}
       <View className="flex-1 bg-ground">
-        {/* Klavye açılınca sekme içeriği yukarı itiliyor (bkz. KeyboardAvoider.tsx).
-            Tab bar Tab.Navigator'ın kendi `tabBar` yuvasında olduğu için bu
-            itmeden etkilenmiyor — klavyenin altında kalıyor. */}
+        {/* Klavye açılınca sekme içeriği yukarı itiliyor (bkz. KeyboardAvoider.tsx). */}
         <KeyboardAvoider>
           <ContentContainer>
             <MainTabs onTabChange={handleTabChange} />
           </ContentContainer>
         </KeyboardAvoider>
+
+        {/* BAR, `KeyboardAvoider`'IN DIŞINDA — ve Tab.Navigator'ın da dışında.
+            Buradaki eski yorum "tab bar kendi `tabBar` yuvasında olduğu için
+            klavye itmesinden etkilenmiyor" diyordu; YANLIŞTI. `tabBar` yuvası
+            Tab.Navigator'ın İÇİ, Tab.Navigator da KeyboardAvoider'ın içindeydi
+            — yani bar da itiliyordu. Klavye açıkken bar kendini gizlediği için
+            gözle fark edilmiyordu, ta ki KeyboardAvoider Android'de gerçekten
+            çalışmaya başlayana kadar: eskiden RN'in kendi KeyboardAvoidingView'ı
+            Android'de hiçbir şey yapmıyordu, şimdi keyboard-controller yerleşimi
+            Reanimated ile UI thread'inde sürüyor. Arka plandan dönüşte o
+            animasyon bayat bir değerde takılı kalırsa bar ESKİ YERİNDE ÇİZİLİR
+            ama dokunma alanı başka yerde kalır — "duruyor ama tepki vermiyor"un
+            ikinci olası kaynağı tam olarak bu. AppShell bar'ı zaten baştan
+            böyle, KeyboardAvoider'ın kardeşi olarak çiziyordu; iki montaj yeri
+            artık yapı olarak birebir aynı.
+            Bar mutlak konumlu, o yüzden normal akışta yer kaplamıyor; aktif
+            sekmeyi kendisi türetemediği için (kök stack'i görür) prop'la
+            veriliyor — bkz. WaveTabBar.tsx. */}
+        <WaveTabBar activeRouteName={activeTab} />
       </View>
     </View>
   );

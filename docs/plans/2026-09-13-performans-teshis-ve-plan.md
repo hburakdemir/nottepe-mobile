@@ -1,6 +1,6 @@
 # Nottepe Mobil — Performans Teşhisi ve Çözüm Planı
 
-Tarih: 2026-09-13 · Durum: **Faz 1 ✅ · Faz 2 ✅ · R1-R3 ✅** — cihazda doğrulama bekliyor. Kalan: Faz 3 (10, 3, 5), R4, madde 9 ölçümü.
+Tarih: 2026-09-13 · Durum: **Faz 1 ✅ · Faz 2 ✅ · R1-R3 ✅ · Madde 3 ✅** — cihazda doğrulama bekliyor. Kalan: Faz 3 (10, 5), R4, madde 9 ölçümü.
 Doğrulama: Expo SDK 54 (kurulu sürüm) dokümanları + React Navigation 7 / react-native-screens issue takibi
 
 ---
@@ -11,15 +11,15 @@ Doğrulama: Expo SDK 54 (kurulu sürüm) dokümanları + React Navigation 7 / re
 |---|---------|-----------|------------------|-------------|------|
 | 1 ✅ | Menü 3 aşamada açılıyor | Açılışta ağ isteği + panel içinde 2 ayrı setState | Yüksek | %85 | 2s |
 | 2 ✅ | Sekme geçişi 2 kere oynuyor | `setActiveTab` animasyon ortasında ağacı yeniden çiziyor | Yüksek | %75 | 3s |
-| 3 | Arka plandan dönünce alt bar donuyor | `keyboardOpen` bayrağı takılı kalıyor (WaveTabBar) | Yüksek | %85 | 2s |
+| 3 ✅ | Arka plandan dönünce alt bar donuyor | Sekmelerde `enableFreeze` (screens#1478/#2384/#2150) + bar `KeyboardAvoider`'ın içindeydi | Yüksek | %80 | 3s |
 | 4 ✅ | 130 sekmelerinde donma | **Yapay 450 ms iskelet** + 95 kutucuk tek karede | Kesin | %95 | 2s |
 | 5 | Yemekhane spinner | Ham `useEffect`, cache yok | Kesin | %95 | 2s |
 | 6 ✅ | Klavye inputu kapatıyor | `KeyboardAvoidingView` sadece padding veriyor, kaydırmıyor | Kesin | %90 | 4s |
 | 7 ✅ | Profil çok yavaş | 7 paralel istek tek `loading` bayrağına bağlı | Kesin | %90 | 4s |
 | 8 ✅ | Avatar "Kapat" butonu | Tasarım eksiği | Kesin | %100 | 30dk |
-| 9 | Her geçişte yavaşlık | 21/23 ekran cache'siz + donmuş ekran optimizasyonu çalışmıyor | Yüksek | %70 | birleşik |
+| 9 | Her geçişte yavaşlık | 14 ekran cache'siz (react-query'siz) | Yüksek | %70 | birleşik |
 | 9b ✅ | **Fakülteler / Profil daha çok** | Profil: 7 sayfa + 8 scroll worklet · Fakülteler: debounce yok | Yüksek | %85 | 1g |
-| 10 | Sürekli yükleme animasyonu | react-query 23 ekranın 2'sinde | Kesin | %95 | birleşik |
+| 10 | Sürekli yükleme animasyonu | react-query yalnızca 5 dosyada; 14 ekran elle fetch ediyor | Kesin | %95 | birleşik |
 
 **Önce şu üçü:** 4 → 7 → 6. En yüksek etki/efor oranı bunlarda ve üçü de kesin teşhis.
 
@@ -60,63 +60,76 @@ Testçilerin "2 kere kayıyor" dediği şey bu ve **iki ayrı sebebi var:**
 
 **a) Animasyon ortasında tüm sekme ağacı yeniden çiziliyor.** [MainTabsScreen.tsx:64-70](../../src/navigation/MainTabsScreen.tsx#L64-L70): `screenListeners.state` → `setActiveTab`. Bu state sadece üst bardaki başlık için tutuluyor ama `MainTabsScreen`'i yeniden render ediyor; `<Tab.Navigator>` JSX'i satır içinde durduğu için `screenOptions`, `screenListeners` ve `tabBar` prop'ları **her render'da yeni nesne**. Geçiş animasyonu sürerken navigator'a yeni prop seti gitmesi, `'shift'` animasyonunun baştan başlamasına yol açıyor.
 
-**b) `enableFreeze` sekmelerde çalışmıyor.** [App.tsx:34](../../App.tsx#L34)'te `enableFreeze(true)` var ama React Navigation'ın açık hatası [#12621](https://github.com/react-navigation/react-navigation/issues/12621): bottom-tabs'te bir `animation` ayarlandığında `freezeOnBlur` devre dışı kalıyor — `shouldFreeze` her zaman `false` değerlendiriliyor çünkü animasyonlu değeri dinleyen kod yok. Yani 5 sekmenin **beşi de** sürekli render ediliyor. Odakta olmayan Profil ekranı her seferinde sizinle birlikte yeniden çiziliyor.
+**b) ~~`enableFreeze` sekmelerde çalışmıyor.~~ — BU İDDİA YANLIŞTI, bkz. aşağıdaki düzeltme.**
 
 **Çözüm:**
 - `<Tab.Navigator>` bloğunu `useMemo` ile sabitle; `screenOptions`/`screenListeners`/`tabBar` referanslarını modül seviyesine ya da `useCallback`'e çıkar.
 - Başlığı `setActiveTab` ile değil, `AppHeader` içinden `useNavigationState` ile oku — böylece state değişimi navigator'ı değil sadece başlığı re-render eder.
-- `animation: 'shift'`'i **kaldırmayı ölç**. Kaldırılınca `freezeOnBlur` geri geliyor; kayma efektini kaybedersiniz ama 4 ekran donar. Kullanıcı isteği "kayarak geçmeli" idi — bu bir takas, kararı siz vereceksiniz.
+- ~~`animation: 'shift'`'i kaldırmayı ölç.~~ — böyle bir takas yokmuş, bkz. düzeltme.
 
 **✅ (a) yapıldı.** `<Tab.Navigator>` ayrı bir `React.memo`'lu bileşene (`MainTabs`) çıkarıldı; `screenOptions` ve `tabBar` modül seviyesinde sabit, `screenListeners` tek bağımlılıklı `useMemo`. Başlık state'i (`activeTab`) artık yalnızca üst barı çiziyor, navigator'a hiç ulaşmıyor — `onTabChange` bağımlılıksız `useCallback`, memo'nun ön şartı.
 
-**(b) — `animation: 'shift'` KASITLI OLARAK KALDI.** Kaldırmak `freezeOnBlur`'ü geri getirir ve 4 ekranı dondururdu, ama kayma efekti açık bir kullanıcı isteğiydi ("kayarak geçmeli"). Bu bir takas ve kullanıcıya sorulmadan yapılmamalı — cevap gelirse tek satır.
+**(b) DÜZELTME — sunduğum takas diye bir şey yokmuş.** Kullanıcıya "kayma animasyonu mu, ekran dondurma mı, birini seç" diye sordum; **soru baştan yanlıştı.** [#12621](https://github.com/react-navigation/react-navigation/issues/12621) kurulu sürümde çoktan düzeltilmiş. Kurulu `@react-navigation/bottom-tabs` 7.18.18'in kaynağı (`src/views/BottomTabView.tsx:337-347`):
 
-**Oran: %75.** (a) uygulandı, (b) beklemede.
+```js
+const activityState = isFocused ? STATE_ON_TOP
+  : animationEnabled && isAnimatingRoute ? STATE_TRANSITIONING_OR_BELOW_TOP
+  : STATE_INACTIVE;
+shouldFreeze={activityState === STATE_INACTIVE && !isPreloaded}
+```
+
+`isAnimatingRoute` yalnızca `lastUpdate.animating` iken — yani animasyon SÜRERKEN — true. Animasyon bitince odakta olmayan sekme `STATE_INACTIVE` alıyor ve donduruluyor. Yani `animation: 'shift'` dondurmayı kalıcı olarak kapatmıyor, sadece animasyon boyunca askıya alıyor. **Kayma ve dondurma bir arada çalışıyor.**
+
+Kullanıcı zaten "kayma animasyonu kalmalı" dedi; `shift` kalıyor ve hiçbir bedeli yok.
+
+Bunun ters yönde bir sonucu da var ve madde 3'ü çözen ipucu o oldu: sekmeler GERÇEKTEN donduruluyorsa, `enableFreeze`'in Android'de arka plandan dönüşte yaptığı bilinen hasar bu uygulamayı da vuruyor demektir. Bkz. madde 3.
+
+**Oran: %75.**
 **Plan B:** `animation`'ı koruyup her sekme ekranını kendi içinde `React.memo` + ağır bölümleri `useFocusEffect` ile odakta değilken durdur.
 
 ---
 
-## 3 — Arka plandan dönünce ALT BAR donuyor
+## 3 — Arka plandan dönünce ALT BAR donuyor ✅ (düzeltildi, cihaz testi bekliyor)
 
-**2026-09-13 düzeltmesi.** İlk teşhis yanlıştı. Testçi bilgisi netleşti: sorun yalnızca ekran kilidinde değil, **başka uygulamaya geçip geri dönünce de** oluyor ve **uygulamanın tamamı değil, yalnızca alt menü (tab bar)** donuyor. Bu, önceki iki adayı da eliyor — `enableFreeze` ekranları dondurur (barı değil), çevrimdışı unmount ise tüm ağacı sıfırlar. Şüphe artık tek bir bileşende: [WaveTabBar.tsx](../../src/components/layout/WaveTabBar.tsx).
+**2026-09-13, ikinci düzeltme. Önceki teşhisim de yanlıştı.** Testçi cevabı geldi: donma anında **bar EKRANDA DURUYOR**, kaybolmuyor; sadece tepki vermiyor. Bu tek cümle Aday 1'i eler — `keyboardOpen` takılı kalsaydı `return null` çalışır ve bar **tamamen yok olurdu**. Aday 1 kapandı.
 
-### Aday 1 (en olası) — `keyboardOpen` bayrağı arka planda takılı kalıyor
+### Elenenler
 
-[WaveTabBar.tsx:123-133](../../src/components/layout/WaveTabBar.tsx#L123-L133):
+| Aday | Neden elendi |
+|---|---|
+| `keyboardOpen` bayrağı takılı | Bar yok olurdu; testçi "duruyor" diyor |
+| reanimated#9574 (dönüşte bayat animasyon prop'u) | `FORCE_REACT_RENDER_FOR_SETTLED_ANIMATIONS` kurulu 4.1.7'de **yok**, 4.4'te geldi |
+| `MainActivity` state geri yükleme çökmesi | `super.onCreate(null)` zaten yerinde ([MainActivity.kt:19](../../android/app/src/main/java/com/nottepe/app/MainActivity.kt#L19)) |
+| PushableStack overlay'i | O durumda her yer donardı, yalnızca bar değil |
 
-```ts
-const [keyboardOpen, setKeyboardOpen] = useState(false);
-useEffect(() => {
-  const show = Keyboard.addListener('keyboardDidShow', () => setKeyboardOpen(true));
-  const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false));
-  return () => { show.remove(); hide.remove(); };
-}, []);
+### Kanıtlanan sebep — sekmelerde `enableFreeze`
 
-if (keyboardOpen) return null;
-```
+[App.tsx](../../App.tsx)'teki `enableFreeze(true)` yalnız stack'i değil **sekmeleri de** kapsıyordu. Zinciri kodda takip ettim:
 
-Bar'ın var olup olmaması tek bir JS bayrağına bağlı ve bu bayrağın **arka plandan dönüşte kendini düzelten hiçbir mekanizması yok.** Android uygulama arka plana giderken klavyeyi kapatır ama `keyboardDidHide` olayı her zaman teslim edilmez — özellikle edge-to-edge modda klavye olayları WindowInsets üzerinden geldiği için activity duraklarken olay düşebiliyor. Dönüşte klavye yok ama `keyboardOpen` hâlâ `true`, dolayısıyla `return null` çalışıyor ve **bar hiç çizilmiyor.**
+`react-native-screens/src/components/Screen.tsx:77` → `freezeOnBlur = freezeEnabled()` — yani `enableFreeze(true)`, `freezeOnBlur` belirtilmemiş HER Screen'in varsayılanını true yapıyor.
+`@react-navigation/bottom-tabs/src/views/BottomTabView.tsx:347` → odakta olmayan sekmeye `shouldFreeze` geçiyor.
 
-**Kesin test:** donma olduğunda herhangi bir yazı kutusuna dokunup klavyeyi aç, sonra kapat. Bar geri geliyorsa sebep budur, başka ihtimale bakmaya gerek yok.
+Belgelenmiş üç hata, üçü de bizim tablomuz:
 
-**Çözüm:** bayrağı tek bir olaya güvenmekten çıkar —
-- `AppState` `'active'` olduğunda `setKeyboardOpen(Keyboard.isVisible())` ile senkronize et,
-- ekran odağa girdiğinde de aynı senkronizasyonu yap,
-- `if (keyboardOpen) return null` yerine bar'ı mount'lu tutup yalnızca `opacity`/`translateY` ile gizle — bileşenin tamamen sökülmesi, bu sınıf hatanın her çeşidine açık kapı bırakıyor.
+- [react-native-screens#1478](https://github.com/software-mansion/react-native-screens/issues/1478) — tekrar adımları testçilerin tarifiyle **birebir aynı**: `enableFreeze(true)` → ekranı kilitle → aç → takılıyor.
+- [react-native-screens#2384](https://github.com/software-mansion/react-native-screens/issues/2384) — başlığı "enableFreeze cause to bottom tab navigator unresponsive": **bar görünür kalıyor**, dokunuşlar sekmeyi değiştirmiyor.
+- [react-native-screens#2150](https://github.com/software-mansion/react-native-screens/issues/2150) — Fabric + bottom-tabs: *"dokunulabilirlerin hepsi donuyor, animasyonlar çalışmaya devam ediyor."* "Duruyor ama tepki vermiyor"un tarifi.
 
-### Aday 2 — Reanimated 4 + Yeni Mimari, dönüşte UI runtime'ı stall ediyor
+**Neden yalnızca bar?** Bar, ekranda başka bir view ile ÜST ÜSTE BİNEN tek şey: sahne `StyleSheet.absoluteFill`, bar da onun üstünde mutlak konumlu. Android'de dokunuş, çizim sırasına değil view hiyerarşisi sırasına gider. Dönüşte sahne fragment'i bar'dan SONRA yeniden bağlanırsa bar `elevation: 12` sayesinde üstte ÇİZİLMEYE devam eder ama dokunuşu alttaki sahne yutar. Ekrandaki diğer her şey sahnenin kendisi olduğu için çalışmaya devam eder — testçilerin "komple değil, sadece alt menü" demesinin sebebi bu.
 
-Aktif sekmenin arkasındaki kapsül bir Reanimated `Animated.View`. Reanimated 4 + `newArchEnabled` altında Android'de arka plandan dönüşte animasyonların takılması bilinen bir sorun ailesi: [#9608](https://github.com/software-mansion/react-native-reanimated/issues/9608) (animasyonlar stall ediyor), [#7672](https://github.com/software-mansion/react-native-reanimated/issues/7672) (Animated.View etkileşimi engelliyor), [#8967](https://github.com/software-mansion/react-native-reanimated/issues/8967). Kurulu sürüm `react-native-reanimated ~4.1.1`, `react-native-worklets 0.5.1`.
+**✅ Yapıldı:** sekmelerde `freezeOnBlur: false` ([MainTabsScreen.tsx](../../src/navigation/MainTabsScreen.tsx)). `enableFreeze(true)` genel olarak AÇIK kaldı — push edilen stack ekranlarında kazancı gerçek ve orada bu hata bildirilmemiş. Sekmeler `detachInactiveScreens` varsayılanıyla native tarafta zaten ayrılıyor, dolayısıyla kaybedilen tek şey JS re-render'ı.
 
-**Kesin test:** donma anında bir sekmeye bas. Sayfa değişiyor ama kapsül (yeşil hap) yerinde kalıyorsa aday 2.
+### İkinci sebep — bar `KeyboardAvoider`'ın içindeydi (bunu Faz 1'de BEN açtım)
 
-**Çözüm:** Reanimated'ı yama sürümüne güncelle; düzelmezse kapsülü geçici olarak RN `Animated` API'sine indir — tek animasyon, kaybı küçük.
+[MainTabsScreen.tsx](../../src/navigation/MainTabsScreen.tsx)'teki yorum "tab bar kendi `tabBar` yuvasında olduğu için klavye itmesinden etkilenmiyor" diyordu. **Yanlıştı:** `tabBar` yuvası Tab.Navigator'ın içi, Tab.Navigator da `KeyboardAvoider`'ın içindeydi.
 
-### Aday 3 (düşük) — PushableStack overlay'i takılı kalıyor
+Faz 1'den önce zararsızdı, çünkü orada RN'in kendi `KeyboardAvoidingView`'ı vardı ve Android'de hiçbir şey yapmıyordu. Faz 1'de onu keyboard-controller ile değiştirdim: artık yerleşimi Reanimated ile UI thread'inde sürüyor. Dönüşte o animasyon bayat bir değerde takılırsa **bar eski yerinde çizilir, dokunma alanı başka yerde kalır** — aynı belirti. Yani Faz 1, madde 3'ü kapatmaya çalışırken ona ikinci bir kapı açmış olabilirdi.
 
-`overlayActive` `true` kalırsa tam ekran şeffaf bir `Pressable` her dokunuşu yutar. Ama o durumda **her yer** donardı, yalnızca alt bar değil — tarifle uyuşmuyor. Yine de madde 1'in çözümü bu riski zaten ortadan kaldırıyor.
+**✅ Yapıldı:** bar `KeyboardAvoider`'ın da Tab.Navigator'ın da dışına, navigator'ın kardeşi olarak çıkarıldı (`tabBar` yuvası boş bırakıldı). AppShell zaten baştan böyle çiziyordu; iki montaj yeri artık yapı olarak birebir aynı. Bar aktif sekmeyi artık kendisi türetemediği için (o konumdan kök stack'i görür, hep "MainTabs" derdi) `activeRouteName` prop'uyla veriliyor — MainTabsScreen o state'i zaten üst bar başlığı için tutuyordu.
 
-**Oran: %85** (aday 1 doğrulanırsa %95). İki testin cevabı geldiğinde tek adaya inecek.
+**Oran: %80.** İki ayrı sebep birden kapatıldı ama ikisi de aynı belirtiyi verdiği için hangisinin asıl suçlu olduğunu ancak cihaz söyler. Düzelmezse sıradaki tek satır: `enableFreeze(false)`.
+
+---
 
 ## 4 — 130 ring sekmelerinde donma
 
@@ -272,9 +285,12 @@ react-query zaten kurulu ve çalışıyor ([queryClient.ts](../../src/lib/queryC
 - Madde 8: avatar butonları
 
 **Faz 3 — cache ve dayanıklılık (1-2 gün)**
-- Madde 10 katman 1: ekranları react-query'ye taşı
-- Madde 3: klavye bayrağını AppState ile senkronla
+- ✅ Madde 3: sekmelerde `freezeOnBlur: false` + bar'ı `KeyboardAvoider`'ın dışına çıkar
+- ✅ react-query `focusManager`'ı `AppState`'e bağla (aşağıdaki nota bak)
+- Madde 10 katman 1: 14 ekranı react-query'ye taşı
 - Madde 5: yemekhane iskelet (10 ile birlikte gelir)
+
+**Faz 3'te yol üstünde bulunan sessiz hata — ✅ düzeltildi.** `useUnreadNotifications` ve `useUnreadAnnouncements` `refetchOnWindowFocus: true` yazıyordu ama **React Native'de bu ayar ölüydü**: react-query odağı tarayıcının `visibilitychange` olayından okur, RN'de öyle bir olay yok. İki rozet de yalnızca 5 dakikalık poll ile tazeleniyordu. [queryClient.ts](../../src/lib/queryClient.ts)'de `focusManager` artık `AppState`'e bağlı. Genel varsayılan bilerek `refetchOnWindowFocus: false` kaldı — açık olsaydı uygulama her öne geldiğinde tüm sorgular aynı anda istek atardı, ki donmanın en kırılgan olduğu an tam da o.
 
 **Faz 4 — ölçüm ve kalan**
 - Madde 9'un kalanını gerçek cihazda ölç
@@ -353,8 +369,13 @@ Ayrıca `quality: 0.9` da işe yaramazdı: view-shot'ta `quality` **yalnızca jp
 
 ## Açık sorular
 
-1. **Madde 3:** donma anında bar EKRANDA GÖRÜNÜYOR mu, yoksa tamamen kayboluyor mu? Klavyeyi açıp kapatınca geri geliyor mu?
-2. **Madde 1:** "3 aşama" panelin kendisinin 3 sıçramada kayması mı, yoksa içeriğin parça parça belirmesi mi?
-3. **Madde 2:** sekme kayma animasyonu (`shift`) sizin için vazgeçilmez mi? Kaldırılırsa 4 ekran donar ve geçiş belirgin hızlanır.
-4. **Madde 9:** test cihazlarının modeli ve Android sürümü?
-5. iOS'ta bu maddelerden hangileri görülüyor? (JS mi native mi ayrımı için)
+### Cevaplananlar
+
+1. ✅ **Madde 3 — bar görünüyor mu?** "Alt bar kalıyor, sadece duruyor." Kaybolmuyor. Aday 1 (`keyboardOpen`) elendi; teşhis `enableFreeze`'e döndü. Klavye aç/kapat testi yapılamadı (o ekranlarda yazı kutusu yok) — gerek de kalmadı.
+2. ✅ **Madde 2 — `shift` vazgeçilmez mi?** "Kalmalı." Kalıyor; ayrıca ortaya çıktı ki bedeli de yokmuş (bkz. madde 2 düzeltmesi).
+3. ✅ **Platformlar.** iOS 26+; Android'de çoğunluk son sürüm ama **eski sürüm cihazlarda da test ediliyor.** Yani yüksek performans varsayamayız — madde 9 ve 10'daki cache kararları düşük uçlu cihaza göre verilmeli. Bu, kalıcı cache'i (madde 10 katman 2) daha da değerli kılıyor: yavaş cihazda en pahalı şey ağ isteği değil, isteğin dönüşünü bekleyen boş ekran.
+
+### Hâlâ açık
+
+4. **Madde 9:** test cihazlarının modeli? ("eski sürüm" hangi Android? 8? 10?) GPU render profili ölçümü için gerekli.
+5. iOS'ta bu maddelerden hangileri görülüyor? Madde 3'ün kanıtlanan sebebi (`enableFreeze` + Android fragment yeniden bağlanması) **Android'e özgü** — iOS'ta da donuyorsa sebep başka demektir ve ayrıca bakmamız gerekir.

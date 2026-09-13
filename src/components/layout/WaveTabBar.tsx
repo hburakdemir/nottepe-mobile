@@ -75,15 +75,24 @@ const COLORS = {
   },
 };
 
-export default function WaveTabBar() {
+export default function WaveTabBar({ activeRouteName }: { activeRouteName?: string } = {}) {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const c = COLORS[theme];
   const navigation = useNavigation();
-  // `useRoute()` değil: bar Tab.Navigator'ın `tabBar`'ı olarak çizildiğinde
-  // route bağlamı üstteki `MainTabs` ekranı olurdu. En yakın navigator'ın
-  // odaklı route'u her iki montaj yerinde de doğru cevabı veriyor.
-  const currentRouteName = useNavigationState((state) => state.routes[state.index]?.name);
+  // Aktif sekmenin adı iki montaj yerinde iki ayrı kaynaktan geliyor:
+  //
+  //  • AppShell (push edilmiş ekranlar) — prop YOK. En yakın navigator'ın
+  //    odaklı route'u okunuyor; orada bu kök stack'in tepesindeki ekran demek,
+  //    5 sekmeden biri olmadığı için hiçbiri aktif görünmüyor. Doğrusu da bu.
+  //
+  //  • MainTabsScreen — prop VAR. Bar artık Tab.Navigator'ın `tabBar` yuvasında
+  //    DEĞİL, onun KARDEŞİ olarak çiziliyor (gerekçe o dosyada yazılı), yani
+  //    `useNavigationState` oradan kök stack'i görür ve hep "MainTabs" derdi —
+  //    aktif sekme hiç belli olmazdı. Odaklı sekmenin adı bu yüzden prop'la
+  //    geliyor; MainTabsScreen zaten üst bar başlığı için o state'i tutuyor.
+  const nearestRouteName = useNavigationState((state) => state.routes[state.index]?.name);
+  const currentRouteName = activeRouteName ?? nearestRouteName;
   const activeIndex = TAB_ROUTES.indexOf(currentRouteName as (typeof TAB_ROUTES)[number]);
   const avatar = useMyAvatar();
   const { scale } = useMetrics();
