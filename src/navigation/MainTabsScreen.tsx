@@ -130,6 +130,26 @@ const MainTabs = React.memo(function MainTabs({ onTabChange }: { onTabChange: (n
       screenListeners={screenListeners}
       screenOptions={SCREEN_OPTIONS}
       tabBar={renderNoTabBar}
+      // SEKME GEÇİŞİNİN "HER SEFERİNDE" YAVAŞ OLMASININ SEBEBİ BUYDU.
+      //
+      // `detachInactiveScreens` Android'de varsayılan olarak AÇIK
+      // (BottomTabView.tsx:80-82). Açıkken odaktan çıkan sekmenin native görünüm
+      // ağacı hiyerarşiden SÖKÜLÜYOR, geri dönüldüğünde yeniden TAKILIYOR —
+      // her geçişte, her iki yönde. Ekran ne kadar derinse o kadar pahalı:
+      // ProfileScreen 1586 satır, 7 pager sayfası ve 26 Animated/SVG düğümü
+      // taşıyor, yani her dönüşte yüzlerce native görünüm için yeniden
+      // measure/layout geçişi demek.
+      //
+      // Bu, lazy mount maliyetinden AYRI bir şey: mount bir kez olur, sökme
+      // her geçişte tekrarlanır. Testçi tablosu da bunu söylüyordu — yavaşlık
+      // sekmeye ilk gidişte değil HER gidişte.
+      //
+      // Bedeli bellek: beş sekmenin native görünümleri artık sürekli
+      // hiyerarşide duruyor. `enableFreeze(false)` ile aynı takas (bkz.
+      // App.tsx) ve aynı gerekçeyle kabul edildi — bu uygulamada tepkisellik
+      // bellekten önce geliyor. Eski/düşük RAM'li cihazlarda sorun çıkarsa ilk
+      // geri alınacak yer burası.
+      detachInactiveScreens={false}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Departments" component={DepartmentsScreen} />
