@@ -1,147 +1,48 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Modal, ScrollView, View } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import Animated, {
-  useAnimatedScrollHandler,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-  runOnJS,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
-import { useQueryClient } from '@tanstack/react-query';
-import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 import type { RouteProp } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { FileText } from 'lucide-react-native';
-import { avatarAPI, badgeAPI, postsAPI, savedPostsAPI } from '../../lib/api';
+import { avatarAPI, badgeAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useSavedPosts } from '../../context/SavedPostContext';
-import PostCard from '../../components/PostCard';
+import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 import { type Badge } from '../../components/BadgeChip';
 import ProfileEditModal from '../../components/profile/ProfileEditModal';
 import DeleteAccountModal from '../../components/profile/DeleteAccountModal';
 import AvatarBuilderScreen from './AvatarBuilderScreen';
 import { MY_AVATAR_KEY, useInvalidateMyAvatar, useMyAvatar } from '../../hooks/useMyAvatar';
 import type { AvatarData } from '../../components/avatar/AvatarDisplay';
-import type { Post } from '../../types/post';
 import type { MainTabParamList } from '../../navigation/types';
-import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 import { useMetrics } from '../../theme/metrics';
 import ProfileSkeleton from '../../components/profile/ProfileSkeleton';
-import { EmptyState, TABS, TabLoading, type TabKey } from '../../components/profile/profileCommon';
+import { TABS, type TabKey } from '../../components/profile/profileCommon';
 import { PagerPlaceholder } from '../../components/profile/PagerPage';
 import HeaderCard from '../../components/profile/HeaderCard';
 import TabStrip from '../../components/profile/TabStrip';
+import PostsTab from '../../components/profile/PostsTab';
 import ChecklistsTab from '../../components/profile/ChecklistsTab';
 import AktsTab from '../../components/profile/AktsTab';
 import ScheduleTab from '../../components/profile/ScheduleTab';
 import FollowsTab from '../../components/profile/FollowsTab';
 import ForumsTab from '../../components/profile/ForumsTab';
 import { MY_BADGES_KEY, useMyBadges } from '../../hooks/profile/useProfileLists';
+import { usePostsPagination } from '../../hooks/profile/usePostsPagination';
 
-// "Postlar" ve "Kayıtlı" sekmelerinin sayfa boyu (bkz. postsAPI.getMyPosts /
-// savedPostsAPI.getSavedPosts — argüman verilince yanıt zarfa giriyor).
-const POST_PAGE_LIMIT = 20;
-
-const postKey = (post: Post) => String(post.id ?? post.post_id);
-
-// Etkin olmayan sekmenin listesine verilen SABİT boş dizi — her render'da `[]`
-// yazmak FlatList'e yeni bir referans gösterip gereksiz iş çıkarırdı.
-const NO_POSTS: Post[] = [];
-
-// Aynı gerekçe: `useMyBadges()` henüz veri döndürmediğinde `HeaderCard`'a
-// (memo'lu) her render'da yeni bir `[]` gitmesin.
+// `useMyBadges()` henüz veri döndürmediğinde `HeaderCard`'a (memo'lu) her
+// render'da yeni bir `[]` gitmesin.
 const NO_BADGES: Badge[] = [];
-
-// `/saved-posts/getPost` bazı sürümlerde comment_count döndürmüyor — eksik
-// olanlar tekil gönderi ucundan (postsAPI.getById) tamamlanıyor. Bkz. aynı
-// deseni kullanan SavedPostsScreen.tsx.
-async function enrichMissingCommentCounts(posts: Post[]): Promise<Post[]> {
-  const missing = posts.filter((p) => typeof p.comment_count === 'undefined');
-  if (missing.length === 0) return posts;
-  const enrichedById = new Map<string, Post>();
-  await Promise.all(
-    missing.map(async (post) => {
-      const postId = post.id ?? post.post_id;
-      if (postId == null) return;
-      try {
-        const fullPost = await postsAPI.getById(postId);
-        enrichedById.set(String(postId), fullPost.data?.post ?? fullPost.data);
-      } catch {
-        /* eksik kalsın, sessizce geç */
-      }
-    })
-  );
-  return posts.map((post) => {
-    const key = postKey(post);
-    const enriched = enrichedById.get(key);
-    return enriched ? { ...post, ...enriched } : post;
-  });
-}
-
-// Taze çekilen (genelde yalnızca 1. sayfa) satırların GÜNCEL alanlarını
-// (yorum sayısı, puan vb.) eldeki listeye id eşleşmesiyle işler — sayfalama
-// durumunu (page/total) ya da "load more" ile eklenen sonraki satırları
-// bozmadan. Bkz. Postlar/Kayıtlı sekmelerindeki focus-tazeleme.
-function mergeFreshFields(prev: Post[], fresh: Post[]): Post[] {
-  if (fresh.length === 0) return prev;
-  const freshByKey = new Map(fresh.map((p) => [postKey(p), p]));
-  return prev.map((p) => {
-    const f = freshByKey.get(postKey(p));
-    return f ? { ...p, ...f } : p;
-  });
-}
-
-// `mergeFreshFields` YALNIZCA `prev` içinde zaten var olan satırların üzerine
-// yazıyor — listede henüz olmayan bir gönderiyi eklemiyor. Bu, kullanıcı not
-// paylaşıp profile yönlendirildiğinde (AddPostScreen sonunda
-// `goToTab(navigation, 'Profile')` var) yeni notun listede HİÇ görünmemesine
-// yol açıyordu: profil kalıcı mount'lu bir sekme olduğu için yeniden
-// yüklenmiyor, odak tazelemesi de yeni satırı atıyordu.
-//
-// Burada eksik olanları başa ekliyoruz — sunucu zaten en yeniyi önce
-// döndürüyor.
-function mergeFreshPage(prev: Post[], fresh: Post[]): Post[] {
-  const merged = mergeFreshFields(prev, fresh);
-  const known = new Set(merged.map(postKey));
-  const added = fresh.filter((p) => !known.has(postKey(p)));
-  return added.length > 0 ? [...added, ...merged] : merged;
-}
-
-// `/posts/my-posts` ve `/saved-posts/getPost` `page` verilince zarfa
-// ({ posts, total }) girmesi gerekiyor, ama sunucu tarafı bu davranışı
-// desteklemeyen bir sürümdeyse (ör. henüz dağıtılmamış bir backend değişikliği)
-// `page` parametresini yok sayıp eski çıplak diziyi döndürmeye devam edebilir.
-// Bu durumda `data.posts` `undefined` olur ve liste sessizce boş görünürdü —
-// burada iki şekli de kabul ediyoruz.
-function extractPostsPage(data: unknown): { posts: Post[]; total: number | null } {
-  if (Array.isArray(data)) return { posts: data, total: null };
-  const envelope = data as { posts?: Post[]; total?: number } | null | undefined;
-  return {
-    posts: envelope?.posts || [],
-    total: typeof envelope?.total === 'number' ? envelope.total : null,
-  };
-}
-
-// Sayfalar arasında araya yeni bir gönderi girerse aynı satır iki sayfada
-// birden dönebiliyor; kopyalar burada eleniyor (React anahtarları eşsiz kalsın).
-function appendUniquePosts(prev: Post[], rows: Post[]): Post[] {
-  const seen = new Set(prev.map(postKey));
-  return [...prev, ...rows.filter((p) => !seen.has(postKey(p)))];
-}
 
 export default function ProfileScreen() {
   const route = useRoute<RouteProp<MainTabParamList, 'Profile'>>();
   const { user } = useAuth();
   const isStaff = user?.role === 'admin' || user?.role === 'moderator';
-  const { savedPosts, loading: savedIdsLoading, fetchSavedPosts } = useSavedPosts();
+  const { savedPosts } = useSavedPosts();
 
-  const [loadingRaw, setLoading] = useState(true);
-  // İnternet hızlıysa (veri 200ms'den önce gelirse) LoadingDeer HİÇ
-  // görünmüyor. bkz. useDelayedLoading.ts
-  const loading = useDelayedLoading(loadingRaw);
   const [activeTab, setActiveTab] = useState<TabKey>(route.params?.initialTab ?? 'posts');
   // Sekmeler artık yatay kaydırmalı bir "pager" (bkz. render) — sekme
   // butonuna basınca ya da kaydırma bitince ikisi birbirini senkron tutuyor.
@@ -153,29 +54,17 @@ export default function ProfileScreen() {
   const { width: windowWidth, contentMaxWidth } = useMetrics();
   const screenWidth = Math.min(windowWidth, contentMaxWidth);
 
-  // Ekranın ilk karesini belirleyen tek veri: kendi gönderilerin.
-  const [myPosts, setMyPosts] = useState<Post[]>([]);
+  // İki gönderi sekmesinin sayfalama durum makinesi — sayfalama, odak
+  // tazelemesi, silmede sayaç düşürme, "Kayıtlı"nın sentinel'i. Hepsi
+  // hooks/profile/usePostsPagination.ts'te (ProfileScreen'den birebir taşındı).
+  // Sayaçlar `TabStrip`'e prop olarak indiği için burada okunuyorlar.
+  const myPosts = usePostsPagination('posts', activeTab === 'posts');
+  const savedPostsState = usePostsPagination('saved', activeTab === 'saved');
 
-  // --- Sonsuz kaydırma durumu (yalnızca iki gönderi sekmesi) --------------
-  // `total` sunucudaki gerçek satır sayısı: "hepsi yüklendi mi?" sorusu
-  // `liste.length >= total` ile cevaplanıyor, sekme sayaçları da bunu yazıyor.
-  // `null` = henüz bilinmiyor.
-  const [myPostsPage, setMyPostsPage] = useState(1);
-  const [myPostsTotal, setMyPostsTotal] = useState<number | null>(null);
-  const [myPostsLoadingMore, setMyPostsLoadingMore] = useState(false);
-  const [savedPostsPage, setSavedPostsPage] = useState(1);
-  const [savedPostsTotal, setSavedPostsTotal] = useState<number | null>(null);
-  const [savedPostsLoadingMore, setSavedPostsLoadingMore] = useState(false);
-  // İstek uçuştayken ikinciyi engelleyen kapılar. `state` değil `ref`: kaydırma
-  // eşiği tek bir kaydırmada arka arkaya defalarca tetikleniyor, state
-  // güncellemesi o ana yetişmiyor (aynı desen: NotificationsScreen).
-  const myPostsInFlight = useRef(false);
-  const savedPostsInFlight = useRef(false);
-
-  // Tembel yüklenen "Kayıtlı" sekmesi — `null` = henüz çekilmedi, `[]` =
-  // gerçekten boş. Sentinel'i tekrar `null`'a çekmek yeniden yüklemeyi
-  // tetikliyor.
-  const [savedPostsData, setSavedPostsData] = useState<Post[] | null>(null);
+  // İnternet hızlıysa (veri 200ms'den önce gelirse) iskelet HİÇ görünmüyor.
+  // bkz. useDelayedLoading.ts. Ekranın ilk karesini YALNIZCA kendi
+  // gönderilerin belirliyor — kalan her şey kendi başına yükleniyor.
+  const loading = useDelayedLoading(myPosts.firstLoading);
 
   // Dört listenin verisi de rozetler de artık BU BİLEŞENDE DEĞİL; hepsi
   // react-query anahtarları üzerinden (bkz. hooks/profile/useProfileLists.ts).
@@ -201,71 +90,6 @@ export default function ProfileScreen() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  // Sekme şeridindeki sayaçlar eskiden yalnızca o sekmeye ilk kez basıldığında
-  // doluyordu (tembel yükleme) — kullanıcı "tıklamadan sayılar gösterilmiyor"
-  // diye bildirdi. Bu yüzden checklist/AKTS/program/takip uçları AÇILIŞTA
-  // çekilmeye devam ediyor; değişen şey nerede çekildikleri: artık react-query
-  // anahtarlarında, `TabStrip` içinde (bkz. o dosya), ham state'te değil.
-  // Aynı anahtarı sekme bileşeni de okuduğu için ikinci istek atılmıyor.
-  //
-  // "Kayıtlı" sayacı ESKİDEN SavedPostContext'in `/saved-posts/ids` sonucuna
-  // (global, uygulama açılışında BİR KEZ çekilen `savedPosts.length`)
-  // bakıyordu — kullanıcı "kayıtlı sekmesi 0 gösteriyor" diye bildirdi:
-  // context'in tek seferlik sonucu, aynı oturumda başka yerden değişen gerçek
-  // veriyle senkron kalmıyordu. Artık kendi `/saved-posts/getPost` isteğiyle
-  // taze çekiliyor, context'e bağımlılık yok.
-  //
-  // Eskiden yedi istek tek bir `Promise.allSettled`'da toplanıyor ve
-  // `setLoading` hepsi bitince kapanıyordu — yani profil, EN YAVAŞ isteğin
-  // süresi kadar tam ekran spinner gösteriyordu. Kullanıcı şikayeti ("profil
-  // sayfasının yüklenmesi çok uzun sürüyor") tam olarak buydu. Artık ekranın
-  // ilk karesini YALNIZCA kendi gönderilerin belirliyor.
-  const fetchCore = useCallback(async () => {
-    setLoading(true);
-    myPostsInFlight.current = true;
-
-    // --- Bekletmeyen: geldiğinde kendi state'ine düşüyor -------------------
-    savedPostsAPI
-      .getSavedPosts({ page: 1, limit: POST_PAGE_LIMIT })
-      .then((res) => {
-        const { posts: savedFirstPage, total: savedTotal } = extractPostsPage(res.data);
-        setSavedPostsData(savedFirstPage);
-        setSavedPostsPage(1);
-        setSavedPostsTotal(savedTotal ?? savedFirstPage.length);
-        // Context'in id kümesini de tazele — aksi hâlde bookmark ikonu bu
-        // sekmedeki (zaten kayıtlı olduğu bilinen) postlar için "dolu"
-        // görünmeyebiliyordu, çünkü PostCard'ın isSaved kontrolü context'in
-        // (uygulama açılışında bir kez çekilen) savedPosts listesine bakıyor.
-        fetchSavedPosts();
-        if (savedFirstPage.length > 0) {
-          enrichMissingCommentCounts(savedFirstPage).then(setSavedPostsData);
-        }
-      })
-      .catch(() => {
-        setSavedPostsData([]);
-        setSavedPostsTotal(0);
-      });
-
-    // --- Ekranın ilk karesini belirleyen tek istek -------------------------
-    try {
-      const res = await postsAPI.getMyPosts({ page: 1, limit: POST_PAGE_LIMIT });
-      const { posts: firstPage, total } = extractPostsPage(res.data);
-      setMyPosts(firstPage);
-      setMyPostsPage(1);
-      setMyPostsTotal(total ?? firstPage.length);
-    } catch {
-      setMyPosts([]);
-      setMyPostsTotal(0);
-    } finally {
-      myPostsInFlight.current = false;
-      setLoading(false);
-    }
-  }, [fetchSavedPosts]);
-
-  useEffect(() => {
-    fetchCore();
-  }, [fetchCore]);
-
   // Profil artık kalıcı mount'lu bir SEKME (bkz. MainTabsScreen.tsx) — bu
   // yüzden `initialTab` yalnızca useState'in başlangıç değeri olarak okunamaz:
   // menüdeki "Notlarım" / "Kaydettiğim Notlarım" kısayolları ikinci kez
@@ -278,222 +102,26 @@ export default function ProfileScreen() {
     if (idx >= 0) pagerRef.current?.scrollTo({ x: idx * screenWidth, animated: false });
   }, [initialTabParam, screenWidth]);
 
-  // --- Sekme başına tembel yükleme ---------------------------------------
-  // Hepsi aynı deseni izliyor: sentinel `null` ise sekme henüz açılmamış
-  // demektir, ilk açılışta çekiliyor. Hata durumunda `[]` yazılıyor ki ekran
-  // sonsuza kadar yükleniyor göstermesin. `activeTab`'a bağlı oldukları için
-  // `route.params.initialTab` ile doğrudan bir sekmeye girildiğinde de
-  // (örn. menüdeki "Kaydettiğim Notlarım") aynı şekilde tetikleniyorlar.
-  const fetchSavedFirstPage = useCallback(async () => {
-    if (savedPostsInFlight.current) return;
-    savedPostsInFlight.current = true;
-    try {
-      const res = await savedPostsAPI.getSavedPosts({ page: 1, limit: POST_PAGE_LIMIT });
-      const { posts: rows, total } = extractPostsPage(res.data);
-      setSavedPostsData(rows);
-      setSavedPostsPage(1);
-      setSavedPostsTotal(total ?? rows.length);
-      // Bkz. fetchCore'daki not: bookmark ikonu context'in savedPosts id
-      // kümesine bakıyor, bu yüzden bu ekranın kendi verisiyle birlikte tazelenmeli.
-      fetchSavedPosts();
-      if (rows.length > 0) {
-        enrichMissingCommentCounts(rows).then(setSavedPostsData);
-      }
-    } catch {
-      setSavedPostsData([]);
-      setSavedPostsTotal(0);
-    } finally {
-      savedPostsInFlight.current = false;
-    }
-  }, [fetchSavedPosts]);
-
-  useEffect(() => {
-    if (activeTab !== 'saved' || savedPostsData !== null) return;
-    fetchSavedFirstPage();
-  }, [activeTab, savedPostsData, fetchSavedFirstPage]);
-
-  // KAYDEDİLENLER SAYACI: bir not kaydedilince/çıkarılınca burayı tazele.
+  // --- Odak tazelemesi -----------------------------------------------------
+  // Profil kalıcı mount'lu olduğu için bir gönderiye girip yorum ekleyip
+  // dönmek listeyi tazelemiyordu (kullanıcı bildirdi). Aktif gönderi sekmesi
+  // her odakta sessizce 1. sayfasını çekip eldeki listeye işliyor.
   //
-  // Hata şuydu: sayaç `savedPostsTotal ?? savedPosts.length` diye yazılıyor ve
-  // niyeti "sunucu toplamı biliniyorsa onu, bilinmiyorsa context'in id
-  // sayısını göster" idi. Ama `??` yalnızca null/undefined için yedeğe düşer —
-  // hiç kaydedilmiş notu olmayan biri profili açtığında `savedPostsTotal` 0
-  // yazılıyor ve 0 GEÇERLİ bir değer olduğu için bir daha ASLA yedeğe
-  // düşmüyordu. Kullanıcı not kaydediyor, context 1 oluyor, ekranda hâlâ
-  // `0 ?? 1` = 0 görünüyordu.
-  //
-  // Çözüm sayacı yamamak değil, bayatlığı kaynağında bitirmek: kaydedilen id
-  // listesinin uzunluğu değiştiyse bu ekranın kendi verisi artık geçersiz.
-  // İkisini de sentinel'e (`null`) çekiyoruz — sayaç anında context'e düşüyor
-  // (doğru değer), liste de sekmeye girildiğinde yeniden çekiliyor.
-  //
-  // `savedIdsLoading` beklemesi şart: context ilk yüklemesini yaparken dizi
-  // önce `[]` sonra gerçek değer oluyor; o geçişi "kullanıcı bir şey kaydetti"
-  // sanıp mount'ta gereksiz bir yeniden çekme tetiklemeyelim. Temel değer,
-  // context ilk kez oturduğunda alınıyor.
-  const savedIdsCountRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (savedIdsLoading) return;
-    const count = savedPosts.length;
-    if (savedIdsCountRef.current === null) {
-      savedIdsCountRef.current = count;
-      return;
-    }
-    if (savedIdsCountRef.current === count) return;
-    savedIdsCountRef.current = count;
-    setSavedPostsTotal(null);
-    setSavedPostsData(null);
-  }, [savedPosts, savedIdsLoading]);
-
-  // Profil, Home gibi kalıcı mount'lu bir SEKME (bkz. MainTabsScreen.tsx) —
-  // bir gönderiye girip yorum ekleyip geri dönmek bu ekranı yeniden mount
-  // ETMİYOR, dolayısıyla `myPosts`/`savedPostsData` içindeki yorum sayısı
-  // sunucudan tazelenmeden bayat kalıyordu (kullanıcı bildirdi). Sekme her
-  // odaklandığında aktif sekmenin 1. sayfası sessizce çekilip id eşleşmesiyle
-  // eldeki listeye işleniyor — sayfalama/scroll konumu bozulmuyor.
-  //
-  // ÖNEMLİ: useCallback bağımlılığı SADECE `activeTab` (bir primitive) —
-  // `myPosts`/`savedPostsData` deps'e girseydi, bu efektin kendi setState'i
-  // yeni bir dizi referansı üretip callback'i yeniden kurar, bu da
-  // useFocusEffect'i odaktayken tekrar tetikler, o da tekrar setState çağırır:
-  // sonsuz döngü (bkz. SavedPostContext.fetchSavedPosts'ta yaşanan aynı hata).
-  const didProfileFocusOnceRef = useRef(false);
+  // "İlk odakta atla" bayrağı BİLEREK burada, iki sekmenin ORTAK'ı: her
+  // sekmeye ayrı bayrak verilseydi, ilk kez "Kayıtlı"ya geçmek tazelemeyi
+  // atlardı — eski davranışta atlamıyordu.
+  const didFocusOnceRef = useRef(false);
+  const refreshMyPosts = myPosts.refreshFirstPage;
+  const refreshSavedPosts = savedPostsState.refreshFirstPage;
   useFocusEffect(
     useCallback(() => {
-      if (!didProfileFocusOnceRef.current) {
-        didProfileFocusOnceRef.current = true;
+      if (!didFocusOnceRef.current) {
+        didFocusOnceRef.current = true;
         return;
       }
-      let cancelled = false;
-      (async () => {
-        try {
-          // `total` ESKİDEN ATILIYORDU. Sayaçlar (`myPostsTotal` /
-          // `savedPostsTotal`) yalnızca mount'taki ilk çekimden geliyordu, yani
-          // not paylaşıldıktan sonra bayat kalıyordu — hiç gönderisi olmayan
-          // biri için kalıcı olarak "0". Artık her odak tazelemesinde sunucunun
-          // söylediği toplam yazılıyor. (`null` ise dokunmuyoruz: eski backend
-          // şeklinde zarf yok, bilgiyi kaybetmeyelim.)
-          if (activeTab === 'posts') {
-            const res = await postsAPI.getMyPosts({ page: 1, limit: POST_PAGE_LIMIT });
-            const { posts: fresh, total } = extractPostsPage(res.data);
-            if (!cancelled) {
-              setMyPosts((prev) => mergeFreshPage(prev, fresh));
-              if (total !== null) setMyPostsTotal(total);
-            }
-          } else if (activeTab === 'saved') {
-            const res = await savedPostsAPI.getSavedPosts({ page: 1, limit: POST_PAGE_LIMIT });
-            const { posts: fresh, total } = extractPostsPage(res.data);
-            const enrichedFresh = await enrichMissingCommentCounts(fresh);
-            if (!cancelled) {
-              setSavedPostsData((prev) => (prev ? mergeFreshPage(prev, enrichedFresh) : prev));
-              if (total !== null) setSavedPostsTotal(total);
-            }
-          }
-        } catch {
-          /* sessiz geç: kullanıcı zaten mevcut (bayat da olsa) veriyi görüyor */
-        }
-      })();
-      return () => {
-        cancelled = true;
-      };
-    }, [activeTab])
-  );
-
-  // --- Sonraki sayfalar ---------------------------------------------------
-  // Durdurma koşulları: uçuşta istek var, toplam sayıya ulaşıldı ya da sunucu
-  // boş sayfa döndü. Hata hâlinde sayfa numarası ARTMIYOR — yoksa o sayfa
-  // kalıcı olarak atlanırdı; kullanıcı tekrar kaydırınca aynı sayfa yeniden
-  // deneniyor.
-  const loadMoreMyPosts = useCallback(async () => {
-    if (myPostsInFlight.current) return;
-    if (myPostsTotal !== null && myPosts.length >= myPostsTotal) return;
-    myPostsInFlight.current = true;
-    setMyPostsLoadingMore(true);
-    const nextPage = myPostsPage + 1;
-    try {
-      const res = await postsAPI.getMyPosts({ page: nextPage, limit: POST_PAGE_LIMIT });
-      const { posts: rows, total } = extractPostsPage(res.data);
-      if (rows.length === 0) {
-        // Sunucu boş sayfa verdi: eldeki kadarını toplam sayıp döngüyü kapatıyoruz.
-        setMyPostsTotal(myPosts.length);
-      } else {
-        setMyPosts((prev) => {
-          const next = appendUniquePosts(prev, rows);
-          // `total` bilinmiyorsa (sunucu sayfalamayı yok sayıp AYNI tam listeyi
-          // döndürüyorsa) ve eklenen satır sayısı 0 ise, gerçekte yeni bir
-          // sayfa yok demektir — sonsuz "sonraki sayfa" isteğine girmemek için
-          // döngüyü burada kapatıyoruz.
-          if (total === null && next.length === prev.length) setMyPostsTotal(prev.length);
-          return next;
-        });
-        setMyPostsPage(nextPage);
-        if (total !== null) setMyPostsTotal(total);
-      }
-    } catch {
-      // Sessiz geç: satırlar duruyor, kaydırma tekrar denetiyor.
-    } finally {
-      myPostsInFlight.current = false;
-      setMyPostsLoadingMore(false);
-    }
-  }, [myPosts, myPostsPage, myPostsTotal]);
-
-  const loadMoreSavedPosts = useCallback(async () => {
-    if (savedPostsInFlight.current || savedPostsData === null) return;
-    if (savedPostsTotal !== null && savedPostsData.length >= savedPostsTotal) return;
-    savedPostsInFlight.current = true;
-    setSavedPostsLoadingMore(true);
-    const nextPage = savedPostsPage + 1;
-    try {
-      const res = await savedPostsAPI.getSavedPosts({ page: nextPage, limit: POST_PAGE_LIMIT });
-      const { posts: rows, total } = extractPostsPage(res.data);
-      if (rows.length === 0) {
-        setSavedPostsTotal(savedPostsData.length);
-      } else {
-        setSavedPostsData((prev) => {
-          const base = prev ?? [];
-          const next = appendUniquePosts(base, rows);
-          if (total === null && next.length === base.length) setSavedPostsTotal(base.length);
-          return next;
-        });
-        setSavedPostsPage(nextPage);
-        if (total !== null) setSavedPostsTotal(total);
-        enrichMissingCommentCounts(rows).then((enrichedRows) => {
-          if (enrichedRows === rows) return;
-          setSavedPostsData((prev) => {
-            if (!prev) return prev;
-            const byKey = new Map(enrichedRows.map((p) => [postKey(p), p]));
-            return prev.map((p) => byKey.get(postKey(p)) ?? p);
-          });
-        });
-      }
-    } catch {
-      // Bkz. loadMoreMyPosts.
-    } finally {
-      savedPostsInFlight.current = false;
-      setSavedPostsLoadingMore(false);
-    }
-  }, [savedPostsData, savedPostsPage, savedPostsTotal]);
-
-  // Sekme içerikleri dış ScrollView'in içinde `map` ile basılıyor (FlatList
-  // yok, bkz. render). Bu yüzden `onEndReached` yerine ScrollView'in kendi
-  // kaydırma olayından, görünür yüksekliğin yarısı kadar bir eşikle
-  // ("onEndReachedThreshold={0.5}" karşılığı) tetikliyoruz.
-  //
-  // Artık iki sayfa (`posts`/`saved`) Reanimated'in `useAnimatedScrollHandler`
-  // ile kaydırılıyor (bkz. aşağıdaki kayan başlık bloğu) — bu yüzden `tab`
-  // parametresiyle çağrılıyor ve `nativeEvent`'i doğrudan (sarmalanmamış)
-  // alıyor. `activeTab !== tab` kontrolü, yalnızca gerçekten görünür sayfa
-  // sonraki sayfayı çekebilsin diye korunuyor.
-  const handleScroll = useCallback(
-    (tab: 'posts' | 'saved', nativeEvent: NativeScrollEvent) => {
-      if (activeTab !== tab) return;
-      const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
-      const distanceToEnd = contentSize.height - contentOffset.y - layoutMeasurement.height;
-      if (distanceToEnd > layoutMeasurement.height * 0.5) return;
-      if (tab === 'posts') loadMoreMyPosts();
-      else loadMoreSavedPosts();
-    },
-    [activeTab, loadMoreMyPosts, loadMoreSavedPosts]
+      if (activeTab === 'posts') return refreshMyPosts();
+      if (activeTab === 'saved') return refreshSavedPosts();
+    }, [activeTab, refreshMyPosts, refreshSavedPosts])
   );
 
   // ÖNEMLİ (off-by-one düzeltmesi): eskiden pager'ın `contentOffset` prop'u
@@ -545,39 +173,6 @@ export default function ProfileScreen() {
 
   // Şeridin kendi ölçüm/ortalama mantığı artık `TabStrip`'in içinde — dört
   // `ref` ve bir effect daha bu bileşenden çıktı.
-
-  // `useCallback` ŞART: `PostCard` `React.memo` ile sarılı ve bu fonksiyon ona
-  // prop olarak gidiyor. Her render'da yeniden yaratıldığında referans eşitliği
-  // bozuluyor, memo hiçbir kartı atlayamıyor ve kaydırma sırasında TÜM liste
-  // yeniden render oluyordu — memo'nun bu ekranda etkisiz kalmasının sebebi.
-  const handlePostDelete = useCallback((deletedId: string | number) => {
-    setMyPosts((prev) => prev.filter((p) => postKey(p) !== String(deletedId)));
-    // Toplam da düşmeli, yoksa "hepsi yüklendi mi?" hesabı (length >= total)
-    // bir daha tutmaz ve liste sonuna gelindiğinde boşuna istek atılır.
-    setMyPostsTotal((prev) => (prev === null ? prev : Math.max(0, prev - 1)));
-  }, []);
-
-  // Kaydedilenler sekmesindeki kartlara ESKİDEN her render'da yeniden yaratılan
-  // satır içi bir ok fonksiyonu veriliyordu — aynı memo kırılması. Silinen
-  // kartın kimliği artık kapanıştan (closure) değil parametreden geliyor.
-  const handleSavedPostDelete = useCallback(
-    (deletedId: string | number) => {
-      fetchSavedPosts();
-      setSavedPostsData((prev) => (prev ? prev.filter((p) => postKey(p) !== String(deletedId)) : prev));
-      setSavedPostsTotal((prev) => (prev === null ? prev : Math.max(0, prev - 1)));
-    },
-    [fetchSavedPosts]
-  );
-
-  const renderMyPost = useCallback(
-    ({ item }: { item: Post }) => <PostCard post={item} showStatus showRating={false} onDelete={handlePostDelete} />,
-    [handlePostDelete]
-  );
-
-  const renderSavedPost = useCallback(
-    ({ item }: { item: Post }) => <PostCard post={item} showStatus showRating onDelete={handleSavedPostDelete} />,
-    [handleSavedPostDelete]
-  );
 
   const handleToggleBadgeVisibility = useCallback(
     async (badge: Badge) => {
@@ -680,33 +275,6 @@ export default function ProfileScreen() {
     opacity: cardHeightShared.value > 0 ? 1 - Math.min(scrollY.value, cardHeightShared.value * 0.7) / (cardHeightShared.value * 0.7) : 1,
   }));
 
-  // İki gönderi sekmesi hem `scrollY`'yi besliyor hem de sonsuz kaydırma
-  // eşiğini (bkz. handleScroll) kontrol ediyor; kalan beş sekme yalnızca
-  // `scrollY`'yi besliyor. Sekme sayısı sabit (7) olduğu için hook'lar burada
-  // döngüsüz, tek tek çağrılıyor.
-  const postsScrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
-      const distanceToEnd = event.contentSize.height - event.contentOffset.y - event.layoutMeasurement.height;
-      if (distanceToEnd <= event.layoutMeasurement.height * 0.5) {
-        runOnJS(handleScroll)('posts', event);
-      }
-    },
-    onEndDrag: (event) => runOnJS(rememberPageOffset)('posts', event.contentOffset.y),
-    onMomentumEnd: (event) => runOnJS(rememberPageOffset)('posts', event.contentOffset.y),
-  });
-  const savedScrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
-      const distanceToEnd = event.contentSize.height - event.contentOffset.y - event.layoutMeasurement.height;
-      if (distanceToEnd <= event.layoutMeasurement.height * 0.5) {
-        runOnJS(handleScroll)('saved', event);
-      }
-    },
-    onEndDrag: (event) => runOnJS(rememberPageOffset)('saved', event.contentOffset.y),
-    onMomentumEnd: (event) => runOnJS(rememberPageOffset)('saved', event.contentOffset.y),
-  });
-
   // SAYFA PENCERELEME.
   //
   // Pager yatay bir ScrollView ve yedi sayfasının YEDİSİ de mount'luydu: yedi
@@ -747,14 +315,12 @@ export default function ProfileScreen() {
     return <ProfileSkeleton />;
   }
 
-  // `headerTotalHeight` kadar dolgu içeriği şeridin TAM altına yapıştırıyordu
-  // (ör. Program sekmesindeki "Düzenle" butonu şeride bitişik duruyordu);
-  // sekme şeridiyle içerik arasında sabit bir nefes payı bırakılıyor.
-  const pageContentStyle = { paddingBottom: TAB_BAR_SAFE_PADDING, paddingTop: headerTotalHeight + 14 };
-
-  // Beş "basit" sekmenin ortak prop kümesi. Hepsi stabil referans olduğu için
-  // sekme bileşenlerinin `React.memo`'su iş görüyor: bu ekranda bir modal
-  // açılması ya da bir sayacın değişmesi o ağaçlara HİÇ girmiyor.
+  // Sekme bileşenlerinin ortak prop kümesi. Hepsi stabil referans olduğu için
+  // `React.memo` iş görüyor: bu ekranda bir modal açılması ya da bir sayacın
+  // değişmesi o ağaçlara HİÇ girmiyor.
+  //
+  // `headerHeight`: sayfa içeriği başlık kadar boşlukla başlıyor (kart + şerit
+  // pager'ın ÜSTÜNDE mutlak konumlu duruyor).
   const tabProps = {
     width: screenWidth,
     headerHeight: headerTotalHeight,
@@ -784,55 +350,28 @@ export default function ProfileScreen() {
         scrollEventThrottle={32}
         style={{ flex: 1 }}
       >
-        {/* Gönderiler ve Kaydedilenler sekmeleri ARTIK SANALLAŞTIRILMIŞ.
-            Eskiden `Animated.ScrollView` içinde düz bir `.map()` vardı: liste
-            ne kadar uzunsa o kadar kart aynı anda mount kalıyor, hepsi her
-            render'da yeniden çiziliyordu — profilde kaydırma kasmasının ve
-            ısınmanın asıl kaynağı buydu. Kayan başlık düzeni aynen korunuyor:
-            `onScroll` yine aynı worklet, üst dolgu yine `pageContentStyle`. */}
-        <Animated.FlatList
-          style={{ width: screenWidth }}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={pageContentStyle}
-          onScroll={postsScrollHandler}
-          scrollEventThrottle={16}
-          data={activeTab === 'posts' ? myPosts : NO_POSTS}
-          keyExtractor={postKey}
-          renderItem={renderMyPost}
-          // `removeClippedSubviews` BİLEREK KAPALI: kartlar dokunulabilir ve bu
-          // prop'un ekrandan çıkıp giren satırlarda dokunmayı yutması bilinen
-          // bir sorun. Sanallaştırmanın asıl kazancı zaten aşağıdaki üç ayarda.
-          removeClippedSubviews={false}
-          maxToRenderPerBatch={5}
-          windowSize={7}
-          initialNumToRender={5}
-          ListEmptyComponent={
-            activeTab === 'posts' ? <EmptyState icon={FileText} text="Henüz not paylaşmadınız." /> : null
-          }
-          ListFooterComponent={myPostsLoadingMore ? <TabLoading /> : null}
+        <PostsTab
+          kind="posts"
+          active={activeTab === 'posts'}
+          {...tabProps}
+          posts={myPosts.posts}
+          rows={myPosts.rows}
+          loadingMore={myPosts.loadingMore}
+          loadMore={myPosts.loadMore}
+          onDelete={myPosts.handleDelete}
+          emptyText="Henüz not paylaşmadınız."
         />
 
-        <Animated.FlatList
-          style={{ width: screenWidth }}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={pageContentStyle}
-          onScroll={savedScrollHandler}
-          scrollEventThrottle={16}
-          data={activeTab === 'saved' && savedPostsData ? savedPostsData : NO_POSTS}
-          keyExtractor={postKey}
-          renderItem={renderSavedPost}
-          removeClippedSubviews={false}
-          maxToRenderPerBatch={5}
-          windowSize={7}
-          initialNumToRender={5}
-          ListEmptyComponent={
-            activeTab !== 'saved' ? null : savedPostsData === null ? (
-              <TabLoading />
-            ) : (
-              <EmptyState icon={FileText} text="Henüz not kaydetmediniz." />
-            )
-          }
-          ListFooterComponent={savedPostsLoadingMore ? <TabLoading /> : null}
+        <PostsTab
+          kind="saved"
+          active={activeTab === 'saved'}
+          {...tabProps}
+          posts={savedPostsState.posts}
+          rows={savedPostsState.rows}
+          loadingMore={savedPostsState.loadingMore}
+          loadMore={savedPostsState.loadMore}
+          onDelete={savedPostsState.handleDelete}
+          emptyText="Henüz not kaydetmediniz."
         />
 
         {isTabMounted('lists') ? (
@@ -905,8 +444,12 @@ export default function ProfileScreen() {
 
         <TabStrip
           activeTab={activeTab}
-          postsCount={myPostsTotal ?? myPosts.length}
-          savedCount={savedPostsTotal ?? savedPosts.length}
+          // Sayaç "ekranda kaç satır var" değil, sunucudaki TOPLAM.
+          // "Kayıtlı"nın yedeği context'in id kümesi: sunucu toplamı sentinel'e
+          // çekildiğinde (bir not kaydedilip çıkarıldığında) sayaç anında
+          // doğru değere düşsün diye (bkz. usePostsPagination.ts).
+          postsCount={myPosts.total ?? myPosts.posts.length}
+          savedCount={savedPostsState.total ?? savedPosts.length}
           onTabPress={handleTabPress}
           onHeightChange={setStripHeight}
         />
