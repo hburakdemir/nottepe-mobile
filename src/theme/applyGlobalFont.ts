@@ -10,10 +10,34 @@ import { APP_FONT_FAMILY } from './typography';
 // güvenli bir tavanla sınırlıyoruz.
 const MAX_FONT_SCALE = 1.2;
 
-// `numberOfLines` verilmiş yazılar tek/az satırlık ETİKETLERDİR: sığmadıklarında
-// sarmak yerine kırpılırlar. Bunlarda otomatik küçültmeyi açıyoruz —
-// yazı önce %75'ine kadar küçülüyor, ancak ondan sonra kırpılıyor.
-const MIN_FONT_SCALE = 0.75;
+// ⚠️ BURADA ESKİDEN `numberOfLines` VERİLMİŞ HER YAZIYA OTOMATİK
+// `adjustsFontSizeToFit` BASILIYORDU. KALDIRILDI — bir daha geri ekleme.
+//
+// Gerekçesi ("etiketler sığmayınca küçülsün, kırpılmasın") mantıklıydı ama
+// bedeli ANDROID'E ÖZGÜ ve çok büyük: bu prop'un iki platformdaki
+// implementasyonu aynı iş değil.
+//
+//   iOS: UIKit/CoreText küçültmeyi TEK ölçüm pasında hallediyor — pratikte
+//   bedava. Uygulamanın iOS'ta hiç kasmamasının sebeplerinden biri bu.
+//
+//   Android: RN bunu ITERATİF DÖNGÜYLE yapıyor — `StaticLayout` kur, taşıyor
+//   mu diye bak, fontu bir kademe küçült, BAŞTAN kur; sığana kadar tekrarla.
+//   Yeni Mimari'de bu ölçüm JNI üzerinden senkron bir çağrı, yani JS thread'ini
+//   bekletebiliyor.
+//
+// Prop global olarak basıldığı için maliyet her `numberOfLines`'lı yazıya
+// yayılıyordu: `PostCardModern`'da satır başına 3 tane + `BadgeChip`. Teşhis
+// rozetinin ölçtüğü blokajların rotaya göre yığılması (Profile 24,5 sn ·
+// Home 12,1 sn · PostDetail 3,1 sn / 322 sn pencere) bununla birebir
+// örtüşüyor: maliyet o an ekranda kaç tane böyle yazı olduğuyla ölçekleniyor,
+// global render dalgasıyla değil. Android görünürlük değişiminde tüm pencereyi
+// yeniden ölçtüğü için öne dönüşte hepsi döngüsünü birden koşturuyor —
+// "arka plandan dönünce donuyor" şikayetinin bu yoldan gelen payı.
+//
+// Kırpılma korkusu için asıl savunma zaten YUKARIDAKİ `MAX_FONT_SCALE` tavanı
+// ve o bedava. Küçültmeyi gerçekten isteyen iki etiket prop'u KENDİ dosyasında
+// elle veriyor — sayfa başlığı (AppHeader.tsx) ve 130 gün sekmeleri
+// (Ego130ScheduleScreen.tsx, bkz. oradaki not). Global varsayılan değil.
 
 // RN'nin Text/TextInput'u artık fonksiyon bileşen olduğu için eski
 // `Text.defaultProps` / `Text.render` monkey-patch numaraları çalışmıyor
@@ -27,19 +51,13 @@ const MIN_FONT_SCALE = 0.75;
 // (React Navigation başlıkları dahil) otomatik kapsar.
 function withFont<P extends { style?: unknown }>(
   Component: React.ComponentType<P>,
-  fontFamily: string | undefined,
-  shrinkToFit: boolean
+  fontFamily: string | undefined
 ): React.ComponentType<P> {
   const Wrapped = React.forwardRef<unknown, P>((props: any, ref) => {
     const patched: Record<string, unknown> = {};
 
     if (props.maxFontSizeMultiplier === undefined && props.allowFontScaling !== false) {
       patched.maxFontSizeMultiplier = MAX_FONT_SCALE;
-    }
-
-    if (shrinkToFit && props.numberOfLines > 0 && props.adjustsFontSizeToFit === undefined) {
-      patched.adjustsFontSizeToFit = true;
-      if (props.minimumFontScale === undefined) patched.minimumFontScale = MIN_FONT_SCALE;
     }
 
     return React.createElement(Component, {
@@ -62,10 +80,8 @@ export function applyGlobalFont(): void {
   // getter olarak tanımlıyor (setter yok) — düz atama ("ReactNative.Text = ...")
   // "Cannot assign to property which has only a getter" hatasıyla patlıyor.
   // Property'yi kendi getter'ımızla yeniden tanımlamamız gerekiyor.
-  //
-  // `adjustsFontSizeToFit` yalnızca Text'in prop'u — TextInput'a verilmiyor.
-  const wrappedText = withFont(ReactNative.Text, APP_FONT_FAMILY, true);
-  const wrappedTextInput = withFont(ReactNative.TextInput, APP_FONT_FAMILY, false);
+  const wrappedText = withFont(ReactNative.Text, APP_FONT_FAMILY);
+  const wrappedTextInput = withFont(ReactNative.TextInput, APP_FONT_FAMILY);
   Object.defineProperty(ReactNative, 'Text', { value: wrappedText, configurable: true, enumerable: true });
   Object.defineProperty(ReactNative, 'TextInput', { value: wrappedTextInput, configurable: true, enumerable: true });
 }

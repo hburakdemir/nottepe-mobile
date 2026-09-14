@@ -5,6 +5,28 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { getCoefficient, isValidGrade, MAX_AKTS, MAX_SEMESTER, MIN_AKTS, MIN_SEMESTER, type Course } from './gano';
 
+// DOSYA BOYUTU TAVANI — bu bir ANR koruması, kozmetik bir sınır değil.
+//
+// `XLSX.read` TAMAMEN SENKRON çalışıyor: parse bitene kadar JS thread'i bloke,
+// yani animasyon yok, dokunuş yok, hiçbir şey yok. Öncesinde `file.base64()`
+// tüm dosyayı belleğe alıyor (base64 olarak ~%33 şişerek). Büyük bir dosyada
+// uygulama saniyelerce donar ve Android 5 saniyeyi aşarsa "Uygulama yanıt
+// vermiyor" diyalogu çıkarır — bu da Play Console'a ANR olarak düşüp Android
+// Vitals'ı bozar.
+//
+// 2 MB bilinçli seçildi: gerçek bir transkript (50-80 ders) xlsx olarak
+// tipik olarak 10-30 KB. 2 MB, meşru her dosyanın iki mertebe üstünde.
+export const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
+
+// Boyut sınırını geçen ama içi anormal derecede kalabalık dosyalara karşı
+// ikinci kemer (ör. tek hücresi çok uzun, satırı çok fazla bir sayfa).
+const MAX_IMPORT_ROWS = 2000;
+
+export function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.round(bytes / 1024)} KB`;
+}
+
 const HEADER_ALIASES: Record<string, string[]> = {
   code: ['kod', 'ders kodu', 'course code', 'code'],
   lessonName: ['ders', 'ders adı', 'ders adi', 'lesson', 'lesson name', 'course'],
@@ -88,6 +110,19 @@ function parseRow(
 
 export async function parseCoursesFromExcel(uri: string, name: string): Promise<{ valid: ImportedCourse[]; errors: ImportError[] }> {
   const file = new File(uri);
+
+  // İkinci kemer: çağrı yeri (AktsCalculatorScreen) DocumentPicker'ın verdiği
+  // `size` ile zaten eliyor ama o alan opsiyonel — bazı platformlarda
+  // `undefined` gelebiliyor. Burada dosyanın kendisinden okuyup tekrar
+  // bakıyoruz, çünkü bu satırın ALTINDAKİ `XLSX.read` geri dönüşü olmayan
+  // senkron blok.
+  const size = file.size ?? 0;
+  if (size > MAX_IMPORT_BYTES) {
+    throw new Error(
+      `Dosya çok büyük (${formatBytes(size)}). En fazla ${formatBytes(MAX_IMPORT_BYTES)} olabilir. Transkriptini sadece ders satırlarını bırakacak şekilde sadeleştirip tekrar dene.`
+    );
+  }
+
   const isCsv = name.toLowerCase().endsWith('.csv');
   // CSV'yi metin, xlsx/xls'i base64 olarak okuyup XLSX.read'e veriyoruz — array buffer
   // yolunda Türkçe karakterler (ö, ı, ş, ğ, İ) bozulabiliyor.
@@ -102,6 +137,9 @@ export async function parseCoursesFromExcel(uri: string, name: string): Promise<
     blankrows: false,
   });
   if (rows.length < 2) throw new Error('Dosyada başlık satırından başka veri yok.');
+  if (rows.length > MAX_IMPORT_ROWS) {
+    throw new Error(`Dosyada ${rows.length} satır var; en fazla ${MAX_IMPORT_ROWS} satır işlenebiliyor.`);
+  }
 
   const { columnIndex, missing } = mapHeaders(rows[0]);
   if (missing.length > 0) {

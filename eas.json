@@ -36,6 +36,11 @@
     "production": {
       "ios": {
         "ascAppId": "6809036812"
+      },
+      "android": {
+        "track": "Close Friends",
+        "releaseStatus": "draft",
+        "changesNotSentForReview": false
       }
     }
   }

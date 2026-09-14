@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
 import {
   CalendarDays,
   CalendarX,
@@ -14,6 +15,18 @@ import {
 } from 'lucide-react-native';
 import { menuAPI } from '../../lib/api';
 import { useTheme } from '../../context/ThemeContext';
+import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
+import { useDelayedLoading } from '../../hooks/useDelayedLoading';
+
+// Yemek listesi gün içinde değişmiyor: bir kez çekildikten sonra 30 dakika
+// taze sayılıyor. Sekmeden çıkıp geri gelmek, uygulamayı arka plandan
+// döndürmek, aylık↔haftalık geçişi — hiçbiri yeni istek atmıyor, dolayısıyla
+// "her seferinde yükleme animasyonu" şikayeti bu ekranda tamamen bitiyor.
+const MENU_STALE_MS = 30 * 60 * 1000;
+
+// Modül seviyesinde sabit: `data = []` yazılsaydı her render'da YENİ bir dizi
+// üretilir ve aşağıdaki `useMemo` bağımlılıkları boşuna tetiklenirdi.
+const EMPTY_DAYS: Day[] = [];
 
 interface MenuItem {
   name: string;
@@ -140,50 +153,57 @@ function MealPreviewCard({ mealType, meal, isDark }: { mealType: string; meal?: 
 export default function CafeteriaMenuScreen() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const [days, setDays] = useState<Day[]>([]);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
 
   const now = new Date();
   const [monthCursor, setMonthCursor] = useState({ year: now.getFullYear(), month: now.getMonth() + 1 });
-  const [monthCache, setMonthCache] = useState<Record<string, Day[]>>({});
-  const [monthLoading, setMonthLoading] = useState(false);
   const [selectedMonthDate, setSelectedMonthDate] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const [todayRes, weekRes] = await Promise.all([menuAPI.getToday(), menuAPI.getWeek()]);
-        let weekDays: Day[] = weekRes.data.days || [];
-        if (todayRes.data?.available) {
-          weekDays = weekDays.map((d) => (d.date === todayRes.data.date ? { ...d, meals: todayRes.data.meals } : d));
-        }
-        setDays(weekDays);
-        setSelectedDate(weekDays[0]?.date || null);
-      } catch {
-        setDays([]);
-      } finally {
-        setLoading(false);
+  // Bugünün menüsü ve haftalık liste tek sorguda birleşiyor: ikisi ayrı
+  // anahtarda olsaydı ekran iki ayrı yükleme durumu yönetmek zorunda kalırdı,
+  // oysa kullanıcı için tek bir şey var — "bu haftanın listesi".
+  const { data: days = EMPTY_DAYS, isLoading: isLoadingRaw } = useQuery({
+    queryKey: ['menu', 'week'],
+    queryFn: async () => {
+      const [todayRes, weekRes] = await Promise.all([menuAPI.getToday(), menuAPI.getWeek()]);
+      let weekDays: Day[] = weekRes.data.days || [];
+      if (todayRes.data?.available) {
+        weekDays = weekDays.map((d) => (d.date === todayRes.data.date ? { ...d, meals: todayRes.data.meals } : d));
       }
-    })();
-  }, []);
+      return weekDays;
+    },
+    staleTime: MENU_STALE_MS,
+  });
 
-  const monthKey = `${monthCursor.year}-${monthCursor.month}`;
-  useEffect(() => {
-    if (viewMode !== 'month' || monthCache[monthKey]) return;
-    setMonthLoading(true);
-    menuAPI
-      .getMonth(monthCursor.year, monthCursor.month)
-      .then((res) => setMonthCache((prev) => ({ ...prev, [monthKey]: res.data.days || [] })))
-      .catch(() => setMonthCache((prev) => ({ ...prev, [monthKey]: [] })))
-      .finally(() => setMonthLoading(false));
-  }, [viewMode, monthKey, monthCursor, monthCache]);
+  // İnternet hızlıysa (veri 200ms'den önce gelirse) iskelet HİÇ görünmüyor —
+  // yalnızca gerçekten yavaşsa devreye giriyor. bkz. useDelayedLoading.ts
+  const isLoading = useDelayedLoading(isLoadingRaw);
+
+  // Seçili gün artık state'te TUTULMUYOR, TÜRETİLİYOR: kullanıcı bir güne
+  // dokunduysa o, dokunmadıysa haftanın ilk günü. Eskiden veri gelince çalışan
+  // `setSelectedDate` ile yazılıyordu — yani veri her tazelendiğinde
+  // kullanıcının seçtiği gün sıfırlanma riski taşıyordu.
+  const [pickedDate, setPickedDate] = useState<string | null>(null);
+  const selectedDate = pickedDate ?? days[0]?.date ?? null;
+
+  // Elle yazılmış `monthCache` sözlüğü kaldırıldı: react-query'nin kendi cache'i
+  // aynı işi anahtar başına yapıyor, üstelik ekran söküldüğünde de kalıyor.
+  // `isLoading` (≠ `isFetching`) kilit nokta — daha önce bakılmış bir aya geri
+  // dönüldüğünde veri cache'ten geldiği için iskelet HİÇ görünmüyor.
+  const { data: monthDaysList = EMPTY_DAYS, isLoading: monthLoadingRaw } = useQuery({
+    queryKey: ['menu', 'month', monthCursor.year, monthCursor.month],
+    queryFn: async () => {
+      const res = await menuAPI.getMonth(monthCursor.year, monthCursor.month);
+      return (res.data.days || []) as Day[];
+    },
+    enabled: viewMode === 'month',
+    staleTime: MENU_STALE_MS,
+  });
+  const monthLoading = useDelayedLoading(monthLoadingRaw);
 
   const selectedDay = days.find((d) => d.date === selectedDate);
   const hasMenu = selectedDay && Object.values(selectedDay.meals || {}).some((m) => m.status === 'ok');
 
-  const monthDaysList = monthCache[monthKey] || [];
   const monthDaysByDate = useMemo(() => Object.fromEntries(monthDaysList.map((d) => [d.date, d])), [monthDaysList]);
   const monthGrid = useMemo(() => buildMonthGrid(monthCursor.year, monthCursor.month), [monthCursor]);
   const selectedMonthDay = selectedMonthDate ? monthDaysByDate[selectedMonthDate] : undefined;
@@ -205,11 +225,44 @@ export default function CafeteriaMenuScreen() {
     });
   };
 
-  if (loading) {
+  // İskelet, GERÇEK yerleşimin ölçülerini taklit ediyor: aynı iki mod düğmesi,
+  // aynı 5 gün şeridi, aynı yemek kartı yükseklikleri. Amaç ekranı doldurmak
+  // değil, veri geldiğinde hiçbir şeyin yerinden ZIPLAMAMASI.
+  if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color={isDark ? '#5A9690' : '#2F5755'} />
-      </View>
+      <SkeletonGroup>
+        <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="p-4 pb-[110px]">
+          <View className="flex-row gap-2 mb-3.5">
+            <Skeleton width={96} height={34} radius={10} />
+            <Skeleton width={88} height={34} radius={10} />
+          </View>
+
+          <View className="flex-row gap-2 mb-3.5">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <Skeleton key={i} width={60} height={58} radius={12} />
+            ))}
+          </View>
+
+          <Skeleton width={150} height={13} style={{ marginBottom: 12 }} />
+
+          <View className="gap-3">
+            {[0, 1].map((card) => (
+              <View key={card} className="bg-surface rounded-[14px] p-3.5 border border-line-soft gap-2.5">
+                <View className="flex-row items-center justify-between">
+                  <Skeleton width={110} height={15} />
+                  <Skeleton width={58} height={12} />
+                </View>
+                {[0, 1, 2].map((row) => (
+                  <View key={row} className="gap-1">
+                    <Skeleton width="30%" height={9} radius={4} />
+                    <Skeleton width="70%" height={13} />
+                  </View>
+                ))}
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      </SkeletonGroup>
     );
   }
 
@@ -249,7 +302,7 @@ export default function CafeteriaMenuScreen() {
                       className={`items-center rounded-xl px-4 py-2.5 min-w-[60px] border ${
                         isSelected ? 'bg-brand border-brand' : !dayHasMenu ? 'bg-inset border-line-soft' : 'bg-surface border-line'
                       }`}
-                      onPress={() => setSelectedDate(d.date)}
+                      onPress={() => setPickedDate(d.date)}
                     >
                       <Text className={`text-[11px] capitalize ${isSelected ? 'text-white' : 'text-muted'}`}>
                         {idx === 0 ? 'Bugün' : day}
@@ -297,7 +350,20 @@ export default function CafeteriaMenuScreen() {
           </View>
 
           {monthLoading ? (
-            <ActivityIndicator style={{ marginVertical: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
+            // Takvim ızgarasının kendi ölçüsünde iskelet — 6 satır × 7 sütun.
+            <SkeletonGroup>
+              <View className="bg-surface rounded-[14px] p-3 mb-3.5 gap-1.5">
+                {[0, 1, 2, 3, 4, 5].map((row) => (
+                  <View key={row} className="flex-row">
+                    {[0, 1, 2, 3, 4, 5, 6].map((col) => (
+                      <View key={col} style={{ width: `${100 / 7}%`, aspectRatio: 1, padding: 2 }}>
+                        <Skeleton height={undefined} radius={8} style={{ flex: 1, width: '100%' }} />
+                      </View>
+                    ))}
+                  </View>
+                ))}
+              </View>
+            </SkeletonGroup>
           ) : (
             <>
               <View className="bg-surface rounded-[14px] p-3 mb-3.5">

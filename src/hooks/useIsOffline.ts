@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import { useNetworkState } from 'expo-network';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState, Platform } from 'react-native';
+import { getNetworkStateAsync, useNetworkState } from 'expo-network';
 
 // `isConnected` cihazın aktif bir ağ arayüzüne (wifi/hücresel) sahip olup
 // olmadığını söylüyor — `isInternetReachable` ilk okumada genelde `undefined`
@@ -28,8 +29,40 @@ const OFFLINE_DEBOUNCE_MS = 1500;
 // bekliyor; gerçekten çevrimdışıysa yine de bu kısa payın sonunda kilitleniyor.
 const COLD_START_GRACE_MS = 1200;
 
+// ANDROID'DE OLAY AKIŞI TEK BAŞINA GÜVENİLİR DEĞİL — bu yüzden düzenli taze
+// okuma yapılıyor. Sebep `expo-network`'ün (8.0.8) iki platformdaki native
+// implementasyonunun farkı:
+//
+//   iOS (NetworkModule.swift) `NWPathMonitor` kullanıyor; `pathUpdateHandler`
+//   yeni path'i ARGÜMAN olarak veriyor ve `isConnected` doğrudan o yükten
+//   hesaplanıyor. Yeniden sorgu yok.
+//
+//   Android (NetworkModule.kt) `onLost` tetiklendiğinde olayın yükünü
+//   kullanmıyor; `connectivityManager.activeNetwork`'ü YENİDEN SORGULUYOR.
+//   `onLost` çağrıldığı anda `activeNetwork`'ün çoktan `null` olduğuna dair bir
+//   sıralama garantisi yok — ölmekte olan ağı hâlâ döndürebiliyor, o zaman
+//   `isConnected: true` yayınlanıyor. Uçak modunda bir daha yeni ağ
+//   gelmeyeceği için `onAvailable` de hiç tetiklenmiyor: JS tarafı sonsuza
+//   kadar bayat `true` ile kalıyor ve çevrimdışı kilidi hiç devreye girmiyor.
+//
+// `getNetworkStateAsync()` her çağrıldığında sistemi taze okuduğu için bu yarışı
+// tamamen atlıyor. SADECE Android: iOS'ta aynı fonksiyon path argümanı olmadan
+// çağrıldığında geçici bir `NWPathMonitor` kurup semafor üzerinde 5 sn'ye kadar
+// BLOKLUYOR (NetworkModule.swift `getNetworkPathAsync`) — orada olay akışı zaten
+// doğru çalıştığı için yoklamaya hiç girmiyoruz.
+const ANDROID_POLL_MS = 2000;
+
 export function useIsOffline(): boolean {
-  const { isConnected } = useNetworkState();
+  const { isConnected: eventIsConnected } = useNetworkState();
+  const [polledIsConnected, setPolledIsConnected] = useState<boolean | undefined>(undefined);
+  const isAndroid = Platform.OS === 'android';
+  // Android'de tek doğruluk kaynağı yoklama: olay akışı yukarıda anlatıldığı gibi
+  // bayat `true`da takılabiliyor, dolayısıyla ikisini "true ise çevrimiçi" diye
+  // birleştirmek hatayı geri getirirdi. Olay yine de işe yarıyor — aşağıdaki
+  // efekt onu anında yeniden okuma tetikleyicisi olarak kullanıyor, böylece
+  // bağlantı geri geldiğinde bir yoklama turu beklenmiyor.
+  const isConnected = isAndroid ? polledIsConnected : eventIsConnected;
+
   // Başlangıç değeri her zaman `false`: `isConnected === false` ile başlamak,
   // soğuk açılıştaki doğrulanmamış native okumayı ilk render'da anında
   // "çevrimdışı" kilidine çeviriyordu (yanlış pozitif). Gerçek durum aşağıdaki
@@ -41,6 +74,64 @@ export function useIsOffline(): boolean {
   // için mount anını bir kere sabitliyoruz.
   const mountedAtRef = useRef(Date.now());
 
+  // KİLİT YALNIZCA ÖN PLANDA DEĞİŞEBİLİR.
+  //
+  // `RootNavigator`, `isOffline` true olduğunda erken `return <OfflineEgoScreen />`
+  // yapıyor — yani Drawer + Stack + Tab ağacının TAMAMI unmount oluyor. Android
+  // ekran kapalıyken Wi-Fi'yi düzenli olarak uykuya alıyor (Doze / Wi-Fi sleep),
+  // üstelik yukarıdaki yoklama artık bu kayıpları güvenilir biçimde GÖRÜYOR.
+  // Kilit arka planda devreye girerse kullanıcı telefonu açtığında ağaç sıfırdan
+  // mount ediliyor: her ekran yeniden kuruluyor, her sorgu yeniden çekiliyor,
+  // bütün avatarlar yeniden çiziliyor. "Öne dönünce 2-3 saniye donuyor"
+  // şikayetinin bu yoldan gelen payı bu — ve iOS'ta olmamasının sebebi de bu,
+  // çünkü orada uygulama askıya alınıyor, kilitte bağlantı kaybı bildirilmiyor.
+  //
+  // Arka planda ölçülen bir bağlantı kaybının kullanıcı deneyiminde karşılığı
+  // yok: kimse bakmıyor. Kilit yalnızca kullanıcı gerçekten ekrana bakarken
+  // anlamlı, o yüzden ön plana dönene kadar mevcut değerinde donduruluyor.
+  // Dönüşte bu efekt yeniden çalışıyor ve taze okumayla karar veriyor; gerçekten
+  // çevrimdışıysa normal 1.5 sn'lik debounce sonunda yine kilitleniyor.
+  const [isAppActive, setIsAppActive] = useState(AppState.currentState === 'active');
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => setIsAppActive(next === 'active'));
+    return () => sub.remove();
+  }, []);
+
+  const readNetworkState = useCallback(async () => {
+    try {
+      const state = await getNetworkStateAsync();
+      setPolledIsConnected(state.isConnected);
+    } catch {
+      // Okuma başarısızsa son bilinen değer korunuyor: burada `false`'a düşmek
+      // ağ durumu hakkında bilgi vermeyen bir hatayı çevrimdışı kilidine
+      // çevirirdi.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isAndroid) return;
+
+    readNetworkState();
+    const interval = setInterval(() => {
+      // Arka plandayken yoklamanın anlamı yok; öne dönüşte aşağıdaki AppState
+      // dinleyicisi zaten hemen taze okuma yapıyor.
+      if (AppState.currentState === 'active') readNetworkState();
+    }, ANDROID_POLL_MS);
+    const appStateSub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') readNetworkState();
+    });
+
+    return () => {
+      clearInterval(interval);
+      appStateSub.remove();
+    };
+  }, [isAndroid, readNetworkState]);
+
+  useEffect(() => {
+    if (!isAndroid) return;
+    readNetworkState();
+  }, [isAndroid, eventIsConnected, readNetworkState]);
+
   useEffect(() => {
     if (isConnected === true) {
       hasBeenOnlineRef.current = true;
@@ -49,6 +140,12 @@ export function useIsOffline(): boolean {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
+
+    // Ön planda değilsek karar verilmiyor: bekleyen zamanlayıcı yukarıda zaten
+    // iptal edildi, `debouncedOffline` olduğu değerde kalıyor (bkz. yukarıdaki
+    // `isAppActive` notu). Ön plana dönüşte `isAppActive` değiştiği için bu
+    // efekt yeniden çalışıyor.
+    if (!isAppActive) return;
 
     if (isConnected === false) {
       if (!hasBeenOnlineRef.current) {
@@ -73,7 +170,7 @@ export function useIsOffline(): boolean {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [isConnected]);
+  }, [isConnected, isAppActive]);
 
   return debouncedOffline;
 }

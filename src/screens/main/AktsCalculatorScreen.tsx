@@ -54,8 +54,8 @@ import {
   type Course,
   type Overrides,
 } from '../../utils/gano';
-import { exportCoursesToExcel, parseCoursesFromExcel, type ImportedCourse, type ImportError } from '../../utils/ganoExcel';
-import KeyboardAvoider from '../../components/layout/KeyboardAvoider';
+import { exportCoursesToExcel, parseCoursesFromExcel, type ImportedCourse, type ImportError, MAX_IMPORT_BYTES, formatBytes } from '../../utils/ganoExcel';
+import KeyboardAvoider, { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 
 interface SavedCalc {
   id: number;
@@ -81,6 +81,19 @@ const UNCREDITED_LABELS: Record<string, string> = {
   H: 'Hariç — ne başarılı ne başarısız sayılır',
   M: 'Muaf — başarılı sayılır, ortalamaya girmez',
 };
+// İÇE AKTARMA ÖNİZLEMESİNDE ÇİZİLEN EN FAZLA SATIR.
+//
+// Bu bir kozmetik sınır değil, ANR koruması. `ganoExcel.ts` dosyayı en fazla
+// 2000 satırda okuyor (MAX_IMPORT_ROWS); o sınır PARSE'ı koruyordu ama
+// önizleme o 2000 satırın HEPSİNİ tek karede çiziyordu — yani ANR bir adım
+// öteye taşınmış oluyordu. 2000 satır × 2 Text = 6000 bileşen, modal içindeki
+// düz bir ScrollView'de, tek karede.
+//
+// Önizlemenin işi listeyi baştan sona okutmak değil, "dosya doğru okundu mu"
+// sorusunu cevaplatmak. İlk 50 satır bunu zaten yapıyor; geri kalanı sayıyla
+// söyleniyor ve onaylandığında hepsi aktarılıyor.
+const PREVIEW_ROW_LIMIT = 50;
+
 const scoreRangeByGrade: Record<string, string> = Object.fromEntries(SCORE_RANGES.map((r) => [r.grade, `${r.min}-${r.max}`]));
 
 function formatDate(dateString: string): string {
@@ -406,6 +419,20 @@ export default function AktsCalculatorScreen() {
     });
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
+
+    // Parse'a HİÇ başlamadan ele. `parseCoursesFromExcel` içindeki `XLSX.read`
+    // tamamen senkron: başladıktan sonra iptal edilemiyor, JS thread'i bloke
+    // ediyor ve büyük dosyada Android'in "yanıt vermiyor" (ANR) diyalogunu
+    // tetikleyebiliyor. `size` opsiyonel bir alan — gelmezse eleme dosyanın
+    // kendisinden okunarak ganoExcel içinde tekrar yapılıyor.
+    if (typeof asset.size === 'number' && asset.size > MAX_IMPORT_BYTES) {
+      Alert.alert(
+        'Dosya çok büyük',
+        `Seçtiğin dosya ${formatBytes(asset.size)}. En fazla ${formatBytes(MAX_IMPORT_BYTES)} olabilir.\n\nTranskriptini sadece ders satırlarını bırakacak şekilde sadeleştirip tekrar dene.`
+      );
+      return;
+    }
+
     setImportParsing(true);
     try {
       const preview = await parseCoursesFromExcel(asset.uri, asset.name);
@@ -481,7 +508,7 @@ export default function AktsCalculatorScreen() {
   const judgedAkts = baseTotals.passedAkts + baseTotals.failedAkts;
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="px-4 pt-6 pb-[110px] gap-4">
+    <KeyboardAwareScroll showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="px-4 pt-6 pb-[110px] gap-4" keyboardShouldPersistTaps="handled">
       {/* Başlık */}
       <View className="gap-1">
         <View className="flex-row items-center gap-2.5">
@@ -1264,7 +1291,7 @@ export default function AktsCalculatorScreen() {
                       <Text className="text-muted2 text-sm py-1">Geçerli satır yok.</Text>
                     ) : (
                       <View className="gap-1.5">
-                        {importPreview.valid.map((c, i) => (
+                        {importPreview.valid.slice(0, PREVIEW_ROW_LIMIT).map((c, i) => (
                           <View key={i} className="bg-inset rounded-lg px-3 py-2">
                             <Text className="text-sm text-gray-800 font-medium" numberOfLines={1}>
                               {c.code ? `${c.code} · ` : ''}
@@ -1275,6 +1302,11 @@ export default function AktsCalculatorScreen() {
                             </Text>
                           </View>
                         ))}
+                        {importPreview.valid.length > PREVIEW_ROW_LIMIT && (
+                          <Text className="text-[12.5px] text-muted2 px-1 pt-1">
+                            …ve {importPreview.valid.length - PREVIEW_ROW_LIMIT} ders daha. Onaylarsan hepsi aktarılacak.
+                          </Text>
+                        )}
                       </View>
                     )}
                     {importPreview.errors.length > 0 && (
@@ -1283,12 +1315,17 @@ export default function AktsCalculatorScreen() {
                           <AlertTriangle size={15} color={isDark ? '#dc2626' : '#8C1007'} />
                           <Text className="text-sm font-semibold text-fail">Hatalı satırlar ({importPreview.errors.length})</Text>
                         </View>
-                        {importPreview.errors.map((err, i) => (
+                        {importPreview.errors.slice(0, PREVIEW_ROW_LIMIT).map((err, i) => (
                           <Text key={i} className="text-[12.5px] text-ink2 mb-1">
                             Satır {err.rowNumber}
                             {err.lessonName ? ` (${err.lessonName})` : ''}: {err.message}
                           </Text>
                         ))}
+                        {importPreview.errors.length > PREVIEW_ROW_LIMIT && (
+                          <Text className="text-[12.5px] text-muted2 mb-1">
+                            …ve {importPreview.errors.length - PREVIEW_ROW_LIMIT} hatalı satır daha.
+                          </Text>
+                        )}
                       </View>
                     )}
                   </View>
@@ -1310,7 +1347,7 @@ export default function AktsCalculatorScreen() {
           </View>
         </KeyboardAvoider>
       </Modal>
-    </ScrollView>
+    </KeyboardAwareScroll>
   );
 }
 

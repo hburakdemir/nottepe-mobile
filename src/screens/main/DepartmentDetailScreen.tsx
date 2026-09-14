@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
 import { useRoute } from '@react-navigation/native';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useNavigation } from '@react-navigation/native';
 import { Bell, BellOff } from 'lucide-react-native';
@@ -9,6 +9,7 @@ import { postsAPI, departmentFollowAPI } from '../../lib/api';
 import PostCard from '../../components/PostCard';
 import { useFeedTokens } from '../../theme/feedTokens';
 import { useTheme } from '../../context/ThemeContext';
+import { FOLLOWED_DEPARTMENTS_KEY } from '../../components/layout/MenuDrawerContent';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
@@ -20,6 +21,7 @@ interface PostsPage {
 }
 
 export default function DepartmentDetailScreen() {
+  const queryClient = useQueryClient();
   const route = useRoute<any>();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { faculty, department } = route.params as RootStackParamList['DepartmentDetail'];
@@ -50,6 +52,9 @@ export default function DepartmentDetailScreen() {
       } else {
         await departmentFollowAPI.unfollow(faculty, department);
       }
+      // Menüdeki "Takip Ettiğim Bölümler" listesi artık 5 dk cache'li
+      // (bkz. MenuDrawerContent) — takip değişince bayat kalmasın.
+      queryClient.invalidateQueries({ queryKey: FOLLOWED_DEPARTMENTS_KEY });
     } catch {
       setIsFollowing(!next);
     } finally {

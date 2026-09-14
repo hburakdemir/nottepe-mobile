@@ -1,6 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { savedPostsAPI } from '../lib/api';
 import { useAuth } from './AuthContext';
+
+// Kaydedilenler listesinin sorgu anahtarı BURADA tanımlı, ekranda değil:
+// ekranda olsaydı context onu içe aktarmak zorunda kalır, ekran da zaten
+// context'i içe aktardığı için döngü oluşurdu.
+export const SAVED_POSTS_KEY = ['savedPosts', 'list'] as const;
 
 interface SavedPostsContextValue {
   savedPosts: string[];
@@ -21,6 +27,7 @@ export const useSavedPosts = () => {
 
 export const SavedPostsProvider = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
   const [savedPosts, setSavedPosts] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -68,12 +75,17 @@ export const SavedPostsProvider = ({ children }: { children: React.ReactNode }) 
         } else {
           await savedPostsAPI.savePost(id);
         }
+        // Kaydedilenler EKRANI ayrı bir sorguda duruyor (SavedPostsScreen).
+        // Buradaki iyimser güncelleme yalnız yer imi ikonunu doğru gösterir;
+        // liste geçersiz kılınmazsa kullanıcı bir notu kaydedilenlerden
+        // çıkarıp o ekrana gittiğinde notu hâlâ listede görürdü.
+        queryClient.invalidateQueries({ queryKey: SAVED_POSTS_KEY });
       } catch {
         // Geri al.
         setSavedPosts((prev) => (wasSaved ? [...prev, id] : prev.filter((pid) => pid !== id)));
       }
     },
-    [isAuthenticated, savedPosts]
+    [isAuthenticated, savedPosts, queryClient]
   );
 
   useEffect(() => {

@@ -62,8 +62,34 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
   // yükseklik vermek (yüzde string DEĞİL) Yoga'nın flex:1'i doğru dağıtmasını
   // sağlıyor; ayrıca yatay sayfalayıcının iki sayfasının da aynı sabit
   // yükseklikte olması zaten paging için gerekliydi.
+  // YÜKSEKLİK PENCEREDEN DEĞİL, ÖLÇÜLEN ALANDAN.
+  //
+  // Bu dosya aynı dersi genişlik için zaten öğrenmişti (aşağıdaki pager notu:
+  // "`useWindowDimensions` kullanılamaz, sarmalayıcının KENDİ onLayout'u").
+  // Yükseklikte yapılmamıştı ve bedeli şuydu:
+  //
+  // `overlay` sheet'i ORTALIYOR (`justifyContent: 'center'`) ve `KeyboardAvoider`
+  // içinde duruyor. Sheet'in yüksekliği ise pencereden hesaplanan SABİT bir
+  // sayıydı. Overlay'in gerçek yüksekliği bu sayının altına düşerse — klavye
+  // dolgusu bayat kaldıysa ya da Android edge-to-edge'de `useWindowDimensions`
+  // gerçek kullanılabilir alandan büyük döndüyse (react-native#41918) —
+  // ortalanmış sheet üstten ve alttan EŞİT taşıyor. Üstteki çarpı ve alttaki
+  // Güncelle/İptal ebeveynin sınırlarının dışında kalıyor; Android sınır
+  // dışındaki çocuğa dokunuş TESLİM ETMİYOR (react-native#27232), ama görsel
+  // olarak çizilmeye devam ediyor. Ortadaki form/anahtarlar içeride kaldığı
+  // için çalışmaya devam ediyor.
+  //
+  // Testçi tarifi birebir buydu: "özellikleri kapatabiliyorum ama güncelle,
+  // iptal, çarpıya basamıyorum" — arka plandan dönüşte.
+  //
+  // Artık ölçülen alanla sınırlanıyor: yer varsa görünüm aynı (%82), yer
+  // daralmışsa sheet de daralıyor ve hiçbir şey dışarı taşmıyor. Yükseklik
+  // hâlâ SAYISAL kalıyor — yüzde string'e dönmek, aşağıdaki notta anlatılan
+  // "flex:1 sıfıra çöküyor" hatasını geri getirirdi.
   const { height: windowHeight } = useWindowDimensions();
-  const sheetHeight = windowHeight * 0.82;
+  const [availableHeight, setAvailableHeight] = useState(0);
+  const preferredSheetHeight = windowHeight * 0.82;
+  const sheetHeight = availableHeight > 0 ? Math.min(preferredSheetHeight, availableHeight) : preferredSheetHeight;
   const isDark = theme === 'dark';
   const mutedIconColor = isDark ? '#DFD0B8' : '#6b7280';
   const dangerIconColor = isDark ? '#f87171' : '#dc2626';
@@ -176,7 +202,12 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <KeyboardAvoider>
-        <View style={styles.overlay}>
+                  <View
+            style={styles.overlay}
+            // Sheet'in yüksekliği buradan geliyor (yukarıdaki nota bak).
+            // `- 32` overlay'in kendi dikey padding'i (16 üst + 16 alt).
+            onLayout={(e) => setAvailableHeight(e.nativeEvent.layout.height - 32)}
+          >
           <View className="bg-surface" style={[styles.sheet, { height: sheetHeight }]}>
             <View style={styles.headerRow}>
               <Text className="text-ink" style={styles.title}>

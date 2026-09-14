@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, ListRenderItem, Modal, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, ListRenderItem, Modal, Pressable, Text, TextInput, View } from 'react-native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRoute } from '@react-navigation/native';
 import { ListChecks, Plus, Trash2, X } from 'lucide-react-native';
 import { checklistAPI } from '../../lib/api';
@@ -10,8 +11,15 @@ import ChecklistEditModal from '../../components/ChecklistEditModal';
 import { isWithinEditWindow, type Checklist, type ChecklistItem } from '../../types/checklist';
 import type { RootStackParamList } from '../../navigation/types';
 import { useTheme } from '../../context/ThemeContext';
+import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 import KeyboardAvoider from '../../components/layout/KeyboardAvoider';
+
+const CHECKLISTS_STALE_MS = 5 * 60 * 1000;
+
+const CHECKLISTS_KEY = ['checklists', 'list'] as const;
+
+const EMPTY_CHECKLISTS: Checklist[] = [];
 
 export default function ChecklistsScreen() {
   const route = useRoute<any>();
@@ -20,8 +28,6 @@ export default function ChecklistsScreen() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const [checklists, setChecklists] = useState<Checklist[]>([]);
-  const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [statsChecklist, setStatsChecklist] = useState<Checklist | null>(null);
   const [editChecklist, setEditChecklist] = useState<Checklist | null>(null);
@@ -32,25 +38,46 @@ export default function ChecklistsScreen() {
   const [createItems, setCreateItems] = useState(['']);
   const [creating, setCreating] = useState(false);
 
-  const fetchChecklists = useCallback(async () => {
-    try {
+  const queryClient = useQueryClient();
+
+  // Kontrol listeleri kullanıcının kendi verisi; başkası değiştirmiyor.
+  // Kutucuk işaretlemeleri zaten aşağıda cache'e doğrudan yazılıyor, bu yüzden
+  // uzun bir tazelik süresi güvenli: ekrana her dönüşte liste anında geliyor.
+  const { data: checklists = EMPTY_CHECKLISTS, isLoading, isError, refetch } = useQuery({
+    queryKey: CHECKLISTS_KEY,
+    queryFn: async () => {
       const res = await checklistAPI.getAll();
-      const lists: Checklist[] = res.data.checklists || [];
-      setChecklists(lists);
-      if (params?.slug) {
-        const match = lists.find((c) => c.slug === params.slug);
-        if (match) setExpandedId(match.id);
-      }
-    } catch {
-      Alert.alert('Hata', 'Checklistler yüklenemedi.');
-    } finally {
-      setLoading(false);
-    }
-  }, [params?.slug]);
+      return (res.data.checklists || []) as Checklist[];
+    },
+    staleTime: CHECKLISTS_STALE_MS,
+  });
+
+  // Derin bağlantıyla (slug) gelindiğinde ilgili listeyi aç. Eskiden bu, veri
+  // çekme fonksiyonunun İÇİNDEYDİ — yani liste her tazelendiğinde kullanıcının
+  // elle açıp kapattığı bölüm zorla yeniden açılıyordu. Artık ayrı ve yalnızca
+  // slug'a bağlı.
+  useEffect(() => {
+    if (!params?.slug) return;
+    const match = checklists.find((c) => c.slug === params.slug);
+    if (match) setExpandedId(match.id);
+  }, [params?.slug, checklists]);
 
   useEffect(() => {
-    fetchChecklists();
-  }, [fetchChecklists]);
+    if (isError) Alert.alert('Hata', 'Checklistler yüklenemedi.');
+  }, [isError]);
+
+  // İyimser güncelleme cache'in üstünde: kutucuk anında doluyor, istek arkada
+  // gidiyor, hata olursa geri alınıyor.
+  const patchChecklists = useCallback(
+    (fn: (prev: Checklist[]) => Checklist[]) => {
+      queryClient.setQueryData(CHECKLISTS_KEY, (prev: Checklist[] | undefined) => (prev ? fn(prev) : prev));
+    },
+    [queryClient]
+  );
+
+  const fetchChecklists = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
   const toggleExpand = (checklist: Checklist) => {
     setExpandedId((prev) => (prev === checklist.id ? null : checklist.id));
@@ -58,7 +85,7 @@ export default function ChecklistsScreen() {
 
   const handleToggleItem = async (checklistId: number, item: ChecklistItem) => {
     const newChecked = !item.checked;
-    setChecklists((prev) =>
+    patchChecklists((prev) =>
       prev.map((c) =>
         c.id === checklistId ? { ...c, items: c.items.map((i) => (i.id === item.id ? { ...i, checked: newChecked } : i)) } : c
       )
@@ -66,7 +93,7 @@ export default function ChecklistsScreen() {
     try {
       await checklistAPI.setItemState(item.id, newChecked);
     } catch {
-      setChecklists((prev) =>
+      patchChecklists((prev) =>
         prev.map((c) =>
           c.id === checklistId ? { ...c, items: c.items.map((i) => (i.id === item.id ? { ...i, checked: !newChecked } : i)) } : c
         )
@@ -120,11 +147,22 @@ export default function ChecklistsScreen() {
     [expandedId, user?.id, toggleExpand, handleToggleItem]
   );
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center">
-        <ActivityIndicator size="large" color="#1d4ed8" />
-      </View>
+      <SkeletonGroup>
+        <View className="flex-1 bg-ground p-4 gap-3">
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i} className="bg-surface rounded-xl p-4 border border-line-soft gap-2.5">
+              <View className="flex-row items-center justify-between">
+                <Skeleton width="55%" height={15} />
+                <Skeleton width={40} height={12} />
+              </View>
+              <Skeleton width="80%" height={11} />
+              <Skeleton width="100%" height={6} radius={3} />
+            </View>
+          ))}
+        </View>
+      </SkeletonGroup>
     );
   }
 

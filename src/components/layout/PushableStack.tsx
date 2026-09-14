@@ -16,32 +16,7 @@ import { useTheme } from '../../context/ThemeContext';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
-// X (Twitter) tarzı "itme" efekti. İTMENİN KENDİSİ ARTIK BU DOSYADA DEĞİL:
-// Drawer.Navigator `drawerType: 'back'` kullanıyor (bkz. RootNavigator.tsx),
-// yani react-native-drawer-layout içeriği parmakla birebir sağa itiyor. Daha
-// önce `front` + burada elle translateX vardı; kütüphanenin `front`'a özel
-// "touchDistance" düzeltmesi, parmak panel genişliğinin sağından başladığında
-// meüyü anında ileri fırlattığı için jest parmağı takip etmiyordu.
-//
-// Geriye kalan iş: itilen sayfanın görünen SOL kenarını yuvarlamak, opak bir
-// zemin vermek (altındaki menü sızmasın), ince ayırıcı çizgiyi çizmek ve menü
-// açıkken sayfaya dokununca kapatmak. X'te sayfa KÜÇÜLMÜYOR, sadece kayıyor.
-//
-// GÖLGE ŞU AN BİLİNÇLİ OLARAK YOK. Önce Android `elevation` + iOS `shadow*`
-// ikilisi, sonra SVG ile çizilen bir gradyan şerit denendi; ikisi de itilen
-// sayfanın solundaki koyu bandı değiştirmedi. Bant başka bir katmandan
-// geliyor — kaynağı bulunana kadar buradan hiç gölge çizmiyoruz ki teşhis
-// tek değişkenli kalsın.
-// Olculer Claude mobil uygulamasinin referans ekran goruntulerinden cikarildi
-// (946x2048; ekran genisligi 393dp kabul edilerek olceklendi):
-//  - Kose yaricapi: kose egrisi y=0'da x=895'ten baslayip y=125'te duz kenara
-//    (x=776) oturuyor → yatay sapma 119px = ekran genisliginin %12.6 ≈ 50dp.
-//    Egriye R=119px'lik daire fit edildi, sapma her noktada ~3px (JPEG+antialias).
-//  - Ayirici: itilen sayfanin sol kenarinda 1 FIZIKSEL piksellik bir cizgi.
-//    Koyu temada acik (17→51, yani %14 beyaz), acik temada koyu (243→210,
-//    yani %14 siyah). Ayrimi asil yapan sey bu cizgi — golge degil.
-// Dışa aktarılıyor: RootNavigator.tsx'teki durum-çubuğu yaması, bu köşe
-// yarıçapı kadar öteye taşıp köşe eğrisinin ötesine geçmeli (bkz. orada).
+
 export const PUSHABLE_STACK_CORNER_RADIUS = 50;
 const CORNER_RADIUS = PUSHABLE_STACK_CORNER_RADIUS;
 
@@ -66,32 +41,31 @@ export default function PushableStack({ children }: { children: React.ReactNode 
     return { borderTopLeftRadius: radius, borderBottomLeftRadius: radius };
   });
 
+  // Nötr — mavi/renkli bir kenar sayfanın kendi rengi gibi okunuyordu.
+  // Koyu temada beyaza, açık temada siyaha çalan düşük alfalı tek bir ton.
   const edgeColor = theme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.40)';
 
-  // Ayırıcı çizgi ESKİDEN İÇ katmanın `borderLeftWidth`'iydi — fikir "kenarlık
-  // köşe eğrisini otomatik takip eder" idi ama iOS'ta ASİMETRİK köşe yarıçapı
-  // (yalnızca sol iki köşe yuvarlak, sağ ikisi 0) + kenarlık kombinasyonunda
-  // RN'in native kenarlık çizimi köşede DÜZGÜN kavis çizmiyor: köşe KIRPMA
-  // (clip/overflow:hidden, ayrı bir çizim yolu) doğru yuvarlanıyor ama
-  // kenarlığın kendisi köşede küt/düz bir kesim bırakıyordu — "köşeler
-  // yuvarlanıyor ama hep bir düz çizgi de oluyor" şikâyeti tam olarak buydu ve
-  // yalnızca iOS'ta görülüyordu (Android'in kenarlık çizim yolu asimetrik
-  // yarıçapı doğru işliyor).
-  //
-  // Artık çizgi native `border` DEĞİL: aynı köşe yarıçapını (`radius`,
-  // View'daki köşe kırpmasıyla BİREBİR aynı değer) izleyen bir SVG yolu
-  // (`react-native-svg`) — üst kenardan köşe yayına, düz dikeye, alt köşe
-  // yayına. SVG kendi çizim motorunu kullandığı için platformdan bağımsız,
-  // her zaman View'ın kırptığı köşeyle piksel piksel örtüşüyor.
+
   const height = useSharedValue(0);
-  // Svg'nin kendi `width`/`viewBox`'ı sabit sayısal piksel istiyor — reanimated
-  // shared value'yu doğrudan JSX prop'una veremeyiz, bu yüzden aynı ölçüm
-  // React state'ine de yazılıyor.
+
   const [heightPx, setHeightPx] = useState(0);
 
   const pathProps = useAnimatedProps(() => {
     const radius = interpolate(progress.value, [0, 1], [0, CORNER_RADIUS]);
     const h = Math.max(height.value, radius * 2);
+    // ÜST YAY + SOL KENAR + ALT YAY, TEK YOL. Yani itilen sayfanın görünen
+    // sol kenarı boyunca kesintisiz bir ayırıcı çizgi.
+    //
+    // Bu düz segment bir ara kaldırılmıştı: köşe yuvarlaması "düz bir çizgiye
+    // çarpıp yok oluyor" diye. TEŞHİS YANLIŞTI — asıl suçlu MenuDrawerContent'in
+    // sağ kenarına çizdiği tam yükseklikte gradyan gölge şeridiydi (bkz. orada
+    // "PANELİN SAĞ KENARINDA GÖLGE YOK" notu, emülatörde ölçülüp kaldırıldı).
+    // O bant gidince ince kenar çizgisi köşeyi bozmuyor, tam tersine köşe
+    // yayını sürdürerek sayfanın sınırını belli ediyor.
+    //
+    // Çizgi burada ŞART: zemin menüyle aynı renk (RootNavigator `menuBg`) ve
+    // itilen sayfanın kendi üst barı da `surface` — köşedeki çentiğin renk
+    // kontrastı yok, yuvarlamayı görünür kılan tek şey bu yol.
     const d = `M ${radius} 0 A ${radius} ${radius} 0 0 0 0 ${radius} L 0 ${h - radius} A ${radius} ${radius} 0 0 0 ${radius} ${h}`;
     return {
       d,
@@ -160,7 +134,7 @@ export default function PushableStack({ children }: { children: React.ReactNode 
       {heightPx > 0 && overlayActive && (
         <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0 }}>
           <Svg width={CORNER_RADIUS} height={heightPx} viewBox={`0 0 ${CORNER_RADIUS} ${heightPx}`}>
-            <AnimatedPath animatedProps={pathProps} fill="none" strokeWidth={StyleSheet.hairlineWidth} />
+            <AnimatedPath animatedProps={pathProps} fill="none" strokeWidth={1} />
           </Svg>
         </View>
       )}

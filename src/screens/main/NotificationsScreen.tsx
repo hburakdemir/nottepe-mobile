@@ -24,7 +24,7 @@ import SwipeActions from '../../components/layout/SwipeActions';
 import NotificationSettingsSheet from '../../components/notifications/NotificationSettingsSheet';
 import { useNotificationPrefs } from '../../lib/notificationPrefs';
 import { setNotificationsScreenFocused } from '../../lib/push/pushState';
-import { useMarkNotificationsRead } from '../../hooks/useUnreadNotifications';
+import { useInvalidateUnreadNotifications, useMarkNotificationsRead } from '../../hooks/useUnreadNotifications';
 import { useInvalidateUnreadAnnouncements } from '../../hooks/useUnreadAnnouncements';
 import { useNotificationCategories } from '../../hooks/useNotificationCategories';
 
@@ -268,9 +268,10 @@ export default function NotificationsScreen() {
   const prefs = useNotificationPrefs();
   const markNotificationsRead = useMarkNotificationsRead();
   const invalidateAnnouncementsUnread = useInvalidateUnreadAnnouncements();
+  const invalidateActivityUnread = useInvalidateUnreadNotifications();
 
-  // Silinen son satırın id'si — "Geri al" şeridi bunu hedefliyor.
-  const [undoId, setUndoId] = useState<string | null>(null);
+  // Silinen son satırın id'si + türü — "Geri al" şeridi bunu hedefliyor.
+  const [undoTarget, setUndoTarget] = useState<{ id: string; kind: 'announcement' | 'activity' } | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -305,7 +306,7 @@ export default function NotificationsScreen() {
       );
       // Kullanıcı elle "okunmadı" demişse o tercih baskın kalsın istemiyoruz:
       // "okundu" artık gerçek (sunucu) bir aksiyon, yerel geçersiz kılmayı temizliyor.
-      prefs.markRead(id);
+      prefs.markRead('announcement', id);
       invalidateAnnouncementsUnread();
     },
     [prefs.markRead, invalidateAnnouncementsUnread]
@@ -381,8 +382,8 @@ export default function NotificationsScreen() {
   }, [activityHasMore, activityLoading, activityLoadingMore, activity.length, activityPage, fetchActivity]);
 
   // Silinenler listeden düşüyor (cihazda saklanıyor, bkz. lib/notificationPrefs.ts).
-  const visibleAnnouncements = announcements.filter((a) => !prefs.hidden.has(String(a.id)));
-  const visibleActivity = activity.filter((a) => !prefs.hidden.has(String(a.id)));
+  const visibleAnnouncements = announcements.filter((a) => !prefs.isHidden('announcement', a.id));
+  const visibleActivity = activity.filter((a) => !prefs.isHidden('activity', a.id));
 
   // Silme artık sessiz değil: kısa süreli bir "Geri al" şeridi çıkıyor.
   // Arka arkaya iki silmede şerit SON silineni hedefliyor — yeni silme
@@ -390,12 +391,12 @@ export default function NotificationsScreen() {
   // seçtik: üst üste binen şeritler tab çubuğunun üstünü kapatırdı, üstelik
   // geri alınmayan satır zaten listeden düşmüş oluyor.
   const handleDelete = useCallback(
-    (id: string | number) => {
-      prefs.hide(id);
+    (id: string | number, kind: 'announcement' | 'activity') => {
+      prefs.hide(kind, id);
       if (undoTimer.current) clearTimeout(undoTimer.current);
-      setUndoId(String(id));
+      setUndoTarget({ id: String(id), kind });
       undoTimer.current = setTimeout(() => {
-        setUndoId(null);
+        setUndoTarget(null);
         undoTimer.current = null;
       }, UNDO_TIMEOUT_MS);
     },
@@ -403,14 +404,14 @@ export default function NotificationsScreen() {
   );
 
   const handleUndo = useCallback(() => {
-    if (!undoId) return;
+    if (!undoTarget) return;
     if (undoTimer.current) {
       clearTimeout(undoTimer.current);
       undoTimer.current = null;
     }
-    prefs.unhide(undoId);
-    setUndoId(null);
-  }, [undoId, prefs.unhide]);
+    prefs.unhide(undoTarget.kind, undoTarget.id);
+    setUndoTarget(null);
+  }, [undoTarget, prefs.unhide]);
 
   // Ekran kapanırken sayaç kalmasın: yoksa unmount sonrası setState olur.
   useEffect(
@@ -434,18 +435,22 @@ export default function NotificationsScreen() {
       color: colors.accent,
       onPress: () => {
         if (!isUnread) {
-          prefs.markUnread(id);
+          prefs.markUnread(kind, id);
           // `prefs` bu ekrana özel bir React state kopyası (bkz.
-          // notificationPrefs.ts) — rozeti hesaplayan `useUnreadAnnouncements`
-          // ayrı bir örnek, bu yazmayı kendiliğinden görmüyor. Duyuru için
-          // rozet sorgusunu elle tazeliyoruz ki "okunmadı" yapınca sayı da artsın.
+          // notificationPrefs.ts) — rozeti hesaplayan hook'lar (useUnreadAnnouncements /
+          // useUnreadNotifications) ayrı birer örnek, bu yazmayı kendiliğinden
+          // görmüyor. Türüne göre ilgili rozet sorgusunu elle tazeliyoruz ki
+          // "okunmadı" yapınca sayı da artsın.
           if (kind === 'announcement') invalidateAnnouncementsUnread();
+          else invalidateActivityUnread();
           return;
         }
-        return kind === 'announcement' ? markAnnouncementViewed(id) : prefs.markRead(id);
+        if (kind === 'announcement') return markAnnouncementViewed(id);
+        prefs.markRead('activity', id);
+        invalidateActivityUnread();
       },
     },
-    { key: 'delete', icon: Trash2, label: 'Sil', color: colors.danger, onPress: () => handleDelete(id) },
+    { key: 'delete', icon: Trash2, label: 'Sil', color: colors.danger, onPress: () => handleDelete(id, kind) },
   ];
 
   const renderAnnouncement = useCallback<ListRenderItem<Announcement>>(
@@ -453,7 +458,7 @@ export default function NotificationsScreen() {
       // Yerel "okunmadı" tercihi + sunucudaki `is_viewed` — Aktivite
       // sekmesindeki hesabın aynısı; hem kaydırma aksiyonunun etiketi hem
       // karttaki rozet aynı değerden çıkıyor.
-      const isUnread = prefs.unread.has(String(item.id)) || !item.is_viewed;
+      const isUnread = prefs.isUnread('announcement', item.id) || !item.is_viewed;
       return (
         <SwipeActions actions={rowActions(item.id, isUnread, 'announcement')}>
           <AnnouncementCard notif={item} unread={isUnread} />
@@ -465,7 +470,7 @@ export default function NotificationsScreen() {
 
   const renderActivity = useCallback<ListRenderItem<any>>(
     ({ item }) => {
-      const isUnread = prefs.unread.has(String(item.id)) || !item.read_at;
+      const isUnread = prefs.isUnread('activity', item.id) || !item.read_at;
       return (
         <SwipeActions actions={rowActions(item.id, isUnread, 'activity')}>
           <ActivityCard notif={item} unread={isUnread} />
@@ -588,7 +593,7 @@ export default function NotificationsScreen() {
       )}
 
       {/* Silme geri alma şeridi — tab çubuğunun hemen üstünde duruyor. */}
-      {undoId !== null && (
+      {undoTarget !== null && (
         <View className="absolute left-3 right-3 bottom-[96px] flex-row items-center gap-3 bg-surface border border-line rounded-xl px-3.5 py-3">
           <Text className="flex-1 text-[13px] text-ink2">Bildirim silindi.</Text>
           <Pressable onPress={handleUndo} hitSlop={10}>

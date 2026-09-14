@@ -2,7 +2,7 @@
   "expo": {
     "name": "Nottepe",
     "slug": "nottepe-mobile",
-    "version": "1.0.0",
+    "version": "1.0.8",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "scheme": "nottepe",
@@ -10,7 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.nottepe.app",
-      "buildNumber": "11",
+      "buildNumber": "12",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -25,6 +25,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.nottepe.app",
+      "versionCode": 9,
       "blockedPermissions": [
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.USE_EXACT_ALARM"
@@ -43,6 +44,15 @@
           "color": "#2F5755",
           "defaultChannel": "default",
           "enableBackgroundRemoteNotifications": false
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true
+          }
         }
       ]
     ],

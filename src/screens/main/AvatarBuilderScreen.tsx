@@ -140,17 +140,18 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
         <View className="w-[150px] h-[150px] rounded-[30px] overflow-hidden border-[3px] border-beige">
           <AvatarSVG config={cfg} size={140} />
         </View>
+        {/* Kaydet ARTIK BURADA DEĞİL, alt çubukta (kullanıcı isteği: "sağda
+            kaydet solda vazgeç"). Üstte yalnızca rastgele üretme kaldı —
+            önizlemenin hemen altında durması gereken tek eylem o. */}
         <View className="flex-row gap-2.5 mt-3">
-          <Pressable className="w-10 h-10 rounded-[10px] bg-brand items-center justify-center" onPress={handleRandomize}>
-            <Dice5 size={20} color="#fff" />
-          </Pressable>
           <Pressable
-            className={`flex-row items-center gap-1.5 px-4 h-10 rounded-[10px] ${saved ? 'bg-green-500' : 'bg-brand'} ${saving ? 'opacity-60' : ''}`}
-            onPress={handleSave}
-            disabled={saving || saved}
+            className="flex-row items-center gap-1.5 px-4 h-10 rounded-[10px] bg-brand"
+            onPress={handleRandomize}
+            accessibilityRole="button"
+            accessibilityLabel="Rastgele avatar"
           >
-            {saving ? <ActivityIndicator size="small" color="#fff" /> : saved ? <Check size={16} color="#fff" /> : null}
-            <Text className="text-white text-[13px] font-bold">{saving ? 'Kaydediliyor...' : saved ? 'Kaydedildi!' : 'Kaydet'}</Text>
+            <Dice5 size={18} color="#fff" />
+            <Text className="text-white text-[13px] font-bold">Rastgele</Text>
           </Pressable>
         </View>
         {!!error && <Text className="text-red-600 text-[11.5px] mt-2 text-center max-w-[220px]">{error}</Text>}
@@ -302,9 +303,31 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
         )}
       </ScrollView>
 
-      <Pressable className="items-center py-3.5 border-t border-line-soft" onPress={onClose}>
-        <Text className="text-sm font-bold text-ink2">Kapat</Text>
-      </Pressable>
+      {/* ALT ÇUBUK — solda Vazgeç, sağda Kaydet (kullanıcı isteği).
+          Eskiden burada tek bir "Kapat" vardı ve Kaydet ekranın en üstünde,
+          önizlemenin altında duruyordu: kullanıcı aşağıda seçim yapıp
+          kaydetmek için başa dönmek zorunda kalıyordu. Kaydet'in `saving` /
+          `saved` durumları olduğu gibi korundu. */}
+      <View className="flex-row items-center gap-3 px-4 py-3 border-t border-line-soft">
+        <Pressable
+          className="flex-1 items-center justify-center h-11 rounded-[10px] border border-line"
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Vazgeç"
+        >
+          <Text className="text-sm font-bold text-ink2">Vazgeç</Text>
+        </Pressable>
+        <Pressable
+          className={`flex-1 flex-row items-center justify-center gap-1.5 h-11 rounded-[10px] ${saved ? 'bg-green-500' : 'bg-brand'} ${saving ? 'opacity-60' : ''}`}
+          onPress={handleSave}
+          disabled={saving || saved}
+          accessibilityRole="button"
+          accessibilityLabel="Kaydet"
+        >
+          {saving ? <ActivityIndicator size="small" color="#fff" /> : saved ? <Check size={16} color="#fff" /> : null}
+          <Text className="text-white text-sm font-bold">{saving ? 'Kaydediliyor...' : saved ? 'Kaydedildi!' : 'Kaydet'}</Text>
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 }

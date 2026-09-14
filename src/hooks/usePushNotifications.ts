@@ -26,7 +26,18 @@ export function usePushNotifications(): void {
   const announcementsUnread = useUnreadAnnouncements();
   useEffect(() => {
     if (!isAuthenticated) return;
-    Notifications.setBadgeCountAsync(activityUnread + announcementsUnread).catch(() => {});
+    const total = activityUnread + announcementsUnread;
+    Notifications.setBadgeCountAsync(total).catch(() => {});
+    // Rozet 0'a düştüğünde bildirim çubuğunda (shade/notification center) eski
+    // push'lar hâlâ asılı kalabiliyordu — kullanıcı içeride hepsini okudu ama
+    // dışarıda "0 okunmamış" rozetiyle birlikte hâlâ görünür bildirimler
+    // duruyordu. Üçünü (ana ekran rozeti, bildirim çubuğu, uygulama içi)
+    // aynı anda sıfırlıyoruz. Tek tek dokunulan/okunan bildirimleri buradan
+    // tekil temizleyemiyoruz (elimizde push -> yerel bildirim id eşlemesi yok),
+    // ama "hepsi okundu" anı zaten en yaygın senaryo.
+    if (total === 0) {
+      Notifications.dismissAllNotificationsAsync().catch(() => {});
+    }
   }, [isAuthenticated, activityUnread, announcementsUnread]);
   // Soğuk açılış yanıtı `useLastNotificationResponse` yerine elle okunuyor:
   // o hook her remount'ta AYNI yanıtı yeniden tetikleyip kullanıcıyı oturum

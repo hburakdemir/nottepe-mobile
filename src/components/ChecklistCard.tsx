@@ -15,7 +15,15 @@ interface Props {
   readOnlyItems?: boolean;
 }
 
-export default function ChecklistCard({
+// `React.memo`: bu kart üç ekranda listede basılıyor (Profil, Kontrol
+// listeleri, Kullanıcı profili) ve içinde her madde için bir satır var. Memo
+// olmadan, listeyi tutan ekranın HERHANGİ bir state'i değişince tüm kartlar
+// tüm maddeleriyle yeniden çiziliyordu — bir kutucuğu işaretlemek bile
+// ekrandaki her kartı baştan render ediyordu.
+//
+// Çağıranların `on*` prop'larını `useCallback` ile vermesi ŞART, yoksa memo
+// hiçbir zaman bail-out yapamaz (bkz. PostCard'daki aynı not).
+function ChecklistCard({
   checklist,
   isOpen,
   onToggleOpen,
@@ -119,6 +127,8 @@ export default function ChecklistCard({
     </View>
   );
 }
+
+export default React.memo(ChecklistCard);
 
 const styles = StyleSheet.create({
   card: { borderRadius: 14, marginBottom: 12, overflow: 'hidden' },

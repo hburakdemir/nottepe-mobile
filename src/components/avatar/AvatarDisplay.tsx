@@ -19,7 +19,12 @@ interface Props {
 
 // 'both' modunda büyük boyutlarda dokunarak avatar/fotoğraf arasında geçiş —
 // web'deki swipe carousel'in basitleştirilmiş dokunma eşdeğeri.
-export default function AvatarDisplay({ avatar, size = 40, showBg = true }: Props) {
+//
+// `React.memo`: bu bileşen tab bar'ın profil yuvasında duruyor ve çoğu
+// kullanıcıda `AvatarSVG`'ye düşüyor — yani ~40 native SVG düğümü. Memo
+// olmadan her sekme dokunuşunda hepsi yeniden kuruluyordu (bkz. AvatarSVG.tsx).
+// İç state'i (`showPhotoInBoth`) memo'dan etkilenmiyor, korunuyor.
+const AvatarDisplay = React.memo(function AvatarDisplay({ avatar, size = 40, showBg = true }: Props) {
   const [showPhotoInBoth, setShowPhotoInBoth] = useState(true);
   const config = avatar?.config ?? null;
   const hasPhoto = !!avatar?.photo_path;
@@ -83,4 +88,6 @@ export default function AvatarDisplay({ avatar, size = 40, showBg = true }: Prop
   }
 
   return <AvatarSVG config={config} size={size} showBg={showBg} />;
-}
+});
+
+export default AvatarDisplay;

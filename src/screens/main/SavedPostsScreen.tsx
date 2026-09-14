@@ -1,22 +1,28 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Text, View } from 'react-native';
+import React, { useCallback } from 'react';
+import { FlatList, Text, View } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
 import { Bookmark } from 'lucide-react-native';
 import { savedPostsAPI, postsAPI } from '../../lib/api';
-import { useSavedPosts } from '../../context/SavedPostContext';
+import { SAVED_POSTS_KEY, useSavedPosts } from '../../context/SavedPostContext';
 import PostCard from '../../components/PostCard';
 import { useFeedTokens } from '../../theme/feedTokens';
+import { SkeletonGroup } from '../../components/Skeleton';
+import NoteCardSkeleton from '../../components/NoteCardSkeleton';
 import type { Post } from '../../types/post';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
+
+// Kaydedilenler kullanıcının KENDİ eylemiyle değişiyor, arkasından biri
+// eklemiyor: kısa bir tazelik yeterli. Kaydet/çıkar anında listeyi geçersiz
+// kılan taraf SavedPostContext (bkz. o dosya), yani bu süre yalnızca "başka
+// cihazdan değiştiyse ne kadar sonra görürüm" sorusunun cevabı.
+const SAVED_POSTS_STALE_MS = 60 * 1000;
 
 export default function SavedPostsScreen() {
   const { fetchSavedPosts } = useSavedPosts();
   const t = useFeedTokens();
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchSavedPostsData = useCallback(async () => {
-    try {
-      setLoading(true);
+  const { data: posts = EMPTY_POSTS, isLoading } = useQuery({
+    queryKey: SAVED_POSTS_KEY,
+    queryFn: async () => {
       // İki uç birlikte tazeleniyor: SavedPostContext'in id listesi (bookmark
       // ikonunun "dolu" durumu buna bakıyor) ile bu ekranın kendi post
       // listesi aynı anda gelmezse, PostCard eski (kayıtlı değil) id
@@ -48,25 +54,22 @@ export default function SavedPostsScreen() {
         });
       }
 
-      setPosts(postsData);
-    } catch {
-      setPosts([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchSavedPosts]);
-
-  useEffect(() => {
-    fetchSavedPostsData();
-  }, [fetchSavedPostsData]);
+      return postsData;
+    },
+    staleTime: SAVED_POSTS_STALE_MS,
+  });
 
   const renderPost = useCallback(({ item }: { item: Post }) => <PostCard post={item} />, []);
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <View className="flex-1 items-center justify-center py-[60px]">
-        <ActivityIndicator size="large" color="#1d4ed8" />
-      </View>
+      <SkeletonGroup>
+        <View className="flex-1 p-4 gap-3" style={{ backgroundColor: t.ground }}>
+          {[0, 1, 2].map((i) => (
+            <NoteCardSkeleton key={i} />
+          ))}
+        </View>
+      </SkeletonGroup>
     );
   }
 
@@ -79,7 +82,9 @@ export default function SavedPostsScreen() {
       data={posts}
       keyExtractor={(item) => String(item.id ?? item.post_id)}
       renderItem={renderPost}
-      removeClippedSubviews
+      // KAPALI: PostCard dokunulabilir ve yüksekliği içeriğe göre değişiyor;
+      // bu prop'un Android'de dokunuş yutması bilinen bir sorun.
+      removeClippedSubviews={false}
       maxToRenderPerBatch={6}
       windowSize={7}
       initialNumToRender={6}
@@ -92,6 +97,8 @@ export default function SavedPostsScreen() {
     />
   );
 }
+
+const EMPTY_POSTS: Post[] = [];
 
 const SHADOW_MD = {
   shadowColor: '#000',

@@ -1,9 +1,17 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useMemo } from 'react';
+import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Link2, Star, Trash2, User } from 'lucide-react-native';
 import { postsAPI } from '../../lib/api';
+
+// Bir notun içeriği (başlık, açıklama, dosyalar) neredeyse hiç değişmiyor;
+// değişen şey yorumlar ve puan, onları CommentSection ve puan bileşeni kendi
+// içinde yönetiyor. 5 dakika, akış↔detay gidiş gelişini bedavaya getiriyor.
+const POST_DETAIL_STALE_MS = 5 * 60 * 1000;
+
+const postDetailKey = (postId: string | number) => ['post', 'detail', String(postId)] as const;
 import { useAuth } from '../../context/AuthContext';
 import { useSavedPosts } from '../../context/SavedPostContext';
 import { useCardSurface, useFeedTokens } from '../../theme/feedTokens';
@@ -17,6 +25,7 @@ import CommentSection from '../../components/CommentSection';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
+import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 import StateView from '../../components/StateView';
 
 function formatDate(dateString: string): string {
@@ -42,34 +51,48 @@ export default function PostDetailScreen() {
   const { postId } = route.params as RootStackParamList['PostDetail'];
   const isSaved = savedPosts.includes(String(postId));
 
-  const scrollRef = useRef<ScrollView>(null);
-  const [post, setPost] = useState<Post | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  // "Tekrar dene" butonunun useEffect'i yeniden tetikleyebilmesi için basit
-  // bir sayaç — postId değişmeden aynı isteği yeniden atmanın en kısa yolu.
-  const [retryTick, setRetryTick] = useState(0);
+  const queryClient = useQueryClient();
+  const queryKey = useMemo(() => postDetailKey(postId), [postId]);
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        setLoading(true);
-        setError('');
-        const res = await postsAPI.getById(postId);
-        if (mounted) setPost(res.data.post);
-      } catch (err: any) {
-        if (mounted) setError(err.response?.status === 404 ? 'Gönderi bulunamadı.' : 'Gönderi yüklenemedi.');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [postId, retryTick]);
+  // Akıştan bir nota girip geri dönmek en sık yapılan hareket; aynı notu
+  // tekrar açmak artık istek atmıyor, ekran anında çiziliyor.
+  //
+  // Elle tutulan `mounted` bayrağı, `error` metni ve "tekrar dene" sayacı
+  // kalktı: react-query isteğin iptalini, hata durumunu ve yeniden denemeyi
+  // kendisi yönetiyor. 404 ise yeniden denemenin anlamı yok — `retry: false`
+  // ve ayrımı aşağıda HTTP durumundan okuyoruz.
+  const {
+    data: post = null,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey,
+    queryFn: async () => {
+      const res = await postsAPI.getById(postId);
+      return res.data.post as Post;
+    },
+    retry: false,
+    staleTime: POST_DETAIL_STALE_MS,
+  });
 
-  const handleRetry = useCallback(() => setRetryTick((n) => n + 1), []);
+  const notFound = (error as { response?: { status?: number } } | null)?.response?.status === 404;
+
+  const handleRetry = useCallback(() => {
+    refetch();
+  }, [refetch]);
+
+  // Satır içi ok fonksiyonu DEĞİL: `CommentSection` bunu kendi memoize
+  // callback'lerinin bağımlılığı olarak taşıyor ve oradan `CommentCard`'ın
+  // memo'suna kadar zincirleniyor. Her render'da yeni referans üretmek o
+  // zincirin tamamını kırardı (bkz. CommentSection.tsx'teki notlar).
+  const handleRatingChange = useCallback(
+    ({ avg_rating, rating_count }: { avg_rating: number | string; rating_count: number }) => {
+      queryClient.setQueryData(queryKey, (prev: Post | undefined) => (prev ? { ...prev, avg_rating, rating_count } : prev));
+    },
+    [queryClient, queryKey]
+  );
 
   const handleDeletePost = () => {
     Alert.alert('Gönderiyi sil', 'Bu gönderiyi silmek istiyor musunuz?', [
@@ -89,7 +112,7 @@ export default function PostDetailScreen() {
     ]);
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <View style={[styles.center, { backgroundColor: t.ground }]}>
         <StateView kind="loading" loadingColor={t.accent} />
@@ -97,13 +120,13 @@ export default function PostDetailScreen() {
     );
   }
 
-  if (error || !post) {
+  if (isError || !post) {
     return (
       <View style={[styles.center, { backgroundColor: t.ground }]}>
         <StateView
           kind="error"
-          title={error || 'Gönderi bulunamadı.'}
-          onAction={error === 'Gönderi bulunamadı.' ? undefined : handleRetry}
+          title={notFound ? 'Gönderi bulunamadı.' : 'Gönderi yüklenemedi.'}
+          onAction={notFound ? undefined : handleRetry}
         />
       </View>
     );
@@ -117,7 +140,13 @@ export default function PostDetailScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.ground }}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}>
+      {/* KeyboardAwareScroll: yorum kutusuna odaklanınca onu klavyenin üstüne
+          KENDİSİ kaydırıyor. Eskiden burada düz bir ScrollView vardı ve
+          CommentSection'a `onInputFocus` geçilip 120 ms sonra `scrollToEnd`
+          çağrılıyordu — hangi input'a odaklanıldığına bakmadan listenin en
+          sonuna zıplayan, gecikmesi tahminle seçilmiş bir geçici çözümdü.
+          Artık gerek yok (bkz. components/layout/KeyboardAvoider.tsx). */}
+      <KeyboardAwareScroll showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}>
         <View style={[styles.head, cardSurface]}>
         {/* Profil en üstte: avatar + kullanıcı adı + rozetler + tarih, sağda
             kaydet/sil. Fakülte ve bölüm künyesi en alta indi. */}
@@ -204,13 +233,11 @@ export default function PostDetailScreen() {
           postOwnerId={post.user_id}
           // Yorumlar açık geliyor: kullanıcı ayrıca dokunmadan yükleniyorlar.
           defaultCollapsed={false}
-          // Klavye açılırken formu görünür alana kaydır (bkz. CommentSection).
-          onInputFocus={() => setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120)}
           isAdmin={user?.role === 'admin' || user?.role === 'moderator'}
-          onRatingChange={({ avg_rating, rating_count }) => setPost((prev) => (prev ? { ...prev, avg_rating, rating_count } : prev))}
+          onRatingChange={handleRatingChange}
         />
       </View>
-      </ScrollView>
+      </KeyboardAwareScroll>
     </View>
   );
 }

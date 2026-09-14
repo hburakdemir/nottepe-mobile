@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { userNotificationAPI } from '../lib/api';
 import { usePushActive } from '../lib/push/pushState';
+import { readNotificationPrefsSnapshot } from '../lib/notificationPrefs';
 
 // Okunmamış aktivite bildirimi sayısı. Üst bardaki zilin rozeti (AppHeader) ve
 // menüdeki zil aynı react-query anahtarından besleniyor; Bildirimler ekranı
@@ -18,14 +19,29 @@ export function useUnreadNotifications() {
   const { data } = useQuery({
     queryKey: UNREAD_NOTIFICATIONS_KEY,
     queryFn: async () => {
-      const res = await userNotificationAPI.getUnreadCount();
-      return Number(res.data?.count) || 0;
+      const [res, { unread }] = await Promise.all([userNotificationAPI.getUnreadCount(), readNotificationPrefsSnapshot()]);
+      const serverCount = Number(res.data?.count) || 0;
+      // Bir Aktivite satırını kaydırma menüsünden elle "okunmadı" yapmak
+      // yalnızca CİHAZDA saklanıyor (bkz. lib/notificationPrefs.ts) — sunucudaki
+      // `read_at` değişmiyor. Bu aksiyon sadece zaten sunucuda okunmuş
+      // satırlarda gösteriliyor (bkz. NotificationsScreen rowActions), yani bu
+      // önekli id'ler sunucu sayısına hiç dahil değil: üstüne eklemek güvenli.
+      let localExtra = 0;
+      unread.forEach((key) => {
+        if (key.startsWith('activity:')) localExtra += 1;
+      });
+      return serverCount + localExtra;
     },
     staleTime: 30_000,
     refetchInterval: pushActive ? 300_000 : 60_000,
     refetchOnWindowFocus: true,
   });
   return data ?? 0;
+}
+
+export function useInvalidateUnreadNotifications() {
+  const queryClient = useQueryClient();
+  return useCallback(() => queryClient.invalidateQueries({ queryKey: UNREAD_NOTIFICATIONS_KEY }), [queryClient]);
 }
 
 // `useCallback` şart: bu fonksiyon Bildirimler ekranında bir `useEffect`'in

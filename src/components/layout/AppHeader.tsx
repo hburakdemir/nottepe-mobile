@@ -10,6 +10,7 @@ import { useActiveRoute } from '../../navigation/useActiveRouteName';
 import { routeTitle } from '../../navigation/routeTitles';
 import { useMyAvatar } from '../../hooks/useMyAvatar';
 import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
+import { useUnreadAnnouncements } from '../../hooks/useUnreadAnnouncements';
 import AvatarDisplay from '../../components/avatar/AvatarDisplay';
 import DeerIcon from '../icons/DeerIcon';
 import type { RootStackParamList } from '../../navigation/types';
@@ -43,7 +44,16 @@ export default function AppHeader({ title: titleOverride, showBack = false }: { 
   const { theme } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const avatar = useMyAvatar();
-  const unreadCount = useUnreadNotifications();
+  // Telefonun ana ekranındaki uygulama rozeti (bkz. usePushNotifications.ts)
+  // Aktivite + Duyuru TOPLAMINI gösteriyor. Bu zil eskiden yalnız Aktivite
+  // sayısını gösteriyordu — ikisi farklı kaynaktan geldiği için ana ekran
+  // rozetiyle içerideki zil hiç eşleşmiyordu ("ana ekranda 2 yazıyor, içeride
+  // 1" şikayeti). Menüdeki zil/megafon ayrımı (bkz. MenuDrawerContent) kasıtlı
+  // kalıyor — orası zaten iki ayrı satır; burası TEK zil olduğu için OS
+  // rozetiyle aynı toplamı göstermesi gerekiyor.
+  const activityUnread = useUnreadNotifications();
+  const announcementsUnread = useUnreadAnnouncements();
+  const unreadCount = activityUnread + announcementsUnread;
   // Menü açıkken bu avatar, itilen sayfanın en sol kenarında (görünen dar
   // şeritte) tuhafça görünür kalıyordu — X'te menü açılınca tetikleyici
   // ortadan kayboluyor.
@@ -125,17 +135,33 @@ export default function AppHeader({ title: titleOverride, showBack = false }: { 
           <Pressable
             onPress={() => navigation.navigate('Notifications', { initialTab: 'aktivite' })}
             hitSlop={8}
-            className="p-2 rounded-full"
+            // `w-9 h-9 items-center justify-center` (eskiden yalnız `p-2`):
+            // Pressable padding'e göre SIKI sarıyordu, yani zil ikonu kutunun
+            // köşesine bitişikti — rozeti köşede DIŞARI (`-top -right`) taşısak
+            // bile aradaki boşluk ~2px'de kalıyor, iki haneli sayıda rozet zilin
+            // kubbesine biniyordu ("rozette sayı varken zil ikonu bozuluyor"
+            // şikayeti). Sabit boyutlu, ortalanmış bir kutu zili küçültüp
+            // ortalıyor, köşelerde gerçek boşluk bırakıyor — MenuDrawerContent'teki
+            // zil/megafon rozetleriyle aynı desen.
+            className="w-9 h-9 rounded-full items-center justify-center"
             accessibilityLabel="Bildirimler"
           >
             <Bell size={22} color={inkColor} />
             {/* Okunmamış bildirim sayısı zilin ÜSTÜNDE (kullanıcı isteği).
-                Sayı menüdeki zille aynı react-query anahtarından geliyor, yani
-                Bildirimler ekranı okundu yaptığında ikisi birlikte sıfırlanıyor
-                (bkz. hooks/useUnreadNotifications.ts). */}
+                Aktivite + Duyuru toplamı — ana ekrandaki uygulama rozetiyle
+                (bkz. hooks/usePushNotifications.ts) aynı sayı. */}
             {unreadCount > 0 && (
-              <View className="absolute top-0.5 right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 items-center justify-center border-2 border-surface">
-                <Text className="text-white text-[10px] font-bold">{unreadCount > 99 ? '99+' : unreadCount}</Text>
+              // İki haneli sayılarda (artık Aktivite+Duyuru TOPLAMI gösterildiği
+              // için çok daha sık) rozet genişliği zilin kendi genişliğine
+              // yaklaşıyor — sadece köşeye kaydırmak (-top/-right) yetmiyordu,
+              // rozet yine kubbenin çoğunu yutuyordu (bkz. uiautomator bounds
+              // karşılaştırması: rozet [918,971], ikon [919,963] — neredeyse tam
+              // örtüşme). Daha dar dolgu + daha küçük yazı + daha büyük dışa
+              // taşma bunu gerçek bir köşe rozetine indiriyor.
+              <View className="absolute -top-1.5 -right-1.5 min-w-[15px] h-[15px] px-[3px] rounded-full bg-red-500 items-center justify-center border-2 border-surface">
+                <Text className="text-white text-[9px] font-bold" numberOfLines={1}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
               </View>
             )}
           </Pressable>

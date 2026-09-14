@@ -10,6 +10,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { goToTab } from '../../navigation/navigateApp';
 import OptionSheet from '../../components/layout/OptionSheet';
 import type { RootStackParamList } from '../../navigation/types';
+import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 
 const MAX_FILES = 5;
 const MAX_SIZE = 10 * 1024 * 1024;
@@ -141,7 +142,7 @@ export default function AddPostScreen() {
   };
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="px-4 pt-8 pb-[110px]">
+    <KeyboardAwareScroll showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="px-4 pt-8 pb-[110px]" keyboardShouldPersistTaps="handled">
       <View className="bg-surface rounded-lg p-8" style={SHADOW_MD}>
         <Text className="text-3xl font-extrabold text-ink mb-6">Not Paylaş</Text>
 
@@ -286,6 +287,6 @@ export default function AddPostScreen() {
         onClose={() => setDepartmentModalOpen(false)}
         onSelect={setDepartment}
       />
-    </ScrollView>
+    </KeyboardAwareScroll>
   );
 }

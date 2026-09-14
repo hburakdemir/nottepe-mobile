@@ -1,13 +1,13 @@
 import React, { useEffect } from 'react';
 import { Keyboard, Platform, Pressable, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useNavigationState } from '@react-navigation/native';
 import { Home, Library, UtensilsCrossed, Wrench, type LucideIcon } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useMyAvatar } from '../../hooks/useMyAvatar';
-import AvatarDisplay from '../avatar/AvatarDisplay';
+import AvatarDisplay, { type AvatarData } from '../avatar/AvatarDisplay';
 import DeerIcon from '../icons/DeerIcon';
 import { TAB_ROUTE_NAMES, navigateApp } from '../../navigation/navigateApp';
 import { useMetrics } from '../../theme/metrics';
@@ -33,6 +33,91 @@ import { useMetrics } from '../../theme/metrics';
 const TAB_ROUTES = TAB_ROUTE_NAMES;
 
 const PROFILE_ROUTE = 'Profile';
+
+// TEK BİR SEKME YUVASI — AYRI VE MEMOİZE.
+//
+// Eskiden beş yuva da `WaveTabBar`ın gövdesinde satır içi `map` ile
+// çiziliyordu. Bunun bedeli şuydu: bir sekmeye dokunulduğunda `activeRouteName`
+// değişiyor, WaveTabBar baştan render oluyor ve BEŞ yuva birden yeniden
+// kuruluyordu — profil yuvasındaki avatar dahil. O avatar piksel-sanat bir SVG
+// (~40 `SvgRect`, bkz. AvatarSVG.tsx), yani her dokunuşta ~40 native SVG
+// düğümü sökülüp yeniden kuruluyordu. Testçilerin "sayfa geçişlerinde tabbar
+// donuyor" dediği şey buydu.
+//
+// Artık her yuva kendi prop'larına bakıyor: bir geçişte yalnızca İKİ yuvanın
+// `isFocused`'ı değişiyor (eskisi false olur, yenisi true), kalan üçü prop
+// olarak aynı kaldığı için hiç çizilmiyor. Avatar da ayrıca memoize
+// (AvatarDisplay + AvatarSVG), dolayısıyla profil yuvası odak değiştirse bile
+// SVG yeniden kurulmuyor — yalnızca çevresindeki halkanın kalınlığı değişiyor.
+//
+// ⚠️ `onPress` çağrı yerinde bağımlılıksız `useCallback` olmak ZORUNDA;
+// referansı her render'da değişirse memo hiçbir işe yaramaz.
+interface TabSlotProps {
+  routeName: (typeof TAB_ROUTES)[number];
+  isFocused: boolean;
+  onPress: (routeName: string) => void;
+  barHeight: number;
+  iconSize: number;
+  avatarSize: number;
+  activeColor: string;
+  inactiveColor: string;
+  avatar: AvatarData | null;
+}
+
+const TabSlot = React.memo(function TabSlot({
+  routeName,
+  isFocused,
+  onPress,
+  barHeight,
+  iconSize,
+  avatarSize,
+  activeColor,
+  inactiveColor,
+  avatar,
+}: TabSlotProps) {
+  const Icon = ICONS[routeName];
+
+  const handlePress = React.useCallback(() => {
+    if (isFocused) return;
+    onPress(routeName);
+  }, [isFocused, onPress, routeName]);
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={routeName}
+      accessibilityState={isFocused ? { selected: true } : {}}
+      className="flex-1 items-center justify-center"
+      style={{ height: barHeight }}
+    >
+      {routeName === PROFILE_ROUTE ? (
+        // Son slotta ikon yerine kullanıcının kendi avatarı; aktifken diğer
+        // sekmelerin kalın çizgisinin karşılığı ince marka halkası.
+        <View
+          style={{
+            width: avatarSize + 4,
+            height: avatarSize + 4,
+            borderRadius: (avatarSize + 4) / 2,
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            borderWidth: isFocused ? 1.5 : 0,
+            borderColor: activeColor,
+          }}
+        >
+          {avatar ? (
+            <AvatarDisplay avatar={avatar} size={avatarSize} showBg={false} />
+          ) : (
+            <DeerIcon size={avatarSize - 6} color={isFocused ? activeColor : inactiveColor} />
+          )}
+        </View>
+      ) : (
+        <Icon size={iconSize} color={isFocused ? activeColor : inactiveColor} strokeWidth={isFocused ? 2.3 : 1.8} />
+      )}
+    </Pressable>
+  );
+});
 
 const ICONS: Record<string, LucideIcon> = {
   Home,
@@ -75,15 +160,24 @@ const COLORS = {
   },
 };
 
-export default function WaveTabBar() {
+export default function WaveTabBar({ activeRouteName }: { activeRouteName?: string } = {}) {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const c = COLORS[theme];
   const navigation = useNavigation();
-  // `useRoute()` değil: bar Tab.Navigator'ın `tabBar`'ı olarak çizildiğinde
-  // route bağlamı üstteki `MainTabs` ekranı olurdu. En yakın navigator'ın
-  // odaklı route'u her iki montaj yerinde de doğru cevabı veriyor.
-  const currentRouteName = useNavigationState((state) => state.routes[state.index]?.name);
+  // Aktif sekmenin adı iki montaj yerinde iki ayrı kaynaktan geliyor:
+  //
+  //  • AppShell (push edilmiş ekranlar) — prop YOK. En yakın navigator'ın
+  //    odaklı route'u okunuyor; orada bu kök stack'in tepesindeki ekran demek,
+  //    5 sekmeden biri olmadığı için hiçbiri aktif görünmüyor. Doğrusu da bu.
+  //
+  //  • MainTabsScreen — prop VAR. Bar artık Tab.Navigator'ın `tabBar` yuvasında
+  //    DEĞİL, onun KARDEŞİ olarak çiziliyor (gerekçe o dosyada yazılı), yani
+  //    `useNavigationState` oradan kök stack'i görür ve hep "MainTabs" derdi —
+  //    aktif sekme hiç belli olmazdı. Odaklı sekmenin adı bu yüzden prop'la
+  //    geliyor; MainTabsScreen zaten üst bar başlığı için o state'i tutuyor.
+  const nearestRouteName = useNavigationState((state) => state.routes[state.index]?.name);
+  const currentRouteName = activeRouteName ?? nearestRouteName;
   const activeIndex = TAB_ROUTES.indexOf(currentRouteName as (typeof TAB_ROUTES)[number]);
   const avatar = useMyAvatar();
   const { scale } = useMetrics();
@@ -99,23 +193,85 @@ export default function WaveTabBar() {
   const capsuleX = useSharedValue(0);
   const capsuleOpacity = useSharedValue(0);
 
+  // Geometri bir ref'te tutuluyor ki `moveCapsuleTo` BAĞIMLILIKSIZ kalabilsin —
+  // o sabit kalmazsa `handlePress` de değişir ve `TabSlot`'un memo'su düşer
+  // (yukarıdaki uyarıya bak).
+  const capsuleGeomRef = React.useRef({ colWidth: 0, capsuleSize: 0 });
+  useEffect(() => {
+    capsuleGeomRef.current = { colWidth, capsuleSize: CAPSULE_SIZE };
+  }, [colWidth, CAPSULE_SIZE]);
+
+  // Aynı hedefe iki kere animasyon başlatmamak için: dokunuşta bir kez
+  // başlıyor, `activeIndex` arkadan geldiğinde efekt aynı hedefi görüp
+  // çıkıyor. Olmasaydı kapsül yolun ortasında yeniden başlardı.
+  const lastTargetRef = React.useRef<number | null>(null);
+
+  // KAPSÜL ARTIK DOKUNUŞ ANINDA HAREKET EDİYOR, `activeIndex` BEKLENMİYOR.
+  //
+  // Eski kurulumda animasyonu yalnızca aşağıdaki efekt başlatıyordu ve o efektin
+  // çalışabilmesi için şu zincirin TAMAMININ JS thread'inde bitmesi gerekiyordu:
+  // dokunuş → navigate → `screenListeners.state` → `onTabChange` →
+  // `setActiveTab` (MainTabsScreen) → MainTabsScreen render → WaveTabBar render
+  // → `activeIndex` değişir → efekt → animasyon başlar.
+  //
+  // Sayfanın kendisi bu zinciri BEKLEMİYOR: `animation: 'none'` olduğu için
+  // sahneyi react-native-screens native tarafta anında değiştiriyor. Ama yeni
+  // odaklanan sekmenin ilk render'ı (ör. ProfileScreen: 1415 satır, 7 pager
+  // sayfası) aynı JS thread'inde sıraya giriyor ve yukarıdaki zinciri kendi
+  // arkasına itiyor. Testçi tablosu tam olarak buydu: "önce sayfa geçiyor,
+  // ~1 sn sonra tabbar değişiyor."
+  //
+  // Çözüm animasyonu zincirin BAŞINA almak: `handlePress` dokunuş işlenirken,
+  // yani yeni ekran daha render edilmeden çalışıyor. Reanimated animasyonu bir
+  // kez başladıktan sonra UI thread'inde sürdüğü için, JS thread'i yeni ekranı
+  // çizerken bloke olsa bile kapsül akıcı şekilde kayıyor.
+  const moveCapsuleTo = React.useCallback((index: number) => {
+    capsuleOpacity.value = withTiming(index === -1 ? 0 : 1, { duration: 150 });
+    const { colWidth: cw, capsuleSize } = capsuleGeomRef.current;
+    if (index === -1 || cw === 0) return;
+
+    const target = (index + 0.5) * cw - capsuleSize / 2;
+    if (lastTargetRef.current === target) return;
+    lastTargetRef.current = target;
+
+    // Yay yerine sabit süreli geçiş. Eski `withSpring({ damping: 17,
+    // stiffness: 180, mass: 0.8 })` kritik altı sönümlüydü (ζ ≈ 0.71): hedefi
+    // aşıp geri salınıyor ve oturması ~380 ms sürüyordu. Sayfa 0 ms'de
+    // değiştiği için bu kuyruk "bar geriden geliyor" diye okunuyordu.
+    capsuleX.value = withTiming(target, { duration: 180, easing: Easing.out(Easing.cubic) });
+  }, []);
+
+  // Dokunuştan GELMEYEN sekme değişimleri için uzlaştırma yolu: programatik
+  // `navigateApp` çağrıları, bildirimden açılma, push edilmiş ekrana girip
+  // çıkma (`activeIndex === -1`). Dokunuşla gelindiyse `lastTargetRef` sayesinde
+  // burası sessizce çıkıyor.
   useEffect(() => {
     if (barWidth === 0) return;
-    capsuleOpacity.value = withTiming(activeIndex === -1 ? 0 : 1, { duration: 150 });
-    if (activeIndex !== -1) {
-      capsuleX.value = withSpring((activeIndex + 0.5) * colWidth - CAPSULE_SIZE / 2, {
-        damping: 17,
-        stiffness: 180,
-        mass: 0.8,
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeIndex, barWidth]);
+    moveCapsuleTo(activeIndex);
+  }, [activeIndex, barWidth, moveCapsuleTo]);
 
   const capsuleStyle = useAnimatedStyle(() => ({
     opacity: capsuleOpacity.value,
     transform: [{ translateX: capsuleX.value }],
   }));
+
+  // Yalnızca `navigation`'a bağlı — referansı sabit kalsın ki `TabSlot`'un
+  // memo'su tutsun. Sekmeler Tab.Navigator'ın ekranları olduğu için
+  // `navigateApp` `MainTabs`e iç içe navigate ediyor; sekme mount'lu kaldığından
+  // veri yeniden çekilmiyor. Push edilmiş bir ekrandayken (ör. gönderi detayı)
+  // aynı çağrı stack'i MainTabs'e geri sarıyor.
+  const handlePress = React.useCallback(
+    (routeName: string) => {
+      // ÖNCE kapsül, SONRA navigate — sıra önemli. `navigateApp` senkron olarak
+      // React Navigation'ın state güncellemesini tetikliyor ve yeni sekmenin
+      // render'ı bu thread'i uzun süre meşgul edebiliyor; animasyonu ondan önce
+      // başlatınca UI thread'ine devredilmiş oluyor (gerekçe `moveCapsuleTo`
+      // üstündeki notta).
+      moveCapsuleTo(TAB_ROUTES.indexOf(routeName as (typeof TAB_ROUTES)[number]));
+      navigateApp(navigation, routeName);
+    },
+    [navigation, moveCapsuleTo]
+  );
 
   // Klavye açıkken bar gizleniyor. Sekme sahneleri KeyboardAvoider'ın içinde
   // (bkz. MainTabsScreen.tsx) — bar da onunla birlikte yukarı itilseydi
@@ -146,6 +302,27 @@ export default function WaveTabBar() {
         paddingHorizontal: H_MARGIN,
       }}
       pointerEvents="box-none"
+      // ⚠️ `collapsable={false}` — SÜS DEĞİL, DOKUNUŞ HATASININ ÇÖZÜMÜ.
+      //
+      // Yeni Mimari'de (Fabric) React Native, "yalnızca yerleşim için var"
+      // saydığı görünümleri optimizasyon amacıyla native tarafta HİÇ
+      // OLUŞTURMUYOR — buna view flattening (görünüm düzleştirme) deniyor.
+      // Bu View tam o profilde: arka planı yok, kenarlığı yok, yalnızca
+      // konumlandırma ve dolgu taşıyor.
+      //
+      // Ama bu View'in bir işi daha var: `pointerEvents="box-none"` ile
+      // "ben dokunuş almam, çocuklarım alır" diyor. Düzleştirilip yok
+      // edildiğinde o yönlendirme yapacak katman ortadan kalkıyor. Bar
+      // ÇİZİLMEYE devam ediyor (BlurView'in kendi `elevation`'ı var, o gerçek
+      // bir native görünüm) ama dokunuşlar sekmelere ulaşmıyor — testçilerin
+      // "bar duruyor ama basamıyorum" dediği tablo.
+      //
+      // `collapsable={false}` React Native'in bu optimizasyonu kapatmak için
+      // sunduğu resmî yol. Bedeli tek bir fazladan native görünüm.
+      //
+      // Bu teşhis, `enableFreeze(false)` denemesi işe YARAMADIKTAN sonra
+      // kuruldu: donma dondurmayla değil, dokunuş hedefiyle ilgiliymiş.
+      collapsable={false}
     >
       {/* Bar'ın kendisi yüzen bir buzlu-cam hap: gerçek arka plan bulanıklığı
           (BlurView) + yarı saydam dolgu + ince border + gölge. İçinde, aktif
@@ -187,58 +364,20 @@ export default function WaveTabBar() {
           )}
 
           <View className="flex-1 flex-row items-center">
-            {TAB_ROUTES.map((routeName, index) => {
-              const isFocused = index === activeIndex;
-              const Icon = ICONS[routeName];
-
-              const onPress = () => {
-                if (isFocused) return;
-                // Sekmeler artık Tab.Navigator'ın ekranları: `navigateApp`
-                // `MainTabs`e iç içe navigate ediyor, sekme mount'lu kaldığı için
-                // veri yeniden çekilmiyor ve geçişi bottom-tabs'in kendi 'shift'
-                // animasyonu yapıyor (bkz. MainTabsScreen.tsx). Push edilmiş bir
-                // ekrandayken (ör. gönderi detayı) aynı çağrı stack'i MainTabs'e
-                // geri sarıyor.
-                navigateApp(navigation, routeName);
-              };
-
-              return (
-                <Pressable
-                  key={routeName}
-                  onPress={onPress}
-                  accessibilityRole="button"
-                  accessibilityLabel={routeName}
-                  accessibilityState={isFocused ? { selected: true } : {}}
-                  className="flex-1 items-center justify-center"
-                  style={{ height: BAR_HEIGHT }}
-                >
-                  {routeName === PROFILE_ROUTE ? (
-                    // Son slotta ikon yerine kullanıcının kendi avatarı; aktifken
-                    // diğer sekmelerin kalın çizgisinin karşılığı ince marka halkası.
-                    <View
-                      style={{
-                        width: AVATAR_SIZE + 4,
-                        height: AVATAR_SIZE + 4,
-                        borderRadius: (AVATAR_SIZE + 4) / 2,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        overflow: 'hidden',
-                        borderWidth: isFocused ? 1.5 : 0,
-                        borderColor: c.active,
-                      }}
-                    >
-                      {avatar ? (
-                        <AvatarDisplay avatar={avatar} size={AVATAR_SIZE} showBg={false} />
-                      ) : (
-                        <DeerIcon size={AVATAR_SIZE - 6} color={isFocused ? c.active : c.inactive} />
-                      )}
-                    </View>
-                  ) : (
-                    <Icon size={ICON_SIZE} color={isFocused ? c.active : c.inactive} strokeWidth={isFocused ? 2.3 : 1.8} />
-                  )}
-                </Pressable>
-              );
-            })}
+            {TAB_ROUTES.map((routeName, index) => (
+              <TabSlot
+                key={routeName}
+                routeName={routeName}
+                isFocused={index === activeIndex}
+                onPress={handlePress}
+                barHeight={BAR_HEIGHT}
+                iconSize={ICON_SIZE}
+                avatarSize={AVATAR_SIZE}
+                activeColor={c.active}
+                inactiveColor={c.inactive}
+                avatar={avatar}
+              />
+            ))}
           </View>
         </View>
       </BlurView>

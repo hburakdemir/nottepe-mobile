@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRoute } from '@react-navigation/native';
 import { Lightbulb } from 'lucide-react-native';
 import { suggestionAPI } from '../../lib/api';
@@ -9,6 +10,14 @@ import { useGoToUserProfile } from '../../hooks/useGoToUserProfile';
 import ForumCommentList, { type ForumComment } from '../../components/forum/ForumCommentList';
 import type { RootStackParamList } from '../../navigation/types';
 import StateView from '../../components/StateView';
+
+const SUGGESTION_DETAIL_STALE_MS = 5 * 60 * 1000;
+
+const suggestionDetailKey = (id: number) => ['suggestions', 'detail', id] as const;
+
+// Modül seviyesinde sabit: her render'da yeni `[]` üretilseydi yorum listesinin
+// prop'u sürekli değişir, memo'su hiç tutmazdı.
+const EMPTY_COMMENTS: ForumComment[] = [];
 
 interface SuggestionDetail {
   id: number;
@@ -31,37 +40,40 @@ export default function SuggestionDetailScreen() {
   const goToUserProfile = useGoToUserProfile();
   const canModerate = user?.role === 'admin' || user?.role === 'moderator';
 
-  const [suggestion, setSuggestion] = useState<SuggestionDetail | null>(null);
-  const [comments, setComments] = useState<ForumComment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [commentsLoading, setCommentsLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+  const queryClient = useQueryClient();
+  const queryKey = useMemo(() => suggestionDetailKey(id), [id]);
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
-    setCommentsLoading(true);
-    setLoadError(false);
-    try {
+  // FaqDetailScreen ile aynı kalıp: öneri ve yorumları tek anahtarda, çünkü
+  // ikisi her zaman birlikte çekiliyor ve ekran ikisi olmadan çizilemiyor.
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey,
+    queryFn: async () => {
       const [suggestionRes, commentsRes] = await Promise.all([suggestionAPI.getById(id), suggestionAPI.getComments(id)]);
-      setSuggestion(suggestionRes.data.suggestion);
-      setComments(commentsRes.data.comments || []);
-    } catch {
-      setLoadError(true);
-    } finally {
-      setLoading(false);
-      setCommentsLoading(false);
-    }
-  }, [id]);
+      return {
+        suggestion: suggestionRes.data.suggestion as SuggestionDetail,
+        comments: (commentsRes.data.comments || []) as ForumComment[],
+      };
+    },
+    staleTime: SUGGESTION_DETAIL_STALE_MS,
+  });
 
-  useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+  const suggestion = data?.suggestion ?? null;
+  const comments = data?.comments ?? EMPTY_COMMENTS;
+
+  const patch = useCallback(
+    (fn: (prev: { suggestion: SuggestionDetail; comments: ForumComment[] }) => { suggestion: SuggestionDetail; comments: ForumComment[] }) => {
+      queryClient.setQueryData(queryKey, (prev: { suggestion: SuggestionDetail; comments: ForumComment[] } | undefined) =>
+        prev ? fn(prev) : prev
+      );
+    },
+    [queryClient, queryKey]
+  );
 
   const handleAddComment = async (content: string, parentCommentId?: number | null) => {
     try {
       await suggestionAPI.addComment(id, content, parentCommentId ?? null);
       const res = await suggestionAPI.getComments(id);
-      setComments(res.data.comments || []);
+      patch((prev) => ({ ...prev, comments: (res.data.comments || []) as ForumComment[] }));
     } catch (err: any) {
       Alert.alert('Hata', err.response?.data?.message || 'Yorum eklenemedi.');
     }
@@ -76,7 +88,7 @@ export default function SuggestionDetailScreen() {
         onPress: async () => {
           try {
             await suggestionAPI.deleteComment(commentId, '');
-            setComments((prev) => prev.filter((c) => c.id !== commentId));
+            patch((prev) => ({ ...prev, comments: prev.comments.filter((c) => c.id !== commentId) }));
           } catch {
             Alert.alert('Hata', 'Yorum silinemedi.');
           }
@@ -88,13 +100,13 @@ export default function SuggestionDetailScreen() {
   const handleVoteComment = async (commentId: number, vote: number) => {
     try {
       const res = await suggestionAPI.voteComment(commentId, vote);
-      setComments((prev) => prev.map((c) => (c.id === commentId ? { ...c, ...res.data } : c)));
+      patch((prev) => ({ ...prev, comments: prev.comments.map((c) => (c.id === commentId ? { ...c, ...res.data } : c)) }));
     } catch {
       Alert.alert('Hata', 'Oy verilemedi.');
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center">
         <StateView kind="loading" loadingColor={isDark ? '#5A9690' : '#2F5755'} />
@@ -102,10 +114,10 @@ export default function SuggestionDetailScreen() {
     );
   }
 
-  if (loadError) {
+  if (isError) {
     return (
       <View className="flex-1 items-center justify-center">
-        <StateView kind="error" title="Öneri yüklenemedi." onAction={fetchAll} />
+        <StateView kind="error" title="Öneri yüklenemedi." onAction={refetch} />
       </View>
     );
   }
@@ -135,7 +147,7 @@ export default function SuggestionDetailScreen() {
       <View className="bg-surface rounded-2xl p-4 mb-3.5">
         <ForumCommentList
           comments={comments}
-          loading={commentsLoading}
+          loading={isLoading}
           canModerate={canModerate}
           onAddComment={handleAddComment}
           onDeleteComment={handleDeleteComment}
