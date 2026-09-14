@@ -44,7 +44,21 @@ const MAX_ENTRIES = 40;
 // 322 sn pencere. Ekrana göre: Profile 23 blokaj / 24.499 ms · Home 13 /
 // 12.133 ms · PostDetail 4 / 3.112 ms. Bu turda düşmesi beklenen satır
 // PROFILE.
-const STORAGE_KEY = 'diag:jsblocks:v3';
+//
+// v4 (sürüm 1.0.8): global `adjustsFontSizeToFit` kaldırıldı
+// (applyGlobalFont.ts) + çevrimdışı kilidi ön plana bağlandı (useIsOffline.ts).
+// Bu turun hipotezi ÖNCEKİLERDEN FARKLI BİR EKSENDE: blokaj JS'te iş
+// yapmaktan değil, Android'e özgü senkron metin ÖLÇÜMÜNDEN geliyor. Dayanağı
+// artık bir veri noktası daha var — iOS'ta (TestFlight 12) hiç kasma yok,
+// oysa JS bundle'ı, render sayısı ve worklet'ler birebir aynı; demek ki
+// maliyet JavaScript çalıştırmakta değil, platform katmanında.
+//
+// Beklenti: DÜŞMESİ gereken satırlar HOME ve PROFILE (satır başına en çok
+// `numberOfLines`'lı yazı orada). Öne dönüş blokajları (`sinceResumeMs`
+// dolu olanlar) ayrıca düşmeli — hem ölçüm hem unmount yolu kapandı.
+// v3 (1.0.7) turunun kayıtları cihazda kalıyor ama bu anahtarla okunmuyor;
+// o turun sonucu not edilmediyse karşılaştırma v2 tabanına göre yapılacak.
+const STORAGE_KEY = 'diag:jsblocks:v4';
 
 export type BlockEntry = {
   at: number;

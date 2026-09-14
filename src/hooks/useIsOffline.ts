@@ -74,6 +74,29 @@ export function useIsOffline(): boolean {
   // için mount anını bir kere sabitliyoruz.
   const mountedAtRef = useRef(Date.now());
 
+  // KİLİT YALNIZCA ÖN PLANDA DEĞİŞEBİLİR.
+  //
+  // `RootNavigator`, `isOffline` true olduğunda erken `return <OfflineEgoScreen />`
+  // yapıyor — yani Drawer + Stack + Tab ağacının TAMAMI unmount oluyor. Android
+  // ekran kapalıyken Wi-Fi'yi düzenli olarak uykuya alıyor (Doze / Wi-Fi sleep),
+  // üstelik yukarıdaki yoklama artık bu kayıpları güvenilir biçimde GÖRÜYOR.
+  // Kilit arka planda devreye girerse kullanıcı telefonu açtığında ağaç sıfırdan
+  // mount ediliyor: her ekran yeniden kuruluyor, her sorgu yeniden çekiliyor,
+  // bütün avatarlar yeniden çiziliyor. "Öne dönünce 2-3 saniye donuyor"
+  // şikayetinin bu yoldan gelen payı bu — ve iOS'ta olmamasının sebebi de bu,
+  // çünkü orada uygulama askıya alınıyor, kilitte bağlantı kaybı bildirilmiyor.
+  //
+  // Arka planda ölçülen bir bağlantı kaybının kullanıcı deneyiminde karşılığı
+  // yok: kimse bakmıyor. Kilit yalnızca kullanıcı gerçekten ekrana bakarken
+  // anlamlı, o yüzden ön plana dönene kadar mevcut değerinde donduruluyor.
+  // Dönüşte bu efekt yeniden çalışıyor ve taze okumayla karar veriyor; gerçekten
+  // çevrimdışıysa normal 1.5 sn'lik debounce sonunda yine kilitleniyor.
+  const [isAppActive, setIsAppActive] = useState(AppState.currentState === 'active');
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => setIsAppActive(next === 'active'));
+    return () => sub.remove();
+  }, []);
+
   const readNetworkState = useCallback(async () => {
     try {
       const state = await getNetworkStateAsync();
@@ -118,6 +141,12 @@ export function useIsOffline(): boolean {
       timerRef.current = null;
     }
 
+    // Ön planda değilsek karar verilmiyor: bekleyen zamanlayıcı yukarıda zaten
+    // iptal edildi, `debouncedOffline` olduğu değerde kalıyor (bkz. yukarıdaki
+    // `isAppActive` notu). Ön plana dönüşte `isAppActive` değiştiği için bu
+    // efekt yeniden çalışıyor.
+    if (!isAppActive) return;
+
     if (isConnected === false) {
       if (!hasBeenOnlineRef.current) {
         // Hiç çevrimiçi olunmadı: soğuk-açılış doğrulama payı henüz
@@ -141,7 +170,7 @@ export function useIsOffline(): boolean {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [isConnected]);
+  }, [isConnected, isAppActive]);
 
   return debouncedOffline;
 }

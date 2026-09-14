@@ -1,6 +1,6 @@
 # Nottepe Mobil — Performans Teşhisi ve Çözüm Planı
 
-Tarih: 2026-09-13 · Durum: **Faz 1-3 ✅ · R1-R4 ✅** — 1.0.1 testçilerde, iki yeni bulgu geldi ve düzeltildi (aşağıda: madde 2 üçüncü tur, madde 3 ikinci tur). Kalan: madde 9 ölçümü, madde 10 katman 2.
+Tarih: 2026-09-13 · Durum: **Faz 1-3 ✅ · R1-R4 ✅** — 1.0.1 testçilerde, iki yeni bulgu geldi ve düzeltildi (aşağıda: madde 2 üçüncü tur, madde 3 ikinci tur). Kalan: madde 9 ölçümü, madde 10 katman 2. **2026-09-14: madde 11 eklendi — iOS'un temiz olduğu öğrenildi ve teşhis ekseni değişti; bu belgenin en önemli maddesi artık o.**
 Doğrulama: Expo SDK 54 (kurulu sürüm) dokümanları + React Navigation 7 / react-native-screens issue takibi
 
 ---
@@ -449,6 +449,43 @@ Sonuç: geçişte avatar SVG'si artık hiç yeniden kurulmuyor, yalnızca çevre
 ---
 
 
+## 11 — Eksen değişikliği: blokaj JS'te değil, Android metin ölçümünde
+
+**2026-09-14, dördüncü tur (sürüm 1.0.8 / vc9).** Kullanıcıdan iki yeni veri noktası geldi ve bunlardan biri bu belgenin üç turdur izlediği ekseni geçersiz kılıyor:
+
+1. **iOS'ta hiç kasma yok** (TestFlight 12). Bu, aşağıdaki "Hâlâ açık" 5. sorunun cevabı.
+2. Güncellemelerin çoğu `main`'de değil bu branch'te — `main` build 11'de duruyor.
+
+### Neden bu, önceki üç turu açıklıyor
+
+Teşhis rozeti JS thread'inin bloke olduğunu kanıtladı (v2: 322 sn pencerede 40 blokaj / 39.744 ms). Buradan sonraki her tur "JS'te iş azaltalım" diye ilerledi: `freezeOnBlur`, `enableFreeze` aç-kapa, memoizasyon, worklet stabilizasyonu, profil parçalama. Her tur bir öncekini çürüttü.
+
+**Ama JS bundle'ı iOS'ta birebir aynı.** Aynı Hermes, aynı React ağacı, aynı render sayısı, aynı worklet'ler, aynı react-query cache'i. O 39 saniye gerçekten JavaScript *çalıştırmakla* geçiyorsa iOS'ta da geçmesi gerekirdi; iPhone'lar Hermes bytecode'unu 30 kat hızlı koşturmuyor. iOS tamamen temiz.
+
+Sonuç: JS thread'i Android'de **JavaScript çalıştırırken değil, Android native tarafına inen senkron bir çağrıyı beklerken** bloke. `enableFreeze` A/B'si bu yüzden hiçbir turda sonuç vermedi — ölçtüğü değişken maliyetin kaynağı değil.
+
+**Kendi verimiz de bunu söylüyor ve bu daha önce fark edilmemiş:** blokajlar rotaya göre yığılmış (Profile 23 blokaj / 24.499 ms · Home 13 / 12.133 ms · PostDetail 4 / 3.112 ms). `enableFreeze` teorisi doğru olsaydı — "paylaşılan context değişince mount'lu bütün ekranlar render oluyor" — maliyet hangi ekranda olunduğundan bağımsız, rotalara kabaca eşit dağılırdı. Rotaya göre yığılması, maliyetin **o an ekranda ne olduğuyla** ölçeklendiğini gösteriyor: satır başına ölçüm, global render dalgası değil.
+
+### Bu turda kapatılan iki yol
+
+**a) Global `adjustsFontSizeToFit` kaldırıldı** — [applyGlobalFont.ts](../../src/theme/applyGlobalFont.ts). Bu dosya bir haftalık teşhiste hiç açılmamıştı. `numberOfLines` verilmiş HER yazıya otomatik basılıyordu ve prop'un implementasyonu platforma göre aynı iş değil: iOS'ta UIKit/CoreText tek ölçüm pasında hallediyor (bedava), Android'de RN iteratif döngüyle yapıyor — `StaticLayout` kur, taşıyor mu bak, fontu küçült, baştan kur. Yeni Mimari'de bu ölçüm JNI üzerinden senkron. `PostCardModern`'da satır başına 3 tane + `BadgeChip` var; Home ve Profile'ın tabloda en üstte olmasının sebebi bu olabilir. Android görünürlük değişiminde tüm pencereyi yeniden ölçtüğü için öne dönüşte hepsi döngüsünü birden koşturuyor.
+
+Kırpılma savunması `MAX_FONT_SCALE = 1.2` tavanında kalıyor (bedava). Küçültmeyi gerçekten isteyen iki etiket prop'u zaten elle veriyordu ([AppHeader.tsx](../../src/components/layout/AppHeader.tsx), [Ego130ScheduleScreen.tsx](../../src/screens/main/Ego130ScheduleScreen.tsx)) — yani global varsayılana bağlı değiller, davranışları değişmiyor.
+
+**b) Çevrimdışı kilidi ön plana bağlandı** — [useIsOffline.ts](../../src/hooks/useIsOffline.ts). Bugün 11:56'da giren `ac21464` kilidi Android'de çalışır hâle getirdi; ama [RootNavigator.tsx](../../src/navigation/RootNavigator.tsx) `isOffline` true olduğunda hâlâ erken `return <OfflineEgoScreen />` yapıyor, yani Drawer + Stack + Tab ağacının TAMAMI unmount oluyor. Android ekran kapalıyken Wi-Fi'yi düzenli uykuya alıyor ve yeni yoklama bunu güvenilir biçimde görüyor — kilit arka planda devreye girerse kilit açıldığında ağaç sıfırdan mount ediliyor. iOS'ta bu yol yok (uygulama askıya alınıyor, kilitte bağlantı kaybı bildirilmiyor). Kilit artık ön planda değilken mevcut değerinde donuyor; dönüşte taze okumayla karar veriyor.
+
+⚠️ Bu (b) maddesi aynı zamanda bir **ölçüm kirliliği** kaynağıydı: `ac21464` ölçüm turlarının ortasında girdi, yani 1.0.7 verisi bu yolu içeriyor, 1.0.6 tabanı içermiyor.
+
+### Bilerek yapılmayan
+
+`applyGlobalFont`'taki `[{ fontFamily }, props.style]` her render'da yeni dizi üretiyor. Düzeltilebilir ama **bu turda dokunulmadı**: turun tek değişkenli kalması bu belgenin üç turdur eksik olan disiplini. Sonraki tura not.
+
+### Ölçüm
+
+Anahtar `diag:jsblocks:v4`'e yükseltildi. **Beklenti: HOME ve PROFILE satırları düşmeli**, ayrıca `sinceResumeMs` dolu olan (öne dönüş) blokajları düşmeli. Düşmezse hipotez çürür ve sıradaki aday react-native-svg'nin Android'de her `<Rect>` için native view kurması olur.
+
+---
+
 ## Açık sorular
 
 ### Cevaplananlar
@@ -460,4 +497,7 @@ Sonuç: geçişte avatar SVG'si artık hiç yeniden kurulmuyor, yalnızca çevre
 ### Hâlâ açık
 
 4. **Madde 9:** test cihazlarının modeli? ("eski sürüm" hangi Android? 8? 10?) GPU render profili ölçümü için gerekli.
-5. iOS'ta bu maddelerden hangileri görülüyor? Madde 3'ün kanıtlanan sebebi (`enableFreeze` + Android fragment yeniden bağlanması) **Android'e özgü** — iOS'ta da donuyorsa sebep başka demektir ve ayrıca bakmamız gerekir.
+
+### Sonradan cevaplanan
+
+5. ✅ **iOS'ta bu maddelerden hangileri görülüyor?** — **HİÇBİRİ.** "iOS'ta hiç kasma yok" (TestFlight 12, 2026-09-14). Bu cevap tek bir maddeyi kapatmakla kalmıyor, belgenin teşhis eksenini değiştiriyor: aynı JS bundle iOS'ta temiz koşuyorsa blokaj JavaScript çalıştırmaktan gelmiyor. Bkz. madde 11.
