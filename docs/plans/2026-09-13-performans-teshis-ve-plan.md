@@ -246,7 +246,22 @@ olurdu; üstelik bekleme artık tek isteğe indiği için çok daha kısa.
 
 **Pager katmanı:**
 5. ✅ **Sayfa pencereleme yapıldı.** Yalnızca aktif sekme ve iki komşusu gerçek scroll view olarak mount'lu; geri kalanlar yerlerinde `screenWidth` genişliğinde boş View tutuyor (pager geometrisi bozulmasın diye). Bir kez mount olan mount'lu kalıyor — kaydırma konumu ve verisi korunsun diye. İlk açılışta **7 sayfa → 2 sayfa**.
-6. Yedi `useAnimatedScrollHandler` **bilerek dokunulmadan bırakıldı**: aynı anda yalnızca bir scroll view kaydığı için bunların maliyeti kare başına değil, kurulum anında. Pencereleme zaten mount edilen sayfa sayısını düşürdüğü için asıl kazanç orada.
+6. ~~Yedi `useAnimatedScrollHandler` **bilerek dokunulmadan bırakıldı**: aynı anda yalnızca bir scroll view kaydığı için bunların maliyeti kare başına değil, kurulum anında. Pencereleme zaten mount edilen sayfa sayısını düşürdüğü için asıl kazanç orada.~~
+
+   **⚠️ 2026-09-14'te ÇÜRÜDÜ — "kurulum anında" doğru değildi.** Reanimated bu hook'un bağımlılıklarını worklet'in closure'ından topluyor ve bağımlılık değişince worklet'i **UI thread'inde yeniden inşa ediyor**. İki gönderi sekmesinde şöyle bir zincir vardı:
+
+   ```
+   loadMoreMyPosts deps [myPosts, ...]
+     -> handleScroll deps [..., loadMoreMyPosts]
+       -> useAnimatedScrollHandler closure'ı değişiyor
+         -> worklet yeniden inşa ediliyor
+   ```
+
+   Yani kurulum **bir kez** değil, her sayfalamada, her not silmede ve her odak tazelemesinde tekrarlanıyordu. Düzeltildi: hook'lar kendi sayfa bileşenlerine taşındı (`components/profile/PagerPage.tsx`, `PostsTab.tsx`) ve `loadMore`/`refresh`/`onDelete` ref üzerinden kalıcı olarak stabil kimlik aldı (`hooks/profile/usePostsPagination.ts`) — worklet artık gerçekten mount'ta bir kez kuruluyor.
+
+7. **Profil ekranı parçalara ayrıldı (1632 → 496 satır).** Asıl mesele state sayısı değil, state'in **yayılma alanıydı**: 29 `useState` tek bir render fonksiyonundaydı, bir modal boolean'ı ya da bir sekmenin verisi değişince yedi pager sayfası + başlık kartı + sekme şeridi baştan çiziliyordu. Hepsi `React.memo`'lu bileşenlere çıktı (`src/components/profile/`), veri katmanı react-query'ye taşındı (`src/hooks/profile/`). Tek kısıt olan "sekme sayaçları tıklamadan dolmalı" kuralı korundu: şerit sayacı, sekme listeyi, **aynı anahtar**, tek istek.
+
+   Postlar/Kayıtlı bilerek react-query'ye taşınmadı — o durum makinesinin her dalının arkasında belgelenmiş bir hata var, birebir taşındı.
 7. Uzun vadede pager'ı `react-native-pager-view`'a taşımak hâlâ doğru adım — ama artık acil değil.
 
 **Oran: %90.** Açılıştaki istek sayısı 7→2 düşüyor ve ekran ilk veriyle çiziliyor.
