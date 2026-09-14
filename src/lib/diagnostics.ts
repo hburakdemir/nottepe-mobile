@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import { AppState, type AppStateStatus } from 'react-native';
 
 // GEÇİCİ TEŞHİS ALTYAPISI — iş bitince tek commit'le silinecek.
@@ -142,7 +143,9 @@ export function formatReport(): string {
 
   return [
     'Nottepe — JS thread takılma raporu',
-    `Sürüm: 1.0.4 (vc5)`,
+    // Sürüm elle yazılmıyor: rapor hangi build'den geldiğini yanlış söylerse
+    // ölçümün bütün değeri gider.
+    `Sürüm: ${Constants.expoConfig?.version ?? '?'} (vc${Constants.expoConfig?.android?.versionCode ?? '?'})`,
     `Toplam kayıt: ${entries.length} · En kötü: ${worst.blockedMs}ms · Öne dönüşe bağlı: ${resumeOnes.length}`,
     '',
     ...lines,

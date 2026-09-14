@@ -2,7 +2,7 @@
   "expo": {
     "name": "Nottepe",
     "slug": "nottepe-mobile",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "scheme": "nottepe",
@@ -25,7 +25,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.nottepe.app",
-      "versionCode": 5,
+      "versionCode": 6,
       "blockedPermissions": [
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.USE_EXACT_ALARM"
