@@ -3,10 +3,6 @@ applyGlobalFont();
 
 import 'react-native-gesture-handler';
 import './global.css';
-// global.css'ten HEMEN SONRA, herhangi bir ekran import edilmeden önce:
-// Reanimated bileşenlerini NativeWind'e tanıtıyor, yoksa onların üzerindeki
-// `className` sessizce hiçbir şey yapmıyor (bkz. o dosyadaki uzun not).
-import './src/lib/nativewindInterop';
 import React from 'react';
 import { Image, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';

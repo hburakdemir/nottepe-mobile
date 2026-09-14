@@ -18,11 +18,10 @@ import type { TabKey } from './profileCommon';
 // `scrollY` / `onRememberOffset` / `tabKey`'e bakıyor — üçü de stabil referans,
 // yani worklet sayfa mount olduğunda BİR KEZ kuruluyor.
 //
-// Stil ikiye ayrılmış durumda ve bu bilinçli: yatay dolgu ile boşluk STATİK,
-// o yüzden `contentContainerClassName` (Animated.ScrollView artık NativeWind'e
-// kayıtlı, bkz. lib/nativewindInterop.ts). `paddingTop` ise bir `onLayout`
-// ÖLÇÜMÜ (`headerHeight`) — derleme zamanında bilinemeyeceği için sınıf
-// olamaz, `style` kalmak zorunda.
+// Not: `contentContainerStyle` bilerek `style` objesi; içindeki `paddingTop`
+// bir `onLayout` ÖLÇÜMÜ (`headerHeight`), yani derleme zamanında bilinemez —
+// NativeWind sınıfına çevrilemez. Statik olan yatay dolgu ve boşluk da aynı
+// objede tutuluyor ki tek kaynak olsun.
 /** Beş "basit" sekmenin ortak prop kümesi. Hepsi stabil referans (ya ilkel, ya
  *  shared value, ya `useCallback`'li) — sekme bileşenlerinin `React.memo`'su bu
  *  sayede iş görüyor. */
@@ -61,11 +60,8 @@ export default function PagerPage({
   });
 
   const pageStyle = useMemo(() => ({ width }), [width]);
-  // `headerTotalHeight` kadar dolgu içeriği şeridin TAM altına yapıştırıyordu
-  // (ör. Program sekmesindeki "Düzenle" butonu şeride bitişik duruyordu);
-  // sekme şeridiyle içerik arasında sabit bir nefes payı bırakılıyor.
   const contentStyle = useMemo(
-    () => ({ paddingTop: headerHeight + 14, paddingBottom: TAB_BAR_SAFE_PADDING }),
+    () => ({ paddingTop: headerHeight + 14, paddingBottom: TAB_BAR_SAFE_PADDING, paddingHorizontal: 16, gap: 10 }),
     [headerHeight]
   );
 
@@ -73,7 +69,6 @@ export default function PagerPage({
     <Animated.ScrollView
       style={pageStyle}
       showsVerticalScrollIndicator={false}
-      contentContainerClassName="px-4 gap-2.5"
       contentContainerStyle={contentStyle}
       onScroll={scrollHandler}
       scrollEventThrottle={32}
