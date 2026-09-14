@@ -151,7 +151,24 @@ function DayTabs({
           const active = s.key === activeDay;
           return (
             <Pressable key={s.key} onPress={() => onSelect(s.key)} style={styles.tab}>
-              <Text style={[styles.tabText, { color: active ? t.onAccent : t.ink2 }]}>{s.label}</Text>
+              {/* `numberOfLines` + `adjustsFontSizeToFit`: etiket sekmeye HER
+                  koşulda sığsın. `fontSize` sabit (12.5) ama `allowFontScaling`
+                  varsayılan açık olduğu için cihazın sistem yazı boyutu
+                  büyütülmüşse etiket de büyüyor — üç sekme `flex: 1` ile ekranı
+                  eşit bölüştüğünden uzun etiket ("Cumartesi") o genişliğe
+                  sığmayıp ikinci satıra taşıyor ve hapın dışında kalıyordu.
+                  Testçi tablosu buydu: bazı Android cihazlarda sekme yazısı
+                  okunmuyor. Şimdi tek satırda kalıp gerekirse %85'e kadar
+                  küçülüyor; küçülme yalnızca sığmayan cihazlarda devreye
+                  giriyor, normal ayarda görünüm birebir aynı. */}
+              <Text
+                style={[styles.tabText, { color: active ? t.onAccent : t.ink2 }]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.85}
+              >
+                {s.label}
+              </Text>
             </Pressable>
           );
         })}
@@ -421,7 +438,9 @@ const styles = StyleSheet.create({
   nextMeta: { fontSize: 12, marginTop: 2 },
   tabs: { borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, marginTop: 14 },
   tabsRow: { flexDirection: 'row', padding: TABS_PADDING },
-  tab: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 999 },
+  // `paddingHorizontal`: etiket sekme kenarına yapışmasın — küçülme devreye
+  // girdiğinde bile iki yanda nefes payı kalsın.
+  tab: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 8, paddingHorizontal: 6, borderRadius: 999 },
   tabText: { fontSize: 12.5, fontWeight: '600' },
   pill: {
     position: 'absolute',
