@@ -34,10 +34,17 @@ const TICK_MS = 250;
 // kaydedilseydi liste gürültüden okunmaz hâle gelirdi.
 const REPORT_THRESHOLD_MS = 300;
 const MAX_ENTRIES = 40;
-// v2: kayıtlara `route` eklendi VE `enableFreeze` geri açıldı. Anahtarı
-// yükseltmek eski turun kayıtlarını devre dışı bırakıyor — iki build'in verisi
-// tek raporda karışsaydı A/B karşılaştırması anlamsız olurdu.
-const STORAGE_KEY = 'diag:jsblocks:v2';
+// v3: ProfileScreen parçalara ayrıldı (1632 -> 496 satır; yedi sekme, başlık
+// kartı ve sekme şeridi kendi `React.memo`'lu bileşenlerine çıktı, scroll
+// worklet'leri artık mount'ta bir kez kuruluyor). Anahtarı yükseltmek eski
+// turun kayıtlarını devre dışı bırakıyor — iki build'in verisi tek raporda
+// karışsaydı A/B karşılaştırması anlamsız olurdu.
+//
+// KARŞILAŞTIRILACAK TABAN (v2, sürüm 1.0.6): 40 kayıt, toplam 39.744 ms /
+// 322 sn pencere. Ekrana göre: Profile 23 blokaj / 24.499 ms · Home 13 /
+// 12.133 ms · PostDetail 4 / 3.112 ms. Bu turda düşmesi beklenen satır
+// PROFILE.
+const STORAGE_KEY = 'diag:jsblocks:v3';
 
 export type BlockEntry = {
   at: number;
