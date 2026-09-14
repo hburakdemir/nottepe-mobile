@@ -29,6 +29,8 @@ import PushBridge from './src/components/PushBridge';
 import { queryClient } from './src/lib/queryClient';
 import { persistOptions } from './src/lib/queryPersist';
 import { LIGHT_VARS, DARK_VARS } from './src/theme/palette';
+import { DIAGNOSTICS_ENABLED, startDiagnostics } from './src/lib/diagnostics';
+import DiagnosticsBadge from './src/components/DiagnosticsBadge';
 
 // 2026-09-13, İKİNCİ tur: KAPATILDI. Sebebi:
 //
@@ -108,6 +110,13 @@ function ThemedNavigationContainer({ children }: { children: React.ReactNode }) 
 export default function App() {
   const [fontsReady] = useSoraFonts({ Sora_400Regular, Sora_500Medium, Sora_600SemiBold, Sora_700Bold, Sora_800ExtraBold });
 
+  // Erken `return`'ün ÖNÜNDE: font yüklenene kadar çalışmasaydı açılıştaki —
+  // yani en pahalı andaki — takılmaları kaçırırdık. Geçici, bkz. diagnostics.ts.
+  React.useEffect(() => {
+    if (!DIAGNOSTICS_ENABLED) return;
+    return startDiagnostics();
+  }, []);
+
   if (!fontsReady) {
     return <BootScreen />;
   }
@@ -141,6 +150,9 @@ export default function App() {
                         içinde çalışıyor, PushBridge ise dışarıdan (soğuk açılış,
                         AppState) yönlendirme yapmak zorunda (bkz. navigationRef.ts). */}
                     <PushBridge />
+                    {/* Geçici teşhis rozeti — bkz. diagnostics.ts. Ağacın en
+                        sonunda ki her şeyin üstünde kalsın. */}
+                    {DIAGNOSTICS_ENABLED && <DiagnosticsBadge />}
                   </ThemedNavigationContainer>
                 </SavedPostsProvider>
               </AuthProvider>
