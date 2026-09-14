@@ -348,7 +348,7 @@ export default function ProfileScreen() {
         }}
         onMomentumScrollEnd={handlePagerMomentumEnd}
         scrollEventThrottle={32}
-        style={{ flex: 1 }}
+        className="flex-1"
       >
         <PostsTab
           kind="posts"
@@ -416,14 +416,16 @@ export default function ProfileScreen() {
       <Animated.View
         pointerEvents="box-none"
         collapsable={false}
-        style={[{ position: 'absolute', top: 0, left: 0, right: 0 }, headerAnimStyle]}
+        className="absolute top-0 left-0 right-0"
+        style={headerAnimStyle}
       >
-        {/* NativeWind'in `className` derleme dönüşümü yalnızca 'react-native'den
-            doğrudan import edilen bileşenleri (View, ScrollView, ...) tanıyor —
-            `Animated.View` (reanimated) bu listede değil, üzerine className
-            koymak sessizce hiçbir şey yapmaz. Bu yüzden görsel sınıflar (arka
-            plan/dolgu/köşe) düz bir `View`de kalıyor; `Animated.View` yalnızca
-            saydamlık/kayma animasyonunu taşıyor. */}
+        {/* Kart yalnızca animasyonu taşıyor; görseli (arka plan/dolgu/köşe)
+            `HeaderCard` içindeki düz `View` çiziyor. Bu ayrım bilerek: bir
+            `useAnimatedStyle` çıktısıyla NativeWind sınıfını aynı elemanda
+            birleştirmek (dizi hâlinde) Reanimated'in kaldırması gereken bir
+            durum ve garanti değil — konumlandırma gibi statik şeyler için
+            className kullanıyoruz (artık çalışıyor, bkz.
+            lib/nativewindInterop.ts), animasyonla birlikte değil. */}
         <Animated.View
           onLayout={(e) => {
             const h = e.nativeEvent.layout.height;

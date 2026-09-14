@@ -39,7 +39,9 @@ export function formatDate(dateString: string): string {
 // gösteriliyor — "henüz kaydın yok" metinleri yükleme bitmeden görünmesin diye.
 export function TabLoading() {
   const colors = useThemeColors();
-  return <ActivityIndicator style={{ marginTop: 24 }} color={colors.accent} />;
+  // `color` ham değer almak zorunda (className değil) — token karşılığı
+  // `useThemeColors()`'tan geliyor, bkz. ThemeContext.tsx'teki not.
+  return <ActivityIndicator className="mt-6" color={colors.accent} />;
 }
 
 export function EmptyState({
