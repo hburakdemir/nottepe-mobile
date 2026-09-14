@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Modal, ScrollView, View } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import Animated, {
   useAnimatedScrollHandler,
@@ -14,43 +14,46 @@ import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 import type { RouteProp } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Camera, Edit2, FileText, Palette } from 'lucide-react-native';
-import DeerIcon from '../../components/icons/DeerIcon';
+import { FileText } from 'lucide-react-native';
 import { avatarAPI, badgeAPI, postsAPI, savedPostsAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useSavedPosts } from '../../context/SavedPostContext';
 import PostCard from '../../components/PostCard';
-
-// "Postlar" ve "Kayıtlı" sekmelerinin sayfa boyu (bkz. postsAPI.getMyPosts /
-// savedPostsAPI.getSavedPosts — argüman verilince yanıt zarfa giriyor).
-const POST_PAGE_LIMIT = 20;
-import BadgeChip, { type Badge } from '../../components/BadgeChip';
+import { type Badge } from '../../components/BadgeChip';
 import ProfileEditModal from '../../components/profile/ProfileEditModal';
 import DeleteAccountModal from '../../components/profile/DeleteAccountModal';
 import AvatarBuilderScreen from './AvatarBuilderScreen';
 import { MY_AVATAR_KEY, useInvalidateMyAvatar, useMyAvatar } from '../../hooks/useMyAvatar';
-import AvatarDisplay from '../../components/avatar/AvatarDisplay';
 import type { AvatarData } from '../../components/avatar/AvatarDisplay';
 import type { Post } from '../../types/post';
 import type { MainTabParamList } from '../../navigation/types';
-import { useTheme } from '../../context/ThemeContext';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 import { useMetrics } from '../../theme/metrics';
 import ProfileSkeleton from '../../components/profile/ProfileSkeleton';
-import { EmptyState, SHADOW_MD, TABS, TabLoading, type TabKey } from '../../components/profile/profileCommon';
+import { EmptyState, TABS, TabLoading, type TabKey } from '../../components/profile/profileCommon';
 import { PagerPlaceholder } from '../../components/profile/PagerPage';
+import HeaderCard from '../../components/profile/HeaderCard';
+import TabStrip from '../../components/profile/TabStrip';
 import ChecklistsTab from '../../components/profile/ChecklistsTab';
 import AktsTab from '../../components/profile/AktsTab';
 import ScheduleTab from '../../components/profile/ScheduleTab';
 import FollowsTab from '../../components/profile/FollowsTab';
 import ForumsTab from '../../components/profile/ForumsTab';
-import { useMyAktsCalcs, useMyChecklists, useMyFollows, useMySchedule } from '../../hooks/profile/useProfileLists';
+import { MY_BADGES_KEY, useMyBadges } from '../../hooks/profile/useProfileLists';
+
+// "Postlar" ve "Kayıtlı" sekmelerinin sayfa boyu (bkz. postsAPI.getMyPosts /
+// savedPostsAPI.getSavedPosts — argüman verilince yanıt zarfa giriyor).
+const POST_PAGE_LIMIT = 20;
 
 const postKey = (post: Post) => String(post.id ?? post.post_id);
 
 // Etkin olmayan sekmenin listesine verilen SABİT boş dizi — her render'da `[]`
 // yazmak FlatList'e yeni bir referans gösterip gereksiz iş çıkarırdı.
 const NO_POSTS: Post[] = [];
+
+// Aynı gerekçe: `useMyBadges()` henüz veri döndürmediğinde `HeaderCard`'a
+// (memo'lu) her render'da yeni bir `[]` gitmesin.
+const NO_BADGES: Badge[] = [];
 
 // `/saved-posts/getPost` bazı sürümlerde comment_count döndürmüyor — eksik
 // olanlar tekil gönderi ucundan (postsAPI.getById) tamamlanıyor. Bkz. aynı
@@ -134,8 +137,6 @@ export default function ProfileScreen() {
   const { user } = useAuth();
   const isStaff = user?.role === 'admin' || user?.role === 'moderator';
   const { savedPosts, loading: savedIdsLoading, fetchSavedPosts } = useSavedPosts();
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
 
   const [loadingRaw, setLoading] = useState(true);
   // İnternet hızlıysa (veri 200ms'den önce gelirse) LoadingDeer HİÇ
@@ -152,10 +153,8 @@ export default function ProfileScreen() {
   const { width: windowWidth, contentMaxWidth } = useMetrics();
   const screenWidth = Math.min(windowWidth, contentMaxWidth);
 
-  // Mount'ta çekilenler: yalnızca ilk açılan "Postlar" sekmesi ve profil
-  // kartındaki rozetler.
+  // Ekranın ilk karesini belirleyen tek veri: kendi gönderilerin.
   const [myPosts, setMyPosts] = useState<Post[]>([]);
-  const [badges, setBadges] = useState<Badge[]>([]);
 
   // --- Sonsuz kaydırma durumu (yalnızca iki gönderi sekmesi) --------------
   // `total` sunucudaki gerçek satır sayısı: "hepsi yüklendi mi?" sorusu
@@ -178,15 +177,16 @@ export default function ProfileScreen() {
   // tetikliyor.
   const [savedPostsData, setSavedPostsData] = useState<Post[] | null>(null);
 
-  // Kalan dört listenin verisi artık BU BİLEŞENDE DEĞİL: her biri kendi sekme
-  // bileşeninin içinde, react-query anahtarı üzerinden (bkz.
-  // hooks/profile/useProfileLists.ts). Burada yalnızca sekme şeridindeki
-  // SAYAÇLAR için okunuyorlar — aynı anahtar olduğu için ikinci bir ağ isteği
-  // atılmıyor ve "sayaçlar tıklamadan dolmalı" kuralı korunuyor.
-  const { data: checklistsForCount } = useMyChecklists();
-  const { data: aktsForCount } = useMyAktsCalcs();
-  const { data: scheduleForCount } = useMySchedule();
-  const { data: followsForCount } = useMyFollows();
+  // Dört listenin verisi de rozetler de artık BU BİLEŞENDE DEĞİL; hepsi
+  // react-query anahtarları üzerinden (bkz. hooks/profile/useProfileLists.ts).
+  // Sayaçları `TabStrip`, listeyi ilgili sekme okuyor — aynı anahtar olduğu
+  // için ikinci bir ağ isteği atılmıyor ve "sayaçlar tıklamadan dolmalı"
+  // kuralı korunuyor.
+  //
+  // Rozetler burada da okunuyor çünkü `ProfileEditModal`'ı bu ekran render
+  // ediyor (rozet görünürlüğü oradan değiştiriliyor); `HeaderCard`'a prop
+  // olarak iniyor.
+  const { data: badges = NO_BADGES } = useMyBadges();
 
   // Avatar artık burada ayrıca çekilmiyor: üst bar ve tab bar ile aynı
   // react-query anahtarını (`MY_AVATAR_KEY`, bkz. hooks/useMyAvatar.ts)
@@ -205,7 +205,7 @@ export default function ProfileScreen() {
   // doluyordu (tembel yükleme) — kullanıcı "tıklamadan sayılar gösterilmiyor"
   // diye bildirdi. Bu yüzden checklist/AKTS/program/takip uçları AÇILIŞTA
   // çekilmeye devam ediyor; değişen şey nerede çekildikleri: artık react-query
-  // anahtarlarında (yukarıdaki `...ForCount` hook'ları), ham state'te değil.
+  // anahtarlarında, `TabStrip` içinde (bkz. o dosya), ham state'te değil.
   // Aynı anahtarı sekme bileşeni de okuduğu için ikinci istek atılmıyor.
   //
   // "Kayıtlı" sayacı ESKİDEN SavedPostContext'in `/saved-posts/ids` sonucuna
@@ -224,12 +224,7 @@ export default function ProfileScreen() {
     setLoading(true);
     myPostsInFlight.current = true;
 
-    // --- Bekletmeyenler: geldiklerinde kendi state'lerine düşüyorlar --------
-    badgeAPI
-      .getMine()
-      .then((res) => setBadges(res.data.badges || []))
-      .catch(() => setBadges([]));
-
+    // --- Bekletmeyen: geldiğinde kendi state'ine düşüyor -------------------
     savedPostsAPI
       .getSavedPosts({ page: 1, limit: POST_PAGE_LIMIT })
       .then((res) => {
@@ -548,29 +543,8 @@ export default function ProfileScreen() {
     [screenWidth]
   );
 
-  // --- Sekme şeridini aktif sekmeye ortalama --------------------------------
-  // Eskiden şeridin ne `ref`'i ne `onLayout`'u ne de bir `scrollTo` çağrısı
-  // vardı — sekmeler hiçbir zaman ortalanmıyordu, 5-7. sekmeler ekran dışında
-  // kalıyordu ("tablar asla olması gereken yerde ortada render olmuyor").
-  // Her sekmenin x/width'i `onLayout` ile ölçülüp (bkz. render) aktif sekme
-  // değiştiğinde şerit o sekmeyi ortasına getirecek şekilde kaydırılıyor.
-  const stripRef = useRef<ScrollView>(null);
-  const stripWidthRef = useRef(0);
-  const stripContentWidthRef = useRef(0);
-  const tabLayoutsRef = useRef<Partial<Record<TabKey, { x: number; width: number }>>>({});
-
-  const centerStripOn = useCallback((key: TabKey) => {
-    const item = tabLayoutsRef.current[key];
-    const stripWidth = stripWidthRef.current;
-    if (!item || stripWidth <= 0) return;
-    const maxScroll = Math.max(0, stripContentWidthRef.current - stripWidth);
-    const target = Math.min(Math.max(item.x + item.width / 2 - stripWidth / 2, 0), maxScroll);
-    stripRef.current?.scrollTo({ x: target, animated: true });
-  }, []);
-
-  useEffect(() => {
-    centerStripOn(activeTab);
-  }, [activeTab, centerStripOn]);
+  // Şeridin kendi ölçüm/ortalama mantığı artık `TabStrip`'in içinde — dört
+  // `ref` ve bir effect daha bu bileşenden çıktı.
 
   // `useCallback` ŞART: `PostCard` `React.memo` ile sarılı ve bu fonksiyon ona
   // prop olarak gidiyor. Her render'da yeniden yaratıldığında referans eşitliği
@@ -605,23 +579,32 @@ export default function ProfileScreen() {
     [handleSavedPostDelete]
   );
 
-  const visibleBadgeCount = badges.filter((b) => b.is_visible !== false).length;
+  const handleToggleBadgeVisibility = useCallback(
+    async (badge: Badge) => {
+      const nextVisible = !(badge.is_visible !== false);
+      // En az bir rozet görünür kalmalı — sayım her çağrıda taze cache'ten.
+      if (!nextVisible && badges.filter((b) => b.is_visible !== false).length <= 1) {
+        Alert.alert('Uyarı', 'En az bir rozet görünür kalmalı.');
+        return;
+      }
+      try {
+        await badgeAPI.setVisibility(badge.id, nextVisible);
+        queryClient.setQueryData<Badge[]>(MY_BADGES_KEY, (prev) =>
+          prev?.map((b) => (b.id === badge.id ? { ...b, is_visible: nextVisible } : b))
+        );
+      } catch (err: any) {
+        Alert.alert('Hata', err.response?.data?.message || 'Rozet görünürlüğü güncellenemedi.');
+      }
+    },
+    [badges, queryClient]
+  );
 
-  const handleToggleBadgeVisibility = async (badge: Badge) => {
-    const nextVisible = !(badge.is_visible !== false);
-    if (!nextVisible && visibleBadgeCount <= 1) {
-      Alert.alert('Uyarı', 'En az bir rozet görünür kalmalı.');
-      return;
-    }
-    try {
-      await badgeAPI.setVisibility(badge.id, nextVisible);
-      setBadges((prev) => prev.map((b) => (b.id === badge.id ? { ...b, is_visible: nextVisible } : b)));
-    } catch (err: any) {
-      Alert.alert('Hata', err.response?.data?.message || 'Rozet görünürlüğü güncellenemedi.');
-    }
-  };
+  // `HeaderCard` memo'lu: satır içi ok fonksiyonu verseydik her render'da yeni
+  // referans olur, memo hiçbir zaman bail-out yapamazdı.
+  const openAvatarBuilder = useCallback(() => setShowAvatarBuilder(true), []);
+  const openEditModal = useCallback(() => setShowEditModal(true), []);
 
-  const handlePickPhoto = async () => {
+  const handlePickPhoto = useCallback(async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
       Alert.alert('İzin gerekli', 'Fotoğraf seçmek için galeri izni vermelisiniz.');
@@ -652,7 +635,7 @@ export default function ProfileScreen() {
     } finally {
       setPhotoUploading(false);
     }
-  };
+  }, [invalidateMyAvatar, queryClient]);
 
   // --- Kayan (collapsing) profil başlığı -----------------------------------
   // Eskiden profil kartı + sekme şeridi pager'ın DIŞINDA, sabit duruyordu —
@@ -910,123 +893,23 @@ export default function ProfileScreen() {
           }}
           style={cardAnimStyle}
         >
-          <View className="bg-surface p-4 m-4 mb-5 rounded-lg" style={SHADOW_MD}>
-          <View className="flex-row gap-3.5">
-            <View className="w-20 h-20">
-              <View className="w-20 h-20 rounded-[20px] bg-brand items-center justify-center overflow-hidden">
-                {avatar ? <AvatarDisplay avatar={avatar} size={80} /> : <DeerIcon size={32} color="#fff" />}
-              </View>
-              <Pressable
-                className="absolute -bottom-[3px] -right-[3px] w-[22px] h-[22px] rounded-[11px] bg-indigo-600 items-center justify-center"
-                onPress={() => setShowAvatarBuilder(true)}
-              >
-                <Palette size={12} color="#fff" />
-              </Pressable>
-              <Pressable
-                className="absolute -bottom-[3px] -left-[3px] w-[22px] h-[22px] rounded-[11px] bg-brand items-center justify-center"
-                onPress={handlePickPhoto}
-                disabled={photoUploading}
-              >
-                {photoUploading ? <ActivityIndicator size="small" color="#fff" /> : <Camera size={12} color="#fff" />}
-              </Pressable>
-            </View>
-            <View className="flex-1">
-              <Text className="text-[19px] font-extrabold text-ink">{user?.username}</Text>
-              <Text className="text-[13px] text-ink2 mt-0.5">{user?.full_name}</Text>
-              <Text className="text-[12.5px] text-muted mt-px">{user?.email}</Text>
-              {!!user?.phone && <Text className="text-xs text-muted2 mt-0.5">{user.phone}</Text>}
-              {!!user?.department && (
-                <Text className="text-xs text-muted2 mt-0.5">
-                  {user.department}
-                  {user.faculty ? ` · ${user.faculty}` : ''}
-                </Text>
-              )}
-              {!!user?.bio && <Text className="text-[12.5px] text-ink2 mt-1.5 leading-[17px]">{user.bio}</Text>}
-            </View>
-          </View>
-
-          <View className="flex-row flex-wrap gap-2 mt-3.5">
-            {badges.filter((b) => b.is_visible !== false).length === 0 ? (
-              <Text className="text-[11.5px] text-muted2">Henüz rozet yok — not paylaşarak rozet kazanabilirsin!</Text>
-            ) : (
-              badges.filter((b) => b.is_visible !== false).map((badge) => <BadgeChip key={badge.id} badge={badge} />)
-            )}
-          </View>
-
-          <Pressable
-            className="flex-row items-center justify-center gap-1.5 bg-brand rounded-[10px] py-2.5 mt-3.5"
-            onPress={() => setShowEditModal(true)}
-          >
-            <Edit2 size={15} color="#fff" />
-            <Text className="text-white text-[13px] font-bold">Düzenle</Text>
-          </Pressable>
-          </View>
+          <HeaderCard
+            avatar={avatar}
+            badges={badges}
+            photoUploading={photoUploading}
+            onPickPhoto={handlePickPhoto}
+            onOpenAvatarBuilder={openAvatarBuilder}
+            onOpenEdit={openEditModal}
+          />
         </Animated.View>
 
-        {/* Sekme şeridi bilinçli olarak kendi kutusunda: altında ince bir çizgi
-            ve gölge var ki profil kartından ayrı, kendi başına bir yapı olduğu
-            görünsün (kullanıcı isteği). */}
-        <View
-          onLayout={(e) => setStripHeight(e.nativeEvent.layout.height)}
-          className="bg-surface rounded-lg mx-4 mb-5 border-b border-line-soft"
-          style={SHADOW_MD}
-        >
-          <ScrollView
-            ref={stripRef}
-            showsVerticalScrollIndicator={false}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerClassName="px-3"
-            onLayout={(e) => {
-              stripWidthRef.current = e.nativeEvent.layout.width;
-              centerStripOn(activeTab);
-            }}
-            onContentSizeChange={(w) => {
-              stripContentWidthRef.current = w;
-            }}
-          >
-            {TABS.map(({ key, label, icon: Icon }, index) => {
-              // Tembel yüklenen sekmelerde sayaç ancak veri geldiğinde
-              // gösteriliyor; aksi hâlde açılışta hepsi yanıltıcı "(0)"
-              // görünürdü. ("Kayıtlı" sayacı SavedPostContext'ten geldiği için
-              // ilk andan itibaren doğru.)
-              // İki gönderi sekmesi artık sayfalı: sayaç "ekranda kaç satır
-              // var" değil, sunucudaki TOPLAM — biliniyorsa `total` yazılıyor.
-              const count =
-                key === 'posts'
-                  ? (myPostsTotal ?? myPosts.length)
-                  : key === 'saved'
-                    ? (savedPostsTotal ?? savedPosts.length)
-                    : key === 'lists'
-                      ? (checklistsForCount?.length ?? null)
-                      : key === 'akts'
-                        ? (aktsForCount?.length ?? null)
-                        : key === 'schedule'
-                          ? (scheduleForCount?.length ?? null)
-                          : key === 'follows'
-                            ? (followsForCount?.length ?? null)
-                            : null;
-              const active = activeTab === key;
-              return (
-                <Pressable
-                  key={key}
-                  className={`flex-row items-center gap-[5px] py-3 mr-[18px] border-b-2 ${active ? 'border-b-brand' : 'border-b-transparent'}`}
-                  onPress={() => handleTabPress(index)}
-                  onLayout={(e) => {
-                    tabLayoutsRef.current[key] = { x: e.nativeEvent.layout.x, width: e.nativeEvent.layout.width };
-                    if (active) centerStripOn(key);
-                  }}
-                >
-                  <Icon size={14} color={active ? (isDark ? '#5A9690' : '#2F5755') : '#9ca3af'} />
-                  <Text className={`text-[12.5px] font-semibold ${active ? 'text-accent' : 'text-muted2'}`}>
-                    {label}
-                    {count !== null ? ` (${count})` : ''}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
+        <TabStrip
+          activeTab={activeTab}
+          postsCount={myPostsTotal ?? myPosts.length}
+          savedCount={savedPostsTotal ?? savedPosts.length}
+          onTabPress={handleTabPress}
+          onHeightChange={setStripHeight}
+        />
       </Animated.View>
 
       {/* Checklist istatistik/düzenleme modalları artık ChecklistsTab'ın
