@@ -6,7 +6,8 @@ import { savedPostsAPI, postsAPI } from '../../lib/api';
 import { SAVED_POSTS_KEY, useSavedPosts } from '../../context/SavedPostContext';
 import PostCard from '../../components/PostCard';
 import { useFeedTokens } from '../../theme/feedTokens';
-import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
+import { SkeletonGroup } from '../../components/Skeleton';
+import NoteCardSkeleton from '../../components/NoteCardSkeleton';
 import type { Post } from '../../types/post';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 
@@ -65,17 +66,7 @@ export default function SavedPostsScreen() {
       <SkeletonGroup>
         <View className="flex-1 p-4 gap-3" style={{ backgroundColor: t.ground }}>
           {[0, 1, 2].map((i) => (
-            <View key={i} className="bg-surface rounded-xl p-3.5 border border-line-soft gap-2.5">
-              <View className="flex-row items-center gap-2.5">
-                <Skeleton width={34} height={34} radius={17} />
-                <View className="gap-1.5">
-                  <Skeleton width={120} height={12} />
-                  <Skeleton width={80} height={10} />
-                </View>
-              </View>
-              <Skeleton width="95%" height={13} />
-              <Skeleton width="70%" height={13} />
-            </View>
+            <NoteCardSkeleton key={i} />
           ))}
         </View>
       </SkeletonGroup>

@@ -5,7 +5,6 @@ import Animated, {
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
-  withRepeat,
   withTiming,
   runOnJS,
 } from 'react-native-reanimated';
@@ -19,7 +18,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   Bell,
   BellOff,
-  Bookmark,
   Calculator,
   CalendarDays,
   Camera,
@@ -73,10 +71,11 @@ import { formatGpa } from '../../utils/gano';
 import type { Post } from '../../types/post';
 import { goToTab } from '../../navigation/navigateApp';
 import type { MainTabParamList, RootStackParamList } from '../../navigation/types';
-import { useTheme, useThemeColors } from '../../context/ThemeContext';
+import { useTheme } from '../../context/ThemeContext';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 import { useMetrics } from '../../theme/metrics';
-import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
+import ProfileSkeleton from '../../components/profile/ProfileSkeleton';
+import { EmptyState, SHADOW_MD, SHADOW_SM, TABS, TabLoading, formatDate, type TabKey } from '../../components/profile/profileCommon';
 
 interface AktsCalc {
   id: number;
@@ -98,22 +97,6 @@ interface ForumItem {
   created_at: string;
   title: string;
   body?: string;
-}
-
-const TABS = [
-  { key: 'posts', label: 'Postlar', icon: FileText },
-  { key: 'saved', label: 'Kayıtlı', icon: Bookmark },
-  { key: 'lists', label: 'Checklistler', icon: ListChecks },
-  { key: 'akts', label: 'AKTS', icon: Calculator },
-  { key: 'schedule', label: 'Program', icon: CalendarDays },
-  { key: 'follows', label: 'Takip', icon: Bell },
-  { key: 'forums', label: 'Forumlar', icon: MessagesSquare },
-] as const;
-
-type TabKey = (typeof TABS)[number]['key'];
-
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 const postKey = (post: Post) => String(post.id ?? post.post_id);
@@ -197,71 +180,6 @@ function extractPostsPage(data: unknown): { posts: Post[]; total: number | null 
 function appendUniquePosts(prev: Post[], rows: Post[]): Post[] {
   const seen = new Set(prev.map(postKey));
   return [...prev, ...rows.filter((p) => !seen.has(postKey(p)))];
-}
-
-// Yükleme durumu: ekranın ORTASINDA nabız atan tek bir ikon yerine, gelecek
-// sayfanın yerleşimini önceden çizen iskelet.
-//
-// Eskiden burada `LoadingDeer` vardı — markalı ama jenerik bir spinner: "bir
-// şey oluyor" demekten başka bilgi vermiyor ve içerik gelince ekran boş
-// ortadan dolu sayfaya ZIPLIYOR. İskelet o zıplamayı kaldırıyor; algılanan hız
-// farkının asıl kaynağı da bu (bkz. Skeleton.tsx).
-//
-// Not kartları BİLEREK dolu gösteriliyor — kullanıcı isteği: "not varmış gibi
-// ekleyelim, skeletonda öyle gözüksün". Boş bir liste iskeleti "hiç notun yok"
-// izlenimi verip yükleme bitene kadar yanlış bilgi vermiş olurdu.
-//
-// Kart ölçüleri SavedPostsScreen'deki iskeletle birebir aynı: aynı uygulamada
-// iki farklı not-kartı iskeleti olmasın.
-function ProfileSkeleton() {
-  return (
-    <SkeletonGroup>
-      <View className="flex-1 bg-ground">
-        {/* Başlık: avatar + ad + alt satır. Avatar 80px, gerçek başlıktaki
-            `AvatarDisplay size={80}` ile aynı — iskeletten içeriğe geçerken
-            avatar yer değiştirmesin. */}
-        <View className="items-center pt-8 gap-2.5">
-          <Skeleton width={80} height={80} radius={40} />
-          <Skeleton width={140} height={16} />
-          <Skeleton width={96} height={12} />
-        </View>
-
-        {/* Sayaç şeridi (gönderi / kaydedilen / takip) */}
-        <View className="flex-row justify-center gap-8 pt-5">
-          {[0, 1, 2].map((i) => (
-            <View key={i} className="items-center gap-1.5">
-              <Skeleton width={32} height={15} />
-              <Skeleton width={52} height={10} />
-            </View>
-          ))}
-        </View>
-
-        {/* Sekme şeridi */}
-        <View className="flex-row gap-2 px-4 pt-6">
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} width={72} height={30} radius={15} />
-          ))}
-        </View>
-
-        {/* Notlar */}
-        <View className="p-4 gap-3">
-          {[0, 1, 2].map((i) => (
-            <View key={i} className="bg-surface rounded-xl p-3.5 border border-line-soft gap-2.5">
-              <View className="flex-row items-center gap-2.5">
-                <Skeleton width={34} height={34} radius={17} />
-                <View className="gap-1.5">
-                  <Skeleton width={120} height={12} />
-                  <Skeleton width={80} height={10} />
-                </View>
-              </View>
-              <Skeleton width="95%" height={13} />
-              <Skeleton width="70%" height={13} />
-            </View>
-          ))}
-        </View>
-      </View>
-    </SkeletonGroup>
-  );
 }
 
 export default function ProfileScreen() {
@@ -1591,42 +1509,3 @@ export default function ProfileScreen() {
     </View>
   );
 }
-
-// Sekme verisi ilk kez (ya da bir mutasyondan sonra yeniden) çekilirken
-// gösteriliyor — "henüz kaydın yok" metinleri yükleme bitmeden görünmesin diye.
-function TabLoading() {
-  const colors = useThemeColors();
-  return <ActivityIndicator style={{ marginTop: 24 }} color={colors.accent} />;
-}
-
-function EmptyState({ icon: Icon, text, actionLabel, onAction }: { icon: any; text: string; actionLabel?: string; onAction?: () => void }) {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
-  return (
-    <View className="items-center py-[50px] gap-2.5">
-      <Icon size={40} color={isDark ? '#6b7280' : '#d1d5db'} />
-      <Text className="text-muted2 text-[13.5px] text-center px-[30px]">{text}</Text>
-      {!!actionLabel && (
-        <Pressable className="bg-brand rounded-[10px] px-[18px] py-2.5 mt-1" onPress={onAction}>
-          <Text className="text-white text-[13px] font-bold">{actionLabel}</Text>
-        </Pressable>
-      )}
-    </View>
-  );
-}
-
-const SHADOW_MD = {
-  shadowColor: '#000',
-  shadowOpacity: 0.1,
-  shadowRadius: 8,
-  shadowOffset: { width: 0, height: 3 },
-  elevation: 3,
-};
-
-const SHADOW_SM = {
-  shadowColor: '#000',
-  shadowOpacity: 0.06,
-  shadowRadius: 6,
-  shadowOffset: { width: 0, height: 2 },
-  elevation: 2,
-};
