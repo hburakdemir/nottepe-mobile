@@ -76,6 +76,7 @@ import type { MainTabParamList, RootStackParamList } from '../../navigation/type
 import { useTheme, useThemeColors } from '../../context/ThemeContext';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 import { useMetrics } from '../../theme/metrics';
+import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
 
 interface AktsCalc {
   id: number;
@@ -198,19 +199,68 @@ function appendUniquePosts(prev: Post[], rows: Post[]): Post[] {
   return [...prev, ...rows.filter((p) => !seen.has(postKey(p)))];
 }
 
-// Tam ekran yükleme durumu artık jenerik bir spinner değil, markanın geyik
-// ikonu — hafif bir nabız (opacity) animasyonuyla "yükleniyor" hissi veriyor.
-function LoadingDeer() {
-  const pulse = useSharedValue(0.4);
-  useEffect(() => {
-    pulse.value = withRepeat(withTiming(1, { duration: 700 }), -1, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value }));
+// Yükleme durumu: ekranın ORTASINDA nabız atan tek bir ikon yerine, gelecek
+// sayfanın yerleşimini önceden çizen iskelet.
+//
+// Eskiden burada `LoadingDeer` vardı — markalı ama jenerik bir spinner: "bir
+// şey oluyor" demekten başka bilgi vermiyor ve içerik gelince ekran boş
+// ortadan dolu sayfaya ZIPLIYOR. İskelet o zıplamayı kaldırıyor; algılanan hız
+// farkının asıl kaynağı da bu (bkz. Skeleton.tsx).
+//
+// Not kartları BİLEREK dolu gösteriliyor — kullanıcı isteği: "not varmış gibi
+// ekleyelim, skeletonda öyle gözüksün". Boş bir liste iskeleti "hiç notun yok"
+// izlenimi verip yükleme bitene kadar yanlış bilgi vermiş olurdu.
+//
+// Kart ölçüleri SavedPostsScreen'deki iskeletle birebir aynı: aynı uygulamada
+// iki farklı not-kartı iskeleti olmasın.
+function ProfileSkeleton() {
   return (
-    <Animated.View style={pulseStyle}>
-      <DeerIcon size={48} color="#2F5755" />
-    </Animated.View>
+    <SkeletonGroup>
+      <View className="flex-1 bg-ground">
+        {/* Başlık: avatar + ad + alt satır. Avatar 80px, gerçek başlıktaki
+            `AvatarDisplay size={80}` ile aynı — iskeletten içeriğe geçerken
+            avatar yer değiştirmesin. */}
+        <View className="items-center pt-8 gap-2.5">
+          <Skeleton width={80} height={80} radius={40} />
+          <Skeleton width={140} height={16} />
+          <Skeleton width={96} height={12} />
+        </View>
+
+        {/* Sayaç şeridi (gönderi / kaydedilen / takip) */}
+        <View className="flex-row justify-center gap-8 pt-5">
+          {[0, 1, 2].map((i) => (
+            <View key={i} className="items-center gap-1.5">
+              <Skeleton width={32} height={15} />
+              <Skeleton width={52} height={10} />
+            </View>
+          ))}
+        </View>
+
+        {/* Sekme şeridi */}
+        <View className="flex-row gap-2 px-4 pt-6">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton key={i} width={72} height={30} radius={15} />
+          ))}
+        </View>
+
+        {/* Notlar */}
+        <View className="p-4 gap-3">
+          {[0, 1, 2].map((i) => (
+            <View key={i} className="bg-surface rounded-xl p-3.5 border border-line-soft gap-2.5">
+              <View className="flex-row items-center gap-2.5">
+                <Skeleton width={34} height={34} radius={17} />
+                <View className="gap-1.5">
+                  <Skeleton width={120} height={12} />
+                  <Skeleton width={80} height={10} />
+                </View>
+              </View>
+              <Skeleton width="95%" height={13} />
+              <Skeleton width="70%" height={13} />
+            </View>
+          ))}
+        </View>
+      </View>
+    </SkeletonGroup>
   );
 }
 
@@ -1015,11 +1065,7 @@ export default function ProfileScreen() {
   const isTabMounted = useCallback((key: TabKey) => mountedTabs.includes(key), [mountedTabs]);
 
   if (loading) {
-    return (
-      <View className="flex-1 items-center justify-center">
-        <LoadingDeer />
-      </View>
-    );
+    return <ProfileSkeleton />;
   }
 
   // `headerTotalHeight` kadar dolgu içeriği şeridin TAM altına yapıştırıyordu
