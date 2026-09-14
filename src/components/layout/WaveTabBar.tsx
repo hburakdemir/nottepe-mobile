@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Keyboard, Platform, Pressable, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useNavigationState } from '@react-navigation/native';
@@ -193,18 +193,62 @@ export default function WaveTabBar({ activeRouteName }: { activeRouteName?: stri
   const capsuleX = useSharedValue(0);
   const capsuleOpacity = useSharedValue(0);
 
+  // Geometri bir ref'te tutuluyor ki `moveCapsuleTo` BAĞIMLILIKSIZ kalabilsin —
+  // o sabit kalmazsa `handlePress` de değişir ve `TabSlot`'un memo'su düşer
+  // (yukarıdaki uyarıya bak).
+  const capsuleGeomRef = React.useRef({ colWidth: 0, capsuleSize: 0 });
+  useEffect(() => {
+    capsuleGeomRef.current = { colWidth, capsuleSize: CAPSULE_SIZE };
+  }, [colWidth, CAPSULE_SIZE]);
+
+  // Aynı hedefe iki kere animasyon başlatmamak için: dokunuşta bir kez
+  // başlıyor, `activeIndex` arkadan geldiğinde efekt aynı hedefi görüp
+  // çıkıyor. Olmasaydı kapsül yolun ortasında yeniden başlardı.
+  const lastTargetRef = React.useRef<number | null>(null);
+
+  // KAPSÜL ARTIK DOKUNUŞ ANINDA HAREKET EDİYOR, `activeIndex` BEKLENMİYOR.
+  //
+  // Eski kurulumda animasyonu yalnızca aşağıdaki efekt başlatıyordu ve o efektin
+  // çalışabilmesi için şu zincirin TAMAMININ JS thread'inde bitmesi gerekiyordu:
+  // dokunuş → navigate → `screenListeners.state` → `onTabChange` →
+  // `setActiveTab` (MainTabsScreen) → MainTabsScreen render → WaveTabBar render
+  // → `activeIndex` değişir → efekt → animasyon başlar.
+  //
+  // Sayfanın kendisi bu zinciri BEKLEMİYOR: `animation: 'none'` olduğu için
+  // sahneyi react-native-screens native tarafta anında değiştiriyor. Ama yeni
+  // odaklanan sekmenin ilk render'ı (ör. ProfileScreen: 1415 satır, 7 pager
+  // sayfası) aynı JS thread'inde sıraya giriyor ve yukarıdaki zinciri kendi
+  // arkasına itiyor. Testçi tablosu tam olarak buydu: "önce sayfa geçiyor,
+  // ~1 sn sonra tabbar değişiyor."
+  //
+  // Çözüm animasyonu zincirin BAŞINA almak: `handlePress` dokunuş işlenirken,
+  // yani yeni ekran daha render edilmeden çalışıyor. Reanimated animasyonu bir
+  // kez başladıktan sonra UI thread'inde sürdüğü için, JS thread'i yeni ekranı
+  // çizerken bloke olsa bile kapsül akıcı şekilde kayıyor.
+  const moveCapsuleTo = React.useCallback((index: number) => {
+    capsuleOpacity.value = withTiming(index === -1 ? 0 : 1, { duration: 150 });
+    const { colWidth: cw, capsuleSize } = capsuleGeomRef.current;
+    if (index === -1 || cw === 0) return;
+
+    const target = (index + 0.5) * cw - capsuleSize / 2;
+    if (lastTargetRef.current === target) return;
+    lastTargetRef.current = target;
+
+    // Yay yerine sabit süreli geçiş. Eski `withSpring({ damping: 17,
+    // stiffness: 180, mass: 0.8 })` kritik altı sönümlüydü (ζ ≈ 0.71): hedefi
+    // aşıp geri salınıyor ve oturması ~380 ms sürüyordu. Sayfa 0 ms'de
+    // değiştiği için bu kuyruk "bar geriden geliyor" diye okunuyordu.
+    capsuleX.value = withTiming(target, { duration: 180, easing: Easing.out(Easing.cubic) });
+  }, []);
+
+  // Dokunuştan GELMEYEN sekme değişimleri için uzlaştırma yolu: programatik
+  // `navigateApp` çağrıları, bildirimden açılma, push edilmiş ekrana girip
+  // çıkma (`activeIndex === -1`). Dokunuşla gelindiyse `lastTargetRef` sayesinde
+  // burası sessizce çıkıyor.
   useEffect(() => {
     if (barWidth === 0) return;
-    capsuleOpacity.value = withTiming(activeIndex === -1 ? 0 : 1, { duration: 150 });
-    if (activeIndex !== -1) {
-      capsuleX.value = withSpring((activeIndex + 0.5) * colWidth - CAPSULE_SIZE / 2, {
-        damping: 17,
-        stiffness: 180,
-        mass: 0.8,
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeIndex, barWidth]);
+    moveCapsuleTo(activeIndex);
+  }, [activeIndex, barWidth, moveCapsuleTo]);
 
   const capsuleStyle = useAnimatedStyle(() => ({
     opacity: capsuleOpacity.value,
@@ -218,9 +262,15 @@ export default function WaveTabBar({ activeRouteName }: { activeRouteName?: stri
   // aynı çağrı stack'i MainTabs'e geri sarıyor.
   const handlePress = React.useCallback(
     (routeName: string) => {
+      // ÖNCE kapsül, SONRA navigate — sıra önemli. `navigateApp` senkron olarak
+      // React Navigation'ın state güncellemesini tetikliyor ve yeni sekmenin
+      // render'ı bu thread'i uzun süre meşgul edebiliyor; animasyonu ondan önce
+      // başlatınca UI thread'ine devredilmiş oluyor (gerekçe `moveCapsuleTo`
+      // üstündeki notta).
+      moveCapsuleTo(TAB_ROUTES.indexOf(routeName as (typeof TAB_ROUTES)[number]));
       navigateApp(navigation, routeName);
     },
-    [navigation]
+    [navigation, moveCapsuleTo]
   );
 
   // Klavye açıkken bar gizleniyor. Sekme sahneleri KeyboardAvoider'ın içinde
