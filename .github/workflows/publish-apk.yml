@@ -1,0 +1,64 @@
+name: Publish APK asset
+
+# Mevcut bir "Build & Release APK" calismasinin artifact'ini alip ayni repoda
+# release ASSET'ine cevirir. YENIDEN DERLEME YOK (~1 dakika).
+#
+# Neden gerekiyor: Actions artifact'lari yalnizca zip olarak iniyor ve public
+# repoda bile GitHub girisi istiyor; telefonda hem zip acmak gerekiyor hem de
+# indirme sik sik hic baslamiyor. Release asset'i ise public repoda giris
+# istemiyor ve dogrudan .apk olarak geliyor - tek dokunusla kurulabiliyor.
+#
+# Tag adi BILEREK "v" ile BASLAMIYOR: build-release.yml `tags: v*` ile
+# tetikleniyor, "v1.0.8" gibi bir tag burada 28 dakikalik gereksiz bir derleme
+# baslatirdi.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Artifact hangi "Build & Release APK" calismasindan alinacak (run id)'
+        required: true
+      version:
+        description: 'Surum etiketi (or. 1.0.8)'
+        required: true
+        default: '1.0.8'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download APK artifact from the build run
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: apk
+          merge-multiple: true
+
+      - name: Inspect
+        run: |
+          find apk -type f -exec ls -l {} \;
+          test -n "$(find apk -name '*.apk' -print -quit)" || {
+            echo "::error::Artifact icinde .apk bulunamadi"; exit 1; }
+
+      - name: Rename for clarity
+        run: |
+          SRC=$(find apk -name '*.apk' -print -quit)
+          mv "$SRC" "apk/nottepe-${{ inputs.version }}.apk"
+          ls -l apk
+
+      - name: Create release with the APK attached
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: apk-${{ inputs.version }}-run${{ inputs.run_id }}
+          name: APK ${{ inputs.version }} (run ${{ inputs.run_id }})
+          body: |
+            `Build & Release APK` calismasi ${{ inputs.run_id }} ciktisinin
+            dogrudan indirilebilir .apk hali. Yeniden derleme yapilmadi.
+          files: apk/nottepe-${{ inputs.version }}.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
