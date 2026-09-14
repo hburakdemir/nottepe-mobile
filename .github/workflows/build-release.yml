@@ -6,6 +6,10 @@ on:
       - main
     tags:
       - 'v*'
+  # Elle tetikleme: olcum turlarinda her APK icin surum etiketi atmak ya da
+  # main'e merge etmek gerekmiyor. Dispatch'te "Create Release" adimi zaten
+  # atlanir (yalnizca refs/tags/* icin kosullu), APK artifact olarak gelir.
+  workflow_dispatch:
 
 env:
   # .env.production gitignore'da oldugu icin CI'da mevcut degil.
@@ -28,6 +32,25 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      # ⚠️ BU ADIM BILEREK BUILD'DEN ONCE. Onceki hali build'den SONRAYDI ve
+      # patliyordu; run #18 ve #19'da derleme BASARILIYDI (BUILD SUCCESSFUL,
+      # APK paketlenmis) ama job bu adimda olup artifact hic yuklenmedi.
+      # 23 dakikalik iki derleme bu yuzden cope gitti.
+      #
+      # Eski komut: grep '"version"' app.json | head -1 | grep -oP '"\K[^"]*'
+      # `"\K[^"]*` her tirnaktan SONRASINI ayri ayri yakaliyor, yani
+      # `    "version": "1.0.8",` satiri icin tek deger degil DORT satir basiyor:
+      #   version / : / 1.0.8 / ,
+      # $GITHUB_OUTPUT cok satirli ham degeri kabul etmiyor:
+      #   "Unable to process file command 'output' successfully. Invalid format ': '"
+      #
+      # Artik JSON dogrudan okunuyor — tirnak ayiklama isi yok, cikti tek satir.
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(node -p 'require("./app.json").expo.version')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -52,10 +75,6 @@ jobs:
       # Tek mimari: 4 mimarinin CMake derlemesi runner diskini dolduruyordu.
       - name: Build APK
         run: cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
-
-      - name: Get version
-        id: version
-        run: echo "version=$(grep '"version"' app.json | head -1 | grep -oP '"\K[^"]*')" >> $GITHUB_OUTPUT
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
