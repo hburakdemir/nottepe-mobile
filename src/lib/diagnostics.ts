@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { AppState, type AppStateStatus } from 'react-native';
+import { navigationRef } from '../navigation/navigationRef';
 
 // GEÇİCİ TEŞHİS ALTYAPISI — iş bitince tek commit'le silinecek.
 //
@@ -33,7 +34,10 @@ const TICK_MS = 250;
 // kaydedilseydi liste gürültüden okunmaz hâle gelirdi.
 const REPORT_THRESHOLD_MS = 300;
 const MAX_ENTRIES = 40;
-const STORAGE_KEY = 'diag:jsblocks:v1';
+// v2: kayıtlara `route` eklendi VE `enableFreeze` geri açıldı. Anahtarı
+// yükseltmek eski turun kayıtlarını devre dışı bırakıyor — iki build'in verisi
+// tek raporda karışsaydı A/B karşılaştırması anlamsız olurdu.
+const STORAGE_KEY = 'diag:jsblocks:v2';
 
 export type BlockEntry = {
   at: number;
@@ -41,7 +45,23 @@ export type BlockEntry = {
   appState: AppStateStatus;
   /** Öne dönüşten kaç ms sonra yaşandı — `null` ise dönüşle ilgisiz. */
   sinceResumeMs: number | null;
+  /**
+   * Blokaj anındaki ekran. İlk tur ölçüm "JS bloke oluyor"u kanıtladı ama
+   * NEREDE olduğunu söylemiyordu; rota olmadan 19 blokajın hepsi isimsiz bir
+   * yığın. Bu alan "blokajlar hep Profil'e girerken" gibi bir örüntüyü tek
+   * bakışta görünür kılıyor.
+   */
+  route: string | null;
 };
+
+function currentRoute(): string | null {
+  try {
+    return navigationRef.isReady() ? navigationRef.getCurrentRoute()?.name ?? null : null;
+  } catch {
+    // Ölçüm aracı, ölçtüğü uygulamayı asla düşürmemeli.
+    return null;
+  }
+}
 
 let entries: BlockEntry[] = [];
 const listeners = new Set<() => void>();
@@ -67,6 +87,7 @@ function record(blockedMs: number) {
       appState: AppState.currentState,
       // Dönüşten sonraki ilk 10 sn içindeyse dönüşle ilişkilendiriyoruz.
       sinceResumeMs: lastResumeAt !== null && at - lastResumeAt < 10_000 ? at - lastResumeAt : null,
+      route: currentRoute(),
     },
     ...entries,
   ].slice(0, MAX_ENTRIES);
@@ -138,8 +159,24 @@ export function formatReport(): string {
 
   const lines = entries.map((e) => {
     const tag = e.sinceResumeMs !== null ? ` [öne dönüşten ${e.sinceResumeMs}ms sonra]` : '';
-    return `${fmt(e.at)}  ${e.blockedMs}ms${tag}`;
+    return `${fmt(e.at)}  ${e.blockedMs}ms  ${e.route ?? '?'}${tag}`;
   });
+
+  // Rota kırılımı: asıl aranan cevap "hangi ekran" olduğu için ham listenin
+  // üstünde özet duruyor — raporu okuyan kişinin 40 satırı elle toplaması
+  // gerekmesin.
+  const byRoute = new Map<string, { count: number; total: number }>();
+  entries.forEach((e) => {
+    const key = e.route ?? '?';
+    const cur = byRoute.get(key) ?? { count: 0, total: 0 };
+    byRoute.set(key, { count: cur.count + 1, total: cur.total + e.blockedMs });
+  });
+  const routeLines = [...byRoute.entries()]
+    .sort((a, b) => b[1].total - a[1].total)
+    .map(([route, s]) => `  ${route}: ${s.count} blokaj, toplam ${s.total}ms`);
+
+  const totalBlocked = entries.reduce((sum, e) => sum + e.blockedMs, 0);
+  const span = entries[0].at - entries[entries.length - 1].at;
 
   return [
     'Nottepe — JS thread takılma raporu',
@@ -147,6 +184,10 @@ export function formatReport(): string {
     // ölçümün bütün değeri gider.
     `Sürüm: ${Constants.expoConfig?.version ?? '?'} (vc${Constants.expoConfig?.android?.versionCode ?? '?'})`,
     `Toplam kayıt: ${entries.length} · En kötü: ${worst.blockedMs}ms · Öne dönüşe bağlı: ${resumeOnes.length}`,
+    `Toplam blokaj: ${totalBlocked}ms${span > 0 ? ` / ${Math.round(span / 1000)}sn pencere` : ''}`,
+    '',
+    'Ekrana göre:',
+    ...routeLines,
     '',
     ...lines,
   ].join('\n');

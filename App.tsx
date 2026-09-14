@@ -55,7 +55,34 @@ import DiagnosticsBadge from './src/components/DiagnosticsBadge';
 // ayrı testçi raporu (önce "alt bar donuyor", şimdi "tüm uygulama donuyor")
 // aynı bayrağa çıkıyor. MainTabsScreen.tsx'teki `freezeOnBlur: false` artık
 // gereksiz ama zararsız — orada durmaya devam ediyor, niyeti belgeliyor.
-enableFreeze(false);
+//
+// ---
+//
+// 2026-09-14, ÜÇÜNCÜ tur: GERİ AÇILDI. Yukarıdaki gerekçe ÖLÇÜMLE ÇÜRÜDÜ.
+//
+// İki dayanağı vardı, ikisi de düştü:
+//
+//  1. "Donmayı çözecek" — ÇÖZMEDİ. Kapatıldıktan sonraki turda testçi cevabı
+//     "altmenüde değişiklik yok" oldu. Yani bu bayrak, eklenme sebebini hiç
+//     karşılamadı.
+//  2. "Kaybı yalnızca bellek/CPU tasarrufu" — YANLIŞ, kaybı çok daha büyük.
+//     1.0.5'teki teşhis rozeti (bkz. diagnostics.ts) gerçek cihazda şunu
+//     ölçtü: NORMAL kullanımda 38 saniyelik bir pencerede 19 ayrı blokaj,
+//     toplam 12,8 saniye — yani zamanın ~%34'ünde JS thread'i bloke. Eşik
+//     300ms olduğu için altındakiler sayılmıyor bile.
+//
+// Mekanizma: `enableFreeze` kapalıyken paylaşılan bir context değiştiğinde
+// (tema, auth, safe-area, react-query cache) mount'lu BÜTÜN ekranlar yeniden
+// render oluyor — ekranda görünmeyen dördü dahil. Öne dönüşte birkaç context
+// birden değiştiği için üst üste render dalgaları geliyor; ölçümdeki imza da
+// tam olarak bu: "3-5 saniyelik donma" TEK bir blok değil, arka arkaya 4-5
+// ayrı blok (2027 + 446 + 1413 + 1137 ms). Tek ağır işlem olsaydı tek blok
+// görürdük.
+//
+// Yani madde 3'ü çözmek için yapılan bu değişiklik, çözmediği hâlde kronik
+// yavaşlığı getirmiş olabilir. Geri açıp aynı rozetle ölçüp karşılaştırıyoruz;
+// taban değerler yukarıda yazılı.
+enableFreeze(true);
 
 // Fontlar hazır olana kadar (kullanıcı isteği: açılışta logo + altında
 // "Nottepe" yazmalı) — native splash bu JS bileşeni ekrana gelmeden önce
