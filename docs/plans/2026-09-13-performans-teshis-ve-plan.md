@@ -486,6 +486,26 @@ Anahtar `diag:jsblocks:v4`'e yükseltildi. **Beklenti: HOME ve PROFILE satırlar
 
 ---
 
+## 12 — 1.0.7 regresyonu: NativeWind Reanimated interop'u geri alındı
+
+**2026-09-14.** Kullanıcı raporu: *"1.0.7'de nativewind değişikliği yapıldı ve profil sayfası tasarımı kaydı baştan aşağıya."* `6efd1ef` geri alındı.
+
+Sebep `remapProps`'un çalışmaması değil, o commit'in **çalışan garantili stilleri kırılgan bir yola taşıması**:
+
+| Önce (garantili) | Sonra (kırılgan) |
+|---|---|
+| `style={[{ position:'absolute', top:0, left:0, right:0 }, headerAnimStyle]}` | `className="absolute top-0 left-0 right-0"` + `style={headerAnimStyle}` |
+| `contentContainerStyle`'da `paddingHorizontal:16, gap:10` | `contentContainerClassName="px-4 gap-2.5"` |
+| `style={{ flex: 1 }}` | `className="flex-1"` |
+
+`remapProps` mevcut `style`'ı **ezmiyor** — `react-native-css-interop/dist/runtime/native/api.js` içinde `assignToTarget(..., { objectMergeStyle: "toArray" })`, yani diziye ekliyor ve animasyon stili kaybolmuyor. Yaptığı şey style dizisine `PLACEHOLDER_SYMBOL` taşıyan opak bir nesne koyup asıl bileşeni render etmek. O placeholder'ı çözecek olan css-interop runtime'ı ise Reanimated'in `createAnimatedComponent` ile ürettiği iç bileşeni tanımıyor. Çözülmediğinde sonuç "biraz farklı" değil, **stilin tamamen yok olması**: başlık `position:absolute`'unu kaybedip normal akışa düşüyor, pager sayfaları yatay dolgusunu kaybediyor.
+
+**Çıkarılan ders — genel kural:** `Animated.View` üzerinde `className`'in derleme-zamanı dönüşümle çalışmadığı bilgisi DOĞRU ve değerli; yanlış olan, ona `remapProps` ile çözüm üretip **var olan çalışan stilleri** o yola taşımak. Bir stil şu anda inline `style` olarak çalışıyorsa, onu className'e taşımanın kazancı yalnızca estetik, riski ise sessizce kaybolması. Kural: animasyon taşıyan `Animated.View` yalnızca animasyonu taşır; görsel/yerleşim stilleri ya inline `style` olarak aynı elemanda ya da içindeki düz `View`de kalır.
+
+⚠️ Bu geri alma aynı zamanda **ölçüm kirliliğini** kaldırıyor: Profile blokaj tablosunun birinci satırı (23 blokaj / 24.499 ms) ve görünür biçimde bozuk bir profil sayfası kullanıcının o ekranı nasıl kullandığını değiştirir — 1.0.8 turunun Profile verisi okunamaz olurdu.
+
+---
+
 ## Açık sorular
 
 ### Cevaplananlar
