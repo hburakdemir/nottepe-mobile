@@ -102,8 +102,14 @@ const TabSlot = React.memo(function TabSlot({
             alignItems: 'center',
             justifyContent: 'center',
             overflow: 'hidden',
-            borderWidth: isFocused ? 1.5 : 0,
-            borderColor: activeColor,
+            // Kalınlık SABİT, yalnızca renk değişiyor. Eskiden
+            // `borderWidth: isFocused ? 1.5 : 0` idi; RN'de kenarlık genişliğin
+            // İÇİNDE yer aldığı için bu, içerik kutusunu 3px daraltıp avatar
+            // alt ağacında (gerekirse ~40 SVG düğümü) yeniden yerleşim
+            // tetikliyordu — hem de tam sekme geçişinin ortasında. Renk
+            // değişimi yalnızca boyama, yerleşime dokunmuyor.
+            borderWidth: 1.5,
+            borderColor: isFocused ? activeColor : 'transparent',
           }}
         >
           {avatar ? (
@@ -140,6 +146,13 @@ const H_MARGIN = 20;
 const BOTTOM_MARGIN = 10;
 const BASE_AVATAR_SIZE = 26;
 const BASE_ICON_SIZE = 23;
+
+// Kapsül animasyonunun süresi: taban + geçilen her sütun için ek (bkz.
+// `moveCapsuleTo`). Komşu sekmede ~195 ms, en uzun yolda (Profil -> Ana sayfa,
+// 4 sütun) ~330 ms. Tavan, hiçbir koşulda ağır hissettirmemesi için.
+const CAPSULE_BASE_MS = 150;
+const CAPSULE_PER_COL_MS = 45;
+const CAPSULE_MAX_MS = 340;
 
 const COLORS = {
   light: {
@@ -234,11 +247,32 @@ export default function WaveTabBar({ activeRouteName }: { activeRouteName?: stri
     if (lastTargetRef.current === target) return;
     lastTargetRef.current = target;
 
-    // Yay yerine sabit süreli geçiş. Eski `withSpring({ damping: 17,
-    // stiffness: 180, mass: 0.8 })` kritik altı sönümlüydü (ζ ≈ 0.71): hedefi
-    // aşıp geri salınıyor ve oturması ~380 ms sürüyordu. Sayfa 0 ms'de
-    // değiştiği için bu kuyruk "bar geriden geliyor" diye okunuyordu.
-    capsuleX.value = withTiming(target, { duration: 180, easing: Easing.out(Easing.cubic) });
+    // SÜRE MESAFEYLE ÖLÇEKLENİYOR. Sabit 180 ms, 1 sütunluk geçişte doğruydu
+    // ama Profil(4) -> Ana sayfa(0) yolunda yanlıştı: aynı sürede 4 kat mesafe,
+    // 60 fps'te ~11 kare, yani kare başına neredeyse bir sütun. Üstüne
+    // `Easing.out(cubic)` mesafenin çoğunu ilk karelerde yiyor — ilk üç sütun
+    // ~4 karede geçiliyordu. Kapsül ikonların altından "şimşek gibi" geçip
+    // duruyor; kullanıcının "tık tık geçiyor, kusursuz kaymıyor" dediği şey bu.
+    //
+    // (Kullanıcının tarifi "ara ikonların rengi kademe kademe değişiyor"du ama
+    // kodda o mümkün değil: `activeIndex` 4'ten 0'a atlıyor, ara slotların
+    // `isFocused`'ı hiç true olmuyor ve `TabSlot` memo'su onları hiç yeniden
+    // çizmiyor. Görülen şey kapsülün kendisi.)
+    //
+    // Easing de simetriğe çevrildi: uzun yolda ivmelenip yavaşlayan bir hareket
+    // "kayma" gibi okunuyor, öne yığılmış olan ise sıçrama gibi.
+    //
+    // `withSpring`e DÖNÜLMEYECEK: eski `damping: 17 / stiffness: 180 /
+    // mass: 0.8` kritik altı sönümlüydü (ζ ≈ 0.71), hedefi aşıp geri salınıyor
+    // ve oturması ~380 ms sürüyordu; sayfa 0 ms'de değiştiği için o kuyruk
+    // "bar geriden geliyor" şikâyetini üretmişti.
+    //
+    // Mesafe, hedefin o anki KONUMA uzaklığından hesaplanıyor (`capsuleX.value`
+    // JS tarafından senkron okunabiliyor) — yarı yolda kesilen bir animasyonda
+    // da doğru kalıyor.
+    const distanceCols = Math.abs(target - capsuleX.value) / cw;
+    const duration = Math.min(CAPSULE_BASE_MS + CAPSULE_PER_COL_MS * distanceCols, CAPSULE_MAX_MS);
+    capsuleX.value = withTiming(target, { duration, easing: Easing.inOut(Easing.cubic) });
   }, []);
 
   // Dokunuştan GELMEYEN sekme değişimleri için uzlaştırma yolu: programatik
