@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import { getNetworkStateAsync, useNetworkState } from 'expo-network';
+import { onlineManager } from '@tanstack/react-query';
 
 // `isConnected` cihazın aktif bir ağ arayüzüne (wifi/hücresel) sahip olup
 // olmadığını söylüyor — `isInternetReachable` ilk okumada genelde `undefined`
@@ -20,10 +21,19 @@ import { getNetworkStateAsync, useNetworkState } from 'expo-network';
 //      `isConnected=false` dönebiliyor; bu pencere içinde gelen `false` bir
 //      yanlış pozitif olabileceğinden pay veriliyor. Pencere dolduktan sonra
 //      (hâlâ hiç çevrimiçi olunmadıysa) gelen `false` yine gecikmesiz kilitler.
-//   2. Uygulama daha önce çevrimiçi OLDUYSA — `false` sinyali 1.5 sn boyunca
-//      kesintisiz sürerse kilitleniyor; kısa bir titreşim tüm ağacı
-//      unmount/remount etmiyor. Çevrimiçiye dönüş her koşulda ANINDA.
-const OFFLINE_DEBOUNCE_MS = 1500;
+//   2. Uygulama daha önce çevrimiçi OLDUYSA — `false` sinyali bu süre boyunca
+//      kesintisiz sürerse kilitleniyor; kısa bir titreşim ekranı
+//      çevrimdışına düşürmüyor. Çevrimiçiye dönüş her koşulda ANINDA.
+//
+// SÜRE 1500 -> 300 ms'ye İNDİ. Eski değer yüksek olmak ZORUNDAYDI, çünkü kilit
+// `RootNavigator`'da erken bir `return` ile tüm ağacı (Drawer + Stack + Tab)
+// unmount ediyordu: her titremede uygulama yıkılıp yeniden kuruluyordu, o
+// yüzden titremeyi uzun bir pencereyle süzmek gerekiyordu. Kilit artık ağacın
+// ÜSTÜNE binen bir katman (bkz. RootNavigator.tsx) — giriş/çıkış ucuz, yani
+// kısa bir yanlış pozitifin bedeli de yalnızca bir kare. Kullanıcının
+// şikâyeti ("internet kapanınca 130 sayfasının gelmesi 2-3 sn sürüyor, açınca
+// hemen geliyor") bu iki sayının toplamıydı.
+const OFFLINE_DEBOUNCE_MS = 300;
 // Soğuk açılışta native ağ durumunun oturması için tanınan doğrulama payı.
 // Bu süre boyunca "hiç çevrimiçi olunmadı" dalı anında kilitlemek yerine
 // bekliyor; gerçekten çevrimdışıysa yine de bu kısa payın sonunda kilitleniyor.
@@ -50,7 +60,11 @@ const COLD_START_GRACE_MS = 1200;
 // çağrıldığında geçici bir `NWPathMonitor` kurup semafor üzerinde 5 sn'ye kadar
 // BLOKLUYOR (NetworkModule.swift `getNetworkPathAsync`) — orada olay akışı zaten
 // doğru çalıştığı için yoklamaya hiç girmiyoruz.
-const ANDROID_POLL_MS = 2000;
+// 2000 -> 750 ms. Debounce ile birlikte en kötü algılama gecikmesi 3,5 sn'den
+// ~1 sn'nin altına indi. Yoklamayı daha da sıklaştırmak cazip ama her tur bir
+// native çağrı: ekran açıkken saniyede birden fazla sorgu, kazancı olmayan bir
+// pil maliyeti olurdu. Arka planda hiç yoklanmıyor (aşağıdaki `isAppActive`).
+const ANDROID_POLL_MS = 750;
 
 export function useIsOffline(): boolean {
   const { isConnected: eventIsConnected } = useNetworkState();
@@ -76,21 +90,19 @@ export function useIsOffline(): boolean {
 
   // KİLİT YALNIZCA ÖN PLANDA DEĞİŞEBİLİR.
   //
-  // `RootNavigator`, `isOffline` true olduğunda erken `return <OfflineEgoScreen />`
-  // yapıyor — yani Drawer + Stack + Tab ağacının TAMAMI unmount oluyor. Android
-  // ekran kapalıyken Wi-Fi'yi düzenli olarak uykuya alıyor (Doze / Wi-Fi sleep),
-  // üstelik yukarıdaki yoklama artık bu kayıpları güvenilir biçimde GÖRÜYOR.
-  // Kilit arka planda devreye girerse kullanıcı telefonu açtığında ağaç sıfırdan
-  // mount ediliyor: her ekran yeniden kuruluyor, her sorgu yeniden çekiliyor,
-  // bütün avatarlar yeniden çiziliyor. "Öne dönünce 2-3 saniye donuyor"
-  // şikayetinin bu yoldan gelen payı bu — ve iOS'ta olmamasının sebebi de bu,
-  // çünkü orada uygulama askıya alınıyor, kilitte bağlantı kaybı bildirilmiyor.
-  //
+  // Android ekran kapalıyken Wi-Fi'yi düzenli olarak uykuya alıyor (Doze /
+  // Wi-Fi sleep) ve yukarıdaki yoklama bu kayıpları güvenilir biçimde görüyor.
   // Arka planda ölçülen bir bağlantı kaybının kullanıcı deneyiminde karşılığı
   // yok: kimse bakmıyor. Kilit yalnızca kullanıcı gerçekten ekrana bakarken
   // anlamlı, o yüzden ön plana dönene kadar mevcut değerinde donduruluyor.
-  // Dönüşte bu efekt yeniden çalışıyor ve taze okumayla karar veriyor; gerçekten
-  // çevrimdışıysa normal 1.5 sn'lik debounce sonunda yine kilitleniyor.
+  // Dönüşte bu efekt yeniden çalışıyor ve taze okumayla karar veriyor.
+  //
+  // Bu koruma 1.0.8'de, kilit HÂLÂ tüm ağacı unmount ederken eklendi; o zaman
+  // gerekçesi "öne dönüşte ağacın sıfırdan kurulmasını önlemek"ti. Kilit
+  // katmana dönüştüğü için (bkz. RootNavigator.tsx) o gerekçe artık geçersiz,
+  // ama koruma YERİNDE KALIYOR — şimdi iki işe yarıyor: arka planda boşa
+  // native yoklama yapılmıyor ve `onlineManager` kullanıcı yokken gereksizce
+  // kapatılıp açılmıyor (aşağıdaki nota bak).
   const [isAppActive, setIsAppActive] = useState(AppState.currentState === 'active');
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => setIsAppActive(next === 'active'));
@@ -171,6 +183,26 @@ export function useIsOffline(): boolean {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [isConnected, isAppActive]);
+
+  // react-query'ye de haber veriyoruz ve bu ZORUNLU, süs değil.
+  //
+  // Kilit eskiden tüm ağacı unmount ettiği için çevrimdışıyken arkada istek
+  // atacak bir ekran kalmıyordu. Katmana dönüşünce ağaç ayakta kaldı — yani
+  // aksi hâlde arkadaki ekranlar istek atmaya devam eder, hepsi hataya düşer
+  // ve kullanıcının KAPATILMIŞ şikâyeti geri dönerdi: "internet yoksa notlar
+  // yüklenemedi profiller yüklenemedi gönderi yüklenemedi vs olmamalı".
+  //
+  // `onlineManager` kapalıyken `networkMode` varsayılanı ('online') gereği
+  // sorgular DURAKLIYOR: istek gitmiyor, hata üretilmiyor, mevcut cache
+  // olduğu gibi kalıyor. Bağlantı gelince duraklayanlar kendiliğinden devam
+  // ediyor — elle yeniden tetiklemeye gerek yok.
+  //
+  // Not: react-query'nin kendi varsayılan çevrimiçi algılaması RN'de ölü
+  // (tarayıcının `online`/`offline` olaylarını dinliyor, o olaylar burada hiç
+  // yok) ve bu yüzden her zaman "çevrimiçi" diyordu. Tek yazan taraf burası.
+  useEffect(() => {
+    onlineManager.setOnline(!debouncedOffline);
+  }, [debouncedOffline]);
 
   return debouncedOffline;
 }
