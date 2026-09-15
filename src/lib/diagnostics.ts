@@ -79,7 +79,21 @@ const MAX_ENTRIES = 200;
 // profilin İLK AÇILIŞ maliyeti ve bu turda ona DOKUNULMADI (profil şablonu
 // birleştirmesi ayrı bir iş). Yani Profile satırının düşmesi beklenmiyor;
 // beklenen HOME ve öne dönüş blokajlarında.
-const STORAGE_KEY = 'diag:jsblocks:v5';
+//
+// v6 (sürüm 1.1.0): İKİ HEDEFLİ TUR.
+//  1. PROFILE — pager'ın sürükleme sırasındaki sayfa değişimi kaldırıldı. Bu,
+//     ölçülen en büyük kalemi doğrudan hedefliyor (61 sn'de 24 blokaj /
+//     16.925 ms, toplamın %64'ü). BEKLENTİ: Profile satırı belirgin düşmeli.
+//     Düşmezse sebep sekme geçişi değil, kaydırma sırasında satır başına
+//     SVG+metin maliyetidir ve sıradaki tek değişken `active` kapısı olur.
+//  2. ÖNE DÖNÜŞ — artık ÖLÇÜLEBİLİR. Sonda her dönüşte bir satır yazıyor ve
+//     rapor "Görülen öne dönüş" sayısını veriyor; tampon da 40'tan 200'e
+//     çıktı, yani dönüş kaydı artık kırpılmıyor. Kullanıcı donma anında
+//     "İnternet bağlantınız yok" GÖRMEDİĞİNİ teyit etti ve donma "sayfa
+//     duruyor ama basılamıyor" şeklinde — yani hesaplama donması değil,
+//     dokunuş yönlendirme arızası. Bu turda o maddeye KOD DEĞİŞİKLİĞİ
+//     yapılmadı; amaç ilk kez gerçek veri toplamak.
+const STORAGE_KEY = 'diag:jsblocks:v6';
 
 export type BlockEntry = {
   at: number;
@@ -114,17 +128,21 @@ export type BlockEntry = {
  * sebebi tam olarak buydu — yani "0" (b)'yi ÇÜRÜTMÜYOR, tarif ediyor.
  *
  * Sonda dönüş anında iki ayrı saat başlatıyor:
- *   · `jsFreeMs`     — `setTimeout(0)` ne zaman çalıştı. JS thread'i ölçer;
- *                      kare üretimine ihtiyaç duymaz.
- *   · `firstFrameMs` — `requestAnimationFrame` ne zaman çalıştı. RN'de kare
- *                      geri çağrıları Android'de Choreographer'dan, yani UI
- *                      THREAD'inden besleniyor: UI thread takılıysa kare
- *                      üretilmez ve bu süre uzar.
+ *   · `jsFreeMs`     — `setTimeout(0)` ne zaman çalıştı
+ *   · `firstFrameMs` — `requestAnimationFrame` ne zaman çalıştı
  *
- * Okuma:
- *   ikisi de küçük            → dönüşte sorun yok
- *   ikisi de büyük            → (a) JS thread bloke
- *   jsFree küçük, frame büyük → (b) NATIVE KATMAN TAKILI ← aradığımız imza
+ * ⚠️ BU İKİSİ THREAD ATFI İÇİN KULLANILMIYOR. İlk tasarımda "setTimeout JS'i,
+ * rAF native'i ölçer, aradaki fark (a) ile (b)'yi ayırır" diye yazılmıştı;
+ * Android'de bu GARANTİ DEĞİL: `JavaTimerManager` timer'ları Choreographer
+ * kare geri-çağrısından (yani UI thread'inden) dağıtabiliyor, Yeni Mimari'de
+ * ise `RuntimeScheduler` yolu var ve hangisinin aktif olduğu kesinleşmedi.
+ * İkisi de aynı kapıdan geçiyorsa fark bir şey söylemez.
+ *
+ * Sondanın GÜVENİLİR iki çıktısı şunlar ve zaten ihtiyacımız olan bunlardı:
+ *   1. Dönüş GÖRÜLDÜ mü (rapordaki "Görülen öne dönüş" sayacı) — eski rapor
+ *      "öne dönüşe bağlı: 0" derken "sorun yok" ile "hiç dönüş örneklenmedi"yi
+ *      aynı gösteriyordu ve iki turdur o sıfırı yanlış okuma riskiyle yorumladık.
+ *   2. Dönüşten kaç ms sonra uygulama tepki verebildi (ikisinin büyüğü).
  */
 export type ResumeProbe = {
   at: number;
