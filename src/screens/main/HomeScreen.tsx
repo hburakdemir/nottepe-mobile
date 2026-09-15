@@ -16,6 +16,9 @@ import type { Post } from '../../types/post';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 import OptionSheet from '../../components/layout/OptionSheet';
 import StateView from '../../components/StateView';
+import NoteCardSkeleton from '../../components/NoteCardSkeleton';
+import { SkeletonGroup } from '../../components/Skeleton';
+import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 
 const LAST_FACULTY_KEY = 'nottepe_last_faculty';
 
@@ -137,6 +140,11 @@ export default function HomeScreen() {
 
   const renderPost = useCallback(({ item }: { item: Post }) => <PostCard post={item} />, []);
 
+  // 200 ms eşiği: veri bundan önce gelirse iskelet HİÇ görünmüyor. Eşiğin
+  // gerekçesi useDelayedLoading.ts'te — göz ~100ms altını "anında" algılıyor,
+  // o pencerede iskelet göstermek hızı yavaşlık gibi hissettiriyor.
+  const showSkeleton = useDelayedLoading(isLoading);
+
   // Ana sayfa başlığı yeniden kurgulandı (kullanıcı isteği): EN ÜSTTE arama,
   // hemen altında yan yana iki kare kısayol — "Bölümüne Git" ve "Not İstekleri".
   // Önceki düzende arama en alttaydı, üstünde açılır-kapanır bir bölüm seçici
@@ -218,14 +226,16 @@ export default function HomeScreen() {
     </View>
   );
 
-  if (isLoading) {
-    return (
-      <View className="flex-1 items-center justify-center py-16">
-        <StateView kind="loading" loadingColor="#2F5755" />
-      </View>
-    );
-  }
-
+  // YÜKLEME ARTIK EKRANI DEĞİŞTİRMİYOR, yalnızca liste gövdesini iskelete
+  // çeviriyor. Eskiden burada tam ekran bir `StateView` spinner'ı vardı ve
+  // filtre barı (arama, fakülte seçici, iki kısayol karesi) yükleme boyunca
+  // HİÇ görünmüyordu — oysa o barın verisi gönderi sorgusuna bağlı değil.
+  // Sonuç: veri gelince bar birden beliriyor ve liste aşağı kayıyordu.
+  //
+  // Tek FlatList yolunu koruyup sadece satırları değiştirmek üç şeyi birden
+  // çözüyor: bar anında kullanılabilir oluyor, yerleşim hiç zıplamıyor, ve
+  // "boş liste" mesajı yükleme sırasında yanlışlıkla görünmüyor
+  // (`ListEmptyComponent` aşağıda üç duruma ayrıldı).
   if (isError) {
     return (
       <View className="flex-1 items-center justify-center py-16">
@@ -261,9 +271,27 @@ export default function HomeScreen() {
           ) : null
         }
         ListEmptyComponent={
-          <View className="flex-1 items-center justify-center py-16">
-            <Text className="text-muted text-sm">{search || faculty ? 'Arama sonucu bulunamadı.' : 'Henüz not paylaşılmamış.'}</Text>
-          </View>
+          // Üç ayrı durum, üçü de farklı görünmek zorunda:
+          //  1. İskelet eşiği doldu (>200ms) → gelecek kartların silueti.
+          //  2. Hâlâ yükleniyor ama eşik dolmadı → HİÇBİR ŞEY. Kullanıcının
+          //     duran kuralı: "internet hızı yeterliyse spinner ya da skeleton
+          //     olmamalı asla" (bkz. useDelayedLoading).
+          //  3. Gerçekten boş → mesaj. Bu mesaj eskiden yükleme sırasında da
+          //     görünebiliyordu ("Henüz not paylaşılmamış."), yani veri yolda
+          //     olduğu hâlde kullanıcıya hiç not yokmuş gibi gösteriyordu.
+          showSkeleton ? (
+            <SkeletonGroup>
+              <View>
+                {[0, 1, 2, 3].map((i) => (
+                  <NoteCardSkeleton key={i} />
+                ))}
+              </View>
+            </SkeletonGroup>
+          ) : isLoading ? null : (
+            <View className="flex-1 items-center justify-center py-16">
+              <Text className="text-muted text-sm">{search || faculty ? 'Arama sonucu bulunamadı.' : 'Henüz not paylaşılmamış.'}</Text>
+            </View>
+          )
         }
       />
 

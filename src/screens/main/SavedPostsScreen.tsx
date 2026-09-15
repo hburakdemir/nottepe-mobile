@@ -64,7 +64,10 @@ export default function SavedPostsScreen() {
   if (isLoading) {
     return (
       <SkeletonGroup>
-        <View className="flex-1 p-4 gap-3" style={{ backgroundColor: t.ground }}>
+        {/* Dolgu/boşluk YOK: `NoteCardSkeleton` gerçek kartın metriklerini
+            (marginHorizontal 12 + marginTop 10) kendisi taşıyor, üstüne
+            `p-4 gap-3` eklemek kartları iki kat içeriye kaydırıyordu. */}
+        <View className="flex-1 pt-2" style={{ backgroundColor: t.ground }}>
           {[0, 1, 2].map((i) => (
             <NoteCardSkeleton key={i} />
           ))}

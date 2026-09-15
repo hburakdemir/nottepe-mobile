@@ -47,10 +47,14 @@ export default function ProfileSkeleton() {
           ))}
         </View>
 
-        {/* Notlar */}
-        <View className="p-4 gap-3">
+        {/* Notlar. Sarmalayıcıda artık dolgu/boşluk YOK: `NoteCardSkeleton`
+            gerçek kartın metriklerini taşıyor (kendi `marginHorizontal: 12` ve
+            `marginTop: 10`'u var), üstüne `p-4 gap-3` eklemek kartları içeriye
+            iki kat kaydırıyordu. `showStatus`: profil sekmeleri gerçek kartı
+            durum rozetiyle çiziyor (bkz. PostsTab), iskelet de öyle olmalı. */}
+        <View className="pt-2">
           {[0, 1, 2].map((i) => (
-            <NoteCardSkeleton key={i} />
+            <NoteCardSkeleton key={i} showStatus />
           ))}
         </View>
       </View>
