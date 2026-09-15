@@ -59,11 +59,23 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
+      # `packages` OVERRIDE'I ZORUNLU. Action'in varsayilani
+      # `'tools platform-tools'` ve Google `tools` paketini SDK deposundan
+      # kaldirdi: sdkmanager "Failed to find package 'tools'" deyip exit 1
+      # veriyor, adim daha gradle'a gelmeden patliyor. Dun calisan build bugun
+      # bu yuzden kirildi (runner imaji yenilendi, kod degismedi).
+      #
+      # ⚠️ `api-level` ve `ndk-version` BURADAN KALDIRILDI cunku bu action'in
+      # GERCEK INPUTLARI DEGIL (action.yml yalnizca cmdline-tools-version,
+      # accept-android-sdk-licenses, log-accepted-android-sdk-licenses ve
+      # packages kabul ediyor). Bastan beri sessizce yok sayiliyorlardi; build
+      # calisiyordu cunku platform 36'yi ve NDK'yi Gradle kendisi indiriyor
+      # (lisanslar bu adimda kabul ediliyor). Geri ekleme — is yapiyorlarmis
+      # gibi gorunup yanlis guven veriyorlar.
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
-          api-level: 36
-          ndk-version: '27.1.12297006'
+          packages: 'platform-tools'
 
       - name: Install dependencies
         run: npm install
