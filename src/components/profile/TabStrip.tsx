@@ -1,40 +1,46 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { useMyAktsCalcs, useMyChecklists, useMyFollows, useMySchedule } from '../../hooks/profile/useProfileLists';
-import { SHADOW_MD, TABS, type TabKey } from './profileCommon';
+import { SHADOW_MD, type TabDef, type TabKey } from './profileCommon';
+
+/** Sekme başına sayaç. Bir anahtar `null` ise "veri henüz gelmedi" demek ve
+ *  sayaç çizilmiyor — aksi hâlde açılışta hepsi yanıltıcı "(0)" görünürdü. */
+export type TabCounts = Partial<Record<TabKey, number | null>>;
 
 // Profil'in yatay sekme şeridi — sayaçlar ve aktif sekmeyi ortalama mantığı.
 //
-// SAYAÇLAR NEDEN BURADA ÇEKİLİYOR: "sekme sayaçları tıklamadan dolmalı" daha
-// önce bildirilmiş bir kullanıcı şikayeti; tembel yükleme tam bu yüzden bilerek
-// geri alınmıştı. Veri sekme bileşenlerinin kendi state'ine indirilseydi şerit
-// sayacı bilemezdi. react-query ile ikisi AYNI anahtarı okuyor: şerit sayaç
-// için, sekme liste için, ve ikinci bir ağ isteği atılmıyor.
+// SAYAÇLAR ARTIK PROP: eskiden dört liste hook'u (`useMyChecklists` vd.) bu
+// bileşenin İÇİNDE çağrılıyordu, yani şerit yapısal olarak yalnızca oturum
+// sahibinin sayaçlarını gösterebiliyordu. Sayım artık `useProfileCounts` ile
+// şablonda (bkz. ProfileTemplate.tsx) ve "sekme sayaçları tıklamadan dolmalı"
+// değişmezi korunuyor: o hook AYNI react-query anahtarlarını okuyor, yani
+// sekmeye basıldığında ikinci bir ağ isteği atılmıyor.
 //
-// Dört liste burada, iki gönderi sekmesi prop olarak: onların sayacı sunucunun
-// söylediği TOPLAM ("ekranda kaç satır var" değil) ve o durum makinesi
-// ProfileScreen'de yaşıyor.
+// AKTİF RENK DAİMA MARKA. Herkese açık profilin şeridi eskiden lacivert
+// (`#1e40af` alt çizgi, `#60a5fa`/`#1e3a8a` ikon, `text-info` metin)
+// kullanıyordu — testçi şikâyetinin ("tablardaki renkler kendi profilini
+// görüntülediğin gibi olmalı") somut karşılığı buydu. O üç değer kod tabanından
+// tamamen silindi; tek şerit, tek palet.
+//
+// ÇAĞIRAN TARAF `tabs` VE `counts` NESNELERİNİ STABİL TUTMAK ZORUNDA (`tabs`
+// için `makeTabs`/`visibleTabs` + `useMemo`, `counts` için `useMemo`), yoksa
+// `React.memo` hiçbir zaman bail-out yapamaz.
 function TabStrip({
+  tabs,
   activeTab,
-  postsCount,
-  savedCount,
+  counts,
   onTabPress,
   onHeightChange,
 }: {
+  tabs: readonly TabDef[];
   activeTab: TabKey;
-  postsCount: number;
-  savedCount: number;
+  /** `undefined` → hiç sayaç çizilmiyor (herkese açık profilde sayaç yok). */
+  counts?: TabCounts;
   onTabPress: (index: number) => void;
   onHeightChange: (height: number) => void;
 }) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-
-  const { data: checklists } = useMyChecklists();
-  const { data: aktsCalcs } = useMyAktsCalcs();
-  const { data: schedule } = useMySchedule();
-  const { data: follows } = useMyFollows();
 
   // --- Şeridi aktif sekmeye ortalama --------------------------------------
   // Eskiden şeridin ne `ref`'i ne `onLayout`'u ne de bir `scrollTo` çağrısı
@@ -81,23 +87,8 @@ function TabStrip({
           stripContentWidthRef.current = w;
         }}
       >
-        {TABS.map(({ key, label, icon: Icon }, index) => {
-          // Sayaç ancak veri geldiğinde gösteriliyor; aksi hâlde açılışta hepsi
-          // yanıltıcı "(0)" görünürdü.
-          const count =
-            key === 'posts'
-              ? postsCount
-              : key === 'saved'
-                ? savedCount
-                : key === 'lists'
-                  ? (checklists?.length ?? null)
-                  : key === 'akts'
-                    ? (aktsCalcs?.length ?? null)
-                    : key === 'schedule'
-                      ? (schedule?.length ?? null)
-                      : key === 'follows'
-                        ? (follows?.length ?? null)
-                        : null;
+        {tabs.map(({ key, label, icon: Icon }, index) => {
+          const count = counts?.[key] ?? null;
           const active = activeTab === key;
           return (
             <Pressable

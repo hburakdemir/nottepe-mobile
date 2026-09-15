@@ -5,6 +5,7 @@ import PostCard from '../PostCard';
 import { TAB_BAR_SAFE_PADDING } from '../layout/tabBarMetrics';
 import { postKey, type PostsKind } from '../../hooks/profile/usePostsPagination';
 import type { Post } from '../../types/post';
+import { useProfileScope } from './ProfileScope';
 import { EmptyState, TabLoading } from './profileCommon';
 
 // Sekme boşken FlatList'e verilen SABİT dizi.
@@ -49,6 +50,13 @@ function PostsTab({
   onDelete: (id: string | number) => void;
   emptyText: string;
 }) {
+  // Salt okunur modda kartın sahiplik gereçleri kapanıyor. `PostCardModern`
+  // silme/düzenleme düğmelerini ZATEN kendi içinde `isOwner` ile gizliyor
+  // (PostCardModern.tsx:55) — burada kalan iki şey `onDelete`'i hiç
+  // geçirmemek ve durum rozetini kapatmak: onay durumu (bekliyor/reddedildi)
+  // notun sahibini ilgilendiriyor, herkese açık uç zaten yalnızca onaylı
+  // notları döndürüyor.
+  const { readOnly } = useProfileScope();
   // Worklet'in closure'ına `active` GİRMİYOR: girseydi her sekme değişiminde
   // worklet yeniden kurulurdu. Kontrol JS tarafında, ref üzerinden.
   const activeRef = useRef(active);
@@ -76,9 +84,14 @@ function PostsTab({
 
   const renderItem = useCallback(
     ({ item }: { item: Post }) => (
-      <PostCard post={item} showStatus showRating={kind === 'saved'} onDelete={onDelete} />
+      <PostCard
+        post={item}
+        showStatus={!readOnly}
+        showRating={kind === 'saved' && !readOnly}
+        onDelete={readOnly ? undefined : onDelete}
+      />
     ),
-    [kind, onDelete]
+    [kind, onDelete, readOnly]
   );
 
   const pageStyle = useMemo(() => ({ width }), [width]);

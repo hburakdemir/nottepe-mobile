@@ -10,8 +10,9 @@ import ChecklistEditModal from '../ChecklistEditModal';
 import { checklistAPI } from '../../lib/api';
 import { isWithinEditWindow, type Checklist, type ChecklistItem } from '../../types/checklist';
 import type { RootStackParamList } from '../../navigation/types';
-import { MY_CHECKLISTS_KEY, useMyChecklists } from '../../hooks/profile/useProfileLists';
+import { MY_CHECKLISTS_KEY, useProfileChecklists } from '../../hooks/profile/useProfileLists';
 import PagerPage, { type ProfileTabProps } from './PagerPage';
+import { useProfileScope } from './ProfileScope';
 import { EmptyState, TabLoading } from './profileCommon';
 
 // Profil > Checklistler sekmesi.
@@ -21,10 +22,14 @@ import { EmptyState, TabLoading } from './profileCommon';
 // 1632 satırlık ağacın tamamını yeniden render ediyordu. Artık state burada ve
 // bileşen `React.memo` — dışarıdan gelen alakasız güncellemeler bu ağaca
 // girmiyor.
+//
+// `readOnly` (başkasının profili): kutucuk işaretleme, istatistik ve düzenleme
+// HİÇ KURULMUYOR — kapatılmış bir düğme değil, var olmayan bir kod yolu.
 function ChecklistsTab({ active, width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
-  const { data: checklists, isPending } = useMyChecklists();
+  const { username, readOnly } = useProfileScope();
+  const { data: checklists, isPending } = useProfileChecklists(username);
 
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [statsChecklist, setStatsChecklist] = useState<Checklist | null>(null);
@@ -78,9 +83,9 @@ function ChecklistsTab({ active, width, headerHeight, scrollY, onRememberOffset 
         ) : !checklists || checklists.length === 0 ? (
           <EmptyState
             icon={ListChecks}
-            text="Henüz bir checklist oluşturmadın."
-            actionLabel="Checklistlere Git"
-            onAction={goToChecklists}
+            text={readOnly ? 'Henüz bir checklist oluşturmamış.' : 'Henüz bir checklist oluşturmadın.'}
+            actionLabel={readOnly ? undefined : 'Checklistlere Git'}
+            onAction={readOnly ? undefined : goToChecklists}
           />
         ) : (
           checklists.map((checklist) => (
@@ -89,10 +94,11 @@ function ChecklistsTab({ active, width, headerHeight, scrollY, onRememberOffset 
               checklist={checklist}
               isOpen={expandedId === checklist.id}
               onToggleOpen={handleToggleOpen}
-              onToggleItem={handleToggleItem}
-              onStatsClick={setStatsChecklist}
-              onEditClick={setEditChecklist}
-              canEdit={isWithinEditWindow(checklist)}
+              onToggleItem={readOnly ? undefined : handleToggleItem}
+              onStatsClick={readOnly ? undefined : setStatsChecklist}
+              onEditClick={readOnly ? undefined : setEditChecklist}
+              canEdit={!readOnly && isWithinEditWindow(checklist)}
+              readOnlyItems={readOnly}
             />
           ))
         ))}

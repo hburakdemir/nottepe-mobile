@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { postsAPI, savedPostsAPI } from '../../lib/api';
+import { postsAPI, savedPostsAPI, userAPI } from '../../lib/api';
 import { useSavedPosts } from '../../context/SavedPostContext';
 import type { Post } from '../../types/post';
 
@@ -101,7 +101,15 @@ function appendUniquePosts(prev: Post[], rows: Post[]): Post[] {
   return [...prev, ...rows.filter((p) => !seen.has(postKey(p)))];
 }
 
-function fetchPage(kind: PostsKind, page: number) {
+// `username` verilmişse kaynak herkese açık uçlar. ⚠️ `userAPI.getSavedPosts`
+// SAYFASIZ (api.ts:229 — ne `page` ne `limit` alıyor): o dalda tek çekim var,
+// `loadMore` no-op'a düşüyor (bkz. `unpaginated`).
+function fetchPage(kind: PostsKind, page: number, username?: string) {
+  if (username) {
+    return kind === 'posts'
+      ? userAPI.getPosts(username, { page, limit: PAGE_LIMIT })
+      : userAPI.getSavedPosts(username);
+  }
   return kind === 'posts'
     ? postsAPI.getMyPosts({ page, limit: PAGE_LIMIT })
     : savedPostsAPI.getSavedPosts({ page, limit: PAGE_LIMIT });
@@ -125,8 +133,29 @@ export interface PostsPagination {
   handleDelete: (deletedId: string | number) => void;
 }
 
-export function usePostsPagination(kind: PostsKind, isActive: boolean): PostsPagination {
+/**
+ * @param username Başka bir kullanıcının profili çiziliyorsa onun kullanıcı
+ *   adı; `undefined` ise oturum sahibinin kendi listeleri.
+ * @param enabled `false` ise hiç istek atılmıyor. Profil sahibi "Kayıtlı"
+ *   bölümünü gizleyebiliyor; o sekme hiç çizilmediği hâlde hook Hook
+ *   kuralları gereği koşulsuz çağrılmak zorunda. ⚠️ Kapı kapalıyken
+ *   `firstLoading` DERHAL `false`'a çekiliyor — aksi hâlde başlangıç değeri
+ *   `true` olduğu için şablonun iskelet kapısı sonsuza kadar açık kalırdı.
+ */
+export function usePostsPagination(
+  kind: PostsKind,
+  isActive: boolean,
+  username?: string,
+  enabled = true
+): PostsPagination {
   const isSaved = kind === 'saved';
+  // "Kendi kayıtlılarım" dalı. Aşağıdaki üç mekanizma (context tazelemesi,
+  // yorum sayısı tamamlama, kaydedilenler sentinel'i) SADECE buna ait:
+  // başkasının kayıtlı listesi oturum sahibinin bookmark durumunu ne
+  // besleyebilir ne de geçersiz kılabilir.
+  const isOwnSaved = isSaved && !username;
+  // Sayfasız uç: sonraki sayfa diye bir şey yok, `loadMore` hiç istek atmıyor.
+  const unpaginated = isSaved && !!username;
   const { savedPosts, loading: savedIdsLoading, fetchSavedPosts } = useSavedPosts();
 
   const [rows, setRows] = useState<Post[] | null>(null);
@@ -145,12 +174,12 @@ export function usePostsPagination(kind: PostsKind, isActive: boolean): PostsPag
     if (inFlight.current) return;
     inFlight.current = true;
     try {
-      const res = await fetchPage(kind, 1);
+      const res = await fetchPage(kind, 1, username);
       const { posts: first, total: t } = extractPostsPage(res.data);
       setRows(first);
       setPage(1);
-      setTotal(t ?? first.length);
-      if (isSaved) {
+      setTotal(unpaginated ? first.length : (t ?? first.length));
+      if (isOwnSaved) {
         // Context'in id kümesini de tazele — aksi hâlde bookmark ikonu bu
         // sekmedeki (zaten kayıtlı olduğu bilinen) postlar için "dolu"
         // görünmeyebiliyordu, çünkü PostCard'ın isSaved kontrolü context'in
@@ -165,18 +194,22 @@ export function usePostsPagination(kind: PostsKind, isActive: boolean): PostsPag
       inFlight.current = false;
       setFirstLoading(false);
     }
-  }, [kind, isSaved, fetchSavedPosts]);
+  }, [kind, username, isOwnSaved, unpaginated, fetchSavedPosts]);
 
   useEffect(() => {
+    if (!enabled) {
+      setFirstLoading(false);
+      return;
+    }
     fetchFirstPage();
-  }, [fetchFirstPage]);
+  }, [enabled, fetchFirstPage]);
 
   // Sentinel `null` ise liste geçersiz kılınmış demektir (bkz. aşağıdaki
   // kaydedilenler sayacı notu) — sekmeye girildiğinde yeniden çekiliyor.
   useEffect(() => {
-    if (!isSaved || !isActive || rows !== null) return;
+    if (!isOwnSaved || !isActive || rows !== null) return;
     fetchFirstPage();
-  }, [isSaved, isActive, rows, fetchFirstPage]);
+  }, [isOwnSaved, isActive, rows, fetchFirstPage]);
 
   // --- KAYDEDİLENLER SAYACI ------------------------------------------------
   // Hata şuydu: sayaç `total ?? savedPosts.length` diye yazılıyor ve niyeti
@@ -196,7 +229,7 @@ export function usePostsPagination(kind: PostsKind, isActive: boolean): PostsPag
   // sanıp mount'ta gereksiz bir yeniden çekme tetiklemeyelim.
   const savedIdsCountRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!isSaved || savedIdsLoading) return;
+    if (!isOwnSaved || savedIdsLoading) return;
     const count = savedPosts.length;
     if (savedIdsCountRef.current === null) {
       savedIdsCountRef.current = count;
@@ -206,7 +239,7 @@ export function usePostsPagination(kind: PostsKind, isActive: boolean): PostsPag
     savedIdsCountRef.current = count;
     setTotal(null);
     setRows(null);
-  }, [isSaved, savedPosts, savedIdsLoading]);
+  }, [isOwnSaved, savedPosts, savedIdsLoading]);
 
   // --- Sonraki sayfalar ----------------------------------------------------
   // Durdurma koşulları: uçuşta istek var, toplam sayıya ulaşıldı ya da sunucu
@@ -215,13 +248,14 @@ export function usePostsPagination(kind: PostsKind, isActive: boolean): PostsPag
   // deneniyor.
   const loadMoreImpl = useCallback(async () => {
     const current = rows;
+    if (unpaginated) return;
     if (inFlight.current || current === null) return;
     if (total !== null && current.length >= total) return;
     inFlight.current = true;
     setLoadingMore(true);
     const nextPage = page + 1;
     try {
-      const res = await fetchPage(kind, nextPage);
+      const res = await fetchPage(kind, nextPage, username);
       const { posts: newRows, total: t } = extractPostsPage(res.data);
       if (newRows.length === 0) {
         // Sunucu boş sayfa verdi: eldeki kadarını toplam sayıp döngüyü kapatıyoruz.
@@ -239,7 +273,7 @@ export function usePostsPagination(kind: PostsKind, isActive: boolean): PostsPag
         });
         setPage(nextPage);
         if (t !== null) setTotal(t);
-        if (isSaved) {
+        if (isOwnSaved) {
           enrichMissingCommentCounts(newRows).then((enrichedRows) => {
             if (enrichedRows === newRows) return;
             setRows((prev) => {
@@ -256,7 +290,7 @@ export function usePostsPagination(kind: PostsKind, isActive: boolean): PostsPag
       inFlight.current = false;
       setLoadingMore(false);
     }
-  }, [kind, isSaved, rows, page, total]);
+  }, [kind, username, isOwnSaved, unpaginated, rows, page, total]);
 
   // --- Odak tazelemesi -----------------------------------------------------
   // Profil, Home gibi kalıcı mount'lu bir SEKME (bkz. MainTabsScreen.tsx) —
@@ -269,9 +303,9 @@ export function usePostsPagination(kind: PostsKind, isActive: boolean): PostsPag
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetchPage(kind, 1);
+        const res = await fetchPage(kind, 1, username);
         const { posts: fresh, total: t } = extractPostsPage(res.data);
-        const merged = isSaved ? await enrichMissingCommentCounts(fresh) : fresh;
+        const merged = isOwnSaved ? await enrichMissingCommentCounts(fresh) : fresh;
         if (cancelled) return;
         // `total` ESKİDEN ATILIYORDU: sayaç yalnızca mount'taki ilk çekimden
         // geliyordu, yani not paylaşıldıktan sonra bayat kalıyordu — hiç
@@ -286,17 +320,17 @@ export function usePostsPagination(kind: PostsKind, isActive: boolean): PostsPag
     return () => {
       cancelled = true;
     };
-  }, [kind, isSaved]);
+  }, [kind, username, isOwnSaved]);
 
   const deleteImpl = useCallback(
     (deletedId: string | number) => {
-      if (isSaved) fetchSavedPosts();
+      if (isOwnSaved) fetchSavedPosts();
       setRows((prev) => (prev ? prev.filter((p) => postKey(p) !== String(deletedId)) : prev));
       // Toplam da düşmeli, yoksa "hepsi yüklendi mi?" hesabı (length >= total)
       // bir daha tutmaz ve liste sonuna gelindiğinde boşuna istek atılır.
       setTotal((prev) => (prev === null ? prev : Math.max(0, prev - 1)));
     },
-    [isSaved, fetchSavedPosts]
+    [isOwnSaved, fetchSavedPosts]
   );
 
   // --- Kimliği asla değişmeyen dışa açık callback'ler ----------------------

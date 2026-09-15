@@ -9,8 +9,9 @@ import { useTheme } from '../../context/ThemeContext';
 import { FOLLOWED_DEPARTMENTS_KEY } from '../layout/MenuDrawerContent';
 import { goToTab } from '../../navigation/navigateApp';
 import type { RootStackParamList } from '../../navigation/types';
-import { MY_FOLLOWS_KEY, useMyFollows, type Follow } from '../../hooks/profile/useProfileLists';
+import { MY_FOLLOWS_KEY, useProfileFollows, type Follow } from '../../hooks/profile/useProfileLists';
 import PagerPage, { type ProfileTabProps } from './PagerPage';
+import { useProfileScope } from './ProfileScope';
 import { EmptyState, SHADOW_SM, TabLoading } from './profileCommon';
 
 const FollowRow = React.memo(function FollowRow({
@@ -21,7 +22,8 @@ const FollowRow = React.memo(function FollowRow({
 }: {
   follow: Follow;
   onOpen: (f: Follow) => void;
-  onUnfollow: (f: Follow) => void;
+  /** `undefined` (başkasının profili) → "Bırak" düğmesi hiç render edilmiyor. */
+  onUnfollow?: (f: Follow) => void;
   iconColor: string;
 }) {
   return (
@@ -32,13 +34,15 @@ const FollowRow = React.memo(function FollowRow({
         </Text>
         <Text className="text-[11.5px] text-muted2 mt-0.5">{follow.faculty}</Text>
       </Pressable>
-      <Pressable
-        className="flex-row items-center gap-[5px] border border-line rounded-lg px-2.5 py-[7px]"
-        onPress={() => onUnfollow(follow)}
-      >
-        <BellOff size={13} color={iconColor} />
-        <Text className="text-[11.5px] text-muted font-semibold">Bırak</Text>
-      </Pressable>
+      {!!onUnfollow && (
+        <Pressable
+          className="flex-row items-center gap-[5px] border border-line rounded-lg px-2.5 py-[7px]"
+          onPress={() => onUnfollow(follow)}
+        >
+          <BellOff size={13} color={iconColor} />
+          <Text className="text-[11.5px] text-muted font-semibold">Bırak</Text>
+        </Pressable>
+      )}
     </View>
   );
 });
@@ -48,7 +52,8 @@ function FollowsTab({ active, width, headerHeight, scrollY, onRememberOffset }: 
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const { theme } = useTheme();
-  const { data: follows, isPending } = useMyFollows();
+  const { username, readOnly } = useProfileScope();
+  const { data: follows, isPending } = useProfileFollows(username);
 
   // lucide ikonları ham renk alıyor (className değil) — token karşılığı
   // `useThemeColors()` üzerinden gelebilir ama bu iki değer ekranın geri
@@ -95,9 +100,13 @@ function FollowsTab({ active, width, headerHeight, scrollY, onRememberOffset }: 
         ) : !follows || follows.length === 0 ? (
           <EmptyState
             icon={Bell}
-            text='Henüz bölüm takip etmiyorsun. Bölüm sayfasındaki "Takip Et" butonuyla haberdar olabilirsin.'
-            actionLabel="Bölümlere Göz At"
-            onAction={goToDepartments}
+            text={
+              readOnly
+                ? 'Henüz bir bölüm takip etmiyor.'
+                : 'Henüz bölüm takip etmiyorsun. Bölüm sayfasındaki "Takip Et" butonuyla haberdar olabilirsin.'
+            }
+            actionLabel={readOnly ? undefined : 'Bölümlere Göz At'}
+            onAction={readOnly ? undefined : goToDepartments}
           />
         ) : (
           follows.map((f) => (
@@ -105,7 +114,7 @@ function FollowsTab({ active, width, headerHeight, scrollY, onRememberOffset }: 
               key={`${f.faculty}-${f.department}`}
               follow={f}
               onOpen={handleOpen}
-              onUnfollow={handleUnfollow}
+              onUnfollow={readOnly ? undefined : handleUnfollow}
               iconColor={iconColor}
             />
           ))

@@ -3,11 +3,11 @@ import { Pressable, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { HelpCircle, Lightbulb, MessagesSquare } from 'lucide-react-native';
-import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import type { RootStackParamList } from '../../navigation/types';
-import { useMyForumActivity, type ForumItem } from '../../hooks/profile/useProfileLists';
+import { useProfileForumActivity, type ForumItem } from '../../hooks/profile/useProfileLists';
 import PagerPage, { type ProfileTabProps } from './PagerPage';
+import { useProfileScope } from './ProfileScope';
 import { EmptyState, SHADOW_SM, TabLoading, formatDate } from './profileCommon';
 
 const ForumRow = React.memo(function ForumRow({
@@ -38,15 +38,20 @@ const ForumRow = React.memo(function ForumRow({
 // Profil > Forumlar sekmesi — SSS yorumları ve öneri etkinliği tek listede.
 function ForumsTab({ active, width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { user } = useAuth();
   const { theme } = useTheme();
   // `bg-brand` ile aynı marka rengi — temadan bağımsız olduğu için ham değer.
   const iconColor = theme === 'dark' ? '#5A9690' : '#2F5755';
 
+  // Kimlik artık scope'tan geliyor: kendi profilinde oturum kullanıcısının,
+  // başkasının profilinde o profilin kimliği. (Eskiden burada `useAuth()`
+  // vardı — sekme yapısal olarak yalnızca kendi forum etkinliğini çizebiliyordu.)
+  //
   // Sorgu yalnızca sekme görünürken çalışıyor: forum etkinliği İKİ ağ isteği
   // (SSS + öneriler) ve sekme şeridinde sayacı yok — diğer beşinin aksine
-  // açılışta çekilmesi için bir sebep yok.
-  const { data: items, isPending } = useMyForumActivity(active ? user?.id : undefined);
+  // açılışta çekilmesi için bir sebep yok. Başkasının profilinde bu kapı iki
+  // kat önemli: kimlik başlık isteğinden SONRA geliyor.
+  const { profileId, readOnly } = useProfileScope();
+  const { data: items, isPending } = useProfileForumActivity(profileId, active);
 
   const handleOpen = useCallback(
     (item: ForumItem) =>
@@ -68,7 +73,10 @@ function ForumsTab({ active, width, headerHeight, scrollY, onRememberOffset }: P
         (isPending ? (
           <TabLoading />
         ) : !items || items.length === 0 ? (
-          <EmptyState icon={MessagesSquare} text="Henüz bir foruma katılmadı." />
+          <EmptyState
+            icon={MessagesSquare}
+            text={readOnly ? 'Henüz bir foruma katılmadı.' : 'Henüz bir foruma katılmadın.'}
+          />
         ) : (
           items.map((item) => <ForumRow key={item.key} item={item} onOpen={handleOpen} iconColor={iconColor} />)
         ))}

@@ -7,20 +7,24 @@ import { Calculator, Trash2 } from 'lucide-react-native';
 import { aktsAPI } from '../../lib/api';
 import { formatGpa } from '../../utils/gano';
 import type { RootStackParamList } from '../../navigation/types';
-import { MY_AKTS_KEY, useMyAktsCalcs, type AktsCalc } from '../../hooks/profile/useProfileLists';
+import { MY_AKTS_KEY, useProfileAktsCalcs, type AktsCalc } from '../../hooks/profile/useProfileLists';
 import PagerPage, { type ProfileTabProps } from './PagerPage';
+import { useProfileScope } from './ProfileScope';
 import { EmptyState, SHADOW_SM, TabLoading, formatDate } from './profileCommon';
 
 // Tek bir AKTS hesaplaması satırı. `React.memo`: bir hesaplama silindiğinde
 // listedeki diğerleri yeniden çizilmesin.
+//
+// `onEdit`/`onDelete` `undefined` ise (başkasının profili) iki düğme HİÇ
+// render edilmiyor — satır salt okunur bir kart oluyor.
 const AktsRow = React.memo(function AktsRow({
   calc,
   onEdit,
   onDelete,
 }: {
   calc: AktsCalc;
-  onEdit: (id: number) => void;
-  onDelete: (id: number) => void;
+  onEdit?: (id: number) => void;
+  onDelete?: (id: number) => void;
 }) {
   const semesterCount = calc.data?.semesters?.length || 0;
   const courseCount = calc.data?.semesters?.reduce((sum, s) => sum + (s.courses?.length || 0), 0) || 0;
@@ -35,16 +39,20 @@ const AktsRow = React.memo(function AktsRow({
           {semesterCount} dönem · {courseCount} ders · {formatDate(calc.updated_at)}
         </Text>
       </View>
-      <View className="items-center mr-2.5">
+      <View className={`items-center ${onEdit || onDelete ? 'mr-2.5' : ''}`}>
         <Text className="text-lg font-extrabold text-accent">{formatGpa(calc.gpa)}</Text>
         <Text className="text-xs text-muted2 uppercase">GANO</Text>
       </View>
-      <Pressable className="bg-brand rounded-lg px-2.5 py-[7px]" onPress={() => onEdit(calc.id)}>
-        <Text className="text-white text-xs font-bold">Düzenle</Text>
-      </Pressable>
-      <Pressable onPress={() => onDelete(calc.id)} hitSlop={8} className="ml-2">
-        <Trash2 size={17} color="#dc2626" />
-      </Pressable>
+      {!!onEdit && (
+        <Pressable className="bg-brand rounded-lg px-2.5 py-[7px]" onPress={() => onEdit(calc.id)}>
+          <Text className="text-white text-xs font-bold">Düzenle</Text>
+        </Pressable>
+      )}
+      {!!onDelete && (
+        <Pressable onPress={() => onDelete(calc.id)} hitSlop={8} className="ml-2">
+          <Trash2 size={17} color="#dc2626" />
+        </Pressable>
+      )}
     </View>
   );
 });
@@ -53,7 +61,8 @@ const AktsRow = React.memo(function AktsRow({
 function AktsTab({ active, width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
-  const { data: calcs, isPending } = useMyAktsCalcs();
+  const { username, readOnly } = useProfileScope();
+  const { data: calcs, isPending } = useProfileAktsCalcs(username);
 
   const handleEdit = useCallback(
     (id: number) => navigation.navigate('AktsCalculator', { loadId: id }),
@@ -97,12 +106,19 @@ function AktsTab({ active, width, headerHeight, scrollY, onRememberOffset }: Pro
         ) : !calcs || calcs.length === 0 ? (
           <EmptyState
             icon={Calculator}
-            text="Henüz kayıtlı AKTS hesaplaman yok."
-            actionLabel="Hesaplayıcıya Git"
-            onAction={goToCalculator}
+            text={readOnly ? 'Henüz kayıtlı bir AKTS hesaplaması yok.' : 'Henüz kayıtlı AKTS hesaplaman yok.'}
+            actionLabel={readOnly ? undefined : 'Hesaplayıcıya Git'}
+            onAction={readOnly ? undefined : goToCalculator}
           />
         ) : (
-          calcs.map((calc) => <AktsRow key={calc.id} calc={calc} onEdit={handleEdit} onDelete={handleDelete} />)
+          calcs.map((calc) => (
+            <AktsRow
+              key={calc.id}
+              calc={calc}
+              onEdit={readOnly ? undefined : handleEdit}
+              onDelete={readOnly ? undefined : handleDelete}
+            />
+          ))
         ))}
     </PagerPage>
   );

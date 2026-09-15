@@ -42,7 +42,12 @@ import { SHADOW_MD } from './profileCommon';
 //
 // Kart işaretlemesi `NoteCardSkeleton`'dan geliyor — SavedPostsScreen ile aynı
 // kaynak, bkz. o dosyadaki not.
-export default function ProfileSkeleton() {
+//
+// İSKELET İKİ MODDA DA AYNI (kendi profilin / başkasının profili) — "tek
+// şablon" şikâyetinin yükleme tarafı bu. Tek fark `editable`: başkasının
+// profilinde "Düzenle" düğmesi gelmeyeceği için iskelette de ona yer
+// ayrılmıyor, yoksa içerik gelince kart o kadar kısalıp zıplardı.
+export default function ProfileSkeleton({ editable = true }: { editable?: boolean }) {
   const { colors } = useTheme();
 
   return (
@@ -72,12 +77,15 @@ export default function ProfileSkeleton() {
           </View>
 
           {/* "Düzenle" düğmesi: tam genişlik, `rounded-[10px] py-2.5 mt-3.5`. */}
-          <Skeleton width="100%" height={38} radius={10} style={{ marginTop: 14 }} />
+          {editable && <Skeleton width="100%" height={38} radius={10} style={{ marginTop: 14 }} />}
         </View>
 
         {/* SEKME ŞERİDİ — kabuk TabStrip.tsx:67 ile birebir. Gerçekte "pill"
             değil: yüzey kartı içinde, alt çizgili metin satırları. */}
-        <View className="bg-surface rounded-lg mx-4 mb-5 px-4 flex-row items-center" style={{ height: 44 }}>
+        <View
+          className="bg-surface rounded-lg mx-4 mb-5 px-3 flex-row items-center border-b border-line-soft"
+          style={[SHADOW_MD, { height: 44 }]}
+        >
           {[74, 88, 66, 80].map((w, i) => (
             <View key={i} style={{ marginRight: 18 }}>
               <Skeleton width={w} height={12} radius={4} />

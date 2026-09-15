@@ -1,5 +1,15 @@
+import { useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { aktsAPI, badgeAPI, checklistAPI, departmentFollowAPI, faqAPI, scheduleAPI, suggestionAPI } from '../../lib/api';
+import {
+  aktsAPI,
+  badgeAPI,
+  checklistAPI,
+  departmentFollowAPI,
+  faqAPI,
+  scheduleAPI,
+  suggestionAPI,
+  userAPI,
+} from '../../lib/api';
 import type { Badge } from '../../components/BadgeChip';
 import type { Checklist } from '../../types/checklist';
 import type { ScheduleCourse } from '../../utils/schedule';
@@ -26,16 +36,46 @@ import type { ScheduleCourse } from '../../utils/schedule';
 // sekme (liste için) çağırıyor, ikinci bir ağ isteği ATILMIYOR, ve veri
 // geldiğinde yalnızca o anahtarı okuyan bileşenler render oluyor.
 //
-// `staleTime` 60sn: bunların hepsi kullanıcının KENDİ verisi, arkasından biri
-// değiştirmiyor. Değiştiren taraf (silme/takipten çıkma/checklist kaydetme)
-// zaten aşağıdaki `invalidate*` yardımcılarıyla anahtarı geçersiz kılıyor.
+// --- `username` PARAMETRESİ ---------------------------------------------
+//
+// Aynı sekmeler artık başka bir kullanıcının profilinde de basılıyor (tek
+// şablon, bkz. components/profile/ProfileTemplate.tsx). Alternatif — veriyi
+// şablona yukarı taşımak — prop sözleşmesini basitleştirirdi ama yukarıda
+// gerekçesi yazılı hatayı geri getirirdi. Parametrik hook'un maliyeti tek bir
+// `username` string'i, onu da `ProfileScope` context'i emiyor: sekmeler
+// ekstra prop almıyor.
+//
+// `username` verilmemişse kaynak oturum sahibinin kendi uçları
+// (`checklistAPI.getMine()` vb.), verilmişse herkese açık uçlar
+// (`userAPI.getChecklists(username)` vb.).
 const LIST_STALE_MS = 60 * 1000;
+// Başkasının profili daha uzun taze sayılıyor: kendi verin değil, arkasından
+// sen değiştirmiyorsun ve bu ekrana bir mutasyon bağlı değil.
+const USER_LIST_STALE_MS = 5 * 60 * 1000;
 
-export const MY_BADGES_KEY = ['profile', 'badges'] as const;
-export const MY_CHECKLISTS_KEY = ['profile', 'checklists'] as const;
-export const MY_AKTS_KEY = ['profile', 'akts'] as const;
-export const MY_SCHEDULE_KEY = ['profile', 'schedule'] as const;
-export const MY_FOLLOWS_KEY = ['profile', 'follows'] as const;
+export type ProfileList = 'badges' | 'checklists' | 'akts' | 'schedule' | 'follows';
+
+/**
+ * Anahtar şeması: `['profile', <username | 'me'>, <liste>]`.
+ *
+ * `['profile', ...]` öneki bilerek korundu — mevcut `invalidateQueries`
+ * çağrıları (ör. çıkışta tüm profil verisinin atılması) bu önekle çalışıyor.
+ */
+export const profileListKey = (username: string | undefined, list: ProfileList) =>
+  ['profile', username ?? 'me', list] as const;
+
+// Kendi profilinin anahtarları. Mutasyonlar (silme / takipten çıkma /
+// checklist kaydetme) YALNIZCA kendi profilinde çalıştığı için `setQueryData`
+// ve `invalidateQueries` çağrıları bunları kullanıyor.
+export const MY_BADGES_KEY = profileListKey(undefined, 'badges');
+export const MY_CHECKLISTS_KEY = profileListKey(undefined, 'checklists');
+export const MY_AKTS_KEY = profileListKey(undefined, 'akts');
+export const MY_SCHEDULE_KEY = profileListKey(undefined, 'schedule');
+export const MY_FOLLOWS_KEY = profileListKey(undefined, 'follows');
+
+// Forum etkinliği `username` DEĞİL kullanıcı KİMLİĞİ ile anahtarlanıyor: uç
+// her iki modda aynı (`getUserActivity(id)`), ayrı bir "herkese açık" karşılığı
+// yok. O yüzden bu anahtar mod bilmiyor.
 export const MY_FORUMS_KEY = ['profile', 'forums'] as const;
 
 export interface AktsCalc {
@@ -64,6 +104,10 @@ export interface ForumItem {
 // ekranın "yükleniyor" ile "gerçekten boş" ayrımı `isPending` üzerinden
 // yapılıyor ve bir uç çöktüğünde sekme sonsuza kadar spinner göstermemeli —
 // ham state'li eski kodun `.catch(() => setX([]))` davranışı birebir bu.
+//
+// `enabled`: sayaçlar başkasının profilinde çekilmiyor (orada sayaç yok), o
+// yüzden `useProfileCounts` bu kapıyı `false`'a çekebiliyor. Sekmelerin kendisi
+// daima `true` geçiyor — sekme mount olduysa verisini istiyor demektir.
 
 export function useMyBadges() {
   return useQuery({
@@ -80,73 +124,79 @@ export function useMyBadges() {
   });
 }
 
-export function useMyChecklists() {
+export function useProfileChecklists(username?: string, enabled = true) {
   return useQuery({
-    queryKey: MY_CHECKLISTS_KEY,
+    queryKey: profileListKey(username, 'checklists'),
+    enabled,
     queryFn: async () => {
       try {
-        const res = await checklistAPI.getMine();
+        const res = username ? await userAPI.getChecklists(username) : await checklistAPI.getMine();
         return (res.data.checklists || []) as Checklist[];
       } catch {
         return [] as Checklist[];
       }
     },
-    staleTime: LIST_STALE_MS,
+    staleTime: username ? USER_LIST_STALE_MS : LIST_STALE_MS,
   });
 }
 
-export function useMyAktsCalcs() {
+export function useProfileAktsCalcs(username?: string, enabled = true) {
   return useQuery({
-    queryKey: MY_AKTS_KEY,
+    queryKey: profileListKey(username, 'akts'),
+    enabled,
     queryFn: async () => {
       try {
-        const res = await aktsAPI.getAll();
+        const res = username ? await userAPI.getAkts(username) : await aktsAPI.getAll();
         return (res.data.calculations || []) as AktsCalc[];
       } catch {
         return [] as AktsCalc[];
       }
     },
-    staleTime: LIST_STALE_MS,
+    staleTime: username ? USER_LIST_STALE_MS : LIST_STALE_MS,
   });
 }
 
-export function useMySchedule() {
+export function useProfileSchedule(username?: string, enabled = true) {
   return useQuery({
-    queryKey: MY_SCHEDULE_KEY,
+    queryKey: profileListKey(username, 'schedule'),
+    enabled,
     queryFn: async () => {
       try {
-        const res = await scheduleAPI.getMine();
+        const res = username ? await userAPI.getSchedule(username) : await scheduleAPI.getMine();
         return (res.data?.courses || []) as ScheduleCourse[];
       } catch {
         return [] as ScheduleCourse[];
       }
     },
-    staleTime: LIST_STALE_MS,
+    staleTime: username ? USER_LIST_STALE_MS : LIST_STALE_MS,
   });
 }
 
-export function useMyFollows() {
+export function useProfileFollows(username?: string, enabled = true) {
   return useQuery({
-    queryKey: MY_FOLLOWS_KEY,
+    queryKey: profileListKey(username, 'follows'),
+    enabled,
     queryFn: async () => {
       try {
-        const res = await departmentFollowAPI.getMine();
+        const res = username ? await userAPI.getFollows(username) : await departmentFollowAPI.getMine();
         return (res.data.follows || []) as Follow[];
       } catch {
         return [] as Follow[];
       }
     },
-    staleTime: LIST_STALE_MS,
+    staleTime: username ? USER_LIST_STALE_MS : LIST_STALE_MS,
   });
 }
 
 // Forum etkinliği İKİ uçtan geliyor (SSS yorumları + öneriler) ve tek listede
 // tarihe göre birleşiyor. `enabled: !!userId` — kullanıcı kimliği olmadan
-// çağrılamıyor; eski koddaki `!user?.id` kontrolünün karşılığı.
-export function useMyForumActivity(userId: string | number | undefined) {
+// çağrılamıyor; eski koddaki `!user?.id` kontrolünün karşılığı. Kimlik
+// başkasının profilinde başlık isteğinden SONRA geldiği için bu kapı orada da
+// gerekli (yoksa iki istek boşa gider).
+export function useProfileForumActivity(userId: string | number | undefined, enabled = true) {
   return useQuery({
     queryKey: [...MY_FORUMS_KEY, userId],
-    enabled: !!userId,
+    enabled: enabled && !!userId,
     queryFn: async () => {
       const [faqRes, sugRes] = await Promise.all([
         faqAPI.getUserActivity(userId!).catch(() => ({ data: { activity: [] } })),
@@ -174,6 +224,44 @@ export function useMyForumActivity(userId: string | number | undefined) {
     },
     staleTime: LIST_STALE_MS,
   });
+}
+
+/** Sekme şeridinin dört liste sayacı. */
+export interface ProfileListCounts {
+  lists: number | null;
+  akts: number | null;
+  schedule: number | null;
+  follows: number | null;
+}
+
+/**
+ * "Sekme sayaçları tıklamadan dolmalı" DEĞİŞMEZİNİN taşıyıcısı.
+ *
+ * Eskiden bu dört hook `TabStrip`'in içindeydi; artık şablonda, çünkü şerit
+ * prop'laştırıldı. Kritik olan yer değişikliği değil, AYNI ANAHTARLAR:
+ * sekmeler de aynı `profileListKey(undefined, ...)`'i okuduğu için sekmeye
+ * basıldığında ikinci bir ağ isteği atılmıyor.
+ *
+ * `enabled: false` (başkasının profili) → dört sorgu hiç çalışmıyor; orada
+ * sayaç gösterilmiyor, dolayısıyla veriye de gerek yok.
+ */
+export function useProfileCounts(enabled: boolean): ProfileListCounts {
+  const { data: checklists } = useProfileChecklists(undefined, enabled);
+  const { data: aktsCalcs } = useProfileAktsCalcs(undefined, enabled);
+  const { data: schedule } = useProfileSchedule(undefined, enabled);
+  const { data: follows } = useProfileFollows(undefined, enabled);
+
+  // `useMemo` ŞART: `TabStrip` memo'lu ve `counts` nesnesini prop olarak
+  // alıyor — her render'da yeni nesne üretilse memo hiç bail-out yapamazdı.
+  return useMemo(
+    () => ({
+      lists: checklists?.length ?? null,
+      akts: aktsCalcs?.length ?? null,
+      schedule: schedule?.length ?? null,
+      follows: follows?.length ?? null,
+    }),
+    [checklists, aktsCalcs, schedule, follows]
+  );
 }
 
 /**

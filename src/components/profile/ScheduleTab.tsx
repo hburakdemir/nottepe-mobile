@@ -5,8 +5,9 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CalendarDays, Edit2 } from 'lucide-react-native';
 import { DAY_NAMES, getCourseColor, toMinutes, type ScheduleCourse } from '../../utils/schedule';
 import type { RootStackParamList } from '../../navigation/types';
-import { useMySchedule } from '../../hooks/profile/useProfileLists';
+import { useProfileSchedule } from '../../hooks/profile/useProfileLists';
 import PagerPage, { type ProfileTabProps } from './PagerPage';
+import { useProfileScope } from './ProfileScope';
 import { EmptyState, SHADOW_SM, TabLoading } from './profileCommon';
 
 // Pazartesi-Cumartesi. Pazar bilerek yok: ders programında kullanılmıyor.
@@ -37,9 +38,14 @@ const DayCard = React.memo(function DayCard({ day, courses }: { day: number; cou
 });
 
 // Profil > Program sekmesi.
+//
+// `readOnly` (başkasının profili): "Düzenle" kısayolu hiç çizilmiyor — o
+// düğme oturum sahibinin KENDİ programını düzenleme ekranına gidiyor, başka
+// birinin programını görüntülerken orada işi yok.
 function ScheduleTab({ active, width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { data: schedule, isPending } = useMySchedule();
+  const { username, readOnly } = useProfileScope();
+  const { data: schedule, isPending } = useProfileSchedule(username);
 
   const goToSchedule = useCallback(() => navigation.navigate('Schedule'), [navigation]);
 
@@ -57,19 +63,21 @@ function ScheduleTab({ active, width, headerHeight, scrollY, onRememberOffset }:
         ) : !schedule || schedule.length === 0 ? (
           <EmptyState
             icon={CalendarDays}
-            text="Henüz ders programı oluşturmadın."
-            actionLabel="Ders Programı Oluştur"
-            onAction={goToSchedule}
+            text={readOnly ? 'Henüz ders programı oluşturmamış.' : 'Henüz ders programı oluşturmadın.'}
+            actionLabel={readOnly ? undefined : 'Ders Programı Oluştur'}
+            onAction={readOnly ? undefined : goToSchedule}
           />
         ) : (
           <View>
-            <Pressable
-              className="flex-row self-end items-center gap-1.5 bg-brand rounded-lg px-3 py-2 mb-2.5"
-              onPress={goToSchedule}
-            >
-              <Edit2 size={13} color="#fff" />
-              <Text className="text-white text-xs font-bold">Düzenle</Text>
-            </Pressable>
+            {!readOnly && (
+              <Pressable
+                className="flex-row self-end items-center gap-1.5 bg-brand rounded-lg px-3 py-2 mb-2.5"
+                onPress={goToSchedule}
+              >
+                <Edit2 size={13} color="#fff" />
+                <Text className="text-white text-xs font-bold">Düzenle</Text>
+              </Pressable>
+            )}
             {DAYS.map((day) => {
               const dayCourses = schedule
                 .filter((c) => c.day === day)
