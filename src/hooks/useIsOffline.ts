@@ -66,6 +66,23 @@ const COLD_START_GRACE_MS = 1200;
 // pil maliyeti olurdu. Arka planda hiç yoklanmıyor (aşağıdaki `isAppActive`).
 const ANDROID_POLL_MS = 750;
 
+// ÖNE DÖNÜŞ PAYI — `COLD_START_GRACE_MS`'in dönüş karşılığı, aynı sebeple var.
+//
+// Android ekran kapalıyken Wi-Fi'yi uykuya alıyor ve kilidi açtığında yeniden
+// ilişkilendirme tipik olarak 1-3 saniye sürüyor. O pencerede
+// `getNetworkStateAsync()` dürüstçe `isConnected: false` diyor — ama bu bir
+// bağlantı KAYBI değil, henüz kurulmamış bir bağlantı. Pay olmadan kilit
+// dönüşten 300 ms sonra biniyor ve kullanıcı hiçbir şey yapmadan üstüne
+// çevrimdışı ekranı geliyor, 2 saniye sonra kendiliğinden kalkıyor.
+//
+// ⚠️ Bu risk 1.0.9'da ARTTI: debounce 1500'den 300 ms'ye indirildi (katman
+// değişikliğiyle birlikte), yani yanlış pozitife düşme penceresi beşe katlandı.
+// Pay o yüzden debounce ile aynı turda konmalıydı.
+//
+// Çevrimiçiye dönüş bu paydan ETKİLENMİYOR: pay yalnızca kilitlenmeyi
+// geciktiriyor, açılmayı değil.
+const RESUME_GRACE_MS = 2500;
+
 export function useIsOffline(): boolean {
   const { isConnected: eventIsConnected } = useNetworkState();
   const [polledIsConnected, setPolledIsConnected] = useState<boolean | undefined>(undefined);
@@ -87,6 +104,9 @@ export function useIsOffline(): boolean {
   // Soğuk başlangıç doğrulama penceresinin hangi zamanda dolacağını hesaplamak
   // için mount anını bir kere sabitliyoruz.
   const mountedAtRef = useRef(Date.now());
+  // Son öne dönüş anı. `0` = hiç dönüş olmadı (soğuk açılış), o durumda
+  // `RESUME_GRACE_MS` payı hiç uygulanmıyor — soğuk açılışın kendi payı var.
+  const lastResumeAtRef = useRef(0);
 
   // KİLİT YALNIZCA ÖN PLANDA DEĞİŞEBİLİR.
   //
@@ -130,7 +150,16 @@ export function useIsOffline(): boolean {
       if (AppState.currentState === 'active') readNetworkState();
     }, ANDROID_POLL_MS);
     const appStateSub = AppState.addEventListener('change', (next) => {
-      if (next === 'active') readNetworkState();
+      if (next !== 'active') return;
+      lastResumeAtRef.current = Date.now();
+      // BAYAT DEĞERİ ÖNCE TEMİZLİYORUZ, sonra taze okuma yapıyoruz. Sıra
+      // önemli: arka plana alınmadan önceki son okuma `false` ise (ör. ekran
+      // kapanırken Wi-Fi düşmüştü), taze okuma dönene kadar o `false` geçerli
+      // sayılırdı ve 300 ms'lik debounce bitip kilit binebilirdi. `undefined`,
+      // aşağıdaki "true ya da henüz undefined → çevrimdışı sayılmıyor" dalına
+      // düşüyor, yani bayat değeri ANINDA etkisizleştiriyor.
+      setPolledIsConnected(undefined);
+      readNetworkState();
     });
 
     return () => {
@@ -172,7 +201,15 @@ export function useIsOffline(): boolean {
           timerRef.current = setTimeout(() => setDebouncedOffline(true), remainingGrace);
         }
       } else {
-        timerRef.current = setTimeout(() => setDebouncedOffline(true), OFFLINE_DEBOUNCE_MS);
+        // Normal debounce, AMA öne dönüş payı doluyorsa o bekleniyor: dönüşten
+        // hemen sonraki `false` okumaları Wi-Fi yeniden ilişkilendirmesi
+        // olabiliyor (bkz. RESUME_GRACE_MS). Pay geçtikten sonra hâlâ
+        // çevrimdışıysa normal debounce ile kilitleniyor — yani gerçek bir
+        // bağlantı kaybı gecikmiyor, yalnızca dönüşün ilk 2,5 saniyesi
+        // kilitlenmeye kapalı.
+        const sinceResume = Date.now() - lastResumeAtRef.current;
+        const resumeWait = Math.max(0, RESUME_GRACE_MS - sinceResume);
+        timerRef.current = setTimeout(() => setDebouncedOffline(true), Math.max(OFFLINE_DEBOUNCE_MS, resumeWait));
       }
     } else {
       // `true` ya da henüz `undefined` (belirlenmedi): çevrimdışı sayılmıyor.

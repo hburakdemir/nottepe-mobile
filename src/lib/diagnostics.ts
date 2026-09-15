@@ -33,7 +33,12 @@ const TICK_MS = 250;
 // Bu eşiğin altı normal jitter (GC, yerleşim, zamanlayıcı hassasiyeti) —
 // kaydedilseydi liste gürültüden okunmaz hâle gelirdi.
 const REPORT_THRESHOLD_MS = 300;
-const MAX_ENTRIES = 40;
+// 40 -> 200. Eski değer ÖLÇÜMÜ SESSİZCE BOZUYORDU: 1.0.8'in ikinci turunda 61
+// saniyede 39 kayıt geldi, yani tampon yaklaşık bir dakikada devriliyor. Öne
+// dönüş kaydı son 40 bloktan eskiyse hiç iz bırakmadan siliniyordu ve rapordaki
+// "61 sn pencere" satırı aslında kırpılmanın kendi kanıtıydı: pencere gerçek
+// test süresini değil, tamponun tuttuğu kadarını gösteriyor.
+const MAX_ENTRIES = 200;
 // v3: ProfileScreen parçalara ayrıldı (1632 -> 496 satır; yedi sekme, başlık
 // kartı ve sekme şeridi kendi `React.memo`'lu bileşenlerine çıktı, scroll
 // worklet'leri artık mount'ta bir kez kuruluyor). Anahtarı yükseltmek eski
@@ -289,12 +294,19 @@ export function formatReport(): string {
             const fr = p.firstFrameMs === null ? '?' : `${p.firstFrameMs}ms`;
             // Teşhisin özeti tek kelimeye indiriliyor ki raporu okuyan kişi
             // sayıları yorumlamak zorunda kalmasın.
+            // ⚠️ ETİKETLER THREAD ATFI YAPMIYOR, bilerek. Android'de RN
+            // zamanlayıcıları `JavaTimerManager` üzerinden Choreographer'dan
+            // (UI thread) beslenebiliyor; Yeni Mimari'de `RuntimeScheduler`
+            // yolu da var ve hangisinin aktif olduğu kesinleşmedi. Yani
+            // "setTimeout JS'i, rAF native'i ölçer" ayrımı GARANTİ DEĞİL.
+            // Sondanın güvenilir çıktısı şu ikisi: dönüş GÖRÜLDÜ mü, ve
+            // dönüşten kaç ms sonra uygulama tepki verebildi.
             let verdict = '';
             if (p.jsFreeMs !== null && p.firstFrameMs !== null) {
-              if (p.firstFrameMs < 400 && p.jsFreeMs < 400) verdict = ' → sorun yok';
-              else if (p.jsFreeMs >= 400 && p.firstFrameMs >= 400) verdict = ' → JS THREAD BLOKE (a)';
-              else if (p.firstFrameMs >= 400) verdict = ' → NATIVE KATMAN TAKILI (b)';
-              else verdict = ' → karışık';
+              const worst = Math.max(p.jsFreeMs, p.firstFrameMs);
+              if (worst < 400) verdict = ' → dönüş hızlı';
+              else if (worst < 1200) verdict = ` → ${worst}ms GECİKME`;
+              else verdict = ` → ${worst}ms DONMA`;
             }
             return `  ${fmt(p.at)}  jsFree ${js} · frame ${fr}  ${p.route ?? '?'}${verdict}`;
           }),
@@ -342,7 +354,12 @@ export function formatReport(): string {
     // Sürüm elle yazılmıyor: rapor hangi build'den geldiğini yanlış söylerse
     // ölçümün bütün değeri gider.
     `Sürüm: ${Constants.expoConfig?.version ?? '?'} (vc${Constants.expoConfig?.android?.versionCode ?? '?'})`,
-    `Toplam kayıt: ${entries.length} · En kötü: ${worst.blockedMs}ms · Öne dönüşe bağlı: ${resumeOnes.length}`,
+    // "Görülen öne dönüş" SAYISI kritik: eski rapor yalnızca "öne dönüşe bağlı:
+    // 0" diyordu ve bu iki bambaşka durumu aynı gösteriyordu — "dönüşte sorun
+    // yok" ile "test sırasında hiç dönüş olmadı". İki turdur o sıfırı sorunun
+    // yokluğu sanma riskiyle okuduk.
+    `Toplam kayıt: ${entries.length} · En kötü: ${worst.blockedMs}ms`,
+    `Görülen öne dönüş: ${probes.length} · Bunlara bağlı blokaj: ${resumeOnes.length}`,
     `Toplam blokaj: ${totalBlocked}ms${span > 0 ? ` / ${Math.round(span / 1000)}sn pencere` : ''}`,
     // `null` = satır hiç yazılmasın. Boş string KULLANILMIYOR çünkü boş
     // stringler bilerek konmuş ayırıcı satırlar ve onları da elerdi.
