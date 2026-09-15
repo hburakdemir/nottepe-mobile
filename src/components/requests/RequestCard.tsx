@@ -107,7 +107,13 @@ export default function RequestCard({ request, onFulfill, onSupport, onClose, on
       {request.status === 'fulfilled' && request.fulfilled_post_id && (
         <Pressable style={styles.fulfilledLink} onPress={() => navigation.navigate('PostDetail', { postId: request.fulfilled_post_id! })}>
           <ExternalLink size={15} color={brandIconColor} />
-          <Text className="text-accent" style={styles.fulfilledLinkText} numberOfLines={1}>
+          {/* Tek satır yerine İKİ satır — ve bilerek küçültme YOK. İçerik
+              değişken uzunlukta bir not başlığı: `adjustsFontSizeToFit` burada
+              yanlış çözüm olurdu, çünkü uzun bir başlık küçültme tabanına
+              (minimumFontScale) inse bile tek satıra sığmaz; sonuç "daha küçük
+              ve yine kesik" olur. Sarmaya izin vermek metnin tamamını
+              okunabilir boyutta tutuyor; satırın sabit yüksekliği yok. */}
+          <Text className="text-accent" style={styles.fulfilledLinkText} numberOfLines={2}>
             Karşılayan not: {request.fulfilled_post_title || 'Görüntüle'}
             {request.fulfiller_username ? ` (${request.fulfiller_username})` : ''}
           </Text>
@@ -205,7 +211,10 @@ const styles = StyleSheet.create({
   title: { fontSize: 17, fontWeight: '600', marginBottom: 4 },
   description: { fontSize: 14, marginBottom: 12, lineHeight: 19 },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 14 },
-  metaText: { fontSize: 12 },
+  // `flex: 1` olmadan ikondan sonra kalan genişlik hesaplanmıyordu: uzun ad +
+  // tarih ("Mehmet Emin Yılmaz · 14 Eylül 2026") yatayda uzayıp kart kenarında
+  // kırpılıyordu. Sarmasında sakınca yok, satırın sabit yüksekliği yok.
+  metaText: { fontSize: 12, flex: 1 },
   fulfilledLink: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 },
   fulfilledLinkText: { fontSize: 14, fontWeight: '600', flexShrink: 1 },
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

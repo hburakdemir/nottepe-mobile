@@ -184,7 +184,12 @@ export default function NoteRequestsScreen() {
 
       {view === 'board' && (
         <>
-          <View className="flex-row gap-1 mt-3 bg-inset rounded-lg p-1 self-end">
+          {/* `max-w-full`: şerit `self-end` olduğu için genişliği içeriğine göre
+              belirleniyordu ve bir üst sınırı yoktu — büyük yazı ölçeğinde
+              "En Çok İstenen" ebeveyni aşıp ekran kenarında KIRPILIYORDU. Üst
+              sınır konunca çocuklar sıkışabiliyor; etiketler de sarmak yerine
+              küçülüyor (segment kontrolünde satır sarması kırık görünür). */}
+          <View className="flex-row gap-1 mt-3 bg-inset rounded-lg p-1 self-end max-w-full">
             {[
               { value: 'new' as const, label: 'En Yeni' },
               { value: 'top' as const, label: 'En Çok İstenen' },
@@ -193,11 +198,18 @@ export default function NoteRequestsScreen() {
               return (
                 <Pressable
                   key={s.value}
-                  className="px-3 py-1.5 rounded-md"
+                  className="px-3 py-1.5 rounded-md shrink"
                   style={active ? (isDark ? SHADOW_SM_DARK : SHADOW_SM) : undefined}
                   onPress={() => setSort(s.value)}
                 >
-                  <Text className={`text-xs font-semibold ${active ? 'text-accent' : 'text-muted'}`}>{s.label}</Text>
+                  <Text
+                    className={`text-xs font-semibold ${active ? 'text-accent' : 'text-muted'}`}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.85}
+                  >
+                    {s.label}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -208,7 +220,16 @@ export default function NoteRequestsScreen() {
               className="flex-row items-center justify-between bg-inset border border-line rounded-lg px-4 py-2.5"
               onPress={() => setShowFacultyPicker(true)}
             >
-              <Text className={`text-sm flex-shrink ${faculty ? 'text-ink' : 'text-muted2'}`} numberOfLines={1}>
+              {/* Küçültme: `flex-shrink` + `numberOfLines={1}` taşmayı önlüyor ama
+                  bedeli üç noktayla KESMEK — "Mühendislik Fakültesi" gibi uzun
+                  adlar büyük yazı ölçeğinde okunamıyor ve kullanıcı hangi
+                  fakülteyi seçtiğini göremiyor. Kesmek yerine küçültüyoruz. */}
+              <Text
+                className={`text-sm flex-shrink ${faculty ? 'text-ink' : 'text-muted2'}`}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.85}
+              >
                 {faculty || 'Tüm Fakülteler'}
               </Text>
               <ChevronDown size={16} color={isDark ? '#9ca3af' : '#6b7280'} />
@@ -217,7 +238,14 @@ export default function NoteRequestsScreen() {
               className={`flex-row items-center justify-between bg-inset border border-line rounded-lg px-4 py-2.5 ${!faculty ? 'opacity-50' : ''}`}
               onPress={() => faculty && setShowDeptPicker(true)}
             >
-              <Text className={`text-sm flex-shrink ${department ? 'text-ink' : 'text-muted2'}`} numberOfLines={1}>
+              {/* Fakülte satırıyla aynı gerekçe (yukarıdaki nota bak): bölüm
+                  adları daha da uzun ("Bilgisayar Mühendisliği"). */}
+              <Text
+                className={`text-sm flex-shrink ${department ? 'text-ink' : 'text-muted2'}`}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.85}
+              >
                 {department || 'Tüm Bölümler'}
               </Text>
               <ChevronDown size={16} color={isDark ? '#9ca3af' : '#6b7280'} />

@@ -212,7 +212,23 @@ const Tile = React.memo(function Tile({
 }) {
   return (
     <View style={[styles.tile, surface, { width }, isNext && { borderColor: t.accent, borderWidth: 1.5 }]}>
-      <Text style={[styles.time, { color: isNext ? t.accent : t.ink }]}>{time}</Text>
+      {/* `numberOfLines={1}` + küçültme ZORUNLU, süs değil. Kutucuk hem sabit
+          yükseklikli (56) hem sabit genişlikli (`tileWidth`, ızgara sütuna
+          bölüyor) ve içerik ortalanmış. Sistem yazı ölçeği büyükken (tavan 1.2)
+          ya da kalın yazı açıkken "07:30" genişliğe sığmayıp İKİ SATIRA sarıyor;
+          iki satır 56'ya sığmadığı için saat kutunun dışına taşıp KIRPILIYOR —
+          yani ekranda hiç görünmüyor. Kullanıcının "taşmıyor ama kayboluyor"
+          dediği şey buydu. Tek satıra kilitleyip genişliğe göre küçültüyoruz.
+          Global otomatik küçültme bilerek kapalı (bkz. theme/applyGlobalFont.ts);
+          burada kutu gerçekten sabit olduğu için elle veriliyor. */}
+      <Text
+        style={[styles.time, { color: isNext ? t.accent : t.ink }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.8}
+      >
+        {time}
+      </Text>
       {/* İşaret satırı not olmasa da duruyor: kutucukların yüksekliği satırdan
           satıra oynamasın diye. */}
       <View style={styles.markers}>
@@ -380,7 +396,16 @@ export default function Ego130ScheduleScreen() {
           style={[styles.originButton, { backgroundColor: t.inset, borderColor: t.line }]}
         >
           <ArrowUpDown size={14} color={t.accent} />
-          <Text style={[styles.originText, { color: t.ink }]} numberOfLines={1}>
+          {/* Küçültme: etiket `flex: 1` ile sınırlı genişlikte ve tek satır —
+              büyük yazı ölçeğinde "Beytepe Metro (varış)" üç noktayla kesiliyor,
+              yani kullanıcı kalkış noktasının hangisi olduğunu okuyamıyor.
+              Kesmek yerine küçültüyoruz. */}
+          <Text
+            style={[styles.originText, { color: t.ink }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
+          >
             {ORIGIN_LABEL[origin]}
           </Text>
         </Pressable>
@@ -475,5 +500,10 @@ const styles = StyleSheet.create({
   markers: { flexDirection: 'row', gap: 4, height: MARKER_SIZE },
   legend: { marginTop: 14, gap: 8, paddingHorizontal: 2 },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  legendText: { fontSize: 12 },
+  // `flex: 1` OLMADAN satırdan taşıyordu: işaretten sonra kalan genişlik
+  // hesaplanmadığı için "Konservatuvar üzerinden, ücretsiz" gibi uzun açıklamalar
+  // sarmak yerine yatayda uzayıp ekran kenarında kırpılıyordu. Burada küçültme
+  // DEĞİL layout düzeltmesi doğru çözüm — açıklama satırının sarmasında bir
+  // sakınca yok, kutusu sabit yükseklikli değil.
+  legendText: { fontSize: 12, flex: 1 },
 });
