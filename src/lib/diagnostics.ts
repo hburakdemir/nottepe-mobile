@@ -58,7 +58,23 @@ const MAX_ENTRIES = 40;
 // dolu olanlar) ayrıca düşmeli — hem ölçüm hem unmount yolu kapandı.
 // v3 (1.0.7) turunun kayıtları cihazda kalıyor ama bu anahtarla okunmuyor;
 // o turun sonucu not edilmediyse karşılaştırma v2 tabanına göre yapılacak.
-const STORAGE_KEY = 'diag:jsblocks:v4';
+//
+// v5 (sürüm 1.0.9): REVİZE TURU — bu tur saf performans turu DEĞİL, sekiz
+// testçi revizesini içeriyor. Performans açısından üç değişiklik anlamlı:
+//  1. Çevrimdışı kilidi artık ağacı unmount etmiyor, üstüne biniyor
+//     (RootNavigator + useIsOffline). Öne dönüşte ağacın sıfırdan kurulma
+//     yollarından biri kapandı — `sinceResumeMs` dolu blokajlar DÜŞMELİ.
+//  2. Ana sayfa yüklenirken artık tam ekran değişmiyor, yalnızca liste
+//     gövdesi iskelete dönüyor. HOME ilk açılışı hafifledi.
+//  3. Tab bar kapsülü ve profil halkası: halkanın kalınlık değişimi avatar
+//     alt ağacında yerleşim tetiklemiyor artık.
+//
+// ⚠️ v4 (1.0.8) turu 18 SANİYELİK bir pencereydi ve 322 sn'lik v2 tabanıyla
+// oran olarak kıyaslanamaz. Profile'daki 4336 ms'lik tek blok muhtemelen
+// profilin İLK AÇILIŞ maliyeti ve bu turda ona DOKUNULMADI (profil şablonu
+// birleştirmesi ayrı bir iş). Yani Profile satırının düşmesi beklenmiyor;
+// beklenen HOME ve öne dönüş blokajlarında.
+const STORAGE_KEY = 'diag:jsblocks:v5';
 
 export type BlockEntry = {
   at: number;
