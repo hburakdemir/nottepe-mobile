@@ -6,6 +6,7 @@ import { CalendarDays, Edit2 } from 'lucide-react-native';
 import { DAY_NAMES, getCourseColor, toMinutes, type ScheduleCourse } from '../../utils/schedule';
 import type { RootStackParamList } from '../../navigation/types';
 import { useMySchedule } from '../../hooks/profile/useProfileLists';
+import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 import PagerPage, { type ProfileTabProps } from './PagerPage';
 import { EmptyState, SHADOW_SM, TabLoading } from './profileCommon';
 
@@ -40,6 +41,8 @@ const DayCard = React.memo(function DayCard({ day, courses }: { day: number; cou
 function ScheduleTab({ active, width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { data: schedule, isPending } = useMySchedule();
+  // bkz. ChecklistsTab.tsx — aynı gecikmeli yükleme kuralı.
+  const showLoading = useDelayedLoading(isPending);
 
   const goToSchedule = useCallback(() => navigation.navigate('Schedule'), [navigation]);
 
@@ -52,9 +55,9 @@ function ScheduleTab({ active, width, headerHeight, scrollY, onRememberOffset }:
       onRememberOffset={onRememberOffset}
     >
       {active &&
-        (isPending ? (
+        (showLoading ? (
           <TabLoading />
-        ) : !schedule || schedule.length === 0 ? (
+        ) : isPending ? null : !schedule || schedule.length === 0 ? (
           <EmptyState
             icon={CalendarDays}
             text="Henüz ders programı oluşturmadın."

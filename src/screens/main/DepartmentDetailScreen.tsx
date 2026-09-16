@@ -14,6 +14,7 @@ import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 import StateView from '../../components/StateView';
+import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 
 interface PostsPage {
   posts: Post[];
@@ -74,6 +75,9 @@ export default function DepartmentDetailScreen() {
       return loaded < lastPage.total ? allPages.length + 1 : undefined;
     },
   });
+  // bkz. HomeScreen.tsx — aynı gecikmeli yükleme kuralı: bağlantı hızlıysa
+  // spinner hiç görünmüyor.
+  const showLoading = useDelayedLoading(isLoading);
 
   const posts = useMemo(() => data?.pages.flatMap((p) => p.posts) ?? [], [data]);
   const total = data?.pages[0]?.total ?? 0;
@@ -101,12 +105,15 @@ export default function DepartmentDetailScreen() {
     </View>
   );
 
-  if (isLoading) {
+  if (showLoading) {
     return (
       <View className="flex-1 items-center justify-center py-[60px]">
         <StateView kind="loading" loadingColor={isDark ? '#5A9690' : '#1d4ed8'} />
       </View>
     );
+  }
+  if (isLoading) {
+    return <View className="flex-1" style={{ backgroundColor: t.ground }} />;
   }
 
   if (isError) {

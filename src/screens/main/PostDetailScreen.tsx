@@ -27,6 +27,7 @@ import type { Post } from '../../types/post';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 import StateView from '../../components/StateView';
+import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('tr-TR', {
@@ -76,6 +77,8 @@ export default function PostDetailScreen() {
     retry: false,
     staleTime: POST_DETAIL_STALE_MS,
   });
+  // bkz. HomeScreen.tsx — aynı gecikmeli yükleme kuralı.
+  const showLoading = useDelayedLoading(isLoading);
 
   const notFound = (error as { response?: { status?: number } } | null)?.response?.status === 404;
 
@@ -112,12 +115,17 @@ export default function PostDetailScreen() {
     ]);
   };
 
-  if (isLoading) {
+  if (showLoading) {
     return (
       <View style={[styles.center, { backgroundColor: t.ground }]}>
         <StateView kind="loading" loadingColor={t.accent} />
       </View>
     );
+  }
+  // bkz. FaqDetailScreen.tsx — gecikme dolmadan "bulunamadı" yanlışlıkla
+  // yanıp sönmesin diye ara boş görünüm.
+  if (isLoading) {
+    return <View style={[styles.center, { backgroundColor: t.ground }]} />;
   }
 
   if (isError || !post) {

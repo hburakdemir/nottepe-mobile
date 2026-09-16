@@ -11,6 +11,7 @@ import { checklistAPI } from '../../lib/api';
 import { isWithinEditWindow, type Checklist, type ChecklistItem } from '../../types/checklist';
 import type { RootStackParamList } from '../../navigation/types';
 import { MY_CHECKLISTS_KEY, useMyChecklists } from '../../hooks/profile/useProfileLists';
+import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 import PagerPage, { type ProfileTabProps } from './PagerPage';
 import { EmptyState, TabLoading } from './profileCommon';
 
@@ -25,6 +26,12 @@ function ChecklistsTab({ active, width, headerHeight, scrollY, onRememberOffset 
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const { data: checklists, isPending } = useMyChecklists();
+  // İnternet hızlıysa spinner hiç görünmüyor (bkz. useDelayedLoading.ts) —
+  // aynı kural ProfileScreen'in dış iskeletinde de geçerli. `isPending`
+  // gecikme dolmadan da true kalabiliyor; o aralıkta hiçbir şey göstermiyoruz
+  // (aşağıdaki `null` dalı), yoksa veri henüz gelmemişken "boş" metni yanlışlıkla
+  // yanıp sönerdi.
+  const showLoading = useDelayedLoading(isPending);
 
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [statsChecklist, setStatsChecklist] = useState<Checklist | null>(null);
@@ -73,9 +80,9 @@ function ChecklistsTab({ active, width, headerHeight, scrollY, onRememberOffset 
       onRememberOffset={onRememberOffset}
     >
       {active &&
-        (isPending ? (
+        (showLoading ? (
           <TabLoading />
-        ) : !checklists || checklists.length === 0 ? (
+        ) : isPending ? null : !checklists || checklists.length === 0 ? (
           <EmptyState
             icon={ListChecks}
             text="Henüz bir checklist oluşturmadın."

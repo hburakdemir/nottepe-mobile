@@ -8,6 +8,7 @@ import { aktsAPI } from '../../lib/api';
 import { formatGpa } from '../../utils/gano';
 import type { RootStackParamList } from '../../navigation/types';
 import { MY_AKTS_KEY, useMyAktsCalcs, type AktsCalc } from '../../hooks/profile/useProfileLists';
+import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 import PagerPage, { type ProfileTabProps } from './PagerPage';
 import { EmptyState, SHADOW_SM, TabLoading, formatDate } from './profileCommon';
 
@@ -54,6 +55,8 @@ function AktsTab({ active, width, headerHeight, scrollY, onRememberOffset }: Pro
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const { data: calcs, isPending } = useMyAktsCalcs();
+  // bkz. ChecklistsTab.tsx — aynı gecikmeli yükleme kuralı.
+  const showLoading = useDelayedLoading(isPending);
 
   const handleEdit = useCallback(
     (id: number) => navigation.navigate('AktsCalculator', { loadId: id }),
@@ -92,9 +95,9 @@ function AktsTab({ active, width, headerHeight, scrollY, onRememberOffset }: Pro
       onRememberOffset={onRememberOffset}
     >
       {active &&
-        (isPending ? (
+        (showLoading ? (
           <TabLoading />
-        ) : !calcs || calcs.length === 0 ? (
+        ) : isPending ? null : !calcs || calcs.length === 0 ? (
           <EmptyState
             icon={Calculator}
             text="Henüz kayıtlı AKTS hesaplaman yok."

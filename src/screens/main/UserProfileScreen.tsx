@@ -31,6 +31,7 @@ import type { Checklist } from '../../types/checklist';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
 import StateView from '../../components/StateView';
+import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 
 interface PublicProfile {
   id: number;
@@ -273,12 +274,20 @@ export default function UserProfileScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, profile, username]);
 
-  if (loading) {
+  // bkz. HomeScreen.tsx — aynı gecikmeli yükleme kuralı.
+  const showLoading = useDelayedLoading(loading);
+
+  if (showLoading) {
     return (
       <View className="flex-1 items-center justify-center gap-3 px-8 bg-ground">
         <StateView kind="loading" loadingColor={isDark ? '#5A9690' : '#2F5755'} />
       </View>
     );
+  }
+  // bkz. FaqDetailScreen.tsx — gecikme dolmadan "kullanıcı bulunamadı"
+  // yanlışlıkla yanıp sönmesin diye ara boş görünüm.
+  if (loading) {
+    return <View className="flex-1 bg-ground" />;
   }
 
   if (banned) {

@@ -106,8 +106,22 @@ function PostsTab({
       maxToRenderPerBatch={5}
       windowSize={7}
       initialNumToRender={5}
+      // `rows === null` = ilk sayfa henüz gelmedi. "Postlar"da BİLEREK hiçbir
+      // şey göstermiyoruz: o ilk yüklemeyi zaten ekran çapındaki iskelet
+      // karşılıyor (bkz. ProfileScreen). Buraya spinner koymak, iskelet
+      // gecikmesi (200ms, useDelayedLoading) dolmadan önceki pencerede
+      // "spinner -> iskelet -> içerik" diye çift geçiş yaratıyordu.
+      //
+      // "Kayıtlı"da spinner KALIYOR: oranın listesi bir not kaydedilip
+      // çıkarıldığında sentinel'e çekilip sekmeye girilince yeniden çekiliyor
+      // ve o an ekran iskeleti devrede değil — hiçbir geri bildirim olmazsa
+      // sekme boş görünürdü.
       ListEmptyComponent={
-        !active ? null : rows === null ? <TabLoading /> : <EmptyState icon={FileText} text={emptyText} />
+        !active ? null : rows === null ? (
+          kind === 'saved' ? <TabLoading /> : null
+        ) : (
+          <EmptyState icon={FileText} text={emptyText} />
+        )
       }
       ListFooterComponent={loadingMore ? <TabLoading /> : null}
     />

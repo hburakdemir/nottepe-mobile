@@ -10,6 +10,7 @@ import { useGoToUserProfile } from '../../hooks/useGoToUserProfile';
 import ForumCommentList, { type ForumComment } from '../../components/forum/ForumCommentList';
 import type { RootStackParamList } from '../../navigation/types';
 import StateView from '../../components/StateView';
+import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 
 const SUGGESTION_DETAIL_STALE_MS = 5 * 60 * 1000;
 
@@ -56,6 +57,8 @@ export default function SuggestionDetailScreen() {
     },
     staleTime: SUGGESTION_DETAIL_STALE_MS,
   });
+  // bkz. HomeScreen.tsx — aynı gecikmeli yükleme kuralı.
+  const showLoading = useDelayedLoading(isLoading);
 
   const suggestion = data?.suggestion ?? null;
   const comments = data?.comments ?? EMPTY_COMMENTS;
@@ -106,12 +109,17 @@ export default function SuggestionDetailScreen() {
     }
   };
 
-  if (isLoading) {
+  if (showLoading) {
     return (
       <View className="flex-1 items-center justify-center">
         <StateView kind="loading" loadingColor={isDark ? '#5A9690' : '#2F5755'} />
       </View>
     );
+  }
+  // bkz. FaqDetailScreen.tsx — gecikme dolmadan "bulunamadı" yanlışlıkla
+  // yanıp sönmesin diye ara boş görünüm.
+  if (isLoading) {
+    return <View className="flex-1 bg-ground" />;
   }
 
   if (isError) {
