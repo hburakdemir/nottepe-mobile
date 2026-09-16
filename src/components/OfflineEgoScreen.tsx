@@ -5,9 +5,13 @@ import { WifiOff } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 import Ego130ScheduleScreen from '../screens/main/Ego130ScheduleScreen';
 
-// Çevrimdışıyken (giriş yapılmış OLSUN ya da OLMASIN) düşülen TEK ekran —
-// bkz. RootNavigator.tsx'teki erken `return`. Eskiden yalnızca giriş
-// EKRANI için vardı; artık tam kilit her iki durumda da buraya düşüyor,
+// Çevrimdışıyken (giriş yapılmış OLSUN ya da OLMASIN) gösterilen TEK ekran.
+// Uygulama ağacının YERİNE geçmiyor, ÜSTÜNE biniyor: `RootNavigator` bunu
+// `StyleSheet.absoluteFill` bir katmanda çiziyor (gerekçe orada — ağacı
+// unmount etmek algılamayı yavaşlatmak zorunda bırakıyordu). Bu yüzden
+// kendi zemininin OPAK kalması şart: `colors.ground` arkadaki uygulamayı
+// tamamen kapatıyor. Eskiden yalnızca giriş EKRANI için vardı; artık
+// kilit her iki durumda da buraya düşüyor,
 // bu yüzden metin giriş durumuna göre dallanmıyor. `OfflineBanner`daki "Ring
 // seferlerini görmek ister misin?" butonu burada işe yaramaz — hedef aldığı
 // `RootStackParamList` (bkz. navigateWhenReady) bu ekranla birlikte mount

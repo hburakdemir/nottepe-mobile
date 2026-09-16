@@ -1,5 +1,5 @@
 import React, { Suspense, useMemo } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { useAuth } from '../context/AuthContext';
@@ -156,33 +156,56 @@ export default function RootNavigator() {
     [colors.ground]
   );
 
+  // ÇEVRİMDIŞI KİLİDİ AĞACI DEĞİŞTİRMİYOR, ÜSTÜNE BİNİYOR.
+  //
+  // Eskiden burada `if (isOffline) return <OfflineEgoScreen />` vardı: kilit
+  // devreye girdiğinde Drawer + Stack + Tab ağacının TAMAMI unmount oluyordu.
+  // Bedeli iki yönlüydü. (1) `useIsOffline`'da 1,5 sn'lik bir debounce tutmak
+  // ZORUNDAYDIK, çünkü ham okuma gerçek cihazda titriyor ve her titremede
+  // uygulama yıkılıp yeniden kuruluyordu — algılama 3,5 saniyeye çıkıyordu.
+  // (2) ASIL SORUN: Android ekran kapalıyken Wi-Fi'yi uykuya alıyor, dönüşte
+  // yeniden ilişkilendirme 1-3 sn sürüyor ve o pencerede gelen `false` kilidi
+  // bindirip tüm ağacı unmount ediyordu. Kullanıcı öne dönünce her ekran
+  // sıfırdan kuruluyor, her sorgu yeniden çekiliyor, bütün avatarlar yeniden
+  // çiziliyordu — "arka plana gir-çık yapınca donuyor" şikâyetinin yolu bu.
+  //
+  // Katman olarak çizince giriş/çıkış ucuzluyor: ağaç ayakta kalıyor, yalnızca
+  // üstüne opak bir ekran biniyor. Böylece debounce 300 ms'ye, yoklama 750
+  // ms'ye inebildi (bkz. useIsOffline.ts) ve algılama saniyenin altına düştü.
+  //
+  // Kullanıcının eski şikâyeti ("internet yoksa notlar yüklenemedi profiller
+  // yüklenemedi olmamalı") ağaç ayakta kaldığı için geri dönebilirdi; onu
+  // react-query'nin `onlineManager`'ı kapatıyor (bkz. useIsOffline.ts):
+  // çevrimdışıyken sorgular DURAKLIYOR, istek atmıyor, hata ekranı üretmiyor.
+  //
+  // ⚠️ Sarmalayıcının arka planı YOK ve olmamalı: saydam kaldığı için
+  // PushableStack'in köşe çentiğini boyamıyor (aşağıdaki `menuBg` notuna bak).
+  const withOfflineOverlay = (node: React.ReactNode) => (
+    <View style={{ flex: 1 }}>
+      {node}
+      {isOffline && (
+        <View style={StyleSheet.absoluteFill}>
+          <OfflineEgoScreen />
+        </View>
+      )}
+    </View>
+  );
+
   // Açılışta oturum kontrolü — depodan token okunuyor.
   if (loading) {
-    return (
+    return withOfflineOverlay(
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.ground }}>
         <ActivityIndicator size="large" color="#1d4ed8" />
       </View>
     );
   }
 
-  // TAM ÇEVRİMDIŞI KİLİDİ — giriş yapılmış/yapılmamış farkı ARTIK YOK.
-  // Eskiden yalnızca giriş EKRANI çevrimdışıyken EGO 130'a düşüyordu; giriş
-  // yapılmışken bir banner beliriyordu ama uygulamanın geri kalanı (notlar,
-  // profiller, gönderiler) normal şekilde açılmaya çalışıp "yüklenemedi"
-  // yığınına dönüşüyordu — kullanıcı isteği ("internet yoksa notlar
-  // yüklenemedi profiller yüklenemedi gönderi yüklenemedi vs olmamalı",
-  // "internet yokken uygulama açıldığında direkt 130 sayfasına yönlendirme
-  // yapmalı") bunun HER İKİ durumda da olmasını istiyor. `useIsOffline` artık
-  // titremeye karşı debounce'lu (bkz. o dosya) — eski gate'in kaldırılma
-  // sebebi olan unmount/remount fırtınası ondan ve Faz 1'deki `withAppShell`
-  // taşımasından beri artık güvenli. Bağlantı geri geldiğinde `isOffline`
-  // `false`'a döndüğü an ağaç otomatik olarak normal hâline dönüyor.
-  if (isOffline) {
-    return <OfflineEgoScreen />;
-  }
-
+  // Kilit giriş yapılmış/yapılmamış AYRIMI GÖZETMİYOR: katman her iki durumun
+  // da üstüne biniyor, yani giriş ekranında da çevrimdışıyken EGO 130
+  // görünüyor. Kullanıcı isteği buydu: "internet yokken uygulama açıldığında
+  // direkt 130 sayfasına yönlendirme yapmalı."
   if (!isAuthenticated) {
-    return <AuthNavigator />;
+    return withOfflineOverlay(<AuthNavigator />);
   }
 
   const needsOnboardingGate = !!user && (!user.kvkkConsentAt || !user.faculty || !user.department);
@@ -205,7 +228,7 @@ export default function RootNavigator() {
   // boyuyor. Zemin TEK katman kalmalı ve menüyle aynı renk olmalı.
   const menuBg = colors.surface;
 
-  return (
+  return withOfflineOverlay(
     <View style={{ flex: 1, backgroundColor: menuBg }}>
       <Drawer.Navigator
         id={ROOT_DRAWER_ID as never}
@@ -256,14 +279,22 @@ export default function RootNavigator() {
           )}
         </Drawer.Screen>
       </Drawer.Navigator>
-      {/* Eskiden burada `isOffline &&` ile üstte bir OfflineBanner belirirdi,
-          ağaç bozulmadan. Artık `isOffline` bu bileşene hiç ulaşmıyor — yukarıda
-          erken `return <OfflineEgoScreen />` var (bkz. yukarısı), yani tam
-          kilit tüm giriş durumlarında geçerli. `OfflineBanner` bileşeni silinmedi:
+      {/* Eskiden burada `isOffline &&` ile üstte bir OfflineBanner belirirdi.
+          Artık çevrimdışı durumu bu ağaçta hiç ele alınmıyor: tam kilit
+          `withOfflineOverlay` ile bu ağacın ÜSTÜNE biniyor (bkz. yukarısı) ve
+          tüm giriş durumlarında geçerli. `OfflineBanner` bileşeni silinmedi:
           onun "İnternet bağlantınız yok / Ring seferlerini görmek ister
           misiniz?" metni ve ikonu artık StateView.tsx'in offline durumunda
           yeniden kullanılıyor. */}
-      {needsOnboardingGate && <KvkkGateModal />}
+      {/* `!isOffline` ŞART. Bu bir RN `Modal`, yani native olarak AYRI bir
+          pencerede, çevrimdışı katmanının bile ÜSTÜNDE çiziliyor — katman onu
+          kapatamaz. Kilit eskiden tüm ağacı unmount ettiği için bu modal
+          çevrimdışıyken hiç mount olmuyordu; katmana geçişle mount olabilir
+          hâle geldi. Çevrimdışıyken göstermek anlamsız: KVKK onayı ve
+          fakülte/bölüm kaydı sunucuya yazılıyor, istekler de duraklatılmış
+          durumda (bkz. useIsOffline.ts `onlineManager`) — kullanıcı formu
+          doldurup hiçbir şey olmadığını görürdü. */}
+      {needsOnboardingGate && !isOffline && <KvkkGateModal />}
     </View>
   );
 }

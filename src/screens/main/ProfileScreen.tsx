@@ -124,36 +124,46 @@ export default function ProfileScreen() {
     }, [activeTab, refreshMyPosts, refreshSavedPosts])
   );
 
-  // ÖNEMLİ (off-by-one düzeltmesi): eskiden pager'ın `contentOffset` prop'u
-  // HER render'da canlı olarak yeniden yazılıyordu. `handleTabPress`'in
-  // başlattığı `scrollTo({animated:true})` sürerken bu `onScroll` (32ms
-  // throttle) ara bir indeksi yuvarlayıp `setActiveTab` çağırıyordu, bu da
-  // `contentOffset`'i o ara sayfaya çakıp animasyonu BİR SAYFA ERKEN
-  // durduruyordu — "tablarda gezerken neye tıkladıysam bir sağına ya da bir
-  // soluna gidiyor" şikâyeti buydu. Artık `contentOffset` prop'u yok (bkz.
-  // render), kesin doğru sayfa `onMomentumScrollEnd`'den geliyor;
-  // `handlePagerScroll` yalnızca sürüklerken şeridin/sayfanın önizlemesi
-  // için çalışıyor ve KENDİ programatik `scrollTo`'muz sürerken (bu kilit
-  // sayesinde) devre dışı kalıyor.
-  const isProgrammaticScrollRef = useRef(false);
-
-  const handlePagerScroll = useCallback(
-    ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
-      if (isProgrammaticScrollRef.current) return;
-      if (screenWidth <= 0) return;
-      const idx = Math.round(nativeEvent.contentOffset.x / screenWidth);
-      const key = TABS[idx]?.key;
-      if (key && key !== activeTab) setActiveTab(key);
-    },
-    [screenWidth, activeTab]
-  );
+  // ⚠️ SÜRÜKLEME SIRASINDA SAYFA ARTIK DEĞİŞMİYOR — `onScroll` dinleyicisi
+  // tamamen kaldırıldı. Bir daha "şerit parmağı takip etsin" diye geri ekleme.
+  //
+  // Eskiden 32 ms throttle'lı bir `onScroll` vardı ve `Math.round` ile sayfayı
+  // sürükleme YARIYA gelince değiştiriyordu. Görünürde masum bir önizlemeydi;
+  // gerçekte her sekmenin içeriği `active` prop'unu RENDER KAPISI olarak
+  // kullanıyor (`PostsTab.tsx` `data={active ? posts : NO_POSTS}`, diğerleri
+  // `{active && ...}`), yani `activeTab` değiştiği an eski sayfanın tüm alt
+  // ağacı UNMOUNT ediliyor ve yeninin ağacı sıfırdan kuruluyor. Postlar/Kayıtlı
+  // sekmelerinde bu ~25-30 `PostCardModern`, her birinde ~25-40 düğümlük bir
+  // `AvatarSVG` demek: kabaca 850 native SVG view + 220 metin ölçümü, hepsi
+  // JEST SÜRERKEN. Üstüne `onMomentumScrollEnd` ikinci bir flip yapabildiği
+  // için tek kaydırma iki tam yıkım/kurulum turu üretiyordu.
+  //
+  // Teşhis rozeti bunu ölçtü: 61 saniyelik pencerede Profile 24 blokaj /
+  // 16.925 ms — tüm blokajların %64'ü. Blokajların 28 saniyeye yığılıp sonra
+  // 16 saniye hiç görünmemesi periyodik bir sebebi eliyor: iş etkileşime bağlı.
+  //
+  // Projede aynı mekanizma navigator seviyesinde zaten kapatılmış
+  // (`MainTabsScreen.tsx` `detachInactiveScreens={false}`, notu "yavaşlık
+  // sekmeye ilk gidişte değil HER gidişte"). Pager bunu elle yeniden yapıyordu.
+  //
+  // Kaybedilen: sürüklerken şerit vurgusu parmağı takip etmiyor, bırakınca
+  // yerine oturuyor. Kazanılan: rebuild jestin dışına çıktı ve sayısı yarıya
+  // indi. `active` kapısının kendisi hâlâ duruyor — o bir sonraki tek değişken.
+  //
+  // (Tarihsel not: `contentOffset` prop'u da eskiden her render'da canlı
+  // yazılıyordu ve o `onScroll` ara bir indeksi yuvarlayınca animasyonu BİR
+  // SAYFA ERKEN durduruyordu — "neye tıkladıysam bir sağına gidiyor" şikâyeti.
+  // O prop kaldırıldı ve öyle kalmalı; kesin sayfa `onMomentumScrollEnd`'den
+  // geliyor. `onScroll` gittiği için o hatanın ikinci yarısı da artık imkânsız
+  // ve onu bastırmak için tutulan `isProgrammaticScrollRef` kilidi de
+  // gereksizleşip kaldırıldı.)
 
   // Kaydırma bittiğinde (elle sürükleyip bırakınca DA, `pagingEnabled`
   // sayfayı kendi kendine hizaya oturttuğunda DA) gerçek sayfa burada kesin
   // olarak belirleniyor — hiçbir sayfa boş/yanlış sekmede takılı kalmıyor.
+  // ARTIK TEK KARAR NOKTASI BURASI.
   const handlePagerMomentumEnd = useCallback(
     ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
-      isProgrammaticScrollRef.current = false;
       if (screenWidth <= 0) return;
       const idx = Math.round(nativeEvent.contentOffset.x / screenWidth);
       const key = TABS[idx]?.key;
@@ -164,7 +174,10 @@ export default function ProfileScreen() {
 
   const handleTabPress = useCallback(
     (index: number) => {
-      isProgrammaticScrollRef.current = true;
+      // Şeride dokunmak tek karar noktası olan `onMomentumScrollEnd`'i
+      // beklemiyor: hedef zaten kesin, hemen yazılıyor. (Eskiden burada bir
+      // `isProgrammaticScrollRef` kilidi vardı; onu okuyan `onScroll`
+      // dinleyicisi kaldırıldığı için gereksizleşti — bkz. yukarıdaki not.)
       setActiveTab(TABS[index].key);
       pagerRef.current?.scrollTo({ x: index * screenWidth, animated: true });
     },
@@ -291,9 +304,10 @@ export default function ProfileScreen() {
   // tutuyor (pager'ın geometrisi bozulmasın, `scrollTo(idx * screenWidth)`
   // çalışmaya devam etsin diye).
   //
-  // ±1 penceresi kasıtlı: `handlePagerScroll` sayfayı YARIYA gelindiğinde
-  // değiştiriyor (`Math.round`), yani hedef sayfa siz oraya varmadan ÖNCE
-  // zaten mount olmuş oluyor — parmakla kaydırırken boş sayfa görünmüyor.
+  // ±1 penceresi kasıtlı VE ARTIK DAHA DA ÖNEMLİ: sürükleme sırasındaki sayfa
+  // değişimi kaldırıldığı için (bkz. yukarıdaki not) `activeTab` ancak parmak
+  // kalkınca güncelleniyor. Komşuların önceden mount'lu olması bu yüzden şart —
+  // olmasaydı parmakla kaydırırken yandaki sayfa boş görünürdü.
   //
   // Bir kez mount olan sayfa mount'lu KALIYOR: kaydırma konumu (bkz.
   // `pageScrollOffsets`) ve yüklenmiş verisi korunsun diye.
@@ -347,12 +361,7 @@ export default function ProfileScreen() {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        onScroll={handlePagerScroll}
-        onScrollBeginDrag={() => {
-          isProgrammaticScrollRef.current = false;
-        }}
         onMomentumScrollEnd={handlePagerMomentumEnd}
-        scrollEventThrottle={32}
         style={{ flex: 1 }}
       >
         <PostsTab
