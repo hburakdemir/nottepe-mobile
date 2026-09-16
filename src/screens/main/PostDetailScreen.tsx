@@ -105,6 +105,12 @@ export default function PostDetailScreen() {
 
   const notFound = (error as { response?: { status?: number } } | null)?.response?.status === 404;
 
+  // Hook'lar erken `return`lerden ÖNCE, koşulsuz — aşağıda iskelet/hata için
+  // erken çıkışlar var, burada `useMemo`yu onların ALTINA koymak render'lar
+  // arasında hook sayısını değiştirirdi (Rules of Hooks). Memoizasyonun
+  // gerekçesi PostCardModern.tsx'te: her çağrıda yeni nesne, memo hiç tutmuyor.
+  const authorAvatar = useMemo(() => (post ? buildPostAuthorAvatar(post) : null), [post]);
+
   const handleRetry = useCallback(() => {
     refetch();
   }, [refetch]);
@@ -248,7 +254,6 @@ export default function PostDetailScreen() {
   const isOwner = user && String(user.id) === String(post.user_id);
   const avgRating = Number(post.avg_rating) || 0;
   const ratingCount = post.rating_count || 0;
-  const authorAvatar = buildPostAuthorAvatar(post);
   const files = post.file_urls ?? [];
 
   return (

@@ -65,7 +65,13 @@ export default function PostCardModern({ post, showStatus = false, showRating = 
   const [showRatingPicker, setShowRatingPicker] = useState(false);
   const postId = post.id ?? post.post_id!;
   const isSaved = savedPosts.includes(String(postId));
-  const authorAvatar = buildPostAuthorAvatar(post);
+  // ⚠️ `useMemo` ZORUNLU — `buildPostAuthorAvatar` her çağrıda YENİ bir nesne
+  // döndürüyor. Memoize edilmezse `AvatarDisplay`in (ve onun içindeki
+  // `AvatarSVG`in) `React.memo`su HİÇBİR ZAMAN tutmaz: bu kartın her
+  // render'ında 30-50 native SVG düğümü sökülüp yeniden kuruluyordu — akışta
+  // onlarca kart var (bkz. AvatarSVG.tsx'teki düğüm sayısı notu).
+  // `CommentSection` aynı işi `buildCommentAuthorAvatar` için zaten yapıyor.
+  const authorAvatar = React.useMemo(() => buildPostAuthorAvatar(post), [post]);
   const files = post.file_urls ?? [];
   const fileCount = files.length;
 

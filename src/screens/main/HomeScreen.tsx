@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { keepPreviousData, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery, useIsRestoring, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronDown, GraduationCap, HeartHandshake, Search, X } from 'lucide-react-native';
@@ -103,6 +103,18 @@ export default function HomeScreen() {
     staleTime: 60_000,
   });
 
+  // DİSKTEN GERİ YÜKLEME PENCERESİ.
+  //
+  // Akışın ilk sayfası artık diske yazılıyor (bkz. lib/queryPersist.ts), ama
+  // `PersistQueryClientProvider` çocukları beklemeden çiziyor (bkz. App.tsx):
+  // ilk kare "veri yok → iskelet", 1-2 kare sonra "hidrasyon bitti → içerik"
+  // olurdu. Yani kullanıcı diskte hazır veri varken bile bir an iskelet
+  // görürdü — düzeltmeye çalıştığımız şeyin aynısı.
+  //
+  // O pencerede hiçbir şey çizmiyoruz: geri yükleme tipik olarak bir-iki kare
+  // sürüyor, göze görünmüyor; karşılığında hazır veri DOĞRUDAN içerik olarak
+  // açılıyor.
+  const isRestoring = useIsRestoring();
   const showSkeleton = isLoading;
 
   // Yalnızca kullanıcının elle aşağı ÇEKMESİ pull-to-refresh spinner'ını
@@ -224,6 +236,10 @@ export default function HomeScreen() {
   // Ortadaki spinner yerine gelecek sayfanın yerleşimini çizen iskelet —
   // içerik gelince ekran boş ortadan dolu sayfaya zıplamıyor. Yükleme başlar
   // başlamaz geliyor, veri gelince anında gidiyor: arada yapay bir eşik YOK.
+  if (isRestoring) {
+    return <View className="flex-1 bg-ground" />;
+  }
+
   if (showSkeleton) {
     return <HomeSkeleton />;
   }
