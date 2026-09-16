@@ -473,17 +473,31 @@ export default function CommentSection({
             <SkeletonGroup>
               <View style={{ gap: 10, marginTop: 10 }}>
                 {([
-                  { name: 84, body: ['100%', '72%'] },
-                  { name: 66, body: ['96%', '54%'] },
-                  { name: 92, body: ['100%'] },
+                  { name: 84, badge: 46, stars: true, body: ['100%', '72%'] },
+                  { name: 66, badge: 0, stars: true, body: ['96%', '58%'] },
+                  { name: 92, badge: 38, stars: false, body: ['100%', '46%'] },
                 ] as const).map((row, i) => (
-                  <View key={i} style={[styles.commentCard, { borderColor: t.line }]}>
-                    <View style={styles.commentUser}>
-                      <Skeleton width={26} height={26} radius={13} />
-                      <View style={{ gap: 4 }}>
-                        <Skeleton width={row.name} height={13} />
-                        <Skeleton width={58} height={10} />
+                  <View key={i} style={[styles.commentCard, { backgroundColor: t.inset, borderColor: t.line }]}>
+                    <View style={styles.commentHeader}>
+                      <View style={styles.commentUser}>
+                        <Skeleton width={26} height={26} radius={13} style={{ backgroundColor: t.card }} />
+                        <View style={{ flex: 1, gap: 5 }}>
+                          <View style={styles.usernameRow}>
+                            <Skeleton width={row.name} height={13} />
+                            {row.badge > 0 && <Skeleton width={row.badge} height={14} radius={100} />}
+                          </View>
+                          <Skeleton width={104} height={10} />
+                        </View>
                       </View>
+                      {/* Puan yıldızları SABİT: boş yıldız zaten gerçek kartta da
+                          "puan yok" hâli — gri bloğa çevirmek bilgi kaybı olurdu. */}
+                      {row.stars && (
+                        <View style={styles.starRow}>
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Star key={s} size={14} color={t.line} />
+                          ))}
+                        </View>
+                      )}
                     </View>
                     <View style={{ gap: 6, marginTop: 8 }}>
                       {row.body.map((w, j) => (

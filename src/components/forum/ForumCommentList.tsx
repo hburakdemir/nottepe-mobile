@@ -251,9 +251,16 @@ export default function ForumCommentList({ comments, loading, canModerate, onAdd
                     <Skeleton key={j} height={13} style={{ width: w }} />
                   ))}
                 </View>
+                {/* Oy butonları SABİT (ikon + çerçeve), yalnızca sayıları gri. */}
                 <View style={styles.voteRow}>
-                  <Skeleton width={46} height={26} radius={8} />
-                  <Skeleton width={46} height={26} radius={8} />
+                  <View className="border-line" style={styles.voteBtn}>
+                    <ThumbsUp size={13} color={isDark ? '#4b5563' : '#d1d5db'} />
+                    <Skeleton width={12} height={11} />
+                  </View>
+                  <View className="border-line" style={styles.voteBtn}>
+                    <ThumbsDown size={13} color={isDark ? '#4b5563' : '#d1d5db'} />
+                    <Skeleton width={12} height={11} />
+                  </View>
                 </View>
               </View>
             ))}
