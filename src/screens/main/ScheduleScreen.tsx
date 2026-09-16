@@ -223,33 +223,58 @@ export default function ScheduleScreen() {
     }
   };
 
+  // İskelet, aşağıdaki gerçek yerleşimin aynısı: üstte dört eylem butonu,
+  // altında gün kartları ve her satırda 12×40 renk çubuğu + ders adı + saat.
+  //
+  // Eskiden burada 5 sütunlu bir TAKVİM IZGARASI çiziliyordu — bu ekranda
+  // ızgara diye bir şey hiç olmadı; veri gelince kullanıcı bambaşka bir sayfa
+  // görüyordu. Butonlar sabit metin taşıdığı için iskelette de gerçek hâlleriyle
+  // duruyor, yalnızca veriden gelen gün adı ve ders satırları gri.
   if (isLoading) {
     return (
       <SkeletonGroup>
-        <View className="flex-1 bg-ground p-4 gap-3">
-          <View className="flex-row gap-2">
-            <Skeleton width={100} height={34} radius={10} />
-            <Skeleton width={100} height={34} radius={10} />
-          </View>
-          {/* Gün sütunlu ızgaranın kaba şekli: 5 gün × 4 satır. */}
-          <View className="bg-surface rounded-xl p-3 gap-2 border border-line-soft">
-            <View className="flex-row gap-1.5">
-              {[0, 1, 2, 3, 4].map((d) => (
-                <View key={d} className="flex-1">
-                  <Skeleton height={11} style={{ width: '100%' }} />
-                </View>
-              ))}
+        <View className="flex-1 bg-ground px-4 pt-6">
+          <View className="flex-row flex-wrap gap-2 mb-3">
+            <View className="flex-row items-center gap-2 bg-brand rounded-lg px-5 py-2.5">
+              <Plus size={18} color="#fff" />
+              <Text className="text-white text-sm font-medium">Ders Ekle</Text>
             </View>
-            {[0, 1, 2, 3].map((row) => (
-              <View key={row} className="flex-row gap-1.5">
-                {[0, 1, 2, 3, 4].map((d) => (
-                  <View key={d} className="flex-1">
-                    <Skeleton height={44} radius={8} style={{ width: '100%' }} />
+            <View className="flex-row items-center gap-2 border border-brand rounded-lg px-4 py-2.5">
+              <Share2 size={18} color={isDark ? '#5A9690' : '#2F5755'} />
+              <Text className="text-brand dark:text-brand-light text-sm font-medium">Paylaş</Text>
+            </View>
+            <View className="flex-row items-center gap-2 border border-brand rounded-lg px-4 py-2.5">
+              <Download size={18} color={isDark ? '#5A9690' : '#2F5755'} />
+              <Text className="text-brand dark:text-brand-light text-sm font-medium">İndir</Text>
+              <ChevronDown size={14} color={isDark ? '#5A9690' : '#2F5755'} />
+            </View>
+            <View className="flex-row items-center gap-2 rounded-lg px-4 py-2.5 border border-[#fca5a5]">
+              <Trash2 size={18} color="#ef4444" />
+              <Text className="text-sm font-medium text-[#ef4444]">Temizle</Text>
+            </View>
+          </View>
+
+          {[
+            { name: 98, rows: [60, 48] },
+            { name: 64, rows: [54, 40] },
+            { name: 90, rows: [58] },
+            { name: 80, rows: [52] },
+          ].map((day, i) => (
+            <View key={i} className="bg-white rounded-lg p-4 mt-4" style={SHADOW_MD}>
+              <Skeleton width={day.name} height={16} />
+              <View className="gap-2 mt-3">
+                {day.rows.map((w, j) => (
+                  <View key={j} className="flex-row items-center gap-3 rounded-lg p-3 border border-gray-100">
+                    <Skeleton width={12} height={40} radius={100} />
+                    <View className="flex-1 gap-1.5">
+                      <Skeleton height={14} style={{ width: `${w}%` }} />
+                      <Skeleton height={12} style={{ width: `${w - 14}%` }} />
+                    </View>
                   </View>
                 ))}
               </View>
-            ))}
-          </View>
+            </View>
+          ))}
         </View>
       </SkeletonGroup>
     );

@@ -7,7 +7,7 @@ import { SAVED_POSTS_KEY, useSavedPosts } from '../../context/SavedPostContext';
 import PostCard from '../../components/PostCard';
 import { useFeedTokens } from '../../theme/feedTokens';
 import { SkeletonGroup } from '../../components/Skeleton';
-import NoteCardSkeleton from '../../components/NoteCardSkeleton';
+import PostCardSkeleton from '../../components/PostCardSkeleton';
 import type { Post } from '../../types/post';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 
@@ -61,13 +61,16 @@ export default function SavedPostsScreen() {
 
   const renderPost = useCallback(({ item }: { item: Post }) => <PostCard post={item} />, []);
 
+  // Liste `PostCard` (yani `PostCardModern`) basıyor; iskelet de o kartın
+  // birebir ölçülerini taşıyor. Dolgu/boşluk kartın kendi stilinde olduğu için
+  // sarmalayıcıda yalnızca listenin `paddingTop: 4`ü var.
   if (isLoading) {
     return (
       <SkeletonGroup>
-        <View className="flex-1 p-4 gap-3" style={{ backgroundColor: t.ground }}>
-          {[0, 1, 2].map((i) => (
-            <NoteCardSkeleton key={i} />
-          ))}
+        <View className="flex-1" style={{ backgroundColor: t.ground, paddingTop: 4 }}>
+          <PostCardSkeleton files={2} />
+          <PostCardSkeleton files={1} />
+          <PostCardSkeleton files={0} />
         </View>
       </SkeletonGroup>
     );

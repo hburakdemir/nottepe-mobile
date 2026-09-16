@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { Skeleton, SkeletonGroup } from '../Skeleton';
-import NoteCardSkeleton from '../NoteCardSkeleton';
+import PostCardSkeleton from '../PostCardSkeleton';
 
 // Ana sayfanın yükleme durumu. Eskiden ortada tek bir `StateView kind="loading"`
 // spinner'ı vardı: "bir şey oluyor" demekten başka bilgi vermiyor ve içerik
@@ -11,8 +11,9 @@ import NoteCardSkeleton from '../NoteCardSkeleton';
 // sırada: arama kutusu, fakülte seçici, iki kısayol karesi (124px, `flex-1`),
 // sonra not kartları. İçerik geldiğinde hiçbir şey yer değiştirmiyor.
 //
-// Kart işaretlemesi `NoteCardSkeleton`'dan — Profil ve Kaydedilenler ile aynı
-// kaynak (bkz. o dosyadaki not).
+// Kart işaretlemesi `PostCardSkeleton`'dan — akışta çizilen gerçek kart
+// (`PostCardModern`) ile birebir aynı ölçüler; Profil ve Kaydedilenler de aynı
+// kaynağı kullanıyor (bkz. o dosyadaki not).
 export default function HomeSkeleton() {
   return (
     <SkeletonGroup>
@@ -34,12 +35,10 @@ export default function HomeSkeleton() {
           </View>
         </View>
 
-        {/* Notlar */}
-        <View className="p-4 gap-3">
-          {[0, 1, 2, 3].map((i) => (
-            <NoteCardSkeleton key={i} />
-          ))}
-        </View>
+        {/* Notlar — kart dolgusunu/boşluğunu PostCardSkeleton kendi taşıyor
+            (marginHorizontal 12, marginTop 10), sarmalayıcı dolgu yok. */}
+        <PostCardSkeleton files={2} />
+        <PostCardSkeleton files={1} />
       </View>
     </SkeletonGroup>
   );

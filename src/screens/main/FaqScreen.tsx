@@ -114,14 +114,34 @@ export default function FaqScreen() {
   return (
     <View className="flex-1 bg-ground">
       {isLoading ? (
-        // Çark yerine listenin kendi şekli: aynı kart yüksekliği, aynı iki
-        // satırlık metin bloğu. Veri gelince yerleşim yerinden oynamıyor.
+        // Gerçek kartın ÜÇ katmanı da burada: soru (14.5px), iki satır cevap ve
+        // yorum sayısı satırı; sağda ok, üstte "Soru Sor" butonu. Eskiden iki
+        // çubuklu, çerçeveli ve oksuz bir kart çiziliyordu.
         <SkeletonGroup>
-          <View className="p-4 gap-2.5">
-            {[0, 1, 2, 3, 4, 5].map((i) => (
-              <View key={i} className="bg-surface rounded-xl p-3.5 border border-line-soft gap-2">
-                <Skeleton width="85%" height={14} />
-                <Skeleton width="45%" height={11} />
+          <View className="p-4">
+            {header}
+            {([
+              { q: '74%', a: ['100%', '62%'], author: 64 },
+              { q: '82%', a: ['100%', '54%'], author: 48 },
+              { q: '68%', a: ['98%', '70%'], author: 0 },
+              { q: '86%', a: ['100%', '46%'], author: 56 },
+              { q: '72%', a: ['96%', '58%'], author: 0 },
+            ] as const).map((row, i) => (
+              <View key={i} className="flex-row items-start gap-2.5 bg-surface rounded-xl p-3.5 mb-2.5">
+                <View className="flex-1">
+                  <Skeleton height={14} style={{ width: row.q }} />
+                  <View className="gap-1.5 mt-2">
+                    {row.a.map((w, j) => (
+                      <Skeleton key={j} height={12} style={{ width: w }} />
+                    ))}
+                  </View>
+                  <View className="flex-row items-center gap-[5px] mt-2">
+                    <MessageSquare size={12} color={isDark ? '#4b5563' : '#d1d5db'} />
+                    <Skeleton width={50} height={11} />
+                    {row.author > 0 && <Skeleton width={row.author} height={11} />}
+                  </View>
+                </View>
+                <ChevronRight size={18} color={isDark ? '#4b5563' : '#e5e7eb'} />
               </View>
             ))}
           </View>

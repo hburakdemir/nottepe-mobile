@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, ListRenderItem, Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRoute } from '@react-navigation/native';
-import { ListChecks, Plus, Trash2, X } from 'lucide-react-native';
+import { BarChart2, ChevronDown, ListChecks, Pencil, Plus, Trash2, X } from 'lucide-react-native';
 import { checklistAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import ChecklistCard from '../../components/ChecklistCard';
@@ -147,18 +147,55 @@ export default function ChecklistsScreen() {
     [expandedId, user?.id, toggleExpand, handleToggleItem]
   );
 
+  // `ChecklistCard` ile aynı yerleşim: başlık satırının sağında açma oku (20px,
+  // dikdörtgen blok değil), ilerleme çubuğunun YANINDA sayaç için yer, altta
+  // 30×30 eylem butonları. Üstteki oluşturma butonu sabit, olduğu gibi duruyor.
   if (isLoading) {
     return (
       <SkeletonGroup>
-        <View className="flex-1 bg-ground p-4 gap-3">
-          {[0, 1, 2, 3].map((i) => (
-            <View key={i} className="bg-surface rounded-xl p-4 border border-line-soft gap-2.5">
-              <View className="flex-row items-center justify-between">
-                <Skeleton width="55%" height={15} />
-                <Skeleton width={40} height={12} />
+        <View className="flex-1 bg-ground px-4 pt-4">
+          <View className="flex-row justify-end mb-4">
+            <View className="flex-row items-center gap-2 bg-brand rounded-lg px-4 py-2">
+              <Plus size={16} color="#fff" />
+              <Text className="text-white text-sm font-medium">Checklist Oluştur</Text>
+            </View>
+          </View>
+
+          {([
+            { title: '56%', desc: '76%', badge: true, actions: 2 },
+            { title: '48%', desc: '84%', badge: false, actions: 1 },
+            { title: '60%', desc: '70%', badge: false, actions: 0 },
+            { title: '52%', desc: '80%', badge: false, actions: 0 },
+            { title: '44%', desc: '66%', badge: false, actions: 0 },
+          ] as const).map((row, i) => (
+            <View key={i} className="bg-surface rounded-[14px] mb-3 overflow-hidden">
+              <View className="flex-row items-start gap-2.5 p-4">
+                <View className="flex-1">
+                  <View className="flex-row items-center gap-2">
+                    <Skeleton height={16} style={{ width: row.title }} />
+                    {row.badge && <Skeleton width={78} height={19} radius={100} />}
+                  </View>
+                  <Skeleton height={12} style={{ width: row.desc, marginTop: 8 }} />
+                  <View className="flex-row items-center gap-2.5 mt-3">
+                    <View className="bg-inset flex-1 h-1.5 rounded-full" />
+                    <Skeleton width={26} height={11} />
+                  </View>
+                </View>
+                <ChevronDown size={20} color={isDark ? '#4b5563' : '#d1d5db'} />
               </View>
-              <Skeleton width="80%" height={11} />
-              <Skeleton width="100%" height={6} radius={3} />
+              {row.actions > 0 && (
+                <View className="flex-row justify-end gap-2 p-2 pt-0">
+                  {Array.from({ length: row.actions }).map((_, j) => (
+                    <View key={j} className="bg-inset w-[30px] h-[30px] rounded-[15px] items-center justify-center">
+                      {j === 0 ? (
+                        <Pencil size={15} color={isDark ? '#4b5563' : '#d1d5db'} />
+                      ) : (
+                        <BarChart2 size={15} color={isDark ? '#4b5563' : '#d1d5db'} />
+                      )}
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           ))}
         </View>

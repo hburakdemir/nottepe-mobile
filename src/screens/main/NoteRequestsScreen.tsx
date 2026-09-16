@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown, Inbox, Plus } from 'lucide-react-native';
+import { ChevronDown, HeartHandshake, Inbox, Plus, Upload, User } from 'lucide-react-native';
 import { noteRequestAPI } from '../../lib/api';
 import { faculties, departments } from '../../data/departments';
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
@@ -245,15 +245,42 @@ export default function NoteRequestsScreen() {
   return (
     <View className="flex-1 bg-ground">
       {loading ? (
+        // İskelet gerçek sayfanın aynısı: üstteki oluştur/sekme/sıralama/filtre
+        // bloğu (hepsi sabit, olduğu gibi duruyor) ve altında `RequestCard`
+        // yerleşimi — çipler ÜSTTE, eylem butonları ALTTA.
+        //
+        // Eskiden sıra tersti (başlık → meta → iki küçük rozet) ve üst blok hiç
+        // yer tutmuyordu; veri gelince liste birden aşağı kayıyordu.
         <SkeletonGroup>
-          <View className="p-4 gap-2.5">
-            {[0, 1, 2, 3].map((i) => (
-              <View key={i} className="bg-surface rounded-xl p-3.5 border border-line-soft gap-2.5">
-                <Skeleton width="75%" height={14} />
-                <Skeleton width="45%" height={11} />
-                <View className="flex-row items-center justify-between">
-                  <Skeleton width={70} height={22} radius={11} />
-                  <Skeleton width={54} height={22} radius={11} />
+          <View className="p-4">
+            {header}
+            {[0, 1].map((i) => (
+              <View key={i} className="bg-surface rounded-lg p-4 mb-4" style={SHADOW_MD}>
+                <View className="flex-row flex-wrap gap-1.5 mb-2">
+                  <Skeleton width={52} height={20} radius={100} />
+                  <Skeleton width={44} height={20} radius={100} />
+                  <Skeleton width={62} height={20} radius={100} />
+                  {i === 0 && <Skeleton width={96} height={20} radius={100} />}
+                </View>
+                <Skeleton width={i === 0 ? '72%' : '60%'} height={17} />
+                <View className="gap-1.5 mt-2 mb-3">
+                  <Skeleton width="100%" height={14} />
+                  {i === 0 && <Skeleton width="70%" height={14} />}
+                </View>
+                <View className="flex-row items-center gap-[5px] mb-3.5">
+                  <User size={12} color={isDark ? '#4b5563' : '#d1d5db'} />
+                  <Skeleton width={158} height={12} />
+                </View>
+                {/* Eylem butonları sabit: ikon + değişmeyen etiket. */}
+                <View className="flex-row flex-wrap gap-2">
+                  <View className="flex-row items-center gap-1.5 bg-brand rounded-lg px-3.5 py-[9px]">
+                    <HeartHandshake size={14} color="#fff" />
+                    <Text className="text-white text-[13px] font-semibold">Karşıla</Text>
+                  </View>
+                  <View className="flex-row items-center gap-1.5 border border-accent rounded-lg px-3.5 py-[9px]">
+                    <Upload size={15} color={isDark ? '#5A9690' : '#2F5755'} />
+                    <Text className="text-accent text-[13px] font-semibold">Not Yükle</Text>
+                  </View>
                 </View>
               </View>
             ))}

@@ -122,13 +122,34 @@ export default function SuggestionsScreen() {
   return (
     <View className="flex-1 bg-ground">
       {isLoading ? (
+        // Gerçek sayfanın aynısı: üstteki öneri yazma kutusu (sabit, olduğu gibi)
+        // ve altında satır kartları — çerçevesiz, sağda ok, meta satırında
+        // yorum ikonu. Eskiden üst kutu iskelette hiç yer tutmuyordu: veri
+        // gelince liste bir anda ~150px aşağı kayıyordu.
         <SkeletonGroup>
-          <View className="p-4 gap-2.5">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <View key={i} className="bg-surface rounded-xl p-3.5 border border-line-soft gap-2">
-                <Skeleton width="90%" height={13} />
-                <Skeleton width="60%" height={13} />
-                <Skeleton width="35%" height={10} />
+          <View className="p-4">
+            {header}
+            {([
+              { lines: ['100%', '94%', '56%'], name: 64 },
+              { lines: ['98%', '72%'], name: 72 },
+              { lines: ['100%', '88%', '40%'], name: 58 },
+              { lines: ['96%', '64%'], name: 70 },
+              { lines: ['100%', '80%'], name: 62 },
+            ] as const).map((row, i) => (
+              <View key={i} className="flex-row items-start gap-2.5 bg-surface rounded-xl p-3.5 mb-2.5">
+                <View className="flex-1">
+                  <View className="gap-1.5">
+                    {row.lines.map((w, j) => (
+                      <Skeleton key={j} height={13} style={{ width: w }} />
+                    ))}
+                  </View>
+                  <View className="flex-row items-center gap-[5px] mt-2">
+                    <Skeleton width={row.name} height={11} />
+                    <MessageSquare size={12} color={isDark ? '#4b5563' : '#d1d5db'} />
+                    <Skeleton width={50} height={11} />
+                  </View>
+                </View>
+                <ChevronRight size={18} color={isDark ? '#4b5563' : '#e5e7eb'} />
               </View>
             ))}
           </View>
