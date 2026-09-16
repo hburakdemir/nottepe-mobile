@@ -3,7 +3,7 @@ import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Link2, Star, Trash2, User } from 'lucide-react-native';
+import { Bookmark, FileText, Link2, MessageSquare, Star, Trash2, User } from 'lucide-react-native';
 import { postsAPI } from '../../lib/api';
 
 // Bir notun içeriği (başlık, açıklama, dosyalar) neredeyse hiç değişmiyor;
@@ -28,6 +28,7 @@ import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 import StateView from '../../components/StateView';
 import { useDelayedLoading } from '../../hooks/useDelayedLoading';
+import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('tr-TR', {
@@ -115,11 +116,92 @@ export default function PostDetailScreen() {
     ]);
   };
 
+  // Gönderi kartının kendi ölçüleriyle iskelet: 36px avatar, 23px başlık,
+  // 14.5px gövde, 54×54 dosya kutucukları, künye ve beş yıldızlık puan satırı.
+  // Yazı olan her yer çubuk; ikonlar (kaydet, yıldız, dosya) duruyor.
+  //
+  // Altındaki yorum bölümü kendi iskeletini çiziyor (bkz. CommentSection) ama
+  // burada gönderi henüz gelmediği için onun kabuğu da iskelette.
   if (showLoading) {
     return (
-      <View style={[styles.center, { backgroundColor: t.ground }]}>
-        <StateView kind="loading" loadingColor={t.accent} />
-      </View>
+      <SkeletonGroup>
+        <View style={{ flex: 1, backgroundColor: t.ground }}>
+          <View style={[styles.head, cardSurface]}>
+            <View style={[styles.authorRow, styles.authorRowWithSave]}>
+              <View style={styles.who}>
+                <Skeleton width={36} height={36} radius={18} />
+                <View style={{ gap: 5 }}>
+                  <Skeleton width={96} height={14} />
+                  <Skeleton width={116} height={11.5} />
+                </View>
+              </View>
+            </View>
+
+            <View style={{ gap: 7 }}>
+              <Skeleton width="92%" height={23} />
+              <Skeleton width="56%" height={23} />
+            </View>
+
+            <View style={{ gap: 9 }}>
+              <Skeleton width="100%" height={14.5} />
+              <Skeleton width="97%" height={14.5} />
+              <Skeleton width="100%" height={14.5} />
+              <Skeleton width="68%" height={14.5} />
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 14 }}>
+              {[0, 1].map((i) => (
+                <View key={i} style={{ width: 54, alignItems: 'center', gap: 6 }}>
+                  <View style={{ width: 54, height: 54, borderRadius: 14, backgroundColor: t.inset, alignItems: 'center', justifyContent: 'center' }}>
+                    <FileText size={22} color={t.line} strokeWidth={2} />
+                  </View>
+                  <Skeleton width={34} height={11} />
+                </View>
+              ))}
+            </View>
+
+            <Skeleton width={188} height={12.5} />
+
+            <View style={[styles.ratingRow, { borderTopColor: t.line }]}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Star key={star} size={16} color={t.line} strokeWidth={1.6} />
+              ))}
+              <Skeleton width={92} height={12.5} style={{ marginLeft: 8 }} />
+            </View>
+
+            <View style={styles.floatingSave}>
+              <View style={{ padding: 8 }}>
+                <Bookmark size={20} color={t.line} strokeWidth={2} />
+              </View>
+            </View>
+          </View>
+
+          <View style={[styles.comments, cardSurface]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 }}>
+              <MessageSquare size={16} color={t.line} strokeWidth={2} />
+              <Skeleton width={72} height={15} />
+              <Skeleton width={28} height={18} radius={100} />
+            </View>
+            <View style={{ gap: 10, marginTop: 10, paddingBottom: 6 }}>
+              {[0, 1].map((i) => (
+                <View key={i} style={{ backgroundColor: t.inset, borderColor: t.line, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, padding: 10 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Skeleton width={26} height={26} radius={13} style={{ backgroundColor: t.card }} />
+                    <View style={{ gap: 5 }}>
+                      <Skeleton width={i === 0 ? 84 : 66} height={13} />
+                      <Skeleton width={104} height={10} />
+                    </View>
+                  </View>
+                  <View style={{ gap: 6, marginTop: 8 }}>
+                    <Skeleton width="100%" height={13} />
+                    <Skeleton width={i === 0 ? '72%' : '54%'} height={13} />
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        </View>
+      </SkeletonGroup>
     );
   }
   // bkz. FaqDetailScreen.tsx — gecikme dolmadan "bulunamadı" yanlışlıkla
