@@ -102,7 +102,7 @@ export default function ToolsScreen() {
   const isDark = theme === 'dark';
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="px-4 pt-6 pb-[110px]">
+    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="px-4 pt-6 pb-[150px]">
       {/* Ekran içi "Araçlar" başlığı (ve yanındaki dekoratif anahtar ikonu ile
           alt yazısı) kaldırıldı — üst bar zaten sayfa adını yazıyor. */}
       <View className="gap-6">

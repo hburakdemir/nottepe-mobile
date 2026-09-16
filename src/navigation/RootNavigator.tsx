@@ -2,7 +2,6 @@ import React, { Suspense, useMemo } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createDrawerNavigator } from '@react-navigation/drawer';
-import { useDelayedLoading } from '../hooks/useDelayedLoading';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useIsOffline } from '../hooks/useIsOffline';
@@ -90,8 +89,6 @@ const Notifications = withAppShell(NotificationsScreen);
 
 export default function RootNavigator() {
   const { isAuthenticated, loading, user } = useAuth();
-  // bkz. useDelayedLoading.ts
-  const showBootLoading = useDelayedLoading(loading);
   const { colors } = useTheme();
   const isOffline = useIsOffline();
   const drawerWidth = useDrawerWidth();
@@ -159,13 +156,11 @@ export default function RootNavigator() {
     [colors.ground]
   );
 
-  // Açılışta oturum kontrolü. Depodan token okumak genelde 200ms'nin altında
-  // sürüyor; o aralıkta çark göstermek, splash ile ilk ekran arasına dönüp
-  // kaybolan bir kare daha sokuyordu. Uzarsa (yavaş cihaz/depo) çark geliyor.
+  // Açılışta oturum kontrolü — depodan token okunuyor.
   if (loading) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.ground }}>
-        {showBootLoading && <ActivityIndicator size="large" color="#1d4ed8" />}
+        <ActivityIndicator size="large" color="#1d4ed8" />
       </View>
     );
   }

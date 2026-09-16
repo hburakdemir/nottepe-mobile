@@ -108,8 +108,7 @@ function PostsTab({
       initialNumToRender={5}
       // `rows === null` = ilk sayfa henüz gelmedi. "Postlar"da BİLEREK hiçbir
       // şey göstermiyoruz: o ilk yüklemeyi zaten ekran çapındaki iskelet
-      // karşılıyor (bkz. ProfileScreen). Buraya spinner koymak, iskelet
-      // gecikmesi (200ms, useDelayedLoading) dolmadan önceki pencerede
+      // karşılıyor (bkz. ProfileScreen). Buraya ayrıca spinner koymak
       // "spinner -> iskelet -> içerik" diye çift geçiş yaratıyordu.
       //
       // "Kayıtlı"da spinner KALIYOR: oranın listesi bir not kaydedilip

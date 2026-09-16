@@ -10,7 +10,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { avatarAPI, badgeAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useSavedPosts } from '../../context/SavedPostContext';
-import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 import { type Badge } from '../../components/BadgeChip';
 import ProfileEditModal from '../../components/profile/ProfileEditModal';
 import DeleteAccountModal from '../../components/profile/DeleteAccountModal';
@@ -61,10 +60,11 @@ export default function ProfileScreen() {
   const myPosts = usePostsPagination('posts', activeTab === 'posts');
   const savedPostsState = usePostsPagination('saved', activeTab === 'saved');
 
-  // İnternet hızlıysa (veri 200ms'den önce gelirse) iskelet HİÇ görünmüyor.
-  // bkz. useDelayedLoading.ts. Ekranın ilk karesini YALNIZCA kendi
-  // gönderilerin belirliyor — kalan her şey kendi başına yükleniyor.
-  const loading = useDelayedLoading(myPosts.firstLoading);
+  // Ekranın ilk karesini YALNIZCA kendi gönderilerin belirliyor — kalan her şey
+  // (rozetler, sekme sayaçları, diğer sekmeler) kendi başına yükleniyor.
+  // İskelet yükleme başlar başlamaz geliyor, veri gelince anında iniyor:
+  // arada yapay bir eşik yok.
+  const loading = myPosts.firstLoading;
 
   // Dört listenin verisi de rozetler de artık BU BİLEŞENDE DEĞİL; hepsi
   // react-query anahtarları üzerinden (bkz. hooks/profile/useProfileLists.ts).

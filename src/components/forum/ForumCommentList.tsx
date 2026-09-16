@@ -3,7 +3,6 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import { CornerDownRight, MessageSquare, Send, ThumbsDown, ThumbsUp, Trash2 } from 'lucide-react-native';
 import { useGoToUserProfile } from '../../hooks/useGoToUserProfile';
 import { useTheme } from '../../context/ThemeContext';
-import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 import { Skeleton, SkeletonGroup } from '../Skeleton';
 
 export interface ForumComment {
@@ -181,8 +180,7 @@ export default function ForumCommentList({ comments, loading, canModerate, onAdd
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const brandColor = isDark ? '#5A9690' : '#2F5755';
-  // bkz. useDelayedLoading.ts — hızlı bağlantıda iskelet hiç görünmüyor.
-  const showSkeleton = useDelayedLoading(loading);
+  const showSkeleton = loading;
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -233,7 +231,6 @@ export default function ForumCommentList({ comments, loading, canModerate, onAdd
       {showSkeleton ? (
         // Yorum satırının kendi ölçüleri (13px ad, 10.5px tarih, 13px gövde).
         // Çark yerine bu: veri gelince sayfanın altı yerinden oynamıyor.
-        // Hızlı bağlantıda (<200ms) hiç görünmüyor, bkz. useDelayedLoading.ts.
         <SkeletonGroup>
           <View style={{ gap: 10 }}>
             {([
@@ -266,7 +263,7 @@ export default function ForumCommentList({ comments, loading, canModerate, onAdd
             ))}
           </View>
         </SkeletonGroup>
-      ) : loading ? null : topLevel.length === 0 ? (
+      ) : topLevel.length === 0 ? (
         <Text className="text-muted" style={styles.emptyText}>
           Henüz yorum yok — ilk yorumu sen yaz.
         </Text>

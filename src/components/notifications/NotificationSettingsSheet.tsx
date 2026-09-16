@@ -9,7 +9,6 @@ import { pushGroupLabel, resolvePushType, type ResolvedPushType } from '../../li
 import type { PushPreferences } from '../../lib/api';
 import OptionSheet from '../layout/OptionSheet';
 import StateView from '../StateView';
-import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, '0')}:00`);
 
@@ -36,8 +35,7 @@ export default function NotificationSettingsSheet({ visible, onClose }: Props) {
   const insets = useSafeAreaInsets();
 
   const { data: prefs, isLoading, isError, refetch } = usePushPreferences();
-  // bkz. useDelayedLoading.ts — hızlı bağlantıda spinner hiç görünmüyor.
-  const showLoading = useDelayedLoading(isLoading);
+  const showLoading = isLoading;
   const updatePrefs = useUpdatePushPreferences();
 
   // Cihaz izni sunucu tercihlerinden BAĞIMSIZ: `push_enabled` açıkken bile
@@ -193,7 +191,7 @@ export default function NotificationSettingsSheet({ visible, onClose }: Props) {
             <View style={{ marginVertical: 32 }}>
               <StateView kind="loading" loadingColor={colors.accent} />
             </View>
-          ) : isLoading ? null : isError || !prefs ? (
+          ) : isError || !prefs ? (
             <StateView kind="error" title="Bildirim tercihleri yüklenemedi." onAction={() => refetch()} />
           ) : (
             <ScrollView showsVerticalScrollIndicator={false}>

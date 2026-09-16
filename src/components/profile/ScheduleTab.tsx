@@ -6,7 +6,6 @@ import { CalendarDays, Edit2 } from 'lucide-react-native';
 import { DAY_NAMES, getCourseColor, toMinutes, type ScheduleCourse } from '../../utils/schedule';
 import type { RootStackParamList } from '../../navigation/types';
 import { useMySchedule } from '../../hooks/profile/useProfileLists';
-import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 import PagerPage, { type ProfileTabProps } from './PagerPage';
 import { EmptyState, SHADOW_SM, TabLoading } from './profileCommon';
 
@@ -42,7 +41,7 @@ function ScheduleTab({ active, width, headerHeight, scrollY, onRememberOffset }:
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { data: schedule, isPending } = useMySchedule();
   // bkz. ChecklistsTab.tsx — aynı gecikmeli yükleme kuralı.
-  const showLoading = useDelayedLoading(isPending);
+  const showLoading = isPending;
 
   const goToSchedule = useCallback(() => navigation.navigate('Schedule'), [navigation]);
 
@@ -57,7 +56,7 @@ function ScheduleTab({ active, width, headerHeight, scrollY, onRememberOffset }:
       {active &&
         (showLoading ? (
           <TabLoading />
-        ) : isPending ? null : !schedule || schedule.length === 0 ? (
+        ) : !schedule || schedule.length === 0 ? (
           <EmptyState
             icon={CalendarDays}
             text="Henüz ders programı oluşturmadın."

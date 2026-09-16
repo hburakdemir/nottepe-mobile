@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Bookmark, FileText, Link2, MessageSquare, Star, Trash2, User } from 'lucide-react-native';
-import { postsAPI } from '../../lib/api';
+import { commentAPI, postsAPI } from '../../lib/api';
 
 // Bir notun içeriği (başlık, açıklama, dosyalar) neredeyse hiç değişmiyor;
 // değişen şey yorumlar ve puan, onları CommentSection ve puan bileşeni kendi
@@ -21,13 +21,12 @@ import AvatarDisplay from '../../components/avatar/AvatarDisplay';
 import FileTiles from '../../components/FileTiles';
 import BadgeChip from '../../components/BadgeChip';
 import SaveButton from '../../components/SaveButton';
-import CommentSection from '../../components/CommentSection';
+import CommentSection, { type CommentsFirstPage } from '../../components/CommentSection';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 import StateView from '../../components/StateView';
-import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
 
 function formatDate(dateString: string): string {
@@ -78,8 +77,28 @@ export default function PostDetailScreen() {
     retry: false,
     staleTime: POST_DETAIL_STALE_MS,
   });
-  // bkz. HomeScreen.tsx — aynı gecikmeli yükleme kuralı.
-  const showLoading = useDelayedLoading(isLoading);
+  // YORUMLAR GÖNDERİYLE PARALEL ÇEKİLİYOR.
+  //
+  // `CommentSection` bu ekranın gövdesinde, gönderi geldikten SONRA mount
+  // oluyor; yani iki istek sıralıydı (gönderi ~1 sn + yorumlar ~1 sn) ve
+  // kullanıcı "gönderi detayları geliyor, yorumlar 1-2 sn geç geliyor"
+  // diyordu. Bu sorgu mount anında, gönderi sorgusuyla AYNI ANDA başlıyor;
+  // hazır sayfa `firstPage` olarak aşağı iniyor ve orada tekrar istek
+  // atılmıyor. Toplam bekleme iki isteğin toplamı değil, uzun olanı kadar.
+  //
+  // `isAdmin` görünümü ayrı bir uçtan (adminCommentAPI) besleniyor; burada
+  // yalnızca normal görünüm için ön çekim yapılıyor, o yüzden bu ekranda
+  // koşulsuz.
+  const { data: firstComments } = useQuery({
+    queryKey: ['post', 'comments', String(postId), 1],
+    queryFn: async () => {
+      const res = await commentAPI.getByPost(postId, 1);
+      return res.data as CommentsFirstPage;
+    },
+    staleTime: 30_000,
+    retry: false,
+  });
+  const showLoading = isLoading;
   // Yorum kartlarının zemini `inset`; içindeki iskelet çubukları o tonda
   // kaybolduğu için bir kademe koyu (`line`) çiziliyor.
   const barOnInset = { backgroundColor: t.line };
@@ -214,10 +233,6 @@ export default function PostDetailScreen() {
   }
   // bkz. FaqDetailScreen.tsx — gecikme dolmadan "bulunamadı" yanlışlıkla
   // yanıp sönmesin diye ara boş görünüm.
-  if (isLoading) {
-    return <View style={[styles.center, { backgroundColor: t.ground }]} />;
-  }
-
   if (isError || !post) {
     return (
       <View style={[styles.center, { backgroundColor: t.ground }]}>
@@ -333,6 +348,7 @@ export default function PostDetailScreen() {
           defaultCollapsed={false}
           isAdmin={user?.role === 'admin' || user?.role === 'moderator'}
           onRatingChange={handleRatingChange}
+          firstPage={firstComments}
         />
       </View>
       </KeyboardAwareScroll>

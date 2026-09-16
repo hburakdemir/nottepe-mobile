@@ -56,7 +56,6 @@ import {
 } from '../../utils/gano';
 import { exportCoursesToExcel, parseCoursesFromExcel, type ImportedCourse, type ImportError, MAX_IMPORT_BYTES, formatBytes } from '../../utils/ganoExcel';
 import KeyboardAvoider, { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
-import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 
 interface SavedCalc {
   id: number;
@@ -127,8 +126,7 @@ export default function AktsCalculatorScreen() {
   const [savedCalcs, setSavedCalcs] = useState<SavedCalc[]>([]);
   const [showSaved, setShowSaved] = useState(false);
   const [loadingSaved, setLoadingSaved] = useState(false);
-  // bkz. useDelayedLoading.ts — hızlı bağlantıda spinner hiç görünmüyor.
-  const showSavedLoading = useDelayedLoading(loadingSaved);
+  const showSavedLoading = loadingSaved;
 
   const [overrides, setOverrides] = useState<Overrides>({});
   const [semesterFilter, setSemesterFilter] = useState<string>('all');
@@ -511,7 +509,7 @@ export default function AktsCalculatorScreen() {
   const judgedAkts = baseTotals.passedAkts + baseTotals.failedAkts;
 
   return (
-    <KeyboardAwareScroll showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="px-4 pt-6 pb-[110px] gap-4" keyboardShouldPersistTaps="handled">
+    <KeyboardAwareScroll showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="px-4 pt-6 pb-[150px] gap-4" keyboardShouldPersistTaps="handled">
       {/* Başlık */}
       <View className="gap-1">
         <View className="flex-row items-center gap-2.5">
@@ -625,7 +623,7 @@ export default function AktsCalculatorScreen() {
         <View className="gap-2 mb-2">
           {showSavedLoading ? (
             <ActivityIndicator color={isDark ? '#5A9690' : '#2F5755'} />
-          ) : loadingSaved ? null : savedCalcs.length === 0 ? (
+          ) : savedCalcs.length === 0 ? (
             <Text className="text-muted2 text-sm py-1">Henüz kayıtlı hesaplama yok.</Text>
           ) : (
             savedCalcs.map((calc) => (

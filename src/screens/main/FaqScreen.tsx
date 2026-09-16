@@ -149,7 +149,7 @@ export default function FaqScreen() {
       ) : (
         <FlatList
           showsVerticalScrollIndicator={false}
-          contentContainerClassName="p-4 pb-[110px]"
+          contentContainerClassName="p-4 pb-[150px]"
           data={entries}
           keyExtractor={(item) => String(item.id)}
           // KAPALI: satırlar dokunulabilir (detaya gidiyor) ve bu prop'un

@@ -17,7 +17,6 @@ import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 import OptionSheet from '../../components/layout/OptionSheet';
 import StateView from '../../components/StateView';
 import HomeSkeleton from '../../components/home/HomeSkeleton';
-import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 
 const LAST_FACULTY_KEY = 'nottepe_last_faculty';
 
@@ -104,9 +103,7 @@ export default function HomeScreen() {
     staleTime: 60_000,
   });
 
-  // Bkz. aşağıdaki erken `return` — iskelet yalnızca yükleme 200ms'yi aşarsa
-  // ekrana giriyor.
-  const showSkeleton = useDelayedLoading(isLoading);
+  const showSkeleton = isLoading;
 
   // Yalnızca kullanıcının elle aşağı ÇEKMESİ pull-to-refresh spinner'ını
   // döndürür. Eskiden `RefreshControl.refreshing` doğrudan `isRefetching`'e
@@ -225,22 +222,11 @@ export default function HomeScreen() {
   );
 
   // Ortadaki spinner yerine gelecek sayfanın yerleşimini çizen iskelet —
-  // içerik gelince ekran boş ortadan dolu sayfaya zıplamıyor.
-  //
-  // `useDelayedLoading`: bağlantı hızlıysa (veri 200ms'den önce gelirse)
-  // iskelet HİÇ görünmüyor. O eşiğin altında iskelet gösterip hemen kaldırmak,
-  // hiç göstermemekten kötü bir his veriyor (bkz. o dosyadaki not). Eşik
-  // dolmadan da bu ekran hiçbir yükleme göstergesi çizmiyor: aşağıdaki liste
-  // boş `data` ile render oluyor ve `ListEmptyComponent` yalnızca yükleme
-  // BİTTİKTEN sonra anlamlı — ikisinin arasına spinner koymak "spinner ->
-  // iskelet -> içerik" diye çift geçiş yaratırdı.
+  // içerik gelince ekran boş ortadan dolu sayfaya zıplamıyor. Yükleme başlar
+  // başlamaz geliyor, veri gelince anında gidiyor: arada yapay bir eşik YOK.
   if (showSkeleton) {
     return <HomeSkeleton />;
   }
-  if (isLoading) {
-    return <View className="flex-1 bg-ground" />;
-  }
-
   if (isError) {
     return (
       <View className="flex-1 items-center justify-center py-16">

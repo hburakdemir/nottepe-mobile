@@ -7,7 +7,6 @@ import { noteRequestAPI, postsAPI } from '../../lib/api';
 import type { RootStackParamList, NoteRequestSummary } from '../../navigation/types';
 import type { Post } from '../../types/post';
 import type { NoteRequest } from './RequestCard';
-import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 import { useTheme } from '../../context/ThemeContext';
 import KeyboardAvoider from '../layout/KeyboardAvoider';
 
@@ -26,8 +25,7 @@ export default function FulfillModal({ request, onClose, onFulfilled }: Props) {
   const [mode, setMode] = useState<'existing' | 'new'>('existing');
   const [myPosts, setMyPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  // bkz. useDelayedLoading.ts — hızlı bağlantıda spinner hiç görünmüyor.
-  const showLoading = useDelayedLoading(loading);
+  const showLoading = loading;
   const [selectedId, setSelectedId] = useState<number | string | null>(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
@@ -133,7 +131,7 @@ export default function FulfillModal({ request, onClose, onFulfilled }: Props) {
               </View>
             ) : showLoading ? (
               <ActivityIndicator style={{ marginVertical: 24 }} color={brandColor} />
-            ) : loading ? null : myPosts.length === 0 ? (
+            ) : myPosts.length === 0 ? (
               <Text className="text-muted" style={styles.emptyText}>
                 Henüz onaylı notun yok. "Yeni Not" sekmesinden bu istek için not yükleyebilirsin.
               </Text>

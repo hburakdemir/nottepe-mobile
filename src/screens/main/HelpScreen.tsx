@@ -101,7 +101,7 @@ export default function HelpScreen() {
   const isDark = theme === 'dark';
 
   return (
-    <KeyboardAwareScroll showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="p-4 pb-[110px]" keyboardShouldPersistTaps="handled">
+    <KeyboardAwareScroll showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="p-4 pb-[150px]" keyboardShouldPersistTaps="handled">
       <Text className="text-2xl font-extrabold text-ink mb-4 text-center">Biz Kimiz</Text>
 
       <View className="bg-surface rounded-[18px] p-4 mb-3.5 border border-line-soft">

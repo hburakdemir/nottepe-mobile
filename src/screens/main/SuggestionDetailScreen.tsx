@@ -10,7 +10,6 @@ import { useGoToUserProfile } from '../../hooks/useGoToUserProfile';
 import ForumCommentList, { type ForumComment } from '../../components/forum/ForumCommentList';
 import type { RootStackParamList } from '../../navigation/types';
 import StateView from '../../components/StateView';
-import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 
 const SUGGESTION_DETAIL_STALE_MS = 5 * 60 * 1000;
 
@@ -57,8 +56,7 @@ export default function SuggestionDetailScreen() {
     },
     staleTime: SUGGESTION_DETAIL_STALE_MS,
   });
-  // bkz. HomeScreen.tsx — aynı gecikmeli yükleme kuralı.
-  const showLoading = useDelayedLoading(isLoading);
+  const showLoading = isLoading;
 
   const suggestion = data?.suggestion ?? null;
   const comments = data?.comments ?? EMPTY_COMMENTS;
@@ -118,10 +116,6 @@ export default function SuggestionDetailScreen() {
   }
   // bkz. FaqDetailScreen.tsx — gecikme dolmadan "bulunamadı" yanlışlıkla
   // yanıp sönmesin diye ara boş görünüm.
-  if (isLoading) {
-    return <View className="flex-1 bg-ground" />;
-  }
-
   if (isError) {
     return (
       <View className="flex-1 items-center justify-center">
@@ -139,7 +133,7 @@ export default function SuggestionDetailScreen() {
   }
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="p-4 pb-[110px]">
+    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="p-4 pb-[150px]">
       <View className="bg-surface rounded-2xl p-4 mb-3.5">
         <View className="flex-row gap-2.5">
           <Lightbulb size={20} color={isDark ? '#5A9690' : '#2F5755'} style={{ marginTop: 2 }} />

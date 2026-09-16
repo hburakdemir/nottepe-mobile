@@ -8,7 +8,6 @@ import { useTheme } from '../../context/ThemeContext';
 import { useGoToUserProfile } from '../../hooks/useGoToUserProfile';
 import AvatarDisplay from '../../components/avatar/AvatarDisplay';
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
-import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 import BadgeChip, { type Badge } from '../../components/BadgeChip';
 
 interface LeaderboardEntry {
@@ -120,8 +119,7 @@ export default function LeaderboardScreen() {
   const entries = data?.entries ?? EMPTY_ENTRIES;
   const me = data?.me ?? null;
   const loading = isLoading;
-  // bkz. useDelayedLoading.ts — hızlı bağlantıda iskelet hiç görünmüyor.
-  const showSkeleton = useDelayedLoading(loading);
+  const showSkeleton = loading;
 
   const activeSort = SORTS.find((s) => s.key === sort)!;
   const meInTop = me && entries.some((e) => e.id === me.id);
@@ -163,8 +161,7 @@ export default function LeaderboardScreen() {
       </View>
 
       {/* Çark yerine satırın kendi şekli: 30px sıra rozeti, 34px avatar,
-          kullanıcı adı ve sağda metrik. Hızlı bağlantıda hiç görünmüyor
-          (bkz. useDelayedLoading.ts). */}
+          kullanıcı adı ve sağda metrik. */}
       {showSkeleton && (
         <SkeletonGroup>
           <View className="gap-2.5 mt-2.5">
@@ -200,7 +197,7 @@ export default function LeaderboardScreen() {
     <FlatList
       showsVerticalScrollIndicator={false}
       className="flex-1 bg-ground"
-      contentContainerClassName="p-4 pb-[110px]"
+      contentContainerClassName="p-4 pb-[150px]"
       data={loading ? [] : entries}
       keyExtractor={(item) => String(item.id)}
       renderItem={renderRow}

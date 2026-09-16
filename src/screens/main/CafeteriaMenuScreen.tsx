@@ -16,7 +16,6 @@ import {
 import { menuAPI } from '../../lib/api';
 import { useTheme } from '../../context/ThemeContext';
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
-import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 
 // Yemek listesi gün içinde değişmiyor: bir kez çekildikten sonra 30 dakika
 // taze sayılıyor. Sekmeden çıkıp geri gelmek, uygulamayı arka plandan
@@ -175,9 +174,9 @@ export default function CafeteriaMenuScreen() {
     staleTime: MENU_STALE_MS,
   });
 
-  // İnternet hızlıysa (veri 200ms'den önce gelirse) iskelet HİÇ görünmüyor —
-  // yalnızca gerçekten yavaşsa devreye giriyor. bkz. useDelayedLoading.ts
-  const isLoading = useDelayedLoading(isLoadingRaw);
+  // İskelet
+  // yükleme başlar başlamaz devreye giriyor, veri gelince anında iniyor.
+  const isLoading = isLoadingRaw;
 
   // Seçili gün artık state'te TUTULMUYOR, TÜRETİLİYOR: kullanıcı bir güne
   // dokunduysa o, dokunmadıysa haftanın ilk günü. Eskiden veri gelince çalışan
@@ -199,7 +198,7 @@ export default function CafeteriaMenuScreen() {
     enabled: viewMode === 'month',
     staleTime: MENU_STALE_MS,
   });
-  const monthLoading = useDelayedLoading(monthLoadingRaw);
+  const monthLoading = monthLoadingRaw;
 
   const selectedDay = days.find((d) => d.date === selectedDate);
   const hasMenu = selectedDay && Object.values(selectedDay.meals || {}).some((m) => m.status === 'ok');
@@ -231,7 +230,7 @@ export default function CafeteriaMenuScreen() {
   if (isLoading) {
     return (
       <SkeletonGroup>
-        <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="p-4 pb-[110px]">
+        <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="p-4 pb-[150px]">
           <View className="flex-row gap-2 mb-3.5">
             <Skeleton width={96} height={34} radius={10} />
             <Skeleton width={88} height={34} radius={10} />
@@ -267,7 +266,7 @@ export default function CafeteriaMenuScreen() {
   }
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="p-4 pb-[110px]">
+    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="p-4 pb-[150px]">
       {/* Ekran içi "Yemek Listesi" başlığı ve kaynak alt yazısı kaldırıldı —
           üst bar zaten sayfa adını yazıyor. */}
       <View className="flex-row gap-2 mb-3.5">

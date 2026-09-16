@@ -157,7 +157,7 @@ export default function SuggestionsScreen() {
       ) : (
         <FlatList
           showsVerticalScrollIndicator={false}
-          contentContainerClassName="p-4 pb-[110px]"
+          contentContainerClassName="p-4 pb-[150px]"
           data={suggestions}
           keyExtractor={(item) => String(item.id)}
           // KAPALI: satırlar dokunulabilir (detaya gidiyor); bu prop'un

@@ -10,7 +10,6 @@ import { FOLLOWED_DEPARTMENTS_KEY } from '../layout/MenuDrawerContent';
 import { goToTab } from '../../navigation/navigateApp';
 import type { RootStackParamList } from '../../navigation/types';
 import { MY_FOLLOWS_KEY, useMyFollows, type Follow } from '../../hooks/profile/useProfileLists';
-import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 import PagerPage, { type ProfileTabProps } from './PagerPage';
 import { EmptyState, SHADOW_SM, TabLoading } from './profileCommon';
 
@@ -51,7 +50,7 @@ function FollowsTab({ active, width, headerHeight, scrollY, onRememberOffset }: 
   const { theme } = useTheme();
   const { data: follows, isPending } = useMyFollows();
   // bkz. ChecklistsTab.tsx — aynı gecikmeli yükleme kuralı.
-  const showLoading = useDelayedLoading(isPending);
+  const showLoading = isPending;
 
   // lucide ikonları ham renk alıyor (className değil) — token karşılığı
   // `useThemeColors()` üzerinden gelebilir ama bu iki değer ekranın geri
@@ -95,7 +94,7 @@ function FollowsTab({ active, width, headerHeight, scrollY, onRememberOffset }: 
       {active &&
         (showLoading ? (
           <TabLoading />
-        ) : isPending ? null : !follows || follows.length === 0 ? (
+        ) : !follows || follows.length === 0 ? (
           <EmptyState
             icon={Bell}
             text='Henüz bölüm takip etmiyorsun. Bölüm sayfasındaki "Takip Et" butonuyla haberdar olabilirsin.'

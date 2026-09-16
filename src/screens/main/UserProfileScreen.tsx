@@ -31,7 +31,6 @@ import type { Checklist } from '../../types/checklist';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
 import StateView from '../../components/StateView';
-import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 
 interface PublicProfile {
   id: number;
@@ -150,14 +149,10 @@ export default function UserProfileScreen() {
   const [scheduleCourses, setScheduleCourses] = useState<ScheduleCourse[]>([]);
   const [follows, setFollows] = useState<Follow[]>([]);
   const [tabLoading, setTabLoading] = useState(false);
-  // bkz. useDelayedLoading.ts — hızlı bağlantıda spinner hiç görünmüyor.
-  // `tabLoading` gecikme dolmadan da true olabiliyor; o aralıkta hiçbir şey
-  // göstermiyoruz (aşağıdaki `null` dalları), yoksa veri gelmeden "boş" metni
-  // yanlışlıkla yanıp sönerdi.
-  const showTabLoading = useDelayedLoading(tabLoading);
-  const showPostsLoading = useDelayedLoading(postsLoading);
+  const showTabLoading = tabLoading;
+  const showPostsLoading = postsLoading;
   const [forumItems, setForumItems] = useState<ForumItem[] | null>(null);
-  const showForumsLoading = useDelayedLoading(forumItems === null);
+  const showForumsLoading = forumItems === null;
 
   useEffect(() => {
     let cancelled = false;
@@ -280,9 +275,7 @@ export default function UserProfileScreen() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, profile, username]);
-
-  // bkz. HomeScreen.tsx — aynı gecikmeli yükleme kuralı.
-  const showLoading = useDelayedLoading(loading);
+  const showLoading = loading;
 
   if (showLoading) {
     return (
@@ -293,10 +286,6 @@ export default function UserProfileScreen() {
   }
   // bkz. FaqDetailScreen.tsx — gecikme dolmadan "kullanıcı bulunamadı"
   // yanlışlıkla yanıp sönmesin diye ara boş görünüm.
-  if (loading) {
-    return <View className="flex-1 bg-ground" />;
-  }
-
   if (banned) {
     return (
       <View className="flex-1 items-center justify-center gap-3 px-8 bg-ground">
@@ -328,7 +317,7 @@ export default function UserProfileScreen() {
   const tabs = TAB_DEFS.filter((t) => t.sectionKey === null || sectionVisibility[t.sectionKey]);
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="px-4 pt-8 pb-[110px]">
+    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="px-4 pt-8 pb-[150px]">
       {/* Düzen bilinçli olarak KENDİ profilindekiyle aynı (bkz. ProfileScreen.tsx):
           avatar solda, künye sağında — eskiden burada ortalanmış, dikey bir
           kart vardı ve iki profil sayfası birbirine hiç benzemiyordu. */}
@@ -415,7 +404,7 @@ export default function UserProfileScreen() {
             {activeTab === 'posts' &&
               (showPostsLoading ? (
                 <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
-              ) : postsLoading ? null : posts.length === 0 ? (
+              ) : posts.length === 0 ? (
                 <EmptyState icon={FileText} text="Henüz onaylı not paylaşılmamış." isDark={isDark} />
               ) : (
                 <>
@@ -566,7 +555,7 @@ export default function UserProfileScreen() {
             {activeTab === 'forums' &&
               (showForumsLoading ? (
                 <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
-              ) : forumItems === null ? null : forumItems.length === 0 ? (
+              ) : forumItems.length === 0 ? (
                 <EmptyState icon={MessagesSquare} text="Henüz bir foruma katılmadı." isDark={isDark} />
               ) : (
                 forumItems.map((item) => (

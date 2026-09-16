@@ -10,7 +10,6 @@ import { useTheme } from '../../context/ThemeContext';
 import ForumCommentList, { type ForumComment } from '../../components/forum/ForumCommentList';
 import type { RootStackParamList } from '../../navigation/types';
 import StateView from '../../components/StateView';
-import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 
 // Soru ve cevabı moderasyondan geçiyor, sık değişmiyor; ama yorumlar ve oylar
 // canlı. Bu yüzden liste ekranının 24 saati yerine daha kısa bir tazelik:
@@ -66,8 +65,7 @@ export default function FaqDetailScreen() {
     },
     staleTime: FAQ_DETAIL_STALE_MS,
   });
-  // bkz. HomeScreen.tsx — aynı gecikmeli yükleme kuralı.
-  const showLoading = useDelayedLoading(isLoading);
+  const showLoading = isLoading;
 
   const entry = data?.entry ?? null;
   const comments = data?.comments ?? EMPTY_COMMENTS;
@@ -138,13 +136,6 @@ export default function FaqDetailScreen() {
       </View>
     );
   }
-  // `isLoading` true ama gecikme henüz dolmadıysa: `entry` de henüz yok, ama
-  // hiçbir gösterge basmıyoruz — aksi hâlde "Kayıt bulunamadı" bir an için
-  // yanlışlıkla yanıp sönerdi (bkz. useDelayedLoading.ts).
-  if (isLoading) {
-    return <View className="flex-1 bg-ground" />;
-  }
-
   if (isError) {
     return (
       <View className="flex-1 items-center justify-center">
@@ -162,7 +153,7 @@ export default function FaqDetailScreen() {
   }
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="p-4 pb-[110px]">
+    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="p-4 pb-[150px]">
       <View className="bg-surface rounded-2xl p-4 mb-3.5">
         <View className="flex-row gap-2.5">
           <HelpCircle size={20} color={isDark ? '#5A9690' : '#2F5755'} style={{ marginTop: 2 }} />

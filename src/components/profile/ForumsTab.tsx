@@ -7,7 +7,6 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import type { RootStackParamList } from '../../navigation/types';
 import { useMyForumActivity, type ForumItem } from '../../hooks/profile/useProfileLists';
-import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 import PagerPage, { type ProfileTabProps } from './PagerPage';
 import { EmptyState, SHADOW_SM, TabLoading, formatDate } from './profileCommon';
 
@@ -49,7 +48,7 @@ function ForumsTab({ active, width, headerHeight, scrollY, onRememberOffset }: P
   // açılışta çekilmesi için bir sebep yok.
   const { data: items, isPending } = useMyForumActivity(active ? user?.id : undefined);
   // bkz. ChecklistsTab.tsx — aynı gecikmeli yükleme kuralı.
-  const showLoading = useDelayedLoading(isPending);
+  const showLoading = isPending;
 
   const handleOpen = useCallback(
     (item: ForumItem) =>
@@ -70,7 +69,7 @@ function ForumsTab({ active, width, headerHeight, scrollY, onRememberOffset }: P
       {active &&
         (showLoading ? (
           <TabLoading />
-        ) : isPending ? null : !items || items.length === 0 ? (
+        ) : !items || items.length === 0 ? (
           <EmptyState icon={MessagesSquare} text="Henüz bir foruma katılmadı." />
         ) : (
           items.map((item) => <ForumRow key={item.key} item={item} onOpen={handleOpen} iconColor={iconColor} />)

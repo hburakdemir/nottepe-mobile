@@ -48,29 +48,31 @@ export default function ProfileSkeleton() {
             <Skeleton width={68} height={24} radius={100} />
           </View>
 
+          {/* Buton kabuğu ve ikonu duruyor, etiketi çubuk. Marka zemininde gri
+              blok okunmadığı için çubuk yarı saydam beyaz. */}
           <View className="flex-row items-center justify-center gap-1.5 bg-brand rounded-[10px] py-2.5 mt-3.5">
             <Edit2 size={15} color="#fff" />
-            <Text className="text-white text-[13px] font-bold">Düzenle</Text>
+            <Skeleton width={56} height={13} style={{ backgroundColor: 'rgba(255,255,255,0.35)' }} />
           </View>
         </View>
 
         {/* TabStrip: mx-4 mb-5, sekme py-3 mr-[18px] */}
         <View className="bg-surface rounded-lg mx-4 mb-5 border-b border-line-soft overflow-hidden" style={SHADOW_MD}>
           <View className="flex-row px-3">
+            {/* Etiketler de çubuk — yalnızca ikonlar duruyor. Genişlikler
+                gerçek etiketlerin ("Postlar (24)", "Kayıtlı (6)",
+                "Checklistler (3)") kapladığı yere göre. */}
             <View className="flex-row items-center gap-[5px] py-3 mr-[18px] border-b-2 border-b-brand">
               <FileText size={14} color="#2F5755" />
-              <Text className="text-[12.5px] font-semibold text-accent">Postlar</Text>
-              <Skeleton width={22} height={12} />
+              <Skeleton width={68} height={12.5} />
             </View>
             <View className="flex-row items-center gap-[5px] py-3 mr-[18px]">
               <Bookmark size={14} color="#9ca3af" />
-              <Text className="text-[12.5px] font-semibold text-muted2">Kayıtlı</Text>
-              <Skeleton width={20} height={12} />
+              <Skeleton width={58} height={12.5} />
             </View>
             <View className="flex-row items-center gap-[5px] py-3 mr-[18px]">
               <ListChecks size={14} color="#9ca3af" />
-              <Text className="text-[12.5px] font-semibold text-muted2">Checklistler</Text>
-              <Skeleton width={20} height={12} />
+              <Skeleton width={84} height={12.5} />
             </View>
           </View>
         </View>

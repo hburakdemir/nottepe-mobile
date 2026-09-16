@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import {
   ChevronDown,
@@ -23,7 +23,6 @@ import { buildCommentAuthorAvatar } from '../lib/postAuthorAvatar';
 import AvatarDisplay from './avatar/AvatarDisplay';
 import BadgeChip from './BadgeChip';
 import { Skeleton, SkeletonGroup } from './Skeleton';
-import { useDelayedLoading } from '../hooks/useDelayedLoading';
 import type { Comment } from '../types/comment';
 
 const LIMIT = 5;
@@ -297,12 +296,28 @@ const CommentCard = React.memo(function CommentCard({
   );
 });
 
+export interface CommentsFirstPage {
+  comments: Comment[];
+  total: number;
+  limit: number;
+}
+
 interface Props {
   postId: string | number;
   postOwnerId: number;
   isAdmin?: boolean;
   defaultCollapsed?: boolean;
   onRatingChange: (stats: RatingStats) => void;
+  /**
+   * Gönderiyle PARALEL çekilmiş 1. sayfa (bkz. PostDetailScreen).
+   *
+   * Eskiden bu bileşen ancak gönderi geldikten SONRA mount oluyordu, yani iki
+   * istek sıralı çalışıyordu: gönderi ~1 sn + yorumlar ~1 sn = kullanıcının
+   * "yorumlar 1-2 sn geç geliyor" dediği gecikme. Artık ekran iki isteği aynı
+   * anda başlatıyor ve hazır sayfayı buraya veriyor; burada tekrar istek
+   * atılmıyor.
+   */
+  firstPage?: CommentsFirstPage;
 }
 
 // `defaultCollapsed` varsayılanı artık FALSE: gönderi detayında yorumlar
@@ -315,19 +330,25 @@ export default function CommentSection({
   isAdmin = false,
   defaultCollapsed = false,
   onRatingChange,
+  firstPage,
 }: Props) {
   const { isAuthenticated, user } = useAuth();
   const t = useFeedTokens();
   const headerIconColor = t.ink;
 
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [total, setTotal] = useState(0);
+  const [comments, setComments] = useState<Comment[]>(firstPage?.comments ?? []);
+  const [total, setTotal] = useState(firstPage?.total ?? 0);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(false);
-  // bkz. useDelayedLoading.ts — hızlı bağlantıda iskelet hiç görünmüyor.
-  const showSkeleton = useDelayedLoading(loading);
+  const [totalPages, setTotalPages] = useState(
+    firstPage ? Math.max(1, Math.ceil(firstPage.total / firstPage.limit)) : 1
+  );
+  // BAŞLANGIÇ DEĞERİ `true` (hazır sayfa yoksa): bu bileşen mount olur olmaz
+  // istek atıyor. `false` başlarken ilk karede "İlk yorumu sen bırak!" boş
+  // durumu çiziliyordu, iskelet ancak ondan sonra geliyordu — "sayfa
+  // gözüküyor sonra skeleton geliyor" şikayetinin yorumlar tarafı buydu.
+  const [loading, setLoading] = useState(!firstPage && !defaultCollapsed);
+  const showSkeleton = loading;
   // Yorum kartının zemini `inset`, `Skeleton`ın varsayılan dolgusu da `inset` —
   // ikisi neredeyse aynı ton olduğu için çubuklar kartın içinde kayboluyordu.
   // Kart İÇİNDEKİ her çubuk bu yüzden bir kademe koyu (`line`) çiziliyor.
@@ -374,8 +395,16 @@ export default function CommentSection({
   // kullanıcı bölümü kapatıp tekrar açtığında taze veri çekiyor. (Eskiden bir
   // kerelik `hasFetched` bayrağı vardı: aynı bileşen başka bir gönderi için
   // yeniden kullanıldığında bir daha hiç istek atmıyordu.)
+  // Hazır 1. sayfa geldiyse (ekran paralel çekti) burada istek ATILMIYOR;
+  // `seededRef` sayesinde yalnızca bir kez atlanıyor — gönderi değişirse ya da
+  // kullanıcı bölümü kapatıp açarsa normal akış geri geliyor.
+  const seededRef = useRef(!!firstPage);
   useEffect(() => {
     if (collapsed) return;
+    if (seededRef.current) {
+      seededRef.current = false;
+      return;
+    }
     fetchPage(1);
   }, [collapsed, fetchPage]);
 
@@ -473,7 +502,7 @@ export default function CommentSection({
             // burada çark döndürmek sayfanın altını boş bir bekleme alanına
             // çeviriyordu. İskelet yorum kartının kendi ölçülerini taşıyor
             // (26px avatar, 13px ad, 13.5px gövde) — veri gelince yerleşim
-            // oynamıyor. Hızlı bağlantıda (<200ms) hiç görünmüyor.
+            // oynamıyor.
             <SkeletonGroup>
               <View style={{ gap: 10, marginTop: 10 }}>
                 {([
@@ -512,7 +541,7 @@ export default function CommentSection({
                 ))}
               </View>
             </SkeletonGroup>
-          ) : loading ? null : comments.length === 0 ? (
+          ) : comments.length === 0 ? (
             <Text style={[styles.empty, { color: t.ink3 }]}>{isAdmin ? 'Henüz yorum yok.' : 'İlk yorumu sen bırak!'}</Text>
           ) : (
             <View style={{ gap: 10, marginTop: 10 }}>

@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { BarChart2, Users, X } from 'lucide-react-native';
 import { checklistAPI } from '../lib/api';
-import { useDelayedLoading } from '../hooks/useDelayedLoading';
 import { useTheme } from '../context/ThemeContext';
 import { useGoToUserProfile } from '../hooks/useGoToUserProfile';
 import type { Checklist } from '../types/checklist';
@@ -29,8 +28,7 @@ export default function ChecklistStatsModal({ checklist, onClose }: { checklist:
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  // bkz. useDelayedLoading.ts — hızlı bağlantıda spinner hiç görünmüyor.
-  const showLoading = useDelayedLoading(loading);
+  const showLoading = loading;
   const [loadingMore, setLoadingMore] = useState(false);
 
   const fetchPage = useCallback(
@@ -127,7 +125,7 @@ export default function ChecklistStatsModal({ checklist, onClose }: { checklist:
             </View>
             {showLoading ? (
               <ActivityIndicator style={{ marginVertical: 16 }} color="#1d4ed8" />
-            ) : loading ? null : completers.length === 0 ? (
+            ) : completers.length === 0 ? (
               <Text className="text-muted" style={styles.emptyText}>
                 Bu checklisti henüz kimse tamamlamadı.
               </Text>

@@ -27,7 +27,6 @@ import { setNotificationsScreenFocused } from '../../lib/push/pushState';
 import { useInvalidateUnreadNotifications, useMarkNotificationsRead } from '../../hooks/useUnreadNotifications';
 import { useInvalidateUnreadAnnouncements } from '../../hooks/useUnreadAnnouncements';
 import { useNotificationCategories } from '../../hooks/useNotificationCategories';
-import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
 
 // Admin bağlantıyı şemasız girebiliyor ("nottepe.com", "www...") — `Linking.openURL`
@@ -281,8 +280,7 @@ export default function NotificationsScreen() {
   const [categoryReloadKey, setCategoryReloadKey] = useState(0);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
-  // bkz. useDelayedLoading.ts — hızlı bağlantıda iskelet hiç görünmüyor.
-  const showAnnouncementSkeleton = useDelayedLoading(loadingAnnouncements);
+  const showAnnouncementSkeleton = loadingAnnouncements;
 
   const handleSelectCategory = useCallback((slug: string) => {
     setActiveCategory(slug);
@@ -291,7 +289,7 @@ export default function NotificationsScreen() {
 
   const [activity, setActivity] = useState<any[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
-  const showActivitySkeleton = useDelayedLoading(activityLoading);
+  const showActivitySkeleton = activityLoading;
   const [activityLoaded, setActivityLoaded] = useState(false);
   const [activityPage, setActivityPage] = useState(1);
   const [activityLoadingMore, setActivityLoadingMore] = useState(false);
@@ -551,7 +549,7 @@ export default function NotificationsScreen() {
       {tab === 'duyurular' ? (
         <FlatList
           showsVerticalScrollIndicator={false}
-          contentContainerClassName="p-3 pb-[110px] flex-grow gap-2.5"
+          contentContainerClassName="p-3 pb-[150px] flex-grow gap-2.5"
           data={visibleAnnouncements}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderAnnouncement}
@@ -597,7 +595,7 @@ export default function NotificationsScreen() {
             // metni de veri gelmeden yanlışlıkla görünmesin diye ayrı dalda.
             showAnnouncementSkeleton ? (
               <NotificationRowsSkeleton />
-            ) : loadingAnnouncements ? null : (
+            ) : (
               <Text className="text-center text-muted2 mt-6">Henüz bildirim yok.</Text>
             )
           }
@@ -605,7 +603,7 @@ export default function NotificationsScreen() {
       ) : (
         <FlatList
           showsVerticalScrollIndicator={false}
-          contentContainerClassName="p-3 pb-[110px] flex-grow gap-2.5"
+          contentContainerClassName="p-3 pb-[150px] flex-grow gap-2.5"
           data={visibleActivity}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderActivity}
@@ -623,7 +621,7 @@ export default function NotificationsScreen() {
           ListEmptyComponent={
             showActivitySkeleton ? (
               <NotificationRowsSkeleton />
-            ) : activityLoading ? null : (
+            ) : (
               <Text className="text-center text-muted2 mt-6">Henüz aktivite bildirimi yok.</Text>
             )
           }

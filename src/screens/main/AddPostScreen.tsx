@@ -142,7 +142,7 @@ export default function AddPostScreen() {
   };
 
   return (
-    <KeyboardAwareScroll showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="px-4 pt-8 pb-[110px]" keyboardShouldPersistTaps="handled">
+    <KeyboardAwareScroll showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="px-4 pt-8 pb-[150px]" keyboardShouldPersistTaps="handled">
       <View className="bg-surface rounded-lg p-8" style={SHADOW_MD}>
         <Text className="text-3xl font-extrabold text-ink mb-6">Not Paylaş</Text>
 

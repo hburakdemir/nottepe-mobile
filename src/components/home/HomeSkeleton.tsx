@@ -1,37 +1,60 @@
 import React from 'react';
 import { View } from 'react-native';
+import { ChevronDown, GraduationCap, HeartHandshake, Search } from 'lucide-react-native';
 import { Skeleton, SkeletonGroup } from '../Skeleton';
 import PostCardSkeleton from '../PostCardSkeleton';
+import { useCardSurface, useFeedTokens } from '../../theme/feedTokens';
 
 // Ana sayfanın yükleme durumu. Eskiden ortada tek bir `StateView kind="loading"`
 // spinner'ı vardı: "bir şey oluyor" demekten başka bilgi vermiyor ve içerik
 // gelince ekran boş ortadan dolu sayfaya ZIPLIYOR.
 //
-// Yerleşim gerçek başlıkla (bkz. HomeScreen'deki `filterBar`) birebir aynı
-// sırada: arama kutusu, fakülte seçici, iki kısayol karesi (124px, `flex-1`),
-// sonra not kartları. İçerik geldiğinde hiçbir şey yer değiştirmiyor.
+// YERLEŞİM `HomeScreen`in `filterBar`ından BİREBİR alındı: dış dolgu 12, arama
+// kartı (p-3.5, radius 16) içinde arama kutusu ve fakülte seçici, altında iki
+// adet 124px yüksekliğinde kısayol karesi (38px ikon yuvası + başlık + 30px
+// sabit yükseklikli iki satır açıklama).
 //
-// Kart işaretlemesi `PostCardSkeleton`'dan — akışta çizilen gerçek kart
-// (`PostCardModern`) ile birebir aynı ölçüler; Profil ve Kaydedilenler de aynı
-// kaynağı kullanıyor (bkz. o dosyadaki not).
+// Önceki hâli bu kısmı iki düz 42px çubuk ve iki boş 124px blokla geçiştiriyordu:
+// arama kutusunun içi, fakülte oku ve kısayolların ikonları/başlıkları hiç
+// temsil edilmiyordu.
+//
+// SABİT KALAN ÖGELER: arama, fakülte oku ve iki kısayolun ikonları — veriye
+// bağlı değil, her zaman aynı. Yalnızca yazılar ve sayaçlar gri çubuk.
 export default function HomeSkeleton() {
+  const t = useFeedTokens();
+  const cardSurface = useCardSurface();
+
   return (
     <SkeletonGroup>
       <View className="flex-1 bg-ground">
-        <View className="px-4 pt-3 gap-2.5">
-          {/* Arama kutusu */}
-          <Skeleton width="100%" height={42} radius={10} />
-          {/* Fakülte seçici */}
-          <Skeleton width="100%" height={42} radius={10} />
-        </View>
+        <View style={{ paddingHorizontal: 12, paddingTop: 12 }}>
+          <View className="p-3.5 mb-3" style={[cardSurface, { borderRadius: 16 }]}>
+            <View className="flex-row items-center gap-2 bg-inset border border-line rounded-[10px] px-3 py-2.5">
+              <Search size={16} color={t.line} />
+              <Skeleton height={13.5} style={{ flex: 1, maxWidth: 190 }} />
+            </View>
 
-        {/* İki kısayol karesi — gerçekteki gibi eşit genişlik, 124px yükseklik */}
-        <View className="flex-row gap-3 px-4 pt-3">
-          <View className="flex-1">
-            <Skeleton width="100%" height={124} radius={16} />
+            <View className="flex-row items-center justify-between border border-line rounded-[10px] px-3 py-2.5 mt-2.5">
+              <Skeleton width={104} height={13.5} />
+              <ChevronDown size={16} color={t.line} />
+            </View>
           </View>
-          <View className="flex-1">
-            <Skeleton width="100%" height={124} radius={16} />
+
+          <View className="flex-row gap-3 mb-1">
+            {[GraduationCap, HeartHandshake].map((Icon, i) => (
+              <View key={i} className="flex-1 p-3.5 justify-between" style={[cardSurface, { borderRadius: 16, height: 124 }]}>
+                <View className="w-[38px] h-[38px] rounded-[10px] bg-accent-soft items-center justify-center">
+                  <Icon size={19} color={t.line} />
+                </View>
+                <View>
+                  <Skeleton width={i === 0 ? 86 : 78} height={13.5} />
+                  <View className="mt-1 gap-1.5" style={{ height: 30 }}>
+                    <Skeleton width="100%" height={11} />
+                    <Skeleton width={i === 0 ? '64%' : '52%'} height={11} />
+                  </View>
+                </View>
+              </View>
+            ))}
           </View>
         </View>
 

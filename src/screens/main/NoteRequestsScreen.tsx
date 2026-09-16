@@ -289,7 +289,7 @@ export default function NoteRequestsScreen() {
       ) : (
         <FlatList
           showsVerticalScrollIndicator={false}
-          contentContainerClassName="p-4 pb-[110px]"
+          contentContainerClassName="p-4 pb-[150px]"
           data={requests}
           keyExtractor={(item) => String(item.id)}
           removeClippedSubviews
