@@ -328,6 +328,10 @@ export default function CommentSection({
   const [loading, setLoading] = useState(false);
   // bkz. useDelayedLoading.ts — hızlı bağlantıda iskelet hiç görünmüyor.
   const showSkeleton = useDelayedLoading(loading);
+  // Yorum kartının zemini `inset`, `Skeleton`ın varsayılan dolgusu da `inset` —
+  // ikisi neredeyse aynı ton olduğu için çubuklar kartın içinde kayboluyordu.
+  // Kart İÇİNDEKİ her çubuk bu yüzden bir kademe koyu (`line`) çiziliyor.
+  const barOnInset = { backgroundColor: t.line };
 
   const [content, setContent] = useState('');
   const [rating, setRating] = useState(0);
@@ -480,13 +484,13 @@ export default function CommentSection({
                   <View key={i} style={[styles.commentCard, { backgroundColor: t.inset, borderColor: t.line }]}>
                     <View style={styles.commentHeader}>
                       <View style={styles.commentUser}>
-                        <Skeleton width={26} height={26} radius={13} style={{ backgroundColor: t.card }} />
+                        <Skeleton width={26} height={26} radius={13} style={barOnInset} />
                         <View style={{ flex: 1, gap: 5 }}>
                           <View style={styles.usernameRow}>
-                            <Skeleton width={row.name} height={13} />
-                            {row.badge > 0 && <Skeleton width={row.badge} height={14} radius={100} />}
+                            <Skeleton width={row.name} height={13} style={barOnInset} />
+                            {row.badge > 0 && <Skeleton width={row.badge} height={14} radius={100} style={barOnInset} />}
                           </View>
-                          <Skeleton width={104} height={10} />
+                          <Skeleton width={104} height={10} style={barOnInset} />
                         </View>
                       </View>
                       {/* Puan yıldızları SABİT: boş yıldız zaten gerçek kartta da
@@ -501,7 +505,7 @@ export default function CommentSection({
                     </View>
                     <View style={{ gap: 6, marginTop: 8 }}>
                       {row.body.map((w, j) => (
-                        <Skeleton key={j} height={13} style={{ width: w }} />
+                        <Skeleton key={j} height={13} style={[barOnInset, { width: w }]} />
                       ))}
                     </View>
                   </View>

@@ -80,6 +80,9 @@ export default function PostDetailScreen() {
   });
   // bkz. HomeScreen.tsx — aynı gecikmeli yükleme kuralı.
   const showLoading = useDelayedLoading(isLoading);
+  // Yorum kartlarının zemini `inset`; içindeki iskelet çubukları o tonda
+  // kaybolduğu için bir kademe koyu (`line`) çiziliyor.
+  const barOnInset = { backgroundColor: t.line };
 
   const notFound = (error as { response?: { status?: number } } | null)?.response?.status === 404;
 
@@ -186,15 +189,20 @@ export default function PostDetailScreen() {
               {[0, 1].map((i) => (
                 <View key={i} style={{ backgroundColor: t.inset, borderColor: t.line, borderWidth: StyleSheet.hairlineWidth, borderRadius: 12, padding: 10 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Skeleton width={26} height={26} radius={13} style={{ backgroundColor: t.card }} />
+                    {/* Kart zemini `inset`, Skeleton'ın varsayılanı da `inset` —
+                        içindeki çubuklar kaybolmasın diye bir kademe koyu. */}
+                    <Skeleton width={26} height={26} radius={13} style={barOnInset} />
                     <View style={{ gap: 5 }}>
-                      <Skeleton width={i === 0 ? 84 : 66} height={13} />
-                      <Skeleton width={104} height={10} />
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                        <Skeleton width={i === 0 ? 84 : 66} height={13} style={barOnInset} />
+                        <Skeleton width={i === 0 ? 46 : 38} height={14} radius={100} style={barOnInset} />
+                      </View>
+                      <Skeleton width={104} height={10} style={barOnInset} />
                     </View>
                   </View>
                   <View style={{ gap: 6, marginTop: 8 }}>
-                    <Skeleton width="100%" height={13} />
-                    <Skeleton width={i === 0 ? '72%' : '54%'} height={13} />
+                    <Skeleton height={13} style={[barOnInset, { width: '100%' }]} />
+                    <Skeleton height={13} style={[barOnInset, { width: i === 0 ? '72%' : '54%' }]} />
                   </View>
                 </View>
               ))}
