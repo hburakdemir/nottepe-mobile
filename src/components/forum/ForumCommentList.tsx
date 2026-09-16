@@ -3,6 +3,8 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import { CornerDownRight, MessageSquare, Send, ThumbsDown, ThumbsUp, Trash2 } from 'lucide-react-native';
 import { useGoToUserProfile } from '../../hooks/useGoToUserProfile';
 import { useTheme } from '../../context/ThemeContext';
+import { useDelayedLoading } from '../../hooks/useDelayedLoading';
+import { Skeleton, SkeletonGroup } from '../Skeleton';
 
 export interface ForumComment {
   id: number;
@@ -179,6 +181,8 @@ export default function ForumCommentList({ comments, loading, canModerate, onAdd
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const brandColor = isDark ? '#5A9690' : '#2F5755';
+  // bkz. useDelayedLoading.ts — hızlı bağlantıda iskelet hiç görünmüyor.
+  const showSkeleton = useDelayedLoading(loading);
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -226,9 +230,36 @@ export default function ForumCommentList({ comments, loading, canModerate, onAdd
         </Pressable>
       </View>
 
-      {loading ? (
-        <ActivityIndicator style={{ marginVertical: 16 }} color={brandColor} />
-      ) : topLevel.length === 0 ? (
+      {showSkeleton ? (
+        // Yorum satırının kendi ölçüleri (13px ad, 10.5px tarih, 13px gövde).
+        // Çark yerine bu: veri gelince sayfanın altı yerinden oynamıyor.
+        // Hızlı bağlantıda (<200ms) hiç görünmüyor, bkz. useDelayedLoading.ts.
+        <SkeletonGroup>
+          <View style={{ gap: 10 }}>
+            {([
+              { name: 78, body: ['100%', '68%'] },
+              { name: 92, body: ['94%'] },
+              { name: 70, body: ['100%', '52%'] },
+            ] as const).map((row, i) => (
+              <View key={i} className="border-line-soft" style={styles.commentRow}>
+                <View style={styles.commentHeaderRow}>
+                  <Skeleton width={row.name} height={13} />
+                  <Skeleton width={54} height={10} />
+                </View>
+                <View style={{ gap: 6, marginTop: 6 }}>
+                  {row.body.map((w, j) => (
+                    <Skeleton key={j} height={13} style={{ width: w }} />
+                  ))}
+                </View>
+                <View style={styles.voteRow}>
+                  <Skeleton width={46} height={26} radius={8} />
+                  <Skeleton width={46} height={26} radius={8} />
+                </View>
+              </View>
+            ))}
+          </View>
+        </SkeletonGroup>
+      ) : loading ? null : topLevel.length === 0 ? (
         <Text className="text-muted" style={styles.emptyText}>
           Henüz yorum yok — ilk yorumu sen yaz.
         </Text>

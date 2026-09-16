@@ -22,6 +22,8 @@ import { useFeedTokens } from '../theme/feedTokens';
 import { buildCommentAuthorAvatar } from '../lib/postAuthorAvatar';
 import AvatarDisplay from './avatar/AvatarDisplay';
 import BadgeChip from './BadgeChip';
+import { Skeleton, SkeletonGroup } from './Skeleton';
+import { useDelayedLoading } from '../hooks/useDelayedLoading';
 import type { Comment } from '../types/comment';
 
 const LIMIT = 5;
@@ -324,6 +326,8 @@ export default function CommentSection({
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
+  // bkz. useDelayedLoading.ts — hızlı bağlantıda iskelet hiç görünmüyor.
+  const showSkeleton = useDelayedLoading(loading);
 
   const [content, setContent] = useState('');
   const [rating, setRating] = useState(0);
@@ -460,9 +464,37 @@ export default function CommentSection({
 
       {!collapsed && (
         <>
-          {loading ? (
-            <ActivityIndicator style={{ marginVertical: 16 }} color={t.accent} />
-          ) : comments.length === 0 ? (
+          {showSkeleton ? (
+            // Yorumlar gönderi gövdesinden SONRA, ayrı bir istekle geliyor;
+            // burada çark döndürmek sayfanın altını boş bir bekleme alanına
+            // çeviriyordu. İskelet yorum kartının kendi ölçülerini taşıyor
+            // (26px avatar, 13px ad, 13.5px gövde) — veri gelince yerleşim
+            // oynamıyor. Hızlı bağlantıda (<200ms) hiç görünmüyor.
+            <SkeletonGroup>
+              <View style={{ gap: 10, marginTop: 10 }}>
+                {([
+                  { name: 84, body: ['100%', '72%'] },
+                  { name: 66, body: ['96%', '54%'] },
+                  { name: 92, body: ['100%'] },
+                ] as const).map((row, i) => (
+                  <View key={i} style={[styles.commentCard, { borderColor: t.line }]}>
+                    <View style={styles.commentUser}>
+                      <Skeleton width={26} height={26} radius={13} />
+                      <View style={{ gap: 4 }}>
+                        <Skeleton width={row.name} height={13} />
+                        <Skeleton width={58} height={10} />
+                      </View>
+                    </View>
+                    <View style={{ gap: 6, marginTop: 8 }}>
+                      {row.body.map((w, j) => (
+                        <Skeleton key={j} height={13} style={{ width: w }} />
+                      ))}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </SkeletonGroup>
+          ) : loading ? null : comments.length === 0 ? (
             <Text style={[styles.empty, { color: t.ink3 }]}>{isAdmin ? 'Henüz yorum yok.' : 'İlk yorumu sen bırak!'}</Text>
           ) : (
             <View style={{ gap: 10, marginTop: 10 }}>

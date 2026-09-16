@@ -7,6 +7,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useGoToUserProfile } from '../../hooks/useGoToUserProfile';
 import AvatarDisplay from '../../components/avatar/AvatarDisplay';
+import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
+import { useDelayedLoading } from '../../hooks/useDelayedLoading';
 import BadgeChip, { type Badge } from '../../components/BadgeChip';
 
 interface LeaderboardEntry {
@@ -118,6 +120,8 @@ export default function LeaderboardScreen() {
   const entries = data?.entries ?? EMPTY_ENTRIES;
   const me = data?.me ?? null;
   const loading = isLoading;
+  // bkz. useDelayedLoading.ts — hızlı bağlantıda iskelet hiç görünmüyor.
+  const showSkeleton = useDelayedLoading(loading);
 
   const activeSort = SORTS.find((s) => s.key === sort)!;
   const meInTop = me && entries.some((e) => e.id === me.id);
@@ -158,7 +162,25 @@ export default function LeaderboardScreen() {
         ))}
       </View>
 
-      {loading && <ActivityIndicator style={{ marginTop: 30 }} size="large" color={isDark ? '#5A9690' : '#2F5755'} />}
+      {/* Çark yerine satırın kendi şekli: 30px sıra rozeti, 34px avatar,
+          kullanıcı adı ve sağda metrik. Hızlı bağlantıda hiç görünmüyor
+          (bkz. useDelayedLoading.ts). */}
+      {showSkeleton && (
+        <SkeletonGroup>
+          <View className="gap-2.5 mt-2.5">
+            {([76, 92, 64, 84, 70, 96, 68] as const).map((w, i) => (
+              <View key={i} className="flex-row items-center gap-2.5 bg-surface rounded-xl p-2.5">
+                <Skeleton width={30} height={30} radius={15} />
+                <Skeleton width={34} height={34} radius={17} />
+                <View className="flex-1">
+                  <Skeleton width={w} height={13} />
+                </View>
+                <Skeleton width={28} height={13} />
+              </View>
+            ))}
+          </View>
+        </SkeletonGroup>
+      )}
     </>
   );
 

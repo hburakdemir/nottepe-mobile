@@ -27,6 +27,8 @@ import { setNotificationsScreenFocused } from '../../lib/push/pushState';
 import { useInvalidateUnreadNotifications, useMarkNotificationsRead } from '../../hooks/useUnreadNotifications';
 import { useInvalidateUnreadAnnouncements } from '../../hooks/useUnreadAnnouncements';
 import { useNotificationCategories } from '../../hooks/useNotificationCategories';
+import { useDelayedLoading } from '../../hooks/useDelayedLoading';
+import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
 
 // Admin bağlantıyı şemasız girebiliyor ("nottepe.com", "www...") — `Linking.openURL`
 // şemasız bir URL'i REDDEDİYOR (native tarafta sessizce hiçbir şey olmuyormuş gibi
@@ -186,6 +188,36 @@ function FilterChip({ label, selected, onPress }: { label: string; selected: boo
   );
 }
 
+// Bildirim/aktivite satırının iskeleti — `ActivityCard` ile aynı ölçüler
+// (34px ikon yuvası, 13.5px iki satır metin, 11px tarih). Eskiden burada tek
+// bir çark dönüyordu: liste gelince ekran boş ortadan dolu listeye zıplıyordu.
+function NotificationRowsSkeleton() {
+  return (
+    <SkeletonGroup>
+      <View className="mt-1">
+        {([
+          ['100%', '62%'],
+          ['94%'],
+          ['100%', '48%'],
+          ['88%'],
+          ['100%', '70%'],
+          ['92%'],
+        ] as const).map((lines, i) => (
+          <View key={i} className="flex-row items-start gap-2.5 bg-surface rounded-xl p-3 mb-2.5">
+            <Skeleton width={34} height={34} radius={17} />
+            <View className="flex-1 gap-1.5">
+              {lines.map((w, j) => (
+                <Skeleton key={j} height={13} style={{ width: w }} />
+              ))}
+              <Skeleton width={72} height={11} />
+            </View>
+          </View>
+        ))}
+      </View>
+    </SkeletonGroup>
+  );
+}
+
 function ActivityCard({ notif, unread }: { notif: any; unread: boolean }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme } = useTheme();
@@ -249,6 +281,8 @@ export default function NotificationsScreen() {
   const [categoryReloadKey, setCategoryReloadKey] = useState(0);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
+  // bkz. useDelayedLoading.ts — hızlı bağlantıda iskelet hiç görünmüyor.
+  const showAnnouncementSkeleton = useDelayedLoading(loadingAnnouncements);
 
   const handleSelectCategory = useCallback((slug: string) => {
     setActiveCategory(slug);
@@ -257,6 +291,7 @@ export default function NotificationsScreen() {
 
   const [activity, setActivity] = useState<any[]>([]);
   const [activityLoading, setActivityLoading] = useState(true);
+  const showActivitySkeleton = useDelayedLoading(activityLoading);
   const [activityLoaded, setActivityLoaded] = useState(false);
   const [activityPage, setActivityPage] = useState(1);
   const [activityLoadingMore, setActivityLoadingMore] = useState(false);
@@ -557,9 +592,12 @@ export default function NotificationsScreen() {
             </View>
           }
           ListEmptyComponent={
-            loadingAnnouncements ? (
-              <ActivityIndicator style={{ marginTop: 24 }} color="#1d4ed8" />
-            ) : (
+            // Liste boşken: çark yerine satırın kendi şekli. Gecikme dolmadan
+            // (hızlı bağlantı) hiçbir şey çizilmiyor — "hiç bildirim yok"
+            // metni de veri gelmeden yanlışlıkla görünmesin diye ayrı dalda.
+            showAnnouncementSkeleton ? (
+              <NotificationRowsSkeleton />
+            ) : loadingAnnouncements ? null : (
               <Text className="text-center text-muted2 mt-6">Henüz bildirim yok.</Text>
             )
           }
@@ -583,9 +621,9 @@ export default function NotificationsScreen() {
             activityLoadingMore ? <ActivityIndicator style={{ marginTop: 12 }} color={colors.accent} /> : null
           }
           ListEmptyComponent={
-            activityLoading ? (
-              <ActivityIndicator style={{ marginTop: 24 }} color="#1d4ed8" />
-            ) : (
+            showActivitySkeleton ? (
+              <NotificationRowsSkeleton />
+            ) : activityLoading ? null : (
               <Text className="text-center text-muted2 mt-6">Henüz aktivite bildirimi yok.</Text>
             )
           }

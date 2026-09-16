@@ -150,7 +150,14 @@ export default function UserProfileScreen() {
   const [scheduleCourses, setScheduleCourses] = useState<ScheduleCourse[]>([]);
   const [follows, setFollows] = useState<Follow[]>([]);
   const [tabLoading, setTabLoading] = useState(false);
+  // bkz. useDelayedLoading.ts — hızlı bağlantıda spinner hiç görünmüyor.
+  // `tabLoading` gecikme dolmadan da true olabiliyor; o aralıkta hiçbir şey
+  // göstermiyoruz (aşağıdaki `null` dalları), yoksa veri gelmeden "boş" metni
+  // yanlışlıkla yanıp sönerdi.
+  const showTabLoading = useDelayedLoading(tabLoading);
+  const showPostsLoading = useDelayedLoading(postsLoading);
   const [forumItems, setForumItems] = useState<ForumItem[] | null>(null);
+  const showForumsLoading = useDelayedLoading(forumItems === null);
 
   useEffect(() => {
     let cancelled = false;
@@ -406,9 +413,9 @@ export default function UserProfileScreen() {
 
           <View className={activeTab === 'posts' || activeTab === 'saved' ? '' : 'gap-3'}>
             {activeTab === 'posts' &&
-              (postsLoading ? (
+              (showPostsLoading ? (
                 <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
-              ) : posts.length === 0 ? (
+              ) : postsLoading ? null : posts.length === 0 ? (
                 <EmptyState icon={FileText} text="Henüz onaylı not paylaşılmamış." isDark={isDark} />
               ) : (
                 <>
@@ -451,7 +458,7 @@ export default function UserProfileScreen() {
               ))}
 
             {activeTab === 'saved' &&
-              (tabLoading && !loadedTabs.has('saved') ? (
+              (showTabLoading && !loadedTabs.has('saved') ? (
                 <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
               ) : savedPosts.length === 0 ? (
                 <EmptyState icon={Bookmark} text="Henüz not kaydetmemiş." isDark={isDark} />
@@ -460,7 +467,7 @@ export default function UserProfileScreen() {
               ))}
 
             {activeTab === 'lists' &&
-              (tabLoading && !loadedTabs.has('lists') ? (
+              (showTabLoading && !loadedTabs.has('lists') ? (
                 <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
               ) : checklists.length === 0 ? (
                 <EmptyState icon={ListChecks} text="Henüz bir checklist oluşturmamış." isDark={isDark} />
@@ -477,7 +484,7 @@ export default function UserProfileScreen() {
               ))}
 
             {activeTab === 'akts' &&
-              (tabLoading && !loadedTabs.has('akts') ? (
+              (showTabLoading && !loadedTabs.has('akts') ? (
                 <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
               ) : aktsCalcs.length === 0 ? (
                 <EmptyState icon={Calculator} text="Henüz kayıtlı bir AKTS hesaplaması yok." isDark={isDark} />
@@ -505,7 +512,7 @@ export default function UserProfileScreen() {
               ))}
 
             {activeTab === 'schedule' &&
-              (tabLoading && !loadedTabs.has('schedule') ? (
+              (showTabLoading && !loadedTabs.has('schedule') ? (
                 <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
               ) : scheduleCourses.length === 0 ? (
                 <EmptyState icon={CalendarDays} text="Henüz ders programı oluşturmamış." isDark={isDark} />
@@ -536,7 +543,7 @@ export default function UserProfileScreen() {
               ))}
 
             {activeTab === 'follows' &&
-              (tabLoading && !loadedTabs.has('follows') ? (
+              (showTabLoading && !loadedTabs.has('follows') ? (
                 <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
               ) : follows.length === 0 ? (
                 <EmptyState icon={Bell} text="Henüz bir bölüm takip etmiyor." isDark={isDark} />
@@ -557,9 +564,9 @@ export default function UserProfileScreen() {
               ))}
 
             {activeTab === 'forums' &&
-              (forumItems === null ? (
+              (showForumsLoading ? (
                 <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
-              ) : forumItems.length === 0 ? (
+              ) : forumItems === null ? null : forumItems.length === 0 ? (
                 <EmptyState icon={MessagesSquare} text="Henüz bir foruma katılmadı." isDark={isDark} />
               ) : (
                 forumItems.map((item) => (
