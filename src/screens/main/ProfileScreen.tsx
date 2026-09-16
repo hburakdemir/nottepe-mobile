@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Modal, ScrollView, View } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
@@ -263,10 +263,15 @@ export default function ProfileScreen() {
     pageScrollOffsets.current[key] = y;
   }, []);
 
+  // BİLEREK animasyonsuz: hedef sekmenin native kaydırma konumu zaten oradaydı
+  // (mount'lu kalan sayfa hiç sıfırlanmıyor, bkz. yukarısı), yalnızca başlık
+  // katmanı bunu "bilmiyordu". `withTiming` ile yumuşatmak, içerik anında
+  // yerinde dururken başlığın 180ms geriden yetişmesine yol açıyordu —
+  // "sekme değiştirince kayıyor" şikâyeti buydu. Anlık atama ikisini senkron
+  // tutuyor.
   useEffect(() => {
-    scrollY.value = withTiming(pageScrollOffsets.current[activeTab] ?? 0, { duration: 180 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab]);
+    scrollY.value = pageScrollOffsets.current[activeTab] ?? 0;
+  }, [activeTab, scrollY]);
 
   const headerAnimStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: -Math.min(scrollY.value, cardHeightShared.value) }],

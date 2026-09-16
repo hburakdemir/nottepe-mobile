@@ -257,7 +257,7 @@ export default function ScheduleScreen() {
 
   return (
     <View className="flex-1 bg-primary dark:bg-darkbgbutton">
-      <ScrollView contentContainerClassName="px-4 py-6">
+      <ScrollView contentContainerClassName="px-4 pt-6 pb-[110px]">
         {/* Ekran içi "Ders Programı" başlığı ve alt yazısı kaldırıldı — üst bar
             zaten sayfa adını yazıyor. */}
         <View className="flex-row flex-wrap gap-2 mb-3">
