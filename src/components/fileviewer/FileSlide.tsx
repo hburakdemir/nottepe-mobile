@@ -4,6 +4,7 @@ import { getFileUrl } from '../../lib/config';
 import { fileKind } from '../../theme/feedTokens';
 import HandoffSlide from './HandoffSlide';
 import ImageSlide from './ImageSlide';
+import PdfSlide from './PdfSlide';
 import { VIEWER_BG } from './viewerTokens';
 
 interface Props {
@@ -65,6 +66,19 @@ export default function FileSlide({
         active={active}
         onZoomChange={onZoomChange}
         onError={() => setImageFailed(true)}
+      />
+    );
+  }
+
+  if (kind === 'pdf') {
+    return (
+      <PdfSlide
+        fileName={fileName}
+        width={width}
+        height={height}
+        active={active}
+        onOpenExternally={handoff}
+        sharing={sharing}
       />
     );
   }
