@@ -10,7 +10,6 @@ import { VIEWER_BG } from './viewerTokens';
 interface Props {
   fileName: string;
   fileIndex: number;
-  postTitle?: string;
   width: number;
   height: number;
   active: boolean;

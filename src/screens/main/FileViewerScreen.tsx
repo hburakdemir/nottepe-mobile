@@ -142,7 +142,6 @@ export default function FileViewerScreen() {
                 key={`${fileName}-${i}`}
                 fileName={fileName}
                 fileIndex={i}
-                postTitle={postTitle}
                 width={size.width}
                 height={size.height}
                 // Ağır işi (indirme, WebView mount) yalnızca görünen slayt
