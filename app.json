@@ -54,7 +54,9 @@
             "enableShrinkResourcesInReleaseBuilds": true
           }
         }
-      ]
+      ],
+      "expo-image",
+      "expo-sharing"
     ],
     "owner": "hakanburakdemir",
     "extra": {
