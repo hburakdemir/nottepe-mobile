@@ -56,6 +56,25 @@ export type RootStackParamList = {
   // Web'de "/notifications" ve "/duyurular" aynı NotificationsPage'i farklı
   // initialTab ile açıyor (bkz. App.jsx) — mobilde de tek ekran, iki giriş noktası.
   Notifications: { initialTab?: 'duyurular' | 'aktivite' } | undefined;
+  // Dosya görüntüleyici LİSTEYİ taşıyor, gönderi id'sini değil.
+  //
+  // `{ postId, index }` alternatifi reddedildi: dosya adları zaten kartın
+  // elinde (post.file_urls), id ile gitmek elimizdeki veriyi atıp aynısını
+  // ağdan geri istemek olurdu. Bedeli somut — görüntüleyici açılır açılmaz bir
+  // istek, bir yükleme durumu ve çevrimdışıyken hiç açılamama. Oysa dosya daha
+  // önce okunmuşsa cihazda önbellekli (bkz. lib/fileCache.ts) ve görüntüleyici
+  // tamamen çevrimdışı çalışabiliyor.
+  //
+  // Bir derin bağlantı/bildirim hedefi DEĞİL: projede `linking` yapılandırması
+  // hiç yok ve bir bildirim dosya listesi taşıyamaz. Bildirimler PostDetail'e
+  // gidiyor, kullanıcı oradan kutucuğa basıyor.
+  FileViewer: {
+    files: string[];
+    /** Basılan kutucuk. Sınır dışıysa 0'a kırpılıyor. */
+    index?: number;
+    /** Paylaşımda üretilecek okunaklı dosya adının gövdesi (utils/fileMeta.ts). */
+    postTitle?: string;
+  };
 };
 
 // RootStackParamList'i saran tek gözlü Drawer.Navigator — menü artık ayrı bir

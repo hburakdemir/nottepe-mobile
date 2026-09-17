@@ -31,10 +31,25 @@ const ROOT_ROUTE_NAMES = [
   'Notifications',
 ] as const satisfies readonly (keyof RootStackParamList)[];
 
+// Bilerek beyaz listede OLMAYAN route'lar. Buraya bir şey eklemek "bu ekran
+// bildirimle açılamaz" kararını kayda geçiriyor — aşağıdaki tamlık kontrolünün
+// sessizce susturulması değil.
+//
+// FileViewer: param olarak dosya adlarının LİSTESİNİ alıyor (bkz. types.ts).
+// Bir bildirim gövdesi o listeyi taşıyamaz ve sunucudan gelen keyfî bir dosya
+// adı listesiyle görüntüleyici açmak, bildirimi rastgele dosya indirtmek için
+// kullanılabilir bir kapı olurdu. Bildirimler gönderiye (PostDetail) gidiyor,
+// kullanıcı dosyayı oradan açıyor.
+const NOT_PUSH_TARGETS = ['FileViewer'] as const satisfies readonly (keyof RootStackParamList)[];
+
 // Liste `RootStackParamList` ile senkron kalsın: types.ts'e yeni bir route
-// eklenip buraya eklenmezse aşağıdaki satır derleme hatası verir. Sessizce
-// "hedef bulunamadı" diye düşen bir bildirimi hata ayıklamak çok daha pahalı.
-type MissingFromWhitelist = Exclude<keyof RootStackParamList, (typeof ROOT_ROUTE_NAMES)[number]>;
+// eklenip ne buraya ne de NOT_PUSH_TARGETS'a eklenmezse aşağıdaki satır
+// derleme hatası verir. Sessizce "hedef bulunamadı" diye düşen bir bildirimi
+// hata ayıklamak çok daha pahalı.
+type MissingFromWhitelist = Exclude<
+  keyof RootStackParamList,
+  (typeof ROOT_ROUTE_NAMES)[number] | (typeof NOT_PUSH_TARGETS)[number]
+>;
 const _whitelistIsExhaustive: MissingFromWhitelist extends never ? true : never = true;
 void _whitelistIsExhaustive;
 

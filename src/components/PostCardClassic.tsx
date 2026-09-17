@@ -4,13 +4,13 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Calendar, FileText, MessageSquare, Star, Trash2, User } from 'lucide-react-native';
 import type { Post } from '../types/post';
-import { getFileUrl } from '../lib/config';
 import { postsAPI, ratingAPI } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
 import { useAuth } from '../context/AuthContext';
 import { useSavedPosts } from '../context/SavedPostContext';
 import { useTheme } from '../context/ThemeContext';
 import { useGoToUserProfile } from '../hooks/useGoToUserProfile';
+import { useOpenFileViewer } from '../hooks/useOpenFileViewer';
 import { buildPostAuthorAvatar } from '../lib/postAuthorAvatar';
 import AvatarDisplay from './avatar/AvatarDisplay';
 import BadgeChip from './BadgeChip';
@@ -55,6 +55,7 @@ export default function PostCardClassic({ post, showStatus = false, showRating =
   const isOwner = !!user && String(user.id) === String(post.user_id);
   const { savedPosts, toggleSavePost } = useSavedPosts();
   const goToUserProfile = useGoToUserProfile();
+  const openFileViewer = useOpenFileViewer();
   const [showMore, setShowMore] = useState(false);
   const content = post.content || '';
   const isLong = content.length > MAX_LENGTH;
@@ -180,7 +181,11 @@ export default function PostCardClassic({ post, showStatus = false, showRating =
       {post.file_urls && post.file_urls.length > 0 && (
         <View style={{ marginTop: 8, gap: 6 }}>
           {post.file_urls.map((fileName, index) => (
-            <Pressable key={index} style={styles.fileRow} onPress={() => Linking.openURL(getFileUrl(fileName))}>
+            <Pressable
+              key={index}
+              style={styles.fileRow}
+              onPress={() => openFileViewer(post.file_urls!, index, post.title)}
+            >
               <FileText size={16} color={fileIconColor} />
               <Text className="text-on-badge" style={styles.fileText}>
                 Notu Gör

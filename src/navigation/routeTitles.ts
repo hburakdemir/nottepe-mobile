@@ -24,6 +24,9 @@ export const ROUTE_TITLES: Record<string, string> = {
   Leaderboard: 'Liderlik Tablosu',
   Help: 'Yardım',
   Notifications: 'Bildirimler',
+  // Görüntüleyici kendi başlığını çiziyor (AppHeader orada yok), ama
+  // `useActiveRouteName`'i tüketen başka yerler boş başlıkla karşılaşmasın.
+  FileViewer: 'Dosya',
 };
 
 export function routeTitle(routeName?: string): string {
