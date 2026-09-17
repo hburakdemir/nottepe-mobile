@@ -31,12 +31,15 @@ import FollowsTab from '../../components/profile/FollowsTab';
 import ForumsTab from '../../components/profile/ForumsTab';
 import { MY_BADGES_KEY, useMyBadges } from '../../hooks/profile/useProfileLists';
 import { usePostsPagination } from '../../hooks/profile/usePostsPagination';
+import { diagMark } from '../../lib/diagnostics';
 
 // `useMyBadges()` henüz veri döndürmediğinde `HeaderCard`'a (memo'lu) her
 // render'da yeni bir `[]` gitmesin.
 const NO_BADGES: Badge[] = [];
 
 export default function ProfileScreen() {
+  // GEÇİCİ ölçüm sayacı — teşhis aracıyla silinecek (bkz. diagnostics.ts v7).
+  diagMark('Profile');
   const route = useRoute<RouteProp<MainTabParamList, 'Profile'>>();
   const { user } = useAuth();
   const isStaff = user?.role === 'admin' || user?.role === 'moderator';

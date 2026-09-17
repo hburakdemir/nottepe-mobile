@@ -23,8 +23,20 @@ const FEED_FILE_TILES = 2;
 
 // Kartta kısa tarih (17 Ağu) — künye satırı zaten dolu, uzun tarih orayı
 // gereksiz şişiriyordu. Gönderi detayında tam tarih gösteriliyor.
+//
+// BİÇİMLENDİRİCİ MODÜL SEVİYESİNDE, TEK ÖRNEK. Eskiden burada
+// `toLocaleDateString('tr-TR', {...})` çağrılıyordu ve o çağrı her seferinde
+// yeni bir ICU biçimlendiricisi kuruyor — Hermes'te bir liste satırındaki en
+// pahalı tek çağrılardan biri. Akış `maxToRenderPerBatch={6}` ile çalıştığı
+// için kaydırmada parti başına ALTI kurulum demekti; kullanıcının "aşağı yukarı
+// kayarken tık tık tık" dediği JS patlamasının kalemlerinden biri.
+//
+// `Intl.DateTimeFormat` bir kez kurulup tekrar kullanılıyor; çıktı birebir aynı
+// (`toLocaleDateString` de arkada aynı şeyi yapıyor).
+const SHORT_DATE = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'short' });
+
 function formatShortDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+  return SHORT_DATE.format(new Date(dateString));
 }
 
 interface Props {
@@ -68,8 +80,8 @@ export default function PostCardModern({ post, showStatus = false, showRating = 
   // ⚠️ `useMemo` ZORUNLU — `buildPostAuthorAvatar` her çağrıda YENİ bir nesne
   // döndürüyor. Memoize edilmezse `AvatarDisplay`in (ve onun içindeki
   // `AvatarSVG`in) `React.memo`su HİÇBİR ZAMAN tutmaz: bu kartın her
-  // render'ında 30-50 native SVG düğümü sökülüp yeniden kuruluyordu — akışta
-  // onlarca kart var (bkz. AvatarSVG.tsx'teki düğüm sayısı notu).
+  // render'ında avatarın bütün native SVG düğümleri sökülüp yeniden
+  // kuruluyordu — akışta onlarca kart var (düğüm sayısı: avatarPack.ts).
   // `CommentSection` aynı işi `buildCommentAuthorAvatar` için zaten yapıyor.
   const authorAvatar = React.useMemo(() => buildPostAuthorAvatar(post), [post]);
   const files = post.file_urls ?? [];

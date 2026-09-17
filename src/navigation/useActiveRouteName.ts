@@ -29,8 +29,24 @@ export function useActiveRouteName(): string | undefined {
 }
 
 // Başlık bazı ekranlarda route ADINDAN değil PARAMETRESİNDEN geliyor (ör. bir
-// başkasının profilinde "Profil" değil kullanıcı adı yazıyor) — bu yüzden
-// AppHeader adı değil route'un tamamını okuyor.
-export function useActiveRoute(): ActiveRoute | undefined {
-  return useNavigationState(getActiveRoute);
+// başkasının profilinde "Profil" değil kullanıcı adı yazıyor). Bunun için
+// route'un TAMAMINI döndüren bir `useActiveRoute()` vardı; KALDIRILDI.
+//
+// ⚠️ SEBEBİ ÖNEMLİ, geri eklenmesin: `useNavigationState` her navigasyon
+// commit'inde `Object.is(son değer, selector(state))` karşılaştırıyor
+// (useNavigationState.tsx ~53) ve eşit değilse `forceUpdate()` çağırıyor.
+// `getActiveRoute` her çağrıda YENİ BİR NESNE döndürdüğü için bu karşılaştırma
+// HİÇBİR ZAMAN tutmuyordu: mount'lu her `AppHeader`, rota gerçekten değişmese
+// bile her navigasyon commit'inde zorla yeniden render oluyordu. Bar hem
+// `MainTabsScreen`'de kalıcı hem push edilen her ekranda ayrıca duruyor, yani
+// bedel her gezinmede birden fazla kez ödeniyordu.
+//
+// Çözüm, seçiciyi İLKEL değer döndürmeye zorlamak — o zaman `Object.is`
+// çalışıyor ve değer değişmedikçe render olmuyor. Route'un tamamı yerine
+// ihtiyaç duyulan tek parametre okunuyor.
+export function useActiveRouteParam(key: string): string | undefined {
+  return useNavigationState((state) => {
+    const value = getActiveRoute(state)?.params?.[key];
+    return typeof value === 'string' ? value : undefined;
+  });
 }

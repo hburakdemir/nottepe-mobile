@@ -553,10 +553,14 @@ export default function NotificationsScreen() {
           data={visibleAnnouncements}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderAnnouncement}
-          // `removeClippedSubviews` BİLEREK YOK (Aktivite listesinde var):
-          // bu listenin başlığında filtre çipleri duruyor ve bu prop'un
-          // ekrandan çıkan/giren alt görünümlerdeki dokunmaları yutması bilinen
-          // bir sorun — "Tümü basılmıyor" şikâyetinin olası paylarından biri.
+          // `removeClippedSubviews` BİLEREK YOK: bu listenin başlığında filtre
+          // çipleri duruyor ve bu prop'un ekrandan çıkan/giren alt
+          // görünümlerdeki dokunmaları yutması bilinen bir sorun — "Tümü
+          // basılmıyor" şikâyetinin olası paylarından biri.
+          //
+          // 1.0.15: aşağıdaki Aktivite listesinde de kaldırıldı, yani artık
+          // ikisi tutarlı — orada ölçülen ikinci bir sebep de vardı (kare
+          // başına tüm çocukları dolaşması, bkz. HomeScreen.tsx).
           maxToRenderPerBatch={6}
           windowSize={7}
           initialNumToRender={6}
@@ -607,7 +611,11 @@ export default function NotificationsScreen() {
           data={visibleActivity}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderActivity}
-          removeClippedSubviews
+          // `removeClippedSubviews` KALDIRILDI (1.0.15). Yukarıdaki Duyurular
+          // listesindeki not bu prop'un dokunmaları yutabildiğini zaten
+          // söylüyordu; ölçüm ikinci bir sebep ekledi — kare başına bütün
+          // çocukları dolaşıp takıp sökmesi (gerekçe HomeScreen.tsx). İki liste
+          // artık tutarlı.
           maxToRenderPerBatch={6}
           windowSize={7}
           initialNumToRender={6}

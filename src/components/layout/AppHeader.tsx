@@ -6,7 +6,7 @@ import { useDrawerStatus } from '@react-navigation/drawer';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Bell, ChevronLeft, Plus } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { useActiveRoute } from '../../navigation/useActiveRouteName';
+import { useActiveRouteName, useActiveRouteParam } from '../../navigation/useActiveRouteName';
 import { routeTitle } from '../../navigation/routeTitles';
 import { useMyAvatar } from '../../hooks/useMyAvatar';
 import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
@@ -40,7 +40,7 @@ const SHADOW_SM = {
 // render ediliyor ve AppShell tanım gereği yalnızca push edilen ekranları
 // sarmalıyor. Push edilen ekranlarda menü artık açılamıyor (kullanıcı kararı):
 // kullanıcı geri gelip sekmeye döndüğünde avatar yine orada.
-export default function AppHeader({ title: titleOverride, showBack = false }: { title?: string; showBack?: boolean } = {}) {
+function AppHeaderBase({ title: titleOverride, showBack = false }: { title?: string; showBack?: boolean } = {}) {
   const { theme } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const avatar = useMyAvatar();
@@ -78,7 +78,13 @@ export default function AppHeader({ title: titleOverride, showBack = false }: { 
 
   const inkColor = theme === 'dark' ? '#DFD0B8' : '#374151';
   const brandColor = theme === 'dark' ? '#5A9690' : '#2F5755';
-  const activeRoute = useActiveRoute();
+  // Üçü de İLKEL değer döndürüyor. Eskiden burada route'un tamamını döndüren
+  // tek bir `useActiveRoute()` vardı ve her navigasyon commit'inde bu barı
+  // zorla yeniden render ettiriyordu — sebebi useActiveRouteName.ts'te yazılı,
+  // özeti: yeni nesne kimliği `Object.is`'i hep bozuyordu.
+  const activeRouteName = useActiveRouteName();
+  const activeUsername = useActiveRouteParam('username');
+  const activeFaculty = useActiveRouteParam('faculty');
   // Bir başkasının profilinde sabit "Profil" yerine kullanıcı adı yazıyor
   // (kullanıcı isteği) — başlık route adından değil parametresinden geliyor.
   //
@@ -89,11 +95,11 @@ export default function AppHeader({ title: titleOverride, showBack = false }: { 
   // güvenilir biçimde yansımıyor. Bu yüzden sekme adını MainTabsScreen kendi
   // `screenListeners`'ıyla izleyip başlığı hazır veriyor.
   const derivedTitle =
-    activeRoute?.name === 'UserProfile' && typeof activeRoute.params?.username === 'string'
-      ? (activeRoute.params.username as string)
-      : activeRoute?.name === 'DepartmentDetail' && typeof activeRoute.params?.faculty === 'string'
-        ? (activeRoute.params.faculty as string)
-        : routeTitle(activeRoute?.name);
+    activeRouteName === 'UserProfile' && activeUsername !== undefined
+      ? activeUsername
+      : activeRouteName === 'DepartmentDetail' && activeFaculty !== undefined
+        ? activeFaculty
+        : routeTitle(activeRouteName);
   const title = titleOverride ?? derivedTitle;
 
   return (
@@ -176,3 +182,15 @@ export default function AppHeader({ title: titleOverride, showBack = false }: { 
     </View>
   );
 }
+
+// Bu bar İKİ yerde duruyor: `MainTabsScreen`'de kalıcı olarak ve push edilen her
+// ekranda `AppShell` içinde. Prop'ları ilkel (`title`, `showBack`), dolayısıyla
+// memo gerçekten tutuyor — ebeveyn başka bir sebeple render olduğunda (ör.
+// `MainTabsScreen`'in `setActiveTab`'i) bar ve altındaki avatar yeniden
+// kurulmuyor.
+//
+// `AppShell`, `ContentContainer` ve `KeyboardAvoider` BİLEREK memo'lanmadı:
+// üçü de `children` alıyor ve o element ebeveynin her render'ında yeniden
+// oluşuyor, yani memo hiçbir zaman tutmaz — işe yaramaz bir karşılaştırma
+// eklemek sonraki okuyucuyu yanıltır.
+export default React.memo(AppHeaderBase);

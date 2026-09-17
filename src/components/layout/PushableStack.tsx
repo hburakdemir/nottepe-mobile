@@ -6,7 +6,6 @@ import Animated, {
   runOnJS,
   useAnimatedProps,
   useAnimatedReaction,
-  useAnimatedStyle,
   useSharedValue,
 } from 'react-native-reanimated';
 import Svg, { Path } from 'react-native-svg';
@@ -36,11 +35,6 @@ export default function PushableStack({ children }: { children: React.ReactNode 
     }
   );
 
-  const radiusStyle = useAnimatedStyle(() => {
-    const radius = interpolate(progress.value, [0, 1], [0, CORNER_RADIUS]);
-    return { borderTopLeftRadius: radius, borderBottomLeftRadius: radius };
-  });
-
   // Nötr — mavi/renkli bir kenar sayfanın kendi rengi gibi okunuyordu.
   // Koyu temada beyaza, açık temada siyaha çalan düşük alfalı tek bir ton.
   const edgeColor = theme === 'dark' ? 'rgba(255,255,255,0.40)' : 'rgba(0,0,0,0.40)';
@@ -49,6 +43,49 @@ export default function PushableStack({ children }: { children: React.ReactNode 
   const height = useSharedValue(0);
 
   const [heightPx, setHeightPx] = useState(0);
+
+  // ——— ÇENTİK MASKESİ: KIRPMA YERİNE BOYAMA ———
+  //
+  // Köşe yuvarlaması eskiden animasyonlu `borderRadius` (`radiusStyle`) +
+  // `overflow: 'hidden'` ile yapılıyordu. 1.0.14 ölçümü bunun menü aç/kapadaki
+  // "aşama aşama tık tık tık" şikâyetinin BİRİNCİ sebebi olduğunu gösterdi;
+  // mekanizma RN 0.81 Android kaynağına kadar izlendi:
+  //
+  //   animasyonlu borderRadius → BackgroundStyleApplicator.setBorderRadius →
+  //   invalidateSelf() → View.invalidate() HER KARE → ReactViewGroup.dispatchDraw
+  //   yuvarlak dalına giriyor → clipToPaddingBox HER KARE yeni bir
+  //   android.graphics.Path ayırıp canvas.clipPath() çağırıyor.
+  //
+  // `clipPath` dikdörtgen olmadığı için scissor/hızlı-ret yolunu kullanamıyor,
+  // ve o clip'in ALTINDAKİ şey tüm kalıcı mount'lu sekme yığını: beş ekran,
+  // dondurulmamış, bütün SVG avatarlarıyla (bkz. MainTabsScreen.tsx
+  // `detachInactiveScreens={false}`, `freezeOnBlur: false`).
+  //
+  // Oysa ebeveyn `translateX`'i normalde BEDAVADIR — renderer çocukların
+  // önbellekli display list'lerini yeni matrisle tekrar oynatır. Kare başına
+  // invalidate tam olarak o bedava yolu iptal edip her kareyi tam yeniden
+  // kompozisyona çeviriyordu.
+  //
+  // Artık kırpma yok: çentik sayfanın ÜSTÜNE boyanıyor. GÖRÜNTÜ BİREBİR AYNI,
+  // çünkü kırpmanın açığa çıkardığı renk de zaten buydu — RootNavigator'ın
+  // kök katmanı `menuBg = colors.surface`, buradaki `surfaceColor` ile aynı
+  // tema değeri. Kare başına yeniden çizilen alan tüm ekran yerine bu 50px'lik
+  // şerit.
+  const maskProps = useAnimatedProps(() => {
+    const radius = interpolate(progress.value, [0, 1], [0, CORNER_RADIUS]);
+    const h = Math.max(height.value, radius * 2);
+    // İki alt-yol: üst-sol ve alt-sol çentik. Her biri kare köşe noktasından
+    // yaya, yaydan kenara gidip kapanıyor — yani KAPSANAN alan sayfanın DIŞINDA
+    // kalan küçük bölge, tam da kırpmanın kestiği yer.
+    //
+    // Yay parametreleri aşağıdaki çizgi yoluyla BİREBİR AYNI olmak zorunda
+    // (aynı yarıçap, aynı bayraklar, aynı yön): ikisi üst üste oturmazsa çizgi
+    // maskenin kenarından kayar.
+    const d =
+      `M ${radius} 0 A ${radius} ${radius} 0 0 0 0 ${radius} L 0 0 Z ` +
+      `M 0 ${h} L 0 ${h - radius} A ${radius} ${radius} 0 0 0 ${radius} ${h} Z`;
+    return { d };
+  });
 
   const pathProps = useAnimatedProps(() => {
     const radius = interpolate(progress.value, [0, 1], [0, CORNER_RADIUS]);
@@ -74,25 +111,25 @@ export default function PushableStack({ children }: { children: React.ReactNode 
   });
 
   return (
-    <Animated.View
-      style={[StyleSheet.absoluteFill, radiusStyle, { backgroundColor: surfaceColor }]}
+    <View
+      style={[StyleSheet.absoluteFill, { backgroundColor: surfaceColor }]}
       onLayout={(e) => {
         height.value = e.nativeEvent.layout.height;
         setHeightPx(e.nativeEvent.layout.height);
       }}
     >
-      <Animated.View
-        style={[
-          StyleSheet.absoluteFill,
-          radiusStyle,
-          // Köşe kırpması yalnızca çekmece hareket hâlinde/açıkken gerekli
-          // (kapalıyken yarıçap zaten 0). Sürekli 'hidden' tutmak her ekran
-          // için sürekli bir offscreen/composite katmanı zorluyordu — bu da
-          // özellikle tablette geçiş sırasında GPU'yu gereksiz yere zorlayıp
-          // ısınma/flash'a katkı sağlıyordu (bkz. plan Öncelik 2.2).
-          { overflow: overlayActive ? 'hidden' : 'visible', backgroundColor: surfaceColor },
-        ]}
-      >
+      {/* İKİ KAPSAYICIDAN DA `radiusStyle` VE `overflow` KALDIRILDI (1.0.15).
+          Gerekçenin tamamı yukarıdaki `maskProps` notunda; özeti: animasyonlu
+          borderRadius + `overflow: 'hidden'`, kare başına tüm sekme yığınını
+          dikdörtgen olmayan bir `clipPath`'ten geçiriyordu.
+
+          İkisi artık düz `View`: animasyonlu stilleri kalmadığı için
+          `Animated.View` olmalarının da gereği yok — bu, Reanimated'in kare
+          başına commit ettiği hedef sayısından iki tanesini de düşürüyor.
+
+          Opak zemin İKİSİNDE DE duruyor: köşe boyanırken altındaki menü paneli
+          içeriğinin sızmaması için (bkz. yukarıdaki `surfaceColor` notu). */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: surfaceColor }]}>
         {children}
         {overlayActive && (
           <Pressable
@@ -101,7 +138,7 @@ export default function PushableStack({ children }: { children: React.ReactNode 
             accessibilityLabel="Menüyü kapat"
           />
         )}
-      </Animated.View>
+      </View>
       {/* ⚠️ BU KATMAN UYGULAMANIN SOL KENARINI ÖLDÜRMÜŞTÜ — bir daha
           `pointerEvents="none"`in tek başına yeteceğini varsayma.
 
@@ -134,10 +171,15 @@ export default function PushableStack({ children }: { children: React.ReactNode 
       {heightPx > 0 && overlayActive && (
         <View pointerEvents="none" style={{ position: 'absolute', left: 0, top: 0 }}>
           <Svg width={CORNER_RADIUS} height={heightPx} viewBox={`0 0 ${CORNER_RADIUS} ${heightPx}`}>
+            {/* SIRA ÖNEMLİ: maske ALTTA, çizgi ÜSTTE. Maske sayfanın köşesini
+                zemin rengiyle kapatıyor, çizgi de o kapanan kenarın üzerinden
+                geçiyor. Ters sırada çizgi maskenin altında kalıp yarısı
+                kaybolurdu. */}
+            <AnimatedPath animatedProps={maskProps} fill={surfaceColor} stroke="none" />
             <AnimatedPath animatedProps={pathProps} fill="none" strokeWidth={1} />
           </Svg>
         </View>
       )}
-    </Animated.View>
+    </View>
   );
 }

@@ -128,7 +128,9 @@ export default function DepartmentDetailScreen() {
       data={posts}
       keyExtractor={(item) => String(item.id ?? item.post_id)}
       renderItem={renderPost}
-      removeClippedSubviews
+      // `removeClippedSubviews` KALDIRILDI (1.0.15) — kare başına tüm çocukları
+      // dolaşıp takıp söküyordu, gerekçenin tamamı HomeScreen.tsx'te. Bu liste
+      // Home ile AYNI `PostCard`'ı basıyor, dolayısıyla aynı maliyet profili.
       maxToRenderPerBatch={6}
       windowSize={7}
       initialNumToRender={6}

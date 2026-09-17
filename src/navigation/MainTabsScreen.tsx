@@ -14,6 +14,7 @@ import ProfileScreen from '../screens/main/ProfileScreen';
 import { routeTitle } from './routeTitles';
 import { useDrawerSwipeEnabled } from './drawerConstants';
 import type { MainTabParamList } from './types';
+import { diagMark } from '../lib/diagnostics';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -161,6 +162,12 @@ const MainTabs = React.memo(function MainTabs({ onTabChange }: { onTabChange: (n
 });
 
 export default function MainTabsScreen() {
+  // GEÇİCİ ölçüm sayacı — teşhis aracıyla birlikte silinecek. Bu sayaç turun
+  // ASIL SORUSUNU ayırıyor: bir blokajın içinde `MainTabs` ile birlikte `Home`
+  // ve `Profile` de artmışsa sekme ekranları hep birlikte yeniden render
+  // ediliyor (pop'taki çözülme dalgası kanıtlanmış olur); yalnız `MainTabs`
+  // artmışsa aradaki memo tutuyor ve sebep başka yerde (bkz. diagnostics.ts v7).
+  diagMark('MainTabs');
   // Üst bardaki sayfa adı için: Tab.Navigator'ın odaklı ekranı. AppHeader bunu
   // kendisi türetemiyor (bkz. AppHeader.tsx'teki not), navigator kendi state
   // olayından bildiriyor.

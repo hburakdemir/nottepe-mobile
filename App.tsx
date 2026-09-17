@@ -29,7 +29,7 @@ import PushBridge from './src/components/PushBridge';
 import { queryClient } from './src/lib/queryClient';
 import { persistOptions } from './src/lib/queryPersist';
 import { LIGHT_VARS, DARK_VARS } from './src/theme/palette';
-import { DIAGNOSTICS_ENABLED, startDiagnostics } from './src/lib/diagnostics';
+import { DIAGNOSTICS_ENABLED, recordNavigation, startDiagnostics } from './src/lib/diagnostics';
 import DiagnosticsBadge from './src/components/DiagnosticsBadge';
 
 // 2026-09-13, İKİNCİ tur: KAPATILDI. Sebebi:
@@ -127,8 +127,20 @@ function ThemedNavigationContainer({ children }: { children: React.ReactNode }) 
   // `ref` + `onReady`: push bildirimine soğuk açılışta dokunulduğunda hedef
   // konteyner hazır olmadan elimize geçiyor, `onReady` o kuyruğu boşaltıyor
   // (bkz. navigationRef.ts).
+  //
+  // `onStateChange` GEÇİCİ — teşhis aracıyla birlikte silinecek. Her gezinmeyi
+  // push / pop / sekme olarak sınıflandırıp kaydediyor; 1.0.14 ölçümünde
+  // blokajların %83'ü sekme rotalarındaydı ama rota adı "düz sekme geçişi" ile
+  // "push edilmiş ekrandan MainTabs'a dönüş"ü ayırmıyordu (bkz. diagnostics.ts
+  // v7 notu). `recordNavigation` kendi içinde `DIAGNOSTICS_ENABLED` kontrolü
+  // yapıyor, kapalıyken bedeli tek bir fonksiyon çağrısı.
   return (
-    <NavigationContainer ref={navigationRef} theme={navTheme} onReady={drainPendingTarget}>
+    <NavigationContainer
+      ref={navigationRef}
+      theme={navTheme}
+      onReady={drainPendingTarget}
+      onStateChange={recordNavigation}
+    >
       {children}
     </NavigationContainer>
   );

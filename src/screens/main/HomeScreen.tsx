@@ -17,6 +17,7 @@ import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 import OptionSheet from '../../components/layout/OptionSheet';
 import StateView from '../../components/StateView';
 import HomeSkeleton from '../../components/home/HomeSkeleton';
+import { diagMark } from '../../lib/diagnostics';
 
 const LAST_FACULTY_KEY = 'nottepe_last_faculty';
 
@@ -26,6 +27,8 @@ interface PostsPage {
 }
 
 export default function HomeScreen() {
+  // GEÇİCİ ölçüm sayacı — teşhis aracıyla silinecek (bkz. diagnostics.ts v7).
+  diagMark('Home');
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user } = useAuth();
   const { colors } = useTheme();
@@ -260,9 +263,28 @@ export default function HomeScreen() {
         data={posts}
         keyExtractor={(item) => String(item.id ?? item.post_id)}
         renderItem={renderPost}
-        removeClippedSubviews
+        // `removeClippedSubviews` KALDIRILDI (1.0.15). Android'de bu bayrak
+        // kaydırmanın neredeyse her KARESİNDE bedel ödetiyor:
+        // `ReactScrollView.onScrollChanged` → `updateClippingRect()` →
+        // `ReactViewGroup.updateClippingToRect`, mount'lu BÜTÜN çocukları
+        // dolaşıp her birini kırpma dikdörtgeniyle kesiştiriyor ve sınırı
+        // geçenleri `addView`/`removeViewInLayout` ile takıp söküyor — UI
+        // thread'inde, parmak hareket ederken. Testçinin "aşağı yukarı kayarken
+        // aşama aşama tık tık tık gidiyor" dediği şeyin ölçülen ikinci
+        // sebebi bu (birincisi menü köşesi, bkz. PushableStack.tsx).
+        //
+        // Kaybı yok: pencere dışındaki satırları FlatList'in kendi
+        // sanallaştırması ZATEN unmount ediyor. Bu bayrak yalnızca render
+        // penceresinin İÇİNDEKİ, ekranda görünmeyen satırları native'den
+        // ayırıyordu — birkaç view kazanmak için kare başına tam çocuk
+        // dolaşması. Aynı sebeple PostsTab ve SavedPostsScreen'de de hep
+        // kapalıydı; tutarsızlık buradaydı.
         maxToRenderPerBatch={6}
-        windowSize={7}
+        // 7 → 4. Mount'lu satır ~19'dan ~11'e iniyor; kart başına bir avatar
+        // olduğu ve avatarın kendisi native view ürettiği için (bkz.
+        // avatarPack.ts) mount'lu SVG düğümü kabaca yarıya düşüyor.
+        // Ödünü: çok hızlı fırlatmada kartlar dolmadan kısa bir boşluk.
+        windowSize={4}
         initialNumToRender={6}
         ListHeaderComponent={filterBar}
         refreshControl={<RefreshControl refreshing={isManualRefresh} onRefresh={handleManualRefresh} />}

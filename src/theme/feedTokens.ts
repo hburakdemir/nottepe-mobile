@@ -61,26 +61,30 @@ export function useFeedTokens(): FeedTokens {
 //  - Koyu: zemin koyu, kart bir kademe açık + saç teli çerçeve (gölge koyu
 //    zeminde zaten görünmüyor).
 //  - Açık: ikisi de beyaz, ayrımı yumuşak gölge yapıyor — web'deki görünüm.
+//
+// İkisi de MODÜL SEVİYESİNDE sabit. Eskiden `useCardSurface` her çağrıda yeni
+// bir nesne literali döndürüyordu: değer yalnızca temaya bağlı olduğu hâlde
+// kimliği her render'da değişiyor, dolayısıyla bu nesneyi prop olarak ya da
+// stil dizisi içinde alan her yerde memo karşılaştırması sessizce bozuluyordu.
+// Akış kartı bunu her satırda okuyor (bkz. PostCardModern.tsx).
+const DARK_CARD_SURFACE = {
+  backgroundColor: DARK.card,
+  borderColor: DARK.line,
+  borderWidth: StyleSheet.hairlineWidth,
+} as const;
+
+const LIGHT_CARD_SURFACE = {
+  backgroundColor: LIGHT.card,
+  shadowColor: '#000',
+  shadowOpacity: 0.08,
+  shadowRadius: 10,
+  shadowOffset: { width: 0, height: 3 },
+  elevation: 2,
+} as const;
+
 export function useCardSurface() {
   const { theme } = useTheme();
-  const t = useFeedTokens();
-
-  if (theme === 'dark') {
-    return {
-      backgroundColor: t.card,
-      borderColor: t.line,
-      borderWidth: StyleSheet.hairlineWidth,
-    } as const;
-  }
-
-  return {
-    backgroundColor: t.card,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
-  } as const;
+  return theme === 'dark' ? DARK_CARD_SURFACE : LIGHT_CARD_SURFACE;
 }
 
 // Backend dosyanın orijinal adını saklamıyor

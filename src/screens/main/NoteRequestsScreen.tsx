@@ -292,7 +292,7 @@ export default function NoteRequestsScreen() {
           contentContainerClassName="p-4 pb-[150px]"
           data={requests}
           keyExtractor={(item) => String(item.id)}
-          removeClippedSubviews
+          // `removeClippedSubviews` KALDIRILDI (1.0.15) — gerekçe HomeScreen.tsx.
           maxToRenderPerBatch={6}
           windowSize={7}
           initialNumToRender={6}

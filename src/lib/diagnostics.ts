@@ -93,7 +93,56 @@ const MAX_ENTRIES = 200;
 //     duruyor ama basılamıyor" şeklinde — yani hesaplama donması değil,
 //     dokunuş yönlendirme arızası. Bu turda o maddeye KOD DEĞİŞİKLİĞİ
 //     yapılmadı; amaç ilk kez gerçek veri toplamak.
-const STORAGE_KEY = 'diag:jsblocks:v6';
+//
+// v7 (sürüm 1.0.15): ARAÇ İKİ YENİ ŞEY ÖLÇÜYOR, ÇÜNKÜ v6 ŞİKAYETİN YARISINI
+// HİÇ GÖREMİYORDU.
+//
+// v6 turu iki sonuç verdi:
+//  1. ÖNE DÖNÜŞ TEMİZ — 6 dönüşün 6'sında sonda hızlı (jsFree 11-136 ms). O
+//     madde kapandı, bu turda beklenti "yine temiz".
+//  2. Blokajların %83'ü SEKME rotalarında (27 blokaj / 12.361 ms), push edilen
+//     ekranlarda yalnızca 7 blokaj / 2.591 ms. Sekmelere gitmek `navigateApp`
+//     üzerinden `navigate('MainTabs', ...)`, yani stack'i `MainTabs`'a geri
+//     açmak — ve `MainTabs`'ın `freezeOnBlur` override'ı yok, yani push'ta
+//     donup pop'ta çözülüyor. Ama bunun ÇÖZÜLME dalgası mı, düz sekme geçişi
+//     mi, yoksa sekmenin ilk mount'u mu olduğunu araç SÖYLEYEMİYOR.
+//
+// Üstelik testçi v6'dan sonra üçüncü bir sınıf bildirdi: "tabbar geçişinde ve
+// menü aç kapalarda aşama aşama tık tık tık gidiyor, akıcı kaymıyor" ve aynısı
+// akış kaydırmasında. Bu sınıf v6'da GÖRÜNMEZ: eşik 300 ms, 20 ms'lik kareler
+// dizisi hiç drift üretmiyor. Üç turdur JS tarafında aranan şeyin neden hiç
+// bulunamadığı da bu.
+//
+// Bu yüzden v7'de:
+//  · MINOR_THRESHOLD_MS — 120-300 ms bandındaki tick'ler SAYILIYOR (listeye
+//    girmiyor, gürültü olurdu). Eşik altı takılmanın ilk kez bir sayısı var.
+//  · Düşen kare sayacı — `requestAnimationFrame` aralıkları ölçülüyor.
+//    ⚠️ THREAD ATFI YAPMIYOR (bkz. yukarıdaki sonda uyarısı, aynı gerekçe).
+//    Verdiği şey şu: "kötü kare çok ama JS blokajı yok" tablosu JS'te iş
+//    yapmaktan DEĞİL, çizim/kompozisyon tarafından geldiğini gösterir — ki
+//    1.0.15'teki düzeltmeler (PushableStack'te kare başına clipPath,
+//    HomeScreen'de kare başına çocuk dolaşması) tam o tarafı hedefliyor.
+//  · Gezinme etiketi — her blokaj, içinde geçen gezinme olayıyla (push / pop /
+//    sekme) işaretleniyor. %83 sorusunu ayıran şey bu.
+//  · Mount/render sayaçları — blokaj penceresinde hangi bileşenlerin kaç kez
+//    render edildiği. `MainTabs` + `Home` + `Profile` birlikte artıyorsa
+//    çözülme dalgası KANITLANMIŞ olur; yalnız `MainTabs` artıyorsa memo tutuyor
+//    ve sebep başka yerde.
+//
+// BEKLENTİ (düşmesi gerekenler): bütün sekme satırları — avatar düğüm sayısı
+// 25-53'ten ~8-12'ye indi (bkz. avatarPack.ts) ve avatar bu yolların hepsinde
+// var. Kötü kare oranı da menü aç/kapada ve kaydırmada düşmeli.
+const STORAGE_KEY = 'diag:jsblocks:v7';
+
+// 300 ms listeye girme eşiği; bu ise "eşik altı ama normal jitter de değil"
+// bandının tabanı. 120 ms ~7 kare demek, yani kullanıcının fark ettiği ama
+// v6'nın hiç saymadığı büyüklük.
+const MINOR_THRESHOLD_MS = 120;
+
+// Bir karenin "kötü" sayılma eşiği. 60 Hz'de kare bütçesi 16,7 ms; 24 ms
+// yaklaşık 1,5 kare, yani en az bir kare atlanmış demektir. Daha sıkı bir eşik
+// (ör. 18 ms) normal zamanlayıcı hassasiyetini de kötü sayıp raporu şişirirdi.
+const BAD_FRAME_MS = 24;
 
 export type BlockEntry = {
   at: number;
@@ -116,6 +165,28 @@ export type BlockEntry = {
    * görünür). Raporu okuyan kişi bu satırları ayrı değerlendirsin.
    */
   afterBackground: boolean;
+  /**
+   * Blokaj penceresinde geçen gezinme olayı — `push:Help`, `pop:Tools`,
+   * `sekme:Profile` gibi; yoksa `null`.
+   *
+   * v6'nın CEVAPLAYAMADIĞI soru buydu. Blokajın rotası (`route`) yalnızca
+   * "nerede bitti"yi söylüyor: `Tools` yazan bir blokaj hem düz bir sekme
+   * geçişi hem de push edilmiş bir ekrandan `MainTabs`'a dönüş olabilir, ve
+   * ikisinin maliyeti bambaşka (ikincisi `MainTabs`'ın çözülme dalgasını
+   * tetikliyor). Etiket olmadan %83'lük sekme yığını tek bir isimsiz kümeydi.
+   */
+  nav: string | null;
+  /**
+   * Blokaj penceresinde hangi bileşen kaç kez render edildi (bkz. `diagMark`).
+   * Sayaçların FARKI yazılıyor, toplamı değil — yani doğrudan "bu blokajın
+   * içinde ne oldu".
+   *
+   * Ayırt ettiği şey şu: `MainTabs` + `Home` + `Profile` BİRLİKTE artmışsa
+   * sekme ekranları hep birlikte yeniden render ediliyor (çözülme dalgası
+   * kanıtlanmış olur); yalnızca `MainTabs` artmışsa aradaki memo tutuyor ve
+   * sebebi başka yerde aramak gerekiyor.
+   */
+  marks: Record<string, number> | null;
 };
 
 /**
@@ -160,8 +231,86 @@ function currentRoute(): string | null {
   }
 }
 
+// ——— SAYAÇLAR (v7) ———
+//
+// Hepsi bellekte ve ucuz: `diagMark` sadece bir sayı artırıyor. Blokaj
+// kaydedilirken son tick'ten bu yana olan FARK alınıp kayda yazılıyor, yani
+// "blokajın içinde ne oldu" doğrudan okunabiliyor. Her mark'ın zaman damgasını
+// tutmak da bir seçenekti ama akış kaydırmasında avatar mount'ları binlerce
+// kayıt üretirdi.
+const markCounts: Record<string, number> = {};
+let marksAtLastTick: Record<string, number> = {};
+
+/**
+ * Bir bileşenin render/mount sayacını artırır. Render gövdesinden çağrılıyor
+ * (efekt değil): efekt bir tur daha maliyet eklerdi ve bizi ilgilendiren şey
+ * zaten ağacın kurulması.
+ *
+ * ⚠️ GEÇİCİ. `DIAGNOSTICS_ENABLED` ile birlikte tek commit'te silinecek —
+ * çağrı yerleri: AvatarSVG, MainTabsScreen, HomeScreen, ProfileScreen.
+ */
+export function diagMark(name: string): void {
+  if (!DIAGNOSTICS_ENABLED) return;
+  markCounts[name] = (markCounts[name] ?? 0) + 1;
+}
+
+// Son gezinme olayı ve zamanı. Blokaj penceresine düşüyorsa kayda ekleniyor.
+let lastNav: string | null = null;
+let lastNavAt = 0;
+let lastNavDepth: number | null = null;
+
+// Ana stack'in derinliği. Ağaç Drawer → Stack → MainTabs → Tab şeklinde iç
+// içe; aradığımız navigator `MainTabs`'ı ÇOCUK olarak taşıyan, yani ana stack.
+// Onun route sayısı = kaç ekran push edilmiş.
+function stackDepth(state: any): number {
+  if (!state?.routes) return 0;
+  if (state.routes.some((r: any) => r?.name === 'MainTabs')) return state.routes.length;
+  const focused = state.routes[state.index ?? 0];
+  return focused?.state ? stackDepth(focused.state) : 0;
+}
+
+/**
+ * `NavigationContainer`'ın `onStateChange`'inden çağrılıyor (bkz. App.tsx).
+ * Olayı push / pop / sekme olarak SINIFLANDIRIYOR — bu turun asıl aradığı ayrım.
+ *
+ * Sınıflandırma stack DERİNLİĞİNDEN yapılıyor, rota adından değil: sekmeler iç
+ * içe bir navigator'da ve üstten bakıldığında odaklı route hep `MainTabs`
+ * çıkıyor (bkz. AppHeader.tsx'teki `derivedTitle` notu). Derinlik arttıysa push,
+ * azaldıysa pop (yani `MainTabs`'a dönüş — çözülme yolu), aynı kaldıysa sekme
+ * geçişi ya da parametre değişimi.
+ */
+export function recordNavigation(state: unknown): void {
+  if (!DIAGNOSTICS_ENABLED) return;
+  const depth = stackDepth(state);
+  const prev = lastNavDepth;
+  lastNavDepth = depth;
+  if (prev === null) return; // ilk state, karşılaştırılacak bir şey yok
+  const kind = depth > prev ? 'push' : depth < prev ? 'pop' : 'sekme';
+  lastNav = `${kind}:${currentRoute() ?? '?'}`;
+  lastNavAt = Date.now();
+}
+
+// ——— KARE ÖLÇÜMÜ (v7) ———
+//
+// `requestAnimationFrame` aralıkları. ⚠️ Bu sayaç THREAD ATFI YAPMIYOR: Android'de
+// rAF'in hangi kapıdan beslendiği garanti değil (bkz. sonda uyarısı). Verdiği
+// şey eksik olan tek şey — eşik altı takılmanın SAYISI.
+//
+// Gözlemci etkisi kabul edildi: kare başına bir closure + bir çıkarma. Ölçtüğü
+// şeye göre ihmal edilebilir, ama araç geçici olduğu için yine de not ediliyor.
+// Arka planda çalışmıyor (rAF zaten durur), sayaç da o sürede ilerlemiyor.
+let frameTotal = 0;
+let frameBad = 0;
+let frameWorstMs = 0;
+
+export function getFrameStats() {
+  return { total: frameTotal, bad: frameBad, worstMs: frameWorstMs };
+}
+
 let entries: BlockEntry[] = [];
 let probes: ResumeProbe[] = [];
+// 120-300 ms bandındaki tick sayısı — listeye girmiyor, yalnızca sayılıyor.
+let minorCount = 0;
 const listeners = new Set<() => void>();
 let lastResumeAt: number | null = null;
 let started = false;
@@ -184,6 +333,17 @@ function persist() {
 
 function record(blockedMs: number, afterBackground: boolean) {
   const at = Date.now();
+  // Blokaj penceresi: tick'in beklenen anından şimdiye kadar. Bu aralığa düşen
+  // gezinme olayı ve bu aralıkta artan sayaçlar kayda ekleniyor — "blokajın
+  // içinde ne oldu" sorusunun cevabı.
+  const windowStart = at - blockedMs - TICK_MS;
+
+  const marks: Record<string, number> = {};
+  for (const key of Object.keys(markCounts)) {
+    const delta = markCounts[key] - (marksAtLastTick[key] ?? 0);
+    if (delta > 0) marks[key] = delta;
+  }
+
   entries = [
     {
       at,
@@ -193,6 +353,8 @@ function record(blockedMs: number, afterBackground: boolean) {
       sinceResumeMs: lastResumeAt !== null && at - lastResumeAt < 10_000 ? at - lastResumeAt : null,
       route: currentRoute(),
       afterBackground,
+      nav: lastNav !== null && lastNavAt >= windowStart ? lastNav : null,
+      marks: Object.keys(marks).length > 0 ? marks : null,
     },
     ...entries,
   ].slice(0, MAX_ENTRIES);
@@ -255,7 +417,36 @@ export function startDiagnostics(): () => void {
     const suspicious = wasBackgrounded;
     wasBackgrounded = false;
     if (drift >= REPORT_THRESHOLD_MS) record(drift, suspicious);
+    // 120-300 ms bandı: listeye girmeyecek kadar küçük ama normal jitter de
+    // değil. v6 bunu hiç saymıyordu, dolayısıyla testçinin tarif ettiği küçük
+    // takılmalar raporda hiç görünmüyordu.
+    else if (drift >= MINOR_THRESHOLD_MS && !suspicious) minorCount += 1;
+
+    // Sayaç referansı HER tick'te güncelleniyor (blokaj olsun olmasın): kayda
+    // yazılan fark böylece yalnızca o tick aralığını kapsıyor.
+    marksAtLastTick = { ...markCounts };
   }, TICK_MS);
+
+  // Kare ölçümü. `rafId` temizlik için tutuluyor; döngü kendini yeniden
+  // planlıyor ve arka planda rAF zaten durduğu için orada sayaç ilerlemiyor.
+  let rafId: number | null = null;
+  let lastFrameAt = Date.now();
+  const onFrame = () => {
+    const now = Date.now();
+    const delta = now - lastFrameAt;
+    lastFrameAt = now;
+    // İlk kare ve öne dönüşteki ilk kare atlanıyor: arada askıda geçen süre
+    // "kötü kare" değil (aynı gerekçe nabzın `last` sıfırlamasında da var).
+    if (delta < 2000) {
+      frameTotal += 1;
+      if (delta >= BAD_FRAME_MS) {
+        frameBad += 1;
+        if (delta > frameWorstMs) frameWorstMs = delta;
+      }
+    }
+    rafId = requestAnimationFrame(onFrame);
+  };
+  rafId = requestAnimationFrame(onFrame);
 
   const sub = AppState.addEventListener('change', (state) => {
     if (state === 'active') {
@@ -263,6 +454,8 @@ export function startDiagnostics(): () => void {
       // Nabzın referansını da sıfırlıyoruz: arka planda Android zamanlayıcıları
       // kısıtlıyor, o yapay boşluk blokaj sanılmasın.
       last = Date.now();
+      // Kare ölçümünün referansı da aynı sebeple sıfırlanıyor.
+      lastFrameAt = Date.now();
       // Asıl ölçüm: JS thread'i mi takılı, native katman mı (bkz. ResumeProbe).
       startResumeProbe();
       emit();
@@ -273,6 +466,7 @@ export function startDiagnostics(): () => void {
 
   return () => {
     clearInterval(tick);
+    if (rafId !== null) cancelAnimationFrame(rafId);
     sub.remove();
     started = false;
   };
@@ -290,9 +484,30 @@ export function getEntries(): BlockEntry[] {
 export function clearDiagnostics() {
   entries = [];
   probes = [];
+  minorCount = 0;
+  frameTotal = 0;
+  frameBad = 0;
+  frameWorstMs = 0;
   persist();
   AsyncStorage.setItem(PROBE_KEY, JSON.stringify(probes)).catch(() => {});
   emit();
+}
+
+// Kare ve eşik altı satırları HER ZAMAN yazılıyor, blokaj hiç olmasa bile.
+// Sebebi bu turun hikâyesi: testçinin tarif ettiği "tık tık tık" tam olarak
+// "blokaj yok ama kareler kötü" tablosu, ve v6'da o tablo boş bir rapor gibi
+// görünüyordu.
+function frameSection(): string[] {
+  if (frameTotal === 0) return ['Kare ölçümü: henüz kayıt yok.'];
+  const pct = ((frameBad / frameTotal) * 100).toFixed(1);
+  return [
+    `Kare: ${frameTotal} ölçüldü · kötü (${BAD_FRAME_MS}ms+) ${frameBad} (%${pct}) · en kötü ${frameWorstMs}ms`,
+    `Eşik altı takılma (${MINOR_THRESHOLD_MS}-${REPORT_THRESHOLD_MS}ms): ${minorCount} tick`,
+    // ⚠️ Bu iki satır THREAD ATFI YAPMIYOR (bkz. dosya başındaki v7 notu).
+    // Okuma kılavuzu: kötü kare oranı yüksek ama aşağıda blokaj listesi
+    // kısaysa, maliyet JS'te iş yapmaktan değil çizim/kompozisyon tarafından
+    // geliyor demektir.
+  ];
 }
 
 export function formatReport(): string {
@@ -336,6 +551,8 @@ export function formatReport(): string {
       `Sürüm: ${Constants.expoConfig?.version ?? '?'} (vc${Constants.expoConfig?.android?.versionCode ?? '?'})`,
       'Hiç JS blokajı kaydedilmedi.',
       '',
+      ...frameSection(),
+      '',
       ...probeSection,
     ].join('\n');
   }
@@ -347,7 +564,15 @@ export function formatReport(): string {
     // Şüpheli kayıtlar işaretli: arka plandan dönüşteki ilk tick, askıda geçen
     // süreyi blokaj gibi gösterebiliyor (bkz. BlockEntry.afterBackground).
     const susp = e.afterBackground ? ' [ŞÜPHELİ: arka plandan sonraki ilk tick]' : '';
-    return `${fmt(e.at)}  ${e.blockedMs}ms  ${e.route ?? '?'}${tag}${susp}`;
+    // Gezinme etiketi ve sayaçlar (v7): blokajın İÇİNDE ne olduğunu söylüyor.
+    const nav = e.nav ? ` ⟨${e.nav}⟩` : '';
+    const marks = e.marks
+      ? ` {${Object.entries(e.marks)
+          .sort((a, b) => b[1] - a[1])
+          .map(([k, v]) => `${k}×${v}`)
+          .join(' ')}}`
+      : '';
+    return `${fmt(e.at)}  ${e.blockedMs}ms  ${e.route ?? '?'}${nav}${marks}${tag}${susp}`;
   });
 
   // Rota kırılımı: asıl aranan cevap "hangi ekran" olduğu için ham listenin
@@ -362,6 +587,22 @@ export function formatReport(): string {
   const routeLines = [...byRoute.entries()]
     .sort((a, b) => b[1].total - a[1].total)
     .map(([route, s]) => `  ${route}: ${s.count} blokaj, toplam ${s.total}ms`);
+
+  // GEZİNME TÜRÜNE GÖRE KIRILIM — bu turun asıl sorusu.
+  //
+  // v6'da blokajların %83'ü sekme rotalarındaydı ama sekmeye gitmenin İKİ yolu
+  // var: düz sekme geçişi, ya da push edilmiş bir ekrandan `MainTabs`'a dönüş
+  // (pop). İkincisi `MainTabs`'ın çözülmesini tetikliyor. Rota adı ikisini
+  // ayırmıyor, bu kırılım ayırıyor.
+  const byNav = new Map<string, { count: number; total: number }>();
+  entries.forEach((e) => {
+    const key = e.nav?.split(':')[0] ?? 'etiketsiz';
+    const cur = byNav.get(key) ?? { count: 0, total: 0 };
+    byNav.set(key, { count: cur.count + 1, total: cur.total + e.blockedMs });
+  });
+  const navLines = [...byNav.entries()]
+    .sort((a, b) => b[1].total - a[1].total)
+    .map(([kind, s]) => `  ${kind}: ${s.count} blokaj, toplam ${s.total}ms`);
 
   const totalBlocked = entries.reduce((sum, e) => sum + e.blockedMs, 0);
   const span = entries[0].at - entries[entries.length - 1].at;
@@ -383,11 +624,17 @@ export function formatReport(): string {
     // stringler bilerek konmuş ayırıcı satırlar ve onları da elerdi.
     suspiciousCount > 0 ? `Şüpheli kayıt: ${suspiciousCount} (arka plandan sonraki ilk tick)` : null,
     '',
+    ...frameSection(),
+    '',
     ...probeSection,
     '',
     'Ekrana göre:',
     ...routeLines,
     '',
+    'Gezinme türüne göre:',
+    ...navLines,
+    '',
+    // Satır biçimi: saat · süre · ekran ⟨gezinme⟩ {sayaçlar} [öne dönüş] [şüpheli]
     ...lines,
   ]
     .filter((l): l is string => l !== null)

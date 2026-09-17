@@ -225,7 +225,10 @@ export default function ChecklistsScreen() {
         data={checklists}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderChecklist}
-        removeClippedSubviews
+        // `removeClippedSubviews` KALDIRILDI (1.0.15) — gerekçe HomeScreen.tsx.
+        // Buradaki satırlar ayrıca dokunulabilir (öğe işaretleme), bu prop'un
+        // ekrandan çıkan/giren görünümlerde dokunmayı yutması bilinen bir sorun
+        // (bkz. NotificationsScreen.tsx'teki not).
         maxToRenderPerBatch={6}
         windowSize={7}
         initialNumToRender={6}

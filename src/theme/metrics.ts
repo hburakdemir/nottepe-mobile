@@ -56,15 +56,43 @@ function computeMetrics(width: number, height: number): Metrics {
   };
 }
 
+// ÖLÇÜ BAŞINA TEK NESNE — modül seviyesinde önbellek.
+//
+// `computeMetrics` her çağrıldığında yeni bir `Metrics` nesnesi VE iki yeni
+// closure (`scale`, `space`) üretiyor. `useMetrics()` bunu doğrudan çağırdığı
+// için her render'da yeni kimlik dönüyordu; bu kimlik aşağıya prop olarak ya da
+// stil dizisi içinde geçtiği her yerde `React.memo`/`useMemo` karşılaştırmasını
+// sessizce bozuyor.
+//
+// Önbellek HOOK İÇİNDE (`useMemo`) değil modül seviyesinde: `useMemo` her
+// bileşene KENDİ nesnesini verirdi, yani iki bileşen aynı ölçülerde farklı
+// kimlikler taşırdı. Modül seviyesinde tek nesne olunca `scale`/`space`
+// referansları uygulamanın her yerinde aynı ve karşılaştırmalar tutuyor.
+//
+// Kapak: bir cihazda pratikte iki anahtar var (dikey/yatay), ama Android'de
+// bölünmüş ekran yeniden boyutlandırma sürekli yeni anahtar üretebiliyor —
+// sınırsız büyümesin diye 8'i geçince temizleniyor.
+const metricsCache = new Map<string, Metrics>();
+
+function cachedMetrics(width: number, height: number): Metrics {
+  const key = `${width}x${height}`;
+  const hit = metricsCache.get(key);
+  if (hit) return hit;
+  if (metricsCache.size >= 8) metricsCache.clear();
+  const next = computeMetrics(width, height);
+  metricsCache.set(key, next);
+  return next;
+}
+
 /** Reaktif — döndürmede/katlanır cihazlarda yeniden hesaplanır (`useWindowDimensions`). */
 export function useMetrics(): Metrics {
   const { width, height } = useWindowDimensions();
-  return computeMetrics(width, height);
+  return cachedMetrics(width, height);
 }
 
 /** Hook dışı, bir kerelik okumalar için (ör. modül seviyesinde sabit hesaplanan
  *  `DRAWER_WIDTH`'in başlangıç değeri) — reaktif değildir, döndürmeyi izlemez. */
 export function getMetricsSnapshot(): Metrics {
   const { width, height } = Dimensions.get('window');
-  return computeMetrics(width, height);
+  return cachedMetrics(width, height);
 }

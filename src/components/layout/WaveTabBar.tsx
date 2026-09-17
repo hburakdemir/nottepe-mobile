@@ -39,10 +39,11 @@ const PROFILE_ROUTE = 'Profile';
 // Eskiden beş yuva da `WaveTabBar`ın gövdesinde satır içi `map` ile
 // çiziliyordu. Bunun bedeli şuydu: bir sekmeye dokunulduğunda `activeRouteName`
 // değişiyor, WaveTabBar baştan render oluyor ve BEŞ yuva birden yeniden
-// kuruluyordu — profil yuvasındaki avatar dahil. O avatar piksel-sanat bir SVG
-// (~40 `SvgRect`, bkz. AvatarSVG.tsx), yani her dokunuşta ~40 native SVG
-// düğümü sökülüp yeniden kuruluyordu. Testçilerin "sayfa geçişlerinde tabbar
-// donuyor" dediği şey buydu.
+// kuruluyordu — profil yuvasındaki avatar dahil. O avatar piksel-sanat bir SVG,
+// yani her dokunuşta onlarca native SVG düğümü sökülüp yeniden kuruluyordu.
+// Testçilerin "sayfa geçişlerinde tabbar donuyor" dediği şey buydu.
+// (Düğüm sayısı 1.0.15'te ortalama 24,5'ten 6,8'e indi — bkz. avatarPack.ts —
+// ama bu memo yine şart: maliyet düştü, sıfırlanmadı.)
 //
 // Artık her yuva kendi prop'larına bakıyor: bir geçişte yalnızca İKİ yuvanın
 // `isFocused`'ı değişiyor (eskisi false olur, yenisi true), kalan üçü prop
@@ -173,7 +174,7 @@ const COLORS = {
   },
 };
 
-export default function WaveTabBar({ activeRouteName }: { activeRouteName?: string } = {}) {
+function WaveTabBarBase({ activeRouteName }: { activeRouteName?: string } = {}) {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const c = COLORS[theme];
@@ -193,7 +194,7 @@ export default function WaveTabBar({ activeRouteName }: { activeRouteName?: stri
   const currentRouteName = activeRouteName ?? nearestRouteName;
   const activeIndex = TAB_ROUTES.indexOf(currentRouteName as (typeof TAB_ROUTES)[number]);
   const avatar = useMyAvatar();
-  const { scale } = useMetrics();
+  const { scale, width: windowWidth } = useMetrics();
   const BAR_HEIGHT = scale(BASE_BAR_HEIGHT);
   const BAR_RADIUS = scale(BASE_BAR_RADIUS);
   const CAPSULE_SIZE = scale(BASE_CAPSULE_SIZE);
@@ -201,7 +202,26 @@ export default function WaveTabBar({ activeRouteName }: { activeRouteName?: stri
   const AVATAR_SIZE = scale(BASE_AVATAR_SIZE);
   const ICON_SIZE = scale(BASE_ICON_SIZE);
 
-  const [barWidth, setBarWidth] = React.useState(0);
+  // BAŞLANGIÇ DEĞERİ TAHMİN EDİLİYOR, ama ÖLÇÜM SON SÖZ.
+  //
+  // Kapsül `barWidth > 0` koşuluna bağlı olduğu için başlangıç 0 iken her mount
+  // İKİ render ediyordu: ilk commit'te kapsül yok, `onLayout` → `setBarWidth` →
+  // ikinci commit'te var. Bar hem `MainTabsScreen`'de kalıcı hem push edilen her
+  // ekranda mount olduğu için bu bedel her gezinmede ödeniyordu.
+  //
+  // Geometri: dış View `left:0/right:0` (pencere genişliği) + `paddingHorizontal:
+  // H_MARGIN`; BlurView'ın `borderWidth: 1`'i Yoga'da çocuğun genişliğinden
+  // düşüyor; içteki View'ın `paddingHorizontal: 8`'i `onLayout`'ta da çıkarılıyor.
+  // Bar `ContentContainer`'ın DIŞINDA durduğu için tablette de tam pencere
+  // genişliği geçerli.
+  //
+  // Tahmin ölçümle aynı çıkarsa `setBarWidth` aynı değeri yazıyor ve React
+  // yeniden render etmiyor — yani ikinci commit kalkıyor. Farklı çıkarsa
+  // (hesaptaki bir sapma, döndürme, bölünmüş ekran) ölçüm düzeltiyor, davranış
+  // eskisiyle birebir aynı kalıyor.
+  const [barWidth, setBarWidth] = React.useState(() =>
+    Math.max(windowWidth - 2 * H_MARGIN - 2 - 16, 0)
+  );
   const colWidth = barWidth / TAB_ROUTES.length;
   const capsuleX = useSharedValue(0);
   const capsuleOpacity = useSharedValue(0);
@@ -239,7 +259,19 @@ export default function WaveTabBar({ activeRouteName }: { activeRouteName?: stri
   // kez başladıktan sonra UI thread'inde sürdüğü için, JS thread'i yeni ekranı
   // çizerken bloke olsa bile kapsül akıcı şekilde kayıyor.
   const moveCapsuleTo = React.useCallback((index: number) => {
-    capsuleOpacity.value = withTiming(index === -1 ? 0 : 1, { duration: 150 });
+    // Hedef opaklık ZATEN yerindeyse animasyon başlatmıyoruz. Eskiden koşulsuzdu
+    // ve `AppShell` içindeki her mount'ta (orada `activeIndex` hep -1, bkz.
+    // aşağıdaki not) 0'dan 0'a 150 ms'lik, görünür hiçbir etkisi olmayan bir
+    // animasyon başlatıyordu — yani push edilen her ekran bedava bir UI thread
+    // animasyonu açıyordu.
+    //
+    // Yarı yolda kesilen animasyonu bozmuyor: o durumda `.value` ara değeri
+    // döndürüyor, hedefe eşit olmuyor ve animasyon normalde olduğu gibi
+    // bulunduğu yerden devam ediyor.
+    const nextOpacity = index === -1 ? 0 : 1;
+    if (capsuleOpacity.value !== nextOpacity) {
+      capsuleOpacity.value = withTiming(nextOpacity, { duration: 150 });
+    }
     const { colWidth: cw, capsuleSize } = capsuleGeomRef.current;
     if (index === -1 || cw === 0) return;
 
@@ -418,3 +450,8 @@ export default function WaveTabBar({ activeRouteName }: { activeRouteName?: stri
     </View>
   );
 }
+
+// AppHeader ile aynı gerekçe: bar `MainTabsScreen`'de kalıcı, ayrıca push edilen
+// her ekranda `AppShell` içinde. Tek prop'u ilkel (`activeRouteName`), memo
+// tutuyor — ebeveyn render'ında beş yuva ve profil avatarı yeniden kurulmuyor.
+export default React.memo(WaveTabBarBase);

@@ -55,10 +55,28 @@ export const EDGE_SWIPE_WIDTH = 56;
 // bir `TAB_ROUTES` listesiyle karşılaştırıyordu. Kırılgandı — AppHeader'daki
 // mevcut not (bkz. `derivedTitle` yorumu) bu türetmenin sekmelerde güvenilmez
 // olduğunu, odaklı route'un hep `MainTabs` çıkabildiğini zaten belgeliyor;
-// öyle bir durumda hiçbir sekmede menü kaydırmayla açılamaz. Ayrıca
-// `useNavigationState` her navigasyon değişiminde yeniden render olup
+// öyle bir durumda hiçbir sekmede menü kaydırmayla açılamaz.
+//
+// ⚠️ BU NOTUN BİR CÜMLESİ YANLIŞTI, 1.0.15'te DÜZELTİLDİ. Eskiden şöyle
+// diyordu: "`useNavigationState` her navigasyon değişiminde yeniden render olup
 // `setOptions` çağırıyor, bu da Drawer + PushableStack + tüm Stack ağacını
-// gereksiz yere yeniden çizdiriyordu.
+// gereksiz yere yeniden çizdiriyordu." Kütüphane kaynağında doğrulandı, son
+// kısmı DOĞRU DEĞİL.
+//
+// Doğrusu: `setOptions` gerçekten her çağrıda yeni bir nesne yazıyor
+// (useNavigationCache.tsx ~213, eşitlik kontrolü YOK) ve `DrawerNavigator`
+// yeniden render oluyor. AMA kaskad Drawer'ın kendi `SceneView`'indeki
+// `StaticContainer`'da KESİLİYOR: o bir `React.memo` ve comparator'ı
+// `children`'ı atlayıp `name`/`render`/`navigation`/`route`'u referansla
+// karşılaştırıyor (StaticContainer.tsx ~18-25). Dördü de `setOptions`
+// kaynaklı bir render'da aynı referans kalıyor — `RootNavigator` render
+// olmadığı için oradaki satır içi render callback'inin kimliği de değişmiyor
+// (state sahibi `DrawerNavigator`, onun TORUNU; React ataları render etmez).
+// Yani `PushableStack` bir kez render oluyor, Stack ağacı ve `MainTabsScreen`
+// HİÇ render olmuyor.
+//
+// Neden önemli: 1.0.14'te aranan 300-680 ms'lik gezinme maliyeti bu yoldan
+// GELMİYOR. Bu not olduğu gibi kalsaydı bir sonraki tur yanlış yeri kazacaktı.
 //
 // Ayrım aslında rota adına hiç bakmadan, MİMARİDEN kesin biliniyor:
 // `MainTabsScreen` = stack'in kökü, geri gidilecek ekran yok → jest AÇIK.
