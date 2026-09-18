@@ -157,7 +157,9 @@ export default function PostCardModern({ post, showStatus = false, showRating = 
         </Pressable>
       )}
 
-      {fileCount > 0 && <FileTiles files={files} maxVisible={FEED_FILE_TILES} onPressMore={openDetail} />}
+      {fileCount > 0 && (
+        <FileTiles files={files} maxVisible={FEED_FILE_TILES} postTitle={post.title} />
+      )}
 
       {post.link ? (
         <Pressable style={styles.linkRow} onPress={() => Linking.openURL(post.link!)} hitSlop={6}>

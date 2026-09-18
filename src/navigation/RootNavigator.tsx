@@ -26,6 +26,7 @@ import FaqDetailScreen from '../screens/main/FaqDetailScreen';
 import SuggestionsScreen from '../screens/main/SuggestionsScreen';
 import SuggestionDetailScreen from '../screens/main/SuggestionDetailScreen';
 import Ego130ScheduleScreen from '../screens/main/Ego130ScheduleScreen';
+import FileViewerScreen from '../screens/main/FileViewerScreen';
 import LeaderboardScreen from '../screens/main/LeaderboardScreen';
 import HelpScreen from '../screens/main/HelpScreen';
 import NotificationsScreen from '../screens/main/NotificationsScreen';
@@ -151,6 +152,11 @@ export default function RootNavigator() {
         <Stack.Screen name="Leaderboard" component={Leaderboard} />
         <Stack.Screen name="Help" component={Help} />
         <Stack.Screen name="Notifications" component={Notifications} />
+        {/* Tek `withAppShell`siz push ekranı — gerekçesi FileViewerScreen.tsx'in
+            başında. Kabuk olmadığı için yukarıdaki "modül kapsamında sarmala"
+            notunun da muhatabı değil: sarmalayıcı yok, her render'da yeni
+            bileşen kimliği üretme riski de yok. */}
+        <Stack.Screen name="FileViewer" component={FileViewerScreen} />
       </Stack.Navigator>
     ),
     [colors.ground]

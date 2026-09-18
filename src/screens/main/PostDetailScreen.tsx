@@ -304,7 +304,7 @@ export default function PostDetailScreen() {
         {!!post.content && <Text style={[styles.body, { color: t.ink2 }]}>{post.content}</Text>}
 
         {/* Detayda sınır yok: bütün dosyalar kendi kutucuğuyla listeleniyor. */}
-        {files.length > 0 && <FileTiles files={files} />}
+        {files.length > 0 && <FileTiles files={files} postTitle={post.title} />}
 
         {post.link ? (
           <Pressable style={styles.linkRow} onPress={() => Linking.openURL(post.link!)} hitSlop={6}>
