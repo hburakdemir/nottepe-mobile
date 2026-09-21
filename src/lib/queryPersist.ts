@@ -62,6 +62,10 @@ function isDefaultFeedKey(key: readonly unknown[]): boolean {
 // açmadıysa geçen haftanın yemek listesini görmesin.
 const MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
+// Diske yazılan gönderi sayısı. Ekranın ilk dolumu için gereken (6) üzerine
+// küçük bir pay. Bunu büyütmek doğrudan JS thread'inde blokaj süresi demek.
+const FEED_PERSIST_LIMIT = 8;
+
 // Akış bir `useInfiniteQuery`: cache'te YÜKLÜ BÜTÜN SAYFALARI tutuyor. Diske
 // olduğu gibi yazılsaydı kullanıcı 5 sayfa kaydırdığında her `fetchNextPage`
 // sonrası yüz KB'larca veri JS thread'inde `JSON.stringify` edilip AsyncStorage
@@ -82,11 +86,30 @@ function trimFeedToFirstPage(client: PersistedClient): PersistedClient {
     const data = query.state?.data as { pages?: unknown[]; pageParams?: unknown[] } | undefined;
     if (!data?.pages || data.pages.length <= 1) return query;
     touched = true;
+    // İLK SAYFANIN TAMAMI DEĞİL, İLK `FEED_PERSIST_LIMIT` GÖNDERİ.
+    //
+    // Gerçek cihazda ölçüldü (2026-09-22, Galaxy S25 FE): bu serileştirme +
+    // AsyncStorage yazması JS thread'ini turu başına 1,4-1,7 sn kilitliyordu
+    // ve `throttleTime` yüzünden bu 2 saniyede bir tekrarlanıyordu — yani
+    // uygulama zamanının yarısından fazlası burada geçiyordu. Yazmayı deneysel
+    // olarak durdurunca aynı blokajlar ~310 ms'ye, arka plandan dönüş donması
+    // 29 sn'den 4-5 sn'ye indi.
+    //
+    // Yazmayı tamamen kaldırmak çözüm değil: bu kayıt, soğuk açılışta ana
+    // sayfanın 2-3 sn boş kalmaması için konmuştu (kullanıcı bildirmişti).
+    // Bedel veri boyutuyla orantılı olduğu için veriyi küçültüyoruz. Ekranı
+    // doldurmaya zaten `initialNumToRender={6}` kadarı yetiyor (HomeScreen),
+    // gerisini kullanıcı kaydırdıkça ağdan geliyor.
+    const firstPage = data.pages[0] as { posts?: unknown[] } | undefined;
+    const slimFirstPage =
+      firstPage && Array.isArray(firstPage.posts)
+        ? { ...firstPage, posts: firstPage.posts.slice(0, FEED_PERSIST_LIMIT) }
+        : firstPage;
     return {
       ...query,
       state: {
         ...query.state,
-        data: { pages: data.pages.slice(0, 1), pageParams: (data.pageParams ?? []).slice(0, 1) },
+        data: { pages: [slimFirstPage], pageParams: (data.pageParams ?? []).slice(0, 1) },
       },
     };
   });
