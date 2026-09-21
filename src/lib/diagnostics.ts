@@ -27,7 +27,7 @@ import { navigationRef } from '../navigation/navigationRef';
 //
 // Ayrıca "sayfalar geç açılıyor" şikayetini de yakalıyor: sekme geçişinde
 // boşluk çıkarsa iki şikayetin kök sebebi aynı demektir.
-export const DIAGNOSTICS_ENABLED = true;
+export const DIAGNOSTICS_ENABLED = false;
 
 const TICK_MS = 250;
 // Bu eşiğin altı normal jitter (GC, yerleşim, zamanlayıcı hassasiyeti) —
