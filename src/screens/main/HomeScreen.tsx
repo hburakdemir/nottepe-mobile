@@ -280,11 +280,14 @@ export default function HomeScreen() {
         // dolaşması. Aynı sebeple PostsTab ve SavedPostsScreen'de de hep
         // kapalıydı; tutarsızlık buradaydı.
         maxToRenderPerBatch={6}
-        // 7 → 4. Mount'lu satır ~19'dan ~11'e iniyor; kart başına bir avatar
-        // olduğu ve avatarın kendisi native view ürettiği için (bkz.
-        // avatarPack.ts) mount'lu SVG düğümü kabaca yarıya düşüyor.
-        // Ödünü: çok hızlı fırlatmada kartlar dolmadan kısa bir boşluk.
-        windowSize={4}
+        // 1.0.17'de 4 → 7'ye GERİ ALINDI. 4'e indirilmesi kasmaya karşı bir
+        // pansumandı: mount'lu avatar SVG düğümünü yarıya düşürüyordu. Ama
+        // kasmanın gerçek sebebi bu değilmiş — sekmeye basınca ekranlar
+        // yığından çıkmıyordu (bkz. navigateApp.ts, 113cff0). Sebep
+        // düzeldiğine göre pansumanın bedelini ödemeye gerek yok; o bedel
+        // yorumda yazdığı gibi "hızlı fırlatmada kartlar dolmadan boşluk"tu
+        // ve testçi tam olarak bunu bildirdi.
+        windowSize={7}
         initialNumToRender={6}
         ListHeaderComponent={filterBar}
         refreshControl={<RefreshControl refreshing={isManualRefresh} onRefresh={handleManualRefresh} />}
