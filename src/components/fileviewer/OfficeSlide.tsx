@@ -61,15 +61,7 @@ function isAllowedHost(host: string, allowed: string[]): boolean {
 
 type SizeCheck = 'pending' | 'ok' | 'too-large';
 
-export default function OfficeSlide({
-  fileName,
-  url,
-  width,
-  height,
-  active,
-  onOpenExternally,
-  sharing,
-}: Props) {
+export default function OfficeSlide({ fileName, url, width, height, active, onOpenExternally, sharing }: Props) {
   const isAndroid = Platform.OS === 'android';
   const [sizeCheck, setSizeCheck] = useState<SizeCheck>(isAndroid ? 'pending' : 'ok');
   const [loading, setLoading] = useState(true);
