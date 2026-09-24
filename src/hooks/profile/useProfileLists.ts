@@ -38,12 +38,15 @@ export const MY_SCHEDULE_KEY = ['profile', 'schedule'] as const;
 export const MY_FOLLOWS_KEY = ['profile', 'follows'] as const;
 export const MY_FORUMS_KEY = ['profile', 'forums'] as const;
 
+// Liste uçları (/akts, /users/:username/akts) sadece özet döndürüyor; dersler
+// yalnızca aktsAPI.getById ile, hesaplayıcıya yüklerken çekiliyor.
 export interface AktsCalc {
   id: number;
   title: string;
   gpa: number | null;
+  semester_count: number;
+  course_count: number;
   updated_at: string;
-  data: { semesters: { courses: unknown[] }[] };
 }
 
 export interface Follow {

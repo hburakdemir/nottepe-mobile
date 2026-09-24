@@ -49,8 +49,12 @@ export function isPassGrade(grade: string): boolean {
   return isValidGrade(grade) && !isFailGrade(grade) && !NEUTRAL_GRADES.includes(grade);
 }
 
-export function formatGpa(value: number | null): string {
-  return value === null || value === undefined ? '—' : value.toFixed(2);
+// Sunucu eskiden gpa'yı string ("1.33") döndürüyordu ve `.toFixed` render'ı
+// çökertiyordu; tip ne gelirse gelsin sayıya çevirip iki hane gösteriyoruz.
+export function formatGpa(value: number | string | null | undefined): string {
+  if (value === null || value === undefined || value === '') return '—';
+  const n = Number(value);
+  return Number.isFinite(n) ? n.toFixed(2) : '—';
 }
 
 // 100'lük not → harf notu dönüşüm aralıkları (min dahil, max dahil).

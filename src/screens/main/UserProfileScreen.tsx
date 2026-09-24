@@ -49,8 +49,9 @@ interface AktsCalc {
   id: number;
   title: string;
   gpa: number | null;
+  semester_count: number;
+  course_count: number;
   updated_at: string;
-  data: { semesters: { courses: unknown[] }[] };
 }
 
 interface Follow {
@@ -451,8 +452,8 @@ export default function UserProfileScreen() {
           <EmptyState icon={Calculator} text="Henüz kayıtlı bir AKTS hesaplaması yok." isDark={isDark} />
         ) : (
           aktsCalcs.map((calc) => {
-            const semesterCount = calc.data?.semesters?.length || 0;
-            const courseCount = calc.data?.semesters?.reduce((sum, s) => sum + (s.courses?.length || 0), 0) || 0;
+            const semesterCount = calc.semester_count || 0;
+            const courseCount = calc.course_count || 0;
             return (
               <View key={calc.id} className="flex-row items-center justify-between bg-surface rounded-lg p-5 mb-1" style={SHADOW_MD}>
                 <View className="flex-1">

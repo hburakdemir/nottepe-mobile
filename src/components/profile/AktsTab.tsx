@@ -22,8 +22,8 @@ const AktsRow = React.memo(function AktsRow({
   onEdit: (id: number) => void;
   onDelete: (id: number) => void;
 }) {
-  const semesterCount = calc.data?.semesters?.length || 0;
-  const courseCount = calc.data?.semesters?.reduce((sum, s) => sum + (s.courses?.length || 0), 0) || 0;
+  const semesterCount = calc.semester_count || 0;
+  const courseCount = calc.course_count || 0;
 
   return (
     <View className="flex-row items-center bg-surface rounded-lg p-3.5 mb-3" style={SHADOW_SM}>

@@ -162,18 +162,19 @@ export default function AktsCalculatorScreen() {
   };
 
   useEffect(() => {
-    (async () => {
-      const calcs = await fetchSaved();
-      if (loadId) {
-        const full = calcs.find((c: any) => c.id === loadId);
-        if (full) {
+    fetchSaved();
+    if (loadId) {
+      aktsAPI
+        .getById(loadId)
+        .then((res) => {
+          const full = res.data.calculation;
           const { courses: loaded } = serverDataToCourses(full.data);
           setCourses(loaded);
           setTitle(full.title);
           setEditingId(full.id);
-        }
-      }
-    })();
+        })
+        .catch(() => Alert.alert('Hata', 'Kayıt yüklenemedi.'));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -339,9 +340,8 @@ export default function AktsCalculatorScreen() {
 
   const handleLoadSaved = async (calc: SavedCalc) => {
     try {
-      const res = await aktsAPI.getAll();
-      const full = (res.data.calculations || []).find((c: any) => c.id === calc.id);
-      if (!full) return;
+      const res = await aktsAPI.getById(calc.id);
+      const full = res.data.calculation;
       const { courses: loaded, skipped } = serverDataToCourses(full.data);
       setCourses(loaded);
       setTitle(full.title);

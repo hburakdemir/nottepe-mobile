@@ -326,6 +326,7 @@ export const adminCommentAPI = {
 
 export const aktsAPI = {
   getAll: () => api.get('/akts'),
+  getById: (id: string | number) => api.get(`/akts/${id}`),
   save: (data: Record<string, unknown>) => api.post('/akts', data),
   update: (id: string | number, data: Record<string, unknown>) => api.put(`/akts/${id}`, data),
   delete: (id: string | number) => api.delete(`/akts/${id}`),
