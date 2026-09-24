@@ -19,8 +19,8 @@ const AktsRow = React.memo(function AktsRow({
   onDelete,
 }: {
   calc: AktsCalc;
-  onEdit: (id: number) => void;
-  onDelete: (id: number) => void;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
 }) {
   const semesterCount = calc.semester_count || 0;
   const courseCount = calc.course_count || 0;
@@ -58,12 +58,12 @@ function AktsTab({ active, width, headerHeight, scrollY, onRememberOffset }: Pro
   const showLoading = isPending;
 
   const handleEdit = useCallback(
-    (id: number) => navigation.navigate('AktsCalculator', { loadId: id }),
+    (id: string) => navigation.navigate('AktsCalculator', { loadId: id }),
     [navigation]
   );
 
   const handleDelete = useCallback(
-    (id: number) => {
+    (id: string) => {
       Alert.alert('Hesaplamayı sil', 'Bu hesaplamayı silmek istediğinize emin misiniz?', [
         { text: 'Vazgeç', style: 'cancel' },
         {

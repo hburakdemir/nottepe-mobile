@@ -58,7 +58,7 @@ import { exportCoursesToExcel, parseCoursesFromExcel, type ImportedCourse, type 
 import KeyboardAvoider, { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 
 interface SavedCalc {
-  id: number;
+  id: string;
   title: string;
   gpa: number | null;
   updated_at: string;
@@ -116,7 +116,7 @@ export default function AktsCalculatorScreen() {
   const loadId = (route.params as RootStackParamList['AktsCalculator'])?.loadId;
   const [title, setTitle] = useState('Hesaplamam');
   const [courses, setCourses] = useState<Course[]>([]);
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const [showForm, setShowForm] = useState(false);

@@ -41,7 +41,7 @@ export const MY_FORUMS_KEY = ['profile', 'forums'] as const;
 // Liste uçları (/akts, /users/:username/akts) sadece özet döndürüyor; dersler
 // yalnızca aktsAPI.getById ile, hesaplayıcıya yüklerken çekiliyor.
 export interface AktsCalc {
-  id: number;
+  id: string;
   title: string;
   gpa: number | null;
   semester_count: number;

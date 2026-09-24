@@ -46,7 +46,7 @@ interface PublicProfile {
 }
 
 interface AktsCalc {
-  id: number;
+  id: string;
   title: string;
   gpa: number | null;
   semester_count: number;

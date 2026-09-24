@@ -43,7 +43,7 @@ export type RootStackParamList = {
   SavedPosts: undefined;
   UserProfile: { username: string };
   Checklists: { slug?: string } | undefined;
-  AktsCalculator: { loadId?: number } | undefined;
+  AktsCalculator: { loadId?: string } | undefined;
   Schedule: undefined;
   NoteRequests: undefined;
   Faq: undefined;
