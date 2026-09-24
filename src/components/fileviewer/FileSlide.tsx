@@ -1,9 +1,10 @@
 import React, { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { getFileUrl } from '../../lib/config';
-import { fileKind } from '../../theme/feedTokens';
+import { fileExtension, fileKind } from '../../theme/feedTokens';
 import HandoffSlide from './HandoffSlide';
 import ImageSlide from './ImageSlide';
+import OfficeSlide, { OFFICE_EXTENSIONS } from './OfficeSlide';
 import PdfSlide from './PdfSlide';
 import { VIEWER_BG } from './viewerTokens';
 
@@ -65,6 +66,20 @@ export default function FileSlide({
         active={active}
         onZoomChange={onZoomChange}
         onError={() => setImageFailed(true)}
+      />
+    );
+  }
+
+  if (OFFICE_EXTENSIONS.has(fileExtension(fileName))) {
+    return (
+      <OfficeSlide
+        fileName={fileName}
+        url={url}
+        width={width}
+        height={height}
+        active={active}
+        onOpenExternally={handoff}
+        sharing={sharing}
       />
     );
   }

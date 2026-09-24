@@ -97,7 +97,7 @@ function BootScreen() {
   );
 }
 
-// Expo SDK 57'de Android edge-to-edge zorunlu ve expo-status-bar artik ayri bir
+// Expo SDK 54'ten itibaren Android'de edge-to-edge zorunlu ve expo-status-bar artik ayri bir
 // backgroundColor kabul etmiyor (durum cubugu her zaman saydam, altindaki icerik
 // gorunur) — bu yuzden rengi AppShell'deki SafeAreaView'in kendi arka plani
 // belirliyor (bkz. o dosyadaki not); burada sadece ikon/saat rengini (acik/koyu)

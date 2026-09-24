@@ -21,16 +21,13 @@ const ICON_BY_KIND = {
   other: FileIcon,
 } as const;
 
-// Word, PowerPoint ve Excel uygulama içinde GÖSTERİLEMİYOR.
+// Uygulama içinde gösterilemeyen dosyaların son durağı: dosya cihaza iniyor ve
+// kullanıcının kendi uygulamasına (Word, Drive, WPS…) devrediliyor.
 //
-// Bu türleri gerçekten çizmenin tek pratik yolu dosyayı Google ya da
-// Microsoft'un uzak görüntüleyicisine göndermekti; ders notları başkasının
-// sunucusuna gitmesin diye bu yol bilerek seçilmedi. Onun yerine dosya cihaza
-// iniyor ve kullanıcının kendi uygulamasına (Word, Drive, WPS…) devrediliyor —
-// veri cihazdan çıkmıyor.
-//
-// Aynı ekran `other` (zip, uzantısız, tanınmayan) için de son durak: hiçbir
-// dosya türü kullanıcıyı çıkmaza sokmuyor.
+// doc/docx/xls/xlsx/ppt/pptx buraya normalde GELMİYOR, OfficeSlide çiziyor;
+// yalnızca görüntüleyicinin boyut sınırını aşarlarsa düşüyorlar. Buraya asıl
+// düşenler odt/rtf/txt/csv, `other` (zip, uzantısız, tanınmayan) ve
+// çözülemeyen resimler — hiçbir dosya türü kullanıcıyı çıkmaza sokmuyor.
 export default function HandoffSlide({ fileName, onOpen, busy, reason }: Props) {
   const kind = fileKind(fileName);
   const Icon = ICON_BY_KIND[kind] ?? FileIcon;
