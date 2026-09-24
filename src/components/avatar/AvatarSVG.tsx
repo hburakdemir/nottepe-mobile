@@ -98,7 +98,13 @@ export const AvatarSVG = React.memo(function AvatarSVG({
   // `skin`, saç `hc`. Buradaki tek değişiklik düğümlerin nasıl basıldığı.
   const entries: Entry[] = [];
 
-  if (showBg) entries.push({ t: 'fill', fill: bg, r: { x: 0, y: 0, w: 32, h: 48 } });
+  // Zemin viewBox'tan (0-32) GENİŞ çiziliyor: -4…36. Avatar her yerde KARE bir
+  // alana basılıyor (`width = height = size`) ama viewBox 32×40; varsayılan
+  // `xMidYMid meet` çizimi yüksekliğe oturtuyor, yani kare alanda yatayda
+  // görünen aralık -4…36. Zemin eskiden yalnızca 0…32'yi boyadığı için sağda
+  // ve solda %10'luk şerit boş kalıyor, kabın rengi görünüyordu (profil kartı,
+  // avatar düzenleyici). Karakterin konumu ve boyutu değişmiyor.
+  if (showBg) entries.push({ t: 'fill', fill: bg, r: { x: -4, y: 0, w: 40, h: 48 } });
 
   if (outfitIdx === 0 && !jersey) {
     entries.push({ t: 'fill', fill: skin, r: { x: 9, y: 24, w: 14, h: 12 } });
