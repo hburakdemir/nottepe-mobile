@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -117,8 +118,7 @@ export default function UserProfileScreen() {
   const [loadedTabs, setLoadedTabs] = useState<Set<TabKey>>(new Set());
 
   // Sekmeler hiçbir zaman ortalanmıyordu (bkz. ProfileScreen.tsx'teki aynı
-  // düzeltme) — burada pager yok, sadece şeridin kendisi ölçülüp aktif sekme
-  // ortasına kaydırılıyor.
+  // düzeltme) — şeridin kendisi ölçülüp aktif sekme ortasına kaydırılıyor.
   const stripRef = useRef<ScrollView>(null);
   const stripWidthRef = useRef(0);
   const stripContentWidthRef = useRef(0);
@@ -137,6 +137,56 @@ export default function UserProfileScreen() {
     centerStripOn(activeTab);
   }, [activeTab, centerStripOn]);
 
+  // --- Sekme pager'ı (bkz. render'daki not) ---------------------------------
+  const pagerRef = useRef<ScrollView>(null);
+  const [pageWidth, setPageWidth] = useState(0);
+  const [pageHeights, setPageHeights] = useState<Partial<Record<TabKey, number>>>({});
+  const rememberPageHeight = useCallback((key: TabKey, height: number) => {
+    setPageHeights((prev) => (prev[key] === height ? prev : { ...prev, [key]: height }));
+  }, []);
+
+  // Görünür sekmeler profilin bölüm ayarına bağlı; pager indeksleri bu listeye
+  // göre. Erken return'lerden ÖNCE hesaplanıyor çünkü aşağıdaki hook'lar okuyor.
+  const visibleTabs = useMemo(() => {
+    const visibility = { ...DEFAULT_SECTION_VISIBILITY, ...(profile?.profile_section_visibility || {}) };
+    return TAB_DEFS.filter((t) => t.sectionKey === null || visibility[t.sectionKey]);
+  }, [profile]);
+  const activeIndex = Math.max(
+    0,
+    visibleTabs.findIndex((t) => t.key === activeTab)
+  );
+
+  const [mountedTabs, setMountedTabs] = useState<TabKey[]>(['posts']);
+  useEffect(() => {
+    setMountedTabs((prev) => {
+      const next = new Set(prev);
+      for (let i = activeIndex - 1; i <= activeIndex + 1; i += 1) {
+        const k = visibleTabs[i]?.key;
+        if (k) next.add(k);
+      }
+      return next.size === prev.length ? prev : Array.from(next);
+    });
+  }, [activeIndex, visibleTabs]);
+
+  // TEK KARAR NOKTASI: parmak kalkıp sayfa hizaya oturunca.
+  const handlePagerMomentumEnd = useCallback(
+    ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (pageWidth <= 0) return;
+      const key = visibleTabs[Math.round(nativeEvent.contentOffset.x / pageWidth)]?.key;
+      if (key && key !== activeTab) setActiveTab(key);
+    },
+    [pageWidth, visibleTabs, activeTab]
+  );
+
+  const handleTabPress = useCallback(
+    (key: TabKey) => {
+      setActiveTab(key);
+      const idx = visibleTabs.findIndex((t) => t.key === key);
+      if (idx >= 0) pagerRef.current?.scrollTo({ x: idx * pageWidth, animated: true });
+    },
+    [visibleTabs, pageWidth]
+  );
+
   const [posts, setPosts] = useState<Post[]>([]);
   const [postsTotal, setPostsTotal] = useState(0);
   const [postsPage, setPostsPage] = useState(1);
@@ -148,8 +198,6 @@ export default function UserProfileScreen() {
   const [aktsCalcs, setAktsCalcs] = useState<AktsCalc[]>([]);
   const [scheduleCourses, setScheduleCourses] = useState<ScheduleCourse[]>([]);
   const [follows, setFollows] = useState<Follow[]>([]);
-  const [tabLoading, setTabLoading] = useState(false);
-  const showTabLoading = tabLoading;
   const showPostsLoading = postsLoading;
   const [forumItems, setForumItems] = useState<ForumItem[] | null>(null);
   const showForumsLoading = forumItems === null;
@@ -163,6 +211,8 @@ export default function UserProfileScreen() {
       setLoadError(false);
       setActiveTab('posts');
       setLoadedTabs(new Set());
+      setMountedTabs(['posts']);
+      setPageHeights({});
       try {
         const profileRes = await userAPI.getProfile(username);
         if (cancelled) return;
@@ -219,7 +269,6 @@ export default function UserProfileScreen() {
 
     let cancelled = false;
     (async () => {
-      setTabLoading(true);
       try {
         if (activeTab === 'saved') {
           const res = await userAPI.getSavedPosts(username);
@@ -264,10 +313,7 @@ export default function UserProfileScreen() {
       } catch {
         // sessizce geç
       } finally {
-        if (!cancelled) {
-          setTabLoading(false);
-          setLoadedTabs((prev) => new Set(prev).add(activeTab));
-        }
+        if (!cancelled) setLoadedTabs((prev) => new Set(prev).add(activeTab));
       }
     })();
     return () => {
@@ -314,7 +360,185 @@ export default function UserProfileScreen() {
 
   const isPrivate = profile.is_public === false;
   const sectionVisibility = { ...DEFAULT_SECTION_VISIBILITY, ...(profile.profile_section_visibility || {}) };
-  const tabs = TAB_DEFS.filter((t) => t.sectionKey === null || sectionVisibility[t.sectionKey]);
+  const tabs = visibleTabs;
+
+  const renderTab = (key: TabKey) => {
+    switch (key) {
+      case 'posts':
+        return showPostsLoading ? (
+          <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
+        ) : posts.length === 0 ? (
+          <EmptyState icon={FileText} text="Henüz onaylı not paylaşılmamış." isDark={isDark} />
+        ) : (
+          <>
+            {posts.map((post) => (
+              <PostCard key={String(post.id ?? post.post_id)} post={post} showRating={false} />
+            ))}
+            {postsTotal > POSTS_LIMIT && (
+              <View className="flex-row items-center justify-center gap-4 py-3.5">
+                <Pressable
+                  className={`w-[34px] h-[34px] rounded-[17px] bg-surface items-center justify-center ${postsPage <= 1 ? 'opacity-50' : ''}`}
+                  disabled={postsPage <= 1}
+                  onPress={() => setPostsPage((p) => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft size={16} color={postsPage <= 1 ? (isDark ? '#4b5563' : '#d1d5db') : isDark ? '#5A9690' : '#2F5755'} />
+                </Pressable>
+                <Text className="text-[12.5px] text-muted font-semibold">
+                  Sayfa {postsPage} / {Math.ceil(postsTotal / POSTS_LIMIT)}
+                </Text>
+                <Pressable
+                  className={`w-[34px] h-[34px] rounded-[17px] bg-surface items-center justify-center ${postsPage >= Math.ceil(postsTotal / POSTS_LIMIT) ? 'opacity-50' : ''}`}
+                  disabled={postsPage >= Math.ceil(postsTotal / POSTS_LIMIT)}
+                  onPress={() => setPostsPage((p) => p + 1)}
+                >
+                  <ChevronRight
+                    size={16}
+                    color={
+                      postsPage >= Math.ceil(postsTotal / POSTS_LIMIT) ? (isDark ? '#4b5563' : '#d1d5db') : isDark ? '#5A9690' : '#2F5755'
+                    }
+                  />
+                </Pressable>
+              </View>
+            )}
+          </>
+        );
+      case 'saved':
+        return !loadedTabs.has('saved') ? (
+          <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
+        ) : savedPosts.length === 0 ? (
+          <EmptyState icon={Bookmark} text="Henüz not kaydetmemiş." isDark={isDark} />
+        ) : (
+          savedPosts.map((post) => <PostCard key={String(post.id ?? post.post_id)} post={post} showRating={false} />)
+        );
+      case 'lists':
+        return !loadedTabs.has('lists') ? (
+          <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
+        ) : checklists.length === 0 ? (
+          <EmptyState icon={ListChecks} text="Henüz bir checklist oluşturmamış." isDark={isDark} />
+        ) : (
+          checklists.map((checklist) => (
+            <ChecklistCard
+              key={checklist.id}
+              checklist={checklist}
+              isOpen={expandedChecklistId === checklist.id}
+              onToggleOpen={(c) => setExpandedChecklistId((prev) => (prev === c.id ? null : c.id))}
+              readOnlyItems
+            />
+          ))
+        );
+      case 'akts':
+        return !loadedTabs.has('akts') ? (
+          <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
+        ) : aktsCalcs.length === 0 ? (
+          <EmptyState icon={Calculator} text="Henüz kayıtlı bir AKTS hesaplaması yok." isDark={isDark} />
+        ) : (
+          aktsCalcs.map((calc) => {
+            const semesterCount = calc.data?.semesters?.length || 0;
+            const courseCount = calc.data?.semesters?.reduce((sum, s) => sum + (s.courses?.length || 0), 0) || 0;
+            return (
+              <View key={calc.id} className="flex-row items-center justify-between bg-surface rounded-lg p-5 mb-1" style={SHADOW_MD}>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-ink" numberOfLines={1}>
+                    {calc.title}
+                  </Text>
+                  <Text className="text-sm text-muted mt-0.5">
+                    {semesterCount} dönem · {courseCount} ders · {formatDate(calc.updated_at)}
+                  </Text>
+                </View>
+                <View className="items-center">
+                  <Text className="text-2xl font-extrabold text-accent">{formatGpa(calc.gpa)}</Text>
+                  <Text className="text-[10px] text-muted2 uppercase">GANO</Text>
+                </View>
+              </View>
+            );
+          })
+        );
+      case 'schedule':
+        return !loadedTabs.has('schedule') ? (
+          <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
+        ) : scheduleCourses.length === 0 ? (
+          <EmptyState icon={CalendarDays} text="Henüz ders programı oluşturmamış." isDark={isDark} />
+        ) : (
+          [1, 2, 3, 4, 5, 6].map((day) => {
+            const dayCourses = scheduleCourses.filter((c) => c.day === day).sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
+            if (dayCourses.length === 0) return null;
+            return (
+              <View key={day} className="bg-surface rounded-lg p-3 mb-2" style={SHADOW_MD}>
+                <Text className="text-[13px] font-bold text-ink mb-2">{DAY_NAMES[day]}</Text>
+                {dayCourses.map((c) => (
+                  <View key={c.id} className="flex-row items-center gap-2 py-1.5">
+                    <View className="w-1 h-[26px] rounded-sm" style={{ backgroundColor: getCourseColor(c.colorIdx).hex }} />
+                    <View className="flex-1">
+                      <Text className="text-[12.5px] font-semibold text-ink" numberOfLines={1}>
+                        {c.name}
+                      </Text>
+                      <Text className="text-[11px] text-muted mt-px">
+                        {c.start}–{c.end}
+                        {c.location ? ` · ${c.location}` : ''}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            );
+          })
+        );
+      case 'follows':
+        return !loadedTabs.has('follows') ? (
+          <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
+        ) : follows.length === 0 ? (
+          <EmptyState icon={Bell} text="Henüz bir bölüm takip etmiyor." isDark={isDark} />
+        ) : (
+          follows.map((f) => (
+            <Pressable
+              key={`${f.faculty}-${f.department}`}
+              className="flex-row items-center justify-between bg-surface rounded-lg p-5 mb-1"
+              style={SHADOW_MD}
+              onPress={() => navigation.navigate('DepartmentDetail', { faculty: f.faculty, department: f.department })}
+            >
+              <View>
+                <Text className="text-sm font-semibold text-ink">{f.department}</Text>
+                <Text className="text-sm text-muted mt-0.5">{f.faculty}</Text>
+              </View>
+            </Pressable>
+          ))
+        );
+      case 'forums':
+        return showForumsLoading ? (
+          <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
+        ) : forumItems.length === 0 ? (
+          <EmptyState icon={MessagesSquare} text="Henüz bir foruma katılmadı." isDark={isDark} />
+        ) : (
+          forumItems.map((item) => (
+            <Pressable
+              key={item.key}
+              className="flex-row gap-2 bg-surface rounded-lg p-3 mb-1"
+              style={SHADOW_MD}
+              onPress={() =>
+                item.kind === 'faq'
+                  ? navigation.navigate('FaqDetail', { id: item.targetId })
+                  : navigation.navigate('SuggestionDetail', { id: item.targetId })
+              }
+            >
+              {item.kind === 'faq' ? (
+                <HelpCircle size={15} color={isDark ? '#5A9690' : '#2F5755'} />
+              ) : (
+                <Lightbulb size={15} color={isDark ? '#5A9690' : '#2F5755'} />
+              )}
+              <View className="flex-1">
+                <Text className="text-[11.5px] font-semibold text-muted">{item.title}</Text>
+                {!!item.body && (
+                  <Text className="text-sm text-ink2 mt-[3px]" numberOfLines={2}>
+                    {item.body}
+                  </Text>
+                )}
+                <Text className="text-[10.5px] text-muted2 mt-1">{formatDate(item.created_at)}</Text>
+              </View>
+            </Pressable>
+          ))
+        );
+    }
+  };
 
   return (
     <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="px-4 pt-8 pb-[150px]">
@@ -386,7 +610,7 @@ export default function UserProfileScreen() {
                   <Pressable
                     key={key}
                     className={`flex-row items-center gap-1.5 py-3 mr-5 border-b-2 ${active ? 'border-b-[#1e40af]' : 'border-b-transparent'}`}
-                    onPress={() => setActiveTab(key)}
+                    onPress={() => handleTabPress(key)}
                     onLayout={(e) => {
                       tabLayoutsRef.current[key] = { x: e.nativeEvent.layout.x, width: e.nativeEvent.layout.width };
                       if (active) centerStripOn(key);
@@ -400,192 +624,44 @@ export default function UserProfileScreen() {
             </ScrollView>
           </View>
 
-          <View className={activeTab === 'posts' || activeTab === 'saved' ? '' : 'gap-3'}>
-            {activeTab === 'posts' &&
-              (showPostsLoading ? (
-                <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
-              ) : posts.length === 0 ? (
-                <EmptyState icon={FileText} text="Henüz onaylı not paylaşılmamış." isDark={isDark} />
-              ) : (
-                <>
-                  {posts.map((post) => (
-                    <PostCard key={String(post.id ?? post.post_id)} post={post} showRating={false} />
-                  ))}
-                  {postsTotal > POSTS_LIMIT && (
-                    <View className="flex-row items-center justify-center gap-4 py-3.5">
-                      <Pressable
-                        className={`w-[34px] h-[34px] rounded-[17px] bg-surface items-center justify-center ${postsPage <= 1 ? 'opacity-50' : ''}`}
-                        disabled={postsPage <= 1}
-                        onPress={() => setPostsPage((p) => Math.max(1, p - 1))}
-                      >
-                        <ChevronLeft size={16} color={postsPage <= 1 ? (isDark ? '#4b5563' : '#d1d5db') : isDark ? '#5A9690' : '#2F5755'} />
-                      </Pressable>
-                      <Text className="text-[12.5px] text-muted font-semibold">
-                        Sayfa {postsPage} / {Math.ceil(postsTotal / POSTS_LIMIT)}
-                      </Text>
-                      <Pressable
-                        className={`w-[34px] h-[34px] rounded-[17px] bg-surface items-center justify-center ${postsPage >= Math.ceil(postsTotal / POSTS_LIMIT) ? 'opacity-50' : ''}`}
-                        disabled={postsPage >= Math.ceil(postsTotal / POSTS_LIMIT)}
-                        onPress={() => setPostsPage((p) => p + 1)}
-                      >
-                        <ChevronRight
-                          size={16}
-                          color={
-                            postsPage >= Math.ceil(postsTotal / POSTS_LIMIT)
-                              ? isDark
-                                ? '#4b5563'
-                                : '#d1d5db'
-                              : isDark
-                                ? '#5A9690'
-                                : '#2F5755'
-                          }
-                        />
-                      </Pressable>
+          {/* Sekmeler arasında kaydırarak geçiş — kendi profilindeki pager'ın
+              deseni (bkz. ProfileScreen.tsx'teki uzun not): sayfa YALNIZCA
+              `onMomentumScrollEnd`'de değişiyor, sürüklerken değil. Aktif sekme
+              ve iki komşusu mount'lu; bir kez mount olan sayfa kalıyor.
+
+              Kendi profilinden farkı: burada başlık kartı sayfayla birlikte
+              dikey kayıyor, yani pager dikey bir ScrollView'ın İÇİNDE. Sayfalar
+              içerikleri kadar uzun (`alignItems: 'flex-start'`) ve pager'ın
+              yüksekliği aktif sayfanınkine eşitleniyor — yoksa en uzun sekme
+              (ör. 12 gönderi) kısa bir sekmenin altında ekran boyu boşluk
+              bırakırdı. */}
+          <View onLayout={(e) => setPageWidth(e.nativeEvent.layout.width)}>
+            {pageWidth > 0 && (
+              <ScrollView
+                ref={pagerRef}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={handlePagerMomentumEnd}
+                style={pageHeights[activeTab] ? { height: pageHeights[activeTab] } : undefined}
+                contentContainerStyle={{ alignItems: 'flex-start' }}
+              >
+                {tabs.map(({ key }) =>
+                  mountedTabs.includes(key) ? (
+                    <View
+                      key={key}
+                      style={{ width: pageWidth }}
+                      className={key === 'posts' || key === 'saved' ? '' : 'gap-3'}
+                      onLayout={(e) => rememberPageHeight(key, e.nativeEvent.layout.height)}
+                    >
+                      {renderTab(key)}
                     </View>
-                  )}
-                </>
-              ))}
-
-            {activeTab === 'saved' &&
-              (showTabLoading && !loadedTabs.has('saved') ? (
-                <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
-              ) : savedPosts.length === 0 ? (
-                <EmptyState icon={Bookmark} text="Henüz not kaydetmemiş." isDark={isDark} />
-              ) : (
-                savedPosts.map((post) => <PostCard key={String(post.id ?? post.post_id)} post={post} showRating={false} />)
-              ))}
-
-            {activeTab === 'lists' &&
-              (showTabLoading && !loadedTabs.has('lists') ? (
-                <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
-              ) : checklists.length === 0 ? (
-                <EmptyState icon={ListChecks} text="Henüz bir checklist oluşturmamış." isDark={isDark} />
-              ) : (
-                checklists.map((checklist) => (
-                  <ChecklistCard
-                    key={checklist.id}
-                    checklist={checklist}
-                    isOpen={expandedChecklistId === checklist.id}
-                    onToggleOpen={(c) => setExpandedChecklistId((prev) => (prev === c.id ? null : c.id))}
-                    readOnlyItems
-                  />
-                ))
-              ))}
-
-            {activeTab === 'akts' &&
-              (showTabLoading && !loadedTabs.has('akts') ? (
-                <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
-              ) : aktsCalcs.length === 0 ? (
-                <EmptyState icon={Calculator} text="Henüz kayıtlı bir AKTS hesaplaması yok." isDark={isDark} />
-              ) : (
-                aktsCalcs.map((calc) => {
-                  const semesterCount = calc.data?.semesters?.length || 0;
-                  const courseCount = calc.data?.semesters?.reduce((sum, s) => sum + (s.courses?.length || 0), 0) || 0;
-                  return (
-                    <View key={calc.id} className="flex-row items-center justify-between bg-surface rounded-lg p-5 mb-1" style={SHADOW_MD}>
-                      <View className="flex-1">
-                        <Text className="text-sm font-semibold text-ink" numberOfLines={1}>
-                          {calc.title}
-                        </Text>
-                        <Text className="text-sm text-muted mt-0.5">
-                          {semesterCount} dönem · {courseCount} ders · {formatDate(calc.updated_at)}
-                        </Text>
-                      </View>
-                      <View className="items-center">
-                        <Text className="text-2xl font-extrabold text-accent">{formatGpa(calc.gpa)}</Text>
-                        <Text className="text-[10px] text-muted2 uppercase">GANO</Text>
-                      </View>
-                    </View>
-                  );
-                })
-              ))}
-
-            {activeTab === 'schedule' &&
-              (showTabLoading && !loadedTabs.has('schedule') ? (
-                <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
-              ) : scheduleCourses.length === 0 ? (
-                <EmptyState icon={CalendarDays} text="Henüz ders programı oluşturmamış." isDark={isDark} />
-              ) : (
-                [1, 2, 3, 4, 5, 6].map((day) => {
-                  const dayCourses = scheduleCourses.filter((c) => c.day === day).sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
-                  if (dayCourses.length === 0) return null;
-                  return (
-                    <View key={day} className="bg-surface rounded-lg p-3 mb-2" style={SHADOW_MD}>
-                      <Text className="text-[13px] font-bold text-ink mb-2">{DAY_NAMES[day]}</Text>
-                      {dayCourses.map((c) => (
-                        <View key={c.id} className="flex-row items-center gap-2 py-1.5">
-                          <View className="w-1 h-[26px] rounded-sm" style={{ backgroundColor: getCourseColor(c.colorIdx).hex }} />
-                          <View className="flex-1">
-                            <Text className="text-[12.5px] font-semibold text-ink" numberOfLines={1}>
-                              {c.name}
-                            </Text>
-                            <Text className="text-[11px] text-muted mt-px">
-                              {c.start}–{c.end}
-                              {c.location ? ` · ${c.location}` : ''}
-                            </Text>
-                          </View>
-                        </View>
-                      ))}
-                    </View>
-                  );
-                })
-              ))}
-
-            {activeTab === 'follows' &&
-              (showTabLoading && !loadedTabs.has('follows') ? (
-                <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
-              ) : follows.length === 0 ? (
-                <EmptyState icon={Bell} text="Henüz bir bölüm takip etmiyor." isDark={isDark} />
-              ) : (
-                follows.map((f) => (
-                  <Pressable
-                    key={`${f.faculty}-${f.department}`}
-                    className="flex-row items-center justify-between bg-surface rounded-lg p-5 mb-1"
-                    style={SHADOW_MD}
-                    onPress={() => navigation.navigate('DepartmentDetail', { faculty: f.faculty, department: f.department })}
-                  >
-                    <View>
-                      <Text className="text-sm font-semibold text-ink">{f.department}</Text>
-                      <Text className="text-sm text-muted mt-0.5">{f.faculty}</Text>
-                    </View>
-                  </Pressable>
-                ))
-              ))}
-
-            {activeTab === 'forums' &&
-              (showForumsLoading ? (
-                <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
-              ) : forumItems.length === 0 ? (
-                <EmptyState icon={MessagesSquare} text="Henüz bir foruma katılmadı." isDark={isDark} />
-              ) : (
-                forumItems.map((item) => (
-                  <Pressable
-                    key={item.key}
-                    className="flex-row gap-2 bg-surface rounded-lg p-3 mb-1"
-                    style={SHADOW_MD}
-                    onPress={() =>
-                      item.kind === 'faq'
-                        ? navigation.navigate('FaqDetail', { id: item.targetId })
-                        : navigation.navigate('SuggestionDetail', { id: item.targetId })
-                    }
-                  >
-                    {item.kind === 'faq' ? (
-                      <HelpCircle size={15} color={isDark ? '#5A9690' : '#2F5755'} />
-                    ) : (
-                      <Lightbulb size={15} color={isDark ? '#5A9690' : '#2F5755'} />
-                    )}
-                    <View className="flex-1">
-                      <Text className="text-[11.5px] font-semibold text-muted">{item.title}</Text>
-                      {!!item.body && (
-                        <Text className="text-sm text-ink2 mt-[3px]" numberOfLines={2}>
-                          {item.body}
-                        </Text>
-                      )}
-                      <Text className="text-[10.5px] text-muted2 mt-1">{formatDate(item.created_at)}</Text>
-                    </View>
-                  </Pressable>
-                ))
-              ))}
+                  ) : (
+                    <View key={key} style={{ width: pageWidth }} />
+                  )
+                )}
+              </ScrollView>
+            )}
           </View>
         </>
       )}
