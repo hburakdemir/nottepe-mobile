@@ -8,7 +8,7 @@ import { APP_FONT_FAMILY } from './typography';
 // KIRPILIYORDU — APK ile Expo/iOS arasındaki farkın büyük kısmı buydu, çünkü
 // cihaz ölçeği ikisinde aynı değildi. Ölçeği tamamen kapatmıyoruz (erişilebilirlik),
 // güvenli bir tavanla sınırlıyoruz.
-const MAX_FONT_SCALE = 1.2;
+export const MAX_FONT_SCALE = 1.2;
 
 // ⚠️ BURADA ESKİDEN `numberOfLines` VERİLMİŞ HER YAZIYA OTOMATİK
 // `adjustsFontSizeToFit` BASILIYORDU. KALDIRILDI — bir daha geri ekleme.

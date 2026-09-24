@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { ArrowUpDown, Bus, Clock } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
@@ -7,6 +7,7 @@ import { useCardSurface, useFeedTokens, type FeedTokens } from '../../theme/feed
 import { EGO_130_SCHEDULES, EGO_130_METRO_SCHEDULES, type Ego130DayKey } from '../../data/ego130Schedule';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 import { toMinutes } from '../../utils/schedule';
+import { MAX_FONT_SCALE } from '../../theme/applyGlobalFont';
 
 // Cihazın o anki gününe göre tarife anahtarı (0=Pazar, 6=Cumartesi). Ekran
 // açılışta bu güne düşüyor — eskiden hep `'weekday'` sabitti, Pazar günü
@@ -100,7 +101,28 @@ const SCREEN_PADDING = 12;
 const TABS_PADDING = 4;
 const CARD_PADDING = 12;
 const GRID_GAP = 8;
-const COLUMNS = 4;
+const MAX_COLUMNS = 4;
+const MIN_COLUMNS = 3;
+
+// Sütun sayısı SAATİN GERÇEK GENİŞLİĞİNDEN türetiliyor. Eskiden sabit 4'tü:
+// dar ekranda ya da Android'de "Ekran boyutu" büyütülmüşken kutucuk ~62 px'e
+// iniyor, saat ise sistem yazı ölçeği %120'de ~59 px + Android'in sahte kalını
+// tutuyor — "12:30" ikinci satıra kayıyor ya da kesiliyordu.
+//
+// 3,5 em: Sora SemiBold'da en geniş "HH:MM" 3,29 em (fonttan ölçüldü, 1440
+// saatin hepsi denendi); üstü sahte kalın ve kenar payı. Küçültme
+// (`adjustsFontSizeToFit`) bilerek KULLANILMIYOR — Android'de 95 kutucukta
+// iteratif ölçüm demek, bkz. theme/applyGlobalFont.ts.
+const TIME_FONT_SIZE = 15;
+const TIME_WIDTH_EM = 3.5;
+const TILE_SIDE_PADDING = 6;
+
+function columnsFor(gridWidth: number, fontScale: number): number {
+  const scale = Math.min(fontScale, MAX_FONT_SCALE);
+  const minTile = TIME_FONT_SIZE * TIME_WIDTH_EM * scale + TILE_SIDE_PADDING * 2;
+  const fits = Math.floor((gridWidth + GRID_GAP) / (minTile + GRID_GAP));
+  return Math.max(MIN_COLUMNS, Math.min(MAX_COLUMNS, fits));
+}
 
 
 // Gün şeridi: seçili hap sekmeler arasında yumuşakça kayıyor (tek animasyon,
@@ -212,7 +234,11 @@ const Tile = React.memo(function Tile({
 }) {
   return (
     <View style={[styles.tile, surface, { width }, isNext && { borderColor: t.accent, borderWidth: 1.5 }]}>
-      <Text style={[styles.time, { color: isNext ? t.accent : t.ink }]}>{time}</Text>
+      {/* `numberOfLines={1}`: hesap bir cihazda yine de tutmazsa saat ikiye
+          bölünmesin; en kötü ihtimalle kenardan kırpılır. */}
+      <Text style={[styles.time, { color: isNext ? t.accent : t.ink }]} numberOfLines={1}>
+        {time}
+      </Text>
       {/* İşaret satırı not olmasa da duruyor: kutucukların yüksekliği satırdan
           satıra oynamasın diye. */}
       <View style={styles.markers}>
@@ -301,7 +327,9 @@ export default function Ego130ScheduleScreen() {
   // satırlar tırtıklı çıkıyordu. Genişlik ızgaranın KENDİ ölçüsünden (onLayout)
   // türetiliyor — pencere genişliğinden hesaplamak AppShell'in kendi yatay
   // payını hesaba katmadığı için satıra 4 yerine 3 kutucuk sığdırıyordu.
-  const tileWidth = gridWidth > 0 ? Math.floor((gridWidth - GRID_GAP * (COLUMNS - 1)) / COLUMNS) : 0;
+  const { fontScale } = useWindowDimensions();
+  const columns = columnsFor(gridWidth, fontScale);
+  const tileWidth = gridWidth > 0 ? Math.floor((gridWidth - GRID_GAP * (columns - 1)) / columns) : 0;
 
   // Kutucuk verisi tarife başına bir kere: `markersFor` artık önbellekli ama
   // 95 çağrıyı da her render'da yapmanın anlamı yok. `nowMinutes` 30 saniyede
@@ -467,11 +495,12 @@ const styles = StyleSheet.create({
   tile: {
     height: 56,
     borderRadius: 12,
+    paddingHorizontal: TILE_SIDE_PADDING,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
   },
-  time: { fontSize: 15, fontWeight: '600', fontVariant: ['tabular-nums'] },
+  time: { fontSize: TIME_FONT_SIZE, fontWeight: '600', fontVariant: ['tabular-nums'] },
   markers: { flexDirection: 'row', gap: 4, height: MARKER_SIZE },
   legend: { marginTop: 14, gap: 8, paddingHorizontal: 2 },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
