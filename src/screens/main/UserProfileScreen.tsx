@@ -211,6 +211,7 @@ export default function UserProfileScreen() {
       setLoadError(false);
       setActiveTab('posts');
       setLoadedTabs(new Set());
+      setForumItems(null);
       setMountedTabs(['posts']);
       setPageHeights({});
       try {
@@ -263,32 +264,42 @@ export default function UserProfileScreen() {
     };
   }, [profile, postsPage, username]);
 
+  // Aktif sekme VE iki komşusu yükleniyor: kaydırırken yandaki sayfa hazır
+  // gelsin, yükleme göstergesi değil. Her sekme profil başına BİR KEZ isteniyor
+  // (`requestedTabsRef`). İstek sekme değişince İPTAL EDİLMİYOR — yalnızca
+  // profil değişince: komşu için başlamış bir isteği kullanıcı o sekmeyi
+  // geçti diye çöpe atmak, döndüğünde aynı isteği tekrar atmak demekti.
+  const requestedTabsRef = useRef<Set<TabKey>>(new Set());
+  const profileGenRef = useRef(0);
   useEffect(() => {
-    if (!profile || profile.is_public === false) return;
-    if (activeTab === 'posts' || loadedTabs.has(activeTab)) return;
+    profileGenRef.current += 1;
+    requestedTabsRef.current = new Set();
+  }, [profile]);
 
-    let cancelled = false;
-    (async () => {
+  const loadTab = useCallback(
+    async (key: TabKey, p: PublicProfile) => {
+      const gen = profileGenRef.current;
+      const isCurrent = () => profileGenRef.current === gen;
       try {
-        if (activeTab === 'saved') {
+        if (key === 'saved') {
           const res = await userAPI.getSavedPosts(username);
-          if (!cancelled) setSavedPosts(res.data.posts || []);
-        } else if (activeTab === 'lists') {
+          if (isCurrent()) setSavedPosts(res.data.posts || []);
+        } else if (key === 'lists') {
           const res = await userAPI.getChecklists(username);
-          if (!cancelled) setChecklists(res.data.checklists || []);
-        } else if (activeTab === 'akts') {
+          if (isCurrent()) setChecklists(res.data.checklists || []);
+        } else if (key === 'akts') {
           const res = await userAPI.getAkts(username);
-          if (!cancelled) setAktsCalcs(res.data.calculations || []);
-        } else if (activeTab === 'schedule') {
+          if (isCurrent()) setAktsCalcs(res.data.calculations || []);
+        } else if (key === 'schedule') {
           const res = await userAPI.getSchedule(username);
-          if (!cancelled) setScheduleCourses(res.data.courses || []);
-        } else if (activeTab === 'follows') {
+          if (isCurrent()) setScheduleCourses(res.data.courses || []);
+        } else if (key === 'follows') {
           const res = await userAPI.getFollows(username);
-          if (!cancelled) setFollows(res.data.follows || []);
-        } else if (activeTab === 'forums') {
+          if (isCurrent()) setFollows(res.data.follows || []);
+        } else if (key === 'forums') {
           const [faqRes, sugRes] = await Promise.all([
-            faqAPI.getUserActivity(profile.id).catch(() => ({ data: { activity: [] } })),
-            suggestionAPI.getUserActivity(profile.id).catch(() => ({ data: { activity: [] } })),
+            faqAPI.getUserActivity(p.id).catch(() => ({ data: { activity: [] } })),
+            suggestionAPI.getUserActivity(p.id).catch(() => ({ data: { activity: [] } })),
           ]);
           const faqItems: ForumItem[] = (faqRes.data.activity || []).map((a: any) => ({
             key: `faq-${a.comment_id}`,
@@ -306,21 +317,28 @@ export default function UserProfileScreen() {
             title: a.type === 'started' ? 'Yeni öneri paylaştı' : 'Öneriye yorum yaptı',
             body: a.type === 'started' ? a.suggestion_content : a.comment_content,
           }));
-          if (!cancelled) {
+          if (isCurrent()) {
             setForumItems([...faqItems, ...sugItems].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
           }
         }
       } catch {
         // sessizce geç
       } finally {
-        if (!cancelled) setLoadedTabs((prev) => new Set(prev).add(activeTab));
+        if (isCurrent()) setLoadedTabs((prev) => new Set(prev).add(key));
       }
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, profile, username]);
+    },
+    [username]
+  );
+
+  useEffect(() => {
+    if (!profile || profile.is_public === false) return;
+    for (let i = activeIndex - 1; i <= activeIndex + 1; i += 1) {
+      const key = visibleTabs[i]?.key;
+      if (!key || key === 'posts' || requestedTabsRef.current.has(key)) continue;
+      requestedTabsRef.current.add(key);
+      loadTab(key, profile);
+    }
+  }, [activeIndex, visibleTabs, profile, loadTab]);
   const showLoading = loading;
 
   if (showLoading) {
