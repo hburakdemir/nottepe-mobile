@@ -266,6 +266,10 @@ export const notificationAPI = {
     const params = category ? `?category=${encodeURIComponent(category)}` : '';
     return api.get(`/notifications/active${params}`);
   },
+  // Rozet sayısı için — `getActive` gibi tam duyuru gövdesini (başlık/içerik/
+  // medya/oluşturan bilgisi) değil, tek bir sayı döner.
+  getActiveUnreadCount: (category = '', hiddenIds: Array<string | number> = []) =>
+    api.get(`/notifications/active/unread-count${toQueryString({ category, hidden: hiddenIds.join(',') })}`),
   getAll: (category = '') => {
     const params = category ? `?category=${encodeURIComponent(category)}` : '';
     return api.get(`/notifications/all${params}`);

@@ -1,31 +1,35 @@
 import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { notificationAPI } from '../lib/api';
-import { hasLocalOverride, readNotificationPrefsSnapshot } from '../lib/notificationPrefs';
+import { readNotificationPrefsSnapshot } from '../lib/notificationPrefs';
 
-// Duyurular için ayrı bir "okunmamış sayısı" ucu yok (bkz. notificationAPI) —
-// `getActive` zaten aktif duyuruların TAMAMINI dönüyor, sayaç bunun içinden
-// `is_viewed=false` olanları sayarak türetiliyor. MenuDrawerContent eskiden
-// bu listenin UZUNLUĞUNU rozet sayısı sanıyordu (görüntülenmiş duyurular da
-// dahil) — "duyurularda okundu/okunmadı çalışmıyor" şikayetinin bir parçası.
+// `notificationAPI.getActiveUnreadCount` sunucuda `getActive` ile AYNI WHERE
+// koşuluyla (aktif + onaylı + görülmemiş) tek bir COUNT(*) döner — başlık,
+// içerik, medya ve oluşturan kişi bilgisi hiç indirilmez (bkz. server
+// notificationModel.js getActiveUnreadCountForUserModel). Eskiden `getActive`
+// TAMAMINI indirip yalnızca `.length`e bakıyordu.
 //
-// Sayaç ayrıca kullanıcının CİHAZDA elle "okunmadı" yaptığı (`unread`) ya da
-// sildiği (`hidden`) duyuruları da hesaba katıyor — yoksa NotificationsScreen'de
-// bir duyuruyu "okunmadı" yapmak listede satırı okunmamış gösterse de rozet
-// sayısı hiç değişmiyordu (sunucudaki `is_viewed` zaten `true` kalıyor, bu
-// yalnızca yerel bir tercih).
+// `hidden` — kullanıcının bu CİHAZDA elle sildiği duyuru id'leri — sunucuya
+// gönderilip sayaçtan düşülüyor (bkz. lib/notificationPrefs.ts).
+//
+// Not: `unread` (elle "okunmadı" yapma) burada hesaba katılmıyor çünkü zaten
+// katılmıyordu — `getActive` yanıtında `is_viewed` alanı hiç yoktu, yani eski
+// koddaki `!r.is_viewed` her zaman `true`'ydu ve `unread` override'ı bu
+// sayaç için hiçbir zaman etkili olmamıştı (yalnızca NotificationsScreen'in
+// kendi listesinde, `getAll`'ın döndürdüğü gerçek `is_viewed` üzerinden işe
+// yarıyor).
 export const UNREAD_ANNOUNCEMENTS_KEY = ['notifications', 'announcements-unread-count'] as const;
 
 export function useUnreadAnnouncements() {
   const { data } = useQuery({
     queryKey: UNREAD_ANNOUNCEMENTS_KEY,
     queryFn: async () => {
-      const [res, { hidden, unread }] = await Promise.all([notificationAPI.getActive(), readNotificationPrefsSnapshot()]);
-      const rows = (res.data || []) as Array<{ id: string | number; is_viewed?: boolean }>;
-      return rows.filter((r) => {
-        if (hasLocalOverride(hidden, 'announcement', r.id)) return false;
-        return hasLocalOverride(unread, 'announcement', r.id) || !r.is_viewed;
-      }).length;
+      const { hidden } = await readNotificationPrefsSnapshot();
+      const hiddenIds = [...hidden]
+        .filter((key) => key.startsWith('announcement:'))
+        .map((key) => key.slice('announcement:'.length));
+      const res = await notificationAPI.getActiveUnreadCount('', hiddenIds);
+      return (res.data?.count as number | undefined) ?? 0;
     },
     staleTime: 30_000,
     refetchInterval: 300_000,
