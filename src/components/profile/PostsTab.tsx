@@ -5,7 +5,8 @@ import PostCard from '../PostCard';
 import { TAB_BAR_SAFE_PADDING } from '../layout/tabBarMetrics';
 import { postKey, type PostsKind } from '../../hooks/profile/usePostsPagination';
 import type { Post } from '../../types/post';
-import { EmptyState, TabLoading } from './profileCommon';
+import { EmptyState } from './profileCommon';
+import { PostListSkeleton } from '../PostCardSkeleton';
 
 // Sekme boşken FlatList'e verilen SABİT dizi.
 const NO_POSTS: Post[] = [];
@@ -61,12 +62,14 @@ function PostsTab({
   // Sekme içerikleri sanallaştırılmış bir listede olduğu hâlde `onEndReached`
   // yerine kaydırma olayından tetikliyoruz: aynı worklet hem kayan başlığı
   // (`scrollY`) besliyor hem de eşiği kontrol ediyor — iki ayrı dinleyici
-  // kurmamak için. Eşik, görünür yüksekliğin yarısı ("onEndReachedThreshold={0.5}").
+  // kurmamak için. Eşik bir ekran boyu ("onEndReachedThreshold={1}") —
+  // HomeScreen ile aynı gerekçe: sayfa çoğu zaman kullanıcı dibe varmadan
+  // gelmiş oluyor.
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollY.value = event.contentOffset.y;
       const distanceToEnd = event.contentSize.height - event.contentOffset.y - event.layoutMeasurement.height;
-      if (distanceToEnd <= event.layoutMeasurement.height * 0.5) {
+      if (distanceToEnd <= event.layoutMeasurement.height) {
         runOnJS(reachEnd)();
       }
     },
@@ -111,18 +114,19 @@ function PostsTab({
       // karşılıyor (bkz. ProfileScreen). Buraya ayrıca spinner koymak
       // "spinner -> iskelet -> içerik" diye çift geçiş yaratıyordu.
       //
-      // "Kayıtlı"da spinner KALIYOR: oranın listesi bir not kaydedilip
+      // "Kayıtlı"da gösterge KALIYOR (kart iskeleti olarak): oranın listesi bir not kaydedilip
       // çıkarıldığında sentinel'e çekilip sekmeye girilince yeniden çekiliyor
       // ve o an ekran iskeleti devrede değil — hiçbir geri bildirim olmazsa
       // sekme boş görünürdü.
       ListEmptyComponent={
         !active ? null : rows === null ? (
-          kind === 'saved' ? <TabLoading /> : null
+          kind === 'saved' ? <PostListSkeleton count={2} /> : null
         ) : (
           <EmptyState icon={FileText} text={emptyText} />
         )
       }
-      ListFooterComponent={loadingMore ? <TabLoading /> : null}
+      // Sonraki sayfa: spinner yerine kart iskeleti (bkz. PostListSkeleton).
+      ListFooterComponent={loadingMore ? <PostListSkeleton /> : null}
     />
   );
 }

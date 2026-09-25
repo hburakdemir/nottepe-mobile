@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -7,6 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import { Bell, BellOff } from 'lucide-react-native';
 import { postsAPI, departmentFollowAPI } from '../../lib/api';
 import PostCard from '../../components/PostCard';
+import { PostListSkeleton } from '../../components/PostCardSkeleton';
 import { useFeedTokens } from '../../theme/feedTokens';
 import { useTheme } from '../../context/ThemeContext';
 import { FOLLOWED_DEPARTMENTS_KEY } from '../../components/layout/MenuDrawerContent';
@@ -104,10 +105,16 @@ export default function DepartmentDetailScreen() {
     </View>
   );
 
+  // İlk yükleme: spinner yerine GERÇEK başlık + kart iskeletleri. Başlık
+  // (bölüm adı, takip düğmesi) veriye bağlı değil, route'tan geliyor — yani
+  // yükleme sırasında da doğru; yalnızca "N not bulundu" satırı `total` 0
+  // olduğu için gizli kalıyor. Sarmalayıcı aşağıdaki FlatList'in zemini ve
+  // üst dolgusuyla aynı, içerik gelince hiçbir şey yer değiştirmiyor.
   if (showLoading) {
     return (
-      <View className="flex-1 items-center justify-center py-[60px]">
-        <StateView kind="loading" loadingColor={isDark ? '#5A9690' : '#1d4ed8'} />
+      <View className="flex-1" style={{ backgroundColor: t.ground, paddingTop: 4 }}>
+        {header}
+        <PostListSkeleton count={3} />
       </View>
     );
   }
@@ -135,13 +142,14 @@ export default function DepartmentDetailScreen() {
       windowSize={7}
       initialNumToRender={6}
       ListHeaderComponent={header}
-      onEndReachedThreshold={0.4}
+      // Eşik ve altbilgi HomeScreen ile aynı gerekçeyle (bkz. orası).
+      onEndReachedThreshold={1}
       onEndReached={() => {
         if (hasNextPage && !isFetchingNextPage) fetchNextPage();
       }}
       ListFooterComponent={
         isFetchingNextPage ? (
-          <ActivityIndicator style={{ marginVertical: 16 }} color={isDark ? '#5A9690' : '#1d4ed8'} />
+          <PostListSkeleton />
         ) : !hasNextPage && posts.length > 0 ? (
           <Text className="text-center text-sm text-muted2 py-6">Tüm notlar yüklendi ({total} not)</Text>
         ) : null

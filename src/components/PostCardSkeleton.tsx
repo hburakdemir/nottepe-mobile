@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Bookmark, FileText, MessageSquare, Star } from 'lucide-react-native';
-import { Skeleton } from './Skeleton';
+import { Skeleton, SkeletonGroup } from './Skeleton';
 import { useCardSurface, useFeedTokens } from '../theme/feedTokens';
 
 // `PostCardModern`ın iskeleti. ÖLÇÜLER O DOSYADAN BİREBİR alındı (kart dolgusu,
@@ -71,6 +71,29 @@ export default function PostCardSkeleton({ files = 1 }: { files?: number }) {
         </View>
       </View>
     </View>
+  );
+}
+
+// Gönderi listelerinin ORTAK yükleme parçası: ilk yükleme (bölüm sayfası,
+// başka kullanıcının profili) ve kaydırınca sonraki sayfa (ana sayfa, bölüm,
+// profil). Sonraki sayfa için eskiden listenin dibinde küçük bir spinner
+// dönüyordu; tab bar'ın hemen üstünde sıkışıp kalıyor, ne geleceğini de
+// söylemiyordu. Kart iskeleti gerçek kartla aynı yükseklikte olduğu için son
+// gönderinin altında, tab bar'ın üstünde net görünüyor ve sayfa geldiğinde
+// ekran zıplamıyor.
+//
+// Kendi `SkeletonGroup`'unu kuruyor: liste altbilgisi ekranın geri kalanından
+// bağımsız mount/unmount oluyor ve nabız animasyonu yalnızca görünürken
+// dönüyor. Dosya sayıları gerçek akıştaki çeşitliliği taklit ediyor.
+const FILES_PATTERN = [2, 1, 0];
+
+export function PostListSkeleton({ count = 1 }: { count?: number }) {
+  return (
+    <SkeletonGroup>
+      {Array.from({ length: count }).map((_, i) => (
+        <PostCardSkeleton key={i} files={FILES_PATTERN[i % FILES_PATTERN.length]} />
+      ))}
+    </SkeletonGroup>
   );
 }
 

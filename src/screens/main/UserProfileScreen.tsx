@@ -22,6 +22,7 @@ import {
 import { avatarAPI, badgeAPI, faqAPI, suggestionAPI, userAPI } from '../../lib/api';
 import { useTheme } from '../../context/ThemeContext';
 import PostCard from '../../components/PostCard';
+import { PostListSkeleton } from '../../components/PostCardSkeleton';
 import BadgeChip, { type Badge } from '../../components/BadgeChip';
 import ChecklistCard from '../../components/ChecklistCard';
 import AvatarDisplay from '../../components/avatar/AvatarDisplay';
@@ -384,8 +385,10 @@ export default function UserProfileScreen() {
   const renderTab = (key: TabKey) => {
     switch (key) {
       case 'posts':
+        // Sayfa düğmesiyle geçişte de bu dal çalışıyor: kart iskeleti, spinner
+        // yerine gelecek içeriğin yerini tutuyor (bkz. PostListSkeleton).
         return showPostsLoading ? (
-          <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
+          <PostListSkeleton count={2} />
         ) : posts.length === 0 ? (
           <EmptyState icon={FileText} text="Henüz onaylı not paylaşılmamış." isDark={isDark} />
         ) : (

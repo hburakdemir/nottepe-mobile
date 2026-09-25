@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { keepPreviousData, useInfiniteQuery, useIsRestoring, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -7,6 +7,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronDown, GraduationCap, HeartHandshake, Search, X } from 'lucide-react-native';
 import { noteRequestAPI, postsAPI } from '../../lib/api';
 import PostCard from '../../components/PostCard';
+import { PostListSkeleton } from '../../components/PostCardSkeleton';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useCardSurface, useFeedTokens } from '../../theme/feedTokens';
@@ -291,13 +292,17 @@ export default function HomeScreen() {
         initialNumToRender={6}
         ListHeaderComponent={filterBar}
         refreshControl={<RefreshControl refreshing={isManualRefresh} onRefresh={handleManualRefresh} />}
-        onEndReachedThreshold={0.4}
+        // 0.4 → 1: sonraki sayfa, dibe bir ekran kala isteniyor. Eskiden
+        // kullanıcı neredeyse her seferinde dibe varıp yükleme göstergesini
+        // bekliyordu; şimdi çoğu zaman kart iskeleti görünmeden sayfa gelmiş
+        // oluyor.
+        onEndReachedThreshold={1}
         onEndReached={() => {
           if (hasNextPage && !isFetchingNextPage) fetchNextPage();
         }}
         ListFooterComponent={
           isFetchingNextPage ? (
-            <ActivityIndicator style={{ marginVertical: 16 }} color="#2F5755" />
+            <PostListSkeleton />
           ) : !hasMore && posts.length > 0 ? (
             <Text className="text-center text-[12.5px] text-muted2 py-5">Tüm notlar yüklendi ({total} not)</Text>
           ) : null
