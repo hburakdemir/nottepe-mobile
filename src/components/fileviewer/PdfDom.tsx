@@ -37,8 +37,17 @@ import { useEffect, useRef } from 'react';
 const MAX_PIXEL_RATIO = 2;
 
 export interface PdfDomProps {
-  /** PDF'in base64'ü. Native taraf diske indirip buradan geçiriyor. */
-  base64: string;
+  /**
+   * Diske inmiş PDF'in `file://` adresi. Varsayılan yol bu: dosya WebView'ın
+   * İÇİNDE okunuyor, ne Hermes'e ne köprüye bir bayt bile girmiyor (bkz.
+   * `readLocalFile`).
+   */
+  uri?: string;
+  /**
+   * Yedek yol: PDF'in base64'ü. Yalnızca yerel okuma başarısız olursa ve dosya
+   * küçükse PdfSlide bunu gönderiyor (bkz. PdfSlide `MAX_INLINE_BYTES`).
+   */
+  base64?: string;
   /** Belge açıldı; sayfa sayısıyla birlikte. */
   onReady: (pages: number) => Promise<void>;
   /** Açılamadı. `code` native tarafta mesaj seçmek için. */
@@ -53,15 +62,42 @@ function base64ToBytes(base64: string): Uint8Array {
   return bytes;
 }
 
+// Dosya `fetch` ile DEĞİL XHR ile okunuyor: Chromium `fetch()`'i `file://`
+// için hiç desteklemiyor, XHR ise sayfa da `file://`'dan geldiğinde
+// (`file:///android_asset/www.bundle`) ve `allowFileAccessFromFileURLs` açıkken
+// çalışıyor. İkisini de Expo'nun DOM sarmalayıcısı zaten açıyor
+// (expo/src/dom/webview-wrapper.tsx). `file://`'da başarılı yanıtın durumu
+// 200 değil 0 — o yüzden kontrol durum koduna değil yanıtın dolu olmasına.
+class LocalReadError extends Error {
+  name = 'LocalReadError';
+}
+
+function readLocalFile(uri: string): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', uri);
+    xhr.responseType = 'arraybuffer';
+    xhr.onload = () => {
+      const buffer = xhr.response as ArrayBuffer | null;
+      if (buffer && buffer.byteLength > 0) resolve(new Uint8Array(buffer));
+      else reject(new LocalReadError(`Boş yanıt (durum ${xhr.status})`));
+    };
+    xhr.onerror = () => reject(new LocalReadError('Yerel dosya okunamadı'));
+    xhr.send();
+  });
+}
+
 function classifyError(error: unknown): { code: string; message: string } {
   const name = (error as { name?: string })?.name ?? '';
   const message = (error as { message?: string })?.message ?? 'Bilinmeyen hata';
+  // Ayrı kod: PdfSlide bunu görünce base64 yedeğine geçiyor.
+  if (name === 'LocalReadError') return { code: 'local-read', message };
   if (name === 'PasswordException') return { code: 'password', message };
   if (name === 'InvalidPDFException') return { code: 'invalid', message };
   return { code: 'unknown', message };
 }
 
-export default function PdfDom({ base64, onReady, onFail }: PdfDomProps) {
+export default function PdfDom({ uri, base64, onReady, onFail }: PdfDomProps) {
   const hostRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -71,14 +107,11 @@ export default function PdfDom({ base64, onReady, onFail }: PdfDomProps) {
     let cancelled = false;
     let observer: IntersectionObserver | null = null;
     // Belgeyi `getDocument`'ın döndürdüğü GÖREV üzerinden kapatıyoruz:
-    // yükleme yarıdayken de iptal edilebilen tek tutamaç bu.
-    const task = pdfjsLib.getDocument({ data: base64ToBytes(base64) });
+    // yükleme yarıdayken de iptal edilebilen tek tutamaç bu. Yerel okuma
+    // sürerken henüz görev yok; temizlik o durumda yalnızca bayrağı kaldırıyor.
+    let task: ReturnType<typeof pdfjsLib.getDocument> | null = null;
 
-    async function renderPage(
-      doc: pdfjsLib.PDFDocumentProxy,
-      pageNumber: number,
-      holder: HTMLDivElement
-    ) {
+    async function renderPage(doc: pdfjsLib.PDFDocumentProxy, pageNumber: number, holder: HTMLDivElement) {
       try {
         const page = await doc.getPage(pageNumber);
         if (cancelled) return;
@@ -107,6 +140,9 @@ export default function PdfDom({ base64, onReady, onFail }: PdfDomProps) {
 
     (async () => {
       try {
+        const data = uri ? await readLocalFile(uri) : base64 ? base64ToBytes(base64) : null;
+        if (cancelled || !data) return;
+        task = pdfjsLib.getDocument({ data });
         const doc = await task.promise;
         if (cancelled) return;
 
@@ -148,9 +184,9 @@ export default function PdfDom({ base64, onReady, onFail }: PdfDomProps) {
     return () => {
       cancelled = true;
       observer?.disconnect();
-      void task.destroy();
+      void task?.destroy();
     };
-  }, [base64, onReady, onFail]);
+  }, [uri, base64, onReady, onFail]);
 
   return (
     <>

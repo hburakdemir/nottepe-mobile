@@ -15,13 +15,24 @@ interface Props {
   sharing: boolean;
 }
 
-// PDF, base64 olarak DOM bileşenine geçiriliyor; köprü JSON taşıdığı için
-// 10 MB'lık bir dosya 13,3 MB'lık bir dizgeye dönüşüyor ve o dizge aynı anda
-// hem Hermes'te hem WebView'da duruyor. Yükleme sınırı zaten 10 MB
-// (AddPostScreen) ama web istemcisinden ya da eski kayıtlardan daha büyüğü
-// gelebilir — bu eşik onlar için emniyet supabı, kullanıcıyı çökme yerine
-// devretme ekranına düşürüyor.
+// PDF DOM bileşenine DOSYA YOLU olarak veriliyor; WebView onu diskten kendisi
+// okuyor (bkz. PdfDom `readLocalFile`). Eskiden base64 olarak geçiyordu:
+// köprü JSON taşıdığı için 9,3 MB'lık bir ders notu 12,4 MB'lık bir dizgeye
+// dönüşüyor, o dizge JS thread'inde üretilip aynı anda hem Hermes'te hem
+// WebView'da duruyordu. Bu yüzden 8 MB'lık bir tavan vardı ve web
+// istemcisinden yüklenmiş sıradan notlar "açılamayacak kadar büyük" ekranına
+// düşüyordu.
+//
+// Base64 yolu YEDEK olarak duruyor: yerel okuma bir cihazda başarısız olursa
+// (WebView dosya erişimi kısıtlıysa) küçük dosyalar yine uygulama içinde
+// açılabilsin. Eşiği eski gerekçesiyle aynı.
 const MAX_INLINE_BYTES = 8 * 1024 * 1024;
+
+// Yerel okumada Hermes'e bir şey girmiyor, ama pdf.js belgeyi WebView'ın
+// belleğinde tutuyor. Yükleme sınırı 10 MB (AddPostScreen); bu tavan yalnızca
+// web istemcisinden ya da eski kayıtlardan gelebilecek aşırı büyük dosyalar
+// için emniyet supabı.
+const MAX_LOCAL_BYTES = 40 * 1024 * 1024;
 
 const MESSAGE_BY_CODE: Record<string, string> = {
   password: 'Bu PDF parola korumalı.',
@@ -29,62 +40,72 @@ const MESSAGE_BY_CODE: Record<string, string> = {
   unknown: 'PDF açılamadı.',
 };
 
-export default function PdfSlide({
-  fileName,
-  width,
-  height,
-  active,
-  onOpenExternally,
-  sharing,
-}: Props) {
+export default function PdfSlide({ fileName, width, height, active, onOpenExternally, sharing }: Props) {
   const download = useCachedFile(fileName, active);
-  const [payload, setPayload] = useState<string | null>(null);
+  // `uri` varsayılan, `base64` yalnızca yerel okuma başarısız olunca dolar.
+  const [source, setSource] = useState<{ uri: string } | { base64: string } | null>(null);
   const [failure, setFailure] = useState<{ code: string; message: string } | null>(null);
   const [tooLarge, setTooLarge] = useState(false);
+  // WebView kurulduktan sonra pdf.js belgeyi ayrıştırana kadar birkaç saniye
+  // geçiyor (9 MB'lık bir notta emülatörde ~4 sn). O arada gösterge kalkarsa
+  // kullanıcı boş siyah bir ekran görüyor — PdfDom `onReady` diyene kadar
+  // gösterge WebView'ın ÜSTÜNDE kalıyor.
+  const [ready, setReady] = useState(false);
 
-  // Dosya indikten sonra base64'e çevriliyor. Ayrı bir adım olmasının sebebi
-  // `base64()` çağrısının kendisinin de zaman alması — kullanıcı o sırada
-  // boş ekran değil, hâlâ "hazırlanıyor" görüyor.
   useEffect(() => {
     if (download.status !== 'ready') return;
-    let alive = true;
-
-    if (download.file.size > MAX_INLINE_BYTES) {
+    if (download.file.size > MAX_LOCAL_BYTES) {
       setTooLarge(true);
       return;
     }
-
-    download.file
-      .base64()
-      .then((data) => {
-        if (alive) setPayload(data);
-      })
-      .catch(() => {
-        if (alive) setFailure({ code: 'unknown', message: 'Dosya okunamadı.' });
-      });
-
-    return () => {
-      alive = false;
-    };
+    setSource({ uri: download.file.uri });
   }, [download.status, download.status === 'ready' ? download.file : null]);
 
-  // Slayt görünürden çıkınca base64 bırakılıyor: beş dosyalı bir gönderide
-  // hepsinin kodlanmış hâlini bellekte tutmak ucuz cihazlarda ölümcül.
+  // Slayt görünürden çıkınca kaynak bırakılıyor: WebView sökülüyor ve beş
+  // dosyalı bir gönderide hepsinin belgesi bellekte kalmıyor.
   useEffect(() => {
     if (!active) {
-      setPayload(null);
+      setSource(null);
       setFailure(null);
     }
   }, [active]);
 
+  useEffect(() => {
+    setReady(false);
+  }, [source]);
+
+  // Yerel okuma başarısız → küçük dosyada base64 yedeği, büyükte devretme.
+  // `base64()` çağrısının kendisi de zaman aldığı için bu sırada kullanıcı
+  // "hazırlanıyor" görüyor (`source` null'a çekiliyor).
+  const fallBackToBase64 = useCallback(() => {
+    if (download.status !== 'ready') return;
+    if (download.file.size > MAX_INLINE_BYTES) {
+      setTooLarge(true);
+      return;
+    }
+    setSource(null);
+    download.file
+      .base64()
+      .then((data) => setSource({ base64: data }))
+      .catch(() => setFailure({ code: 'unknown', message: 'Dosya okunamadı.' }));
+  }, [download]);
+
   const onReady = useCallback(async () => {
-    // Belge açıldı; şimdilik ek bir iş yok. İmza köprüde duruyor ki ileride
-    // "sayfa 3/12" göstergesi için sayfa sayısı buradan alınabilsin.
+    // Sayfa sayısı da geliyor ama şimdilik kullanılmıyor; imza köprüde duruyor
+    // ki ileride "sayfa 3/12" göstergesi için buradan alınabilsin.
+    setReady(true);
   }, []);
 
-  const onFail = useCallback(async (code: string, message: string) => {
-    setFailure({ code, message });
-  }, []);
+  const onFail = useCallback(
+    async (code: string, message: string) => {
+      if (code === 'local-read') {
+        fallBackToBase64();
+        return;
+      }
+      setFailure({ code, message });
+    },
+    [fallBackToBase64]
+  );
 
   if (tooLarge) {
     return (
@@ -127,7 +148,7 @@ export default function PdfSlide({
     );
   }
 
-  if (!payload) {
+  if (!source) {
     return (
       <View style={[styles.slide, { width, height }]}>
         <SlideStatus
@@ -142,7 +163,7 @@ export default function PdfSlide({
   return (
     <View style={[styles.slide, { width, height }]}>
       <PdfDom
-        base64={payload}
+        {...source}
         onReady={onReady}
         onFail={onFail}
         dom={{
@@ -156,11 +177,16 @@ export default function PdfSlide({
           // SDK 56+ ile geliyor.) PdfDom'un kendi CSS'i de html/body zeminini
           // aynı renge boyuyor — ikisi birlikte parlamayı kapatıyor.
           style: { flex: 1, backgroundColor: VIEWER_BG },
-          // Uzaktan hiçbir şey yüklenmiyor; PDF zaten base64 olarak içeride.
+          // Uzaktan hiçbir şey yüklenmiyor; PDF diskten ya da base64 olarak geliyor.
           // Bir bağlantıya basılırsa WebView'da gezinmeye başlamasın.
           setSupportMultipleWindows: false,
         }}
       />
+      {!ready && (
+        <View style={[StyleSheet.absoluteFill, styles.slide]}>
+          <SlideStatus kind="loading" title="Sayfalar hazırlanıyor…" />
+        </View>
+      )}
     </View>
   );
 }

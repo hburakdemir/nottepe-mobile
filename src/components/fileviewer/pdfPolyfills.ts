@@ -27,4 +27,15 @@ if (typeof Promise.withResolvers !== 'function') {
   };
 }
 
+// `import.meta` babel'de `globalThis.__ExpoImportMetaRegistry`'ye çevriliyor
+// (bkz. babel.config.js). Expo o nesneyi `expo/src/winter/runtime.ts`'te
+// tanımlıyor ama DOM paketine o dosyanın girdiği garanti değil. Tanımsız
+// kalırsa pdf.worker.mjs'in JBig2/OpenJPEG yükleyicisi (`var _scriptName =
+// import.meta.url`) taranmış belgelerde TypeError fırlatır. Yalnızca `url`
+// okunuyor ve o da temel dizini bulmak için — sayfanın kendi adresi yeterli.
+const globals = globalThis as unknown as { __ExpoImportMetaRegistry?: { url: string } };
+if (!globals.__ExpoImportMetaRegistry) {
+  globals.__ExpoImportMetaRegistry = { url: location.href };
+}
+
 export {};

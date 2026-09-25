@@ -32,14 +32,20 @@ module.exports = function (api) {
   const isWebBundle = api.caller((caller) => caller?.platform === 'web');
 
   if (isWebBundle) {
-    return { presets: ['babel-preset-expo'] };
+    // `unstable_transformImportMeta` ŞART: pdfjs-dist `import.meta.url`
+    // içeriyor (pdf.mjs'in Node dalları, pdf.worker.mjs'in JBig2/OpenJPEG
+    // yükleyicileri). Metro web paketini ES modülü değil KLASİK script olarak
+    // üretiyor ve orada `import.meta` bir SÖZDİZİMİ hatası — tek bir satır
+    // yüzünden paketin TAMAMI ayrıştırılamıyor, DOM bileşeni hiç çizilmiyor
+    // ve görüntüleyici sessizce boş kalıyordu. Dönüşüm ifadeyi
+    // `globalThis.__ExpoImportMetaRegistry`'ye çeviriyor; o nesnenin DOM
+    // paketinde tanımlı olduğu garanti olmadığı için pdfPolyfills.ts onu
+    // ayrıca tanımlıyor.
+    return { presets: [['babel-preset-expo', { unstable_transformImportMeta: true }]] };
   }
 
   return {
-    presets: [
-      ['babel-preset-expo', { jsxImportSource: 'nativewind' }],
-      'nativewind/babel',
-    ],
+    presets: [['babel-preset-expo', { jsxImportSource: 'nativewind' }], 'nativewind/babel'],
     plugins: ['react-native-worklets/plugin'],
   };
 };

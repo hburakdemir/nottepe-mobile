@@ -72,6 +72,13 @@ export default function OfficeSlide({ fileName, url, width, height, active, onOp
   // Sadece Android'de ve slayt görünürken. HEAD cevap vermezse ya da
   // Content-Length yoksa denemeye izin veriliyor — yanlış pozitifle dosyayı
   // kapatmaktansa görüntüleyicinin kendi hatasını göstermek daha iyi.
+  //
+  // Görüntüleyici bu cevabı BEKLEMİYOR, ikisi paralel başlıyor: WebView
+  // `'pending'` iken de kuruluyor, yalnızca `'too-large'` dalı onu söküyor.
+  // Sıralı olduklarında HEAD'in tam bir gidiş-dönüşü, zaten yavaş olan
+  // Microsoft yüklemesinin önüne ekleniyordu. Sınırı
+  // aşan dosyada WebView birkaç yüz ms boşa çalışıp devretme ekranıyla
+  // değişiyor — seyrek durum, bedeli ona yükleniyor.
   useEffect(() => {
     if (!isAndroid || !active || sizeCheck !== 'pending') return;
     let alive = true;
@@ -150,7 +157,7 @@ export default function OfficeSlide({ fileName, url, width, height, active, onOp
     <View style={[styles.slide, { width, height }]}>
       {/* WebView yalnızca görünür slaytta kurulu: beş Office dosyalı bir
           gönderide hepsini aynı anda yüklemek hem veri hem bellek israfı. */}
-      {active && sizeCheck === 'ok' && (
+      {active && (
         <WebView
           key={attempt}
           source={{ uri: source }}
