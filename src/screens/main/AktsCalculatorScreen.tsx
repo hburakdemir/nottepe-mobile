@@ -1472,7 +1472,7 @@ export default function AktsCalculatorScreen() {
                       <View className="gap-1.5">
                         {importPreview.valid.slice(0, PREVIEW_ROW_LIMIT).map((c, i) => (
                           <View key={i} className="bg-inset rounded-lg px-3 py-2">
-                            <Text className="text-sm text-gray-800 font-medium" numberOfLines={1}>
+                            <Text className="text-sm text-ink font-medium" numberOfLines={1}>
                               {c.code ? `${c.code} · ` : ''}
                               {c.lessonName}
                             </Text>
