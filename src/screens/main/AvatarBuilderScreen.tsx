@@ -137,8 +137,11 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
   return (
     <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-surface">
       <View className="items-center py-4 border-b border-line-soft">
+        {/* Avatar kutunun İÇ alanı kadar: 150 − 2×3 (çerçeve) = 144. Eskiden 140
+            çiziliyordu ve kutu ortalamadığı için sağda/altta 4 px'lik şeritte
+            zemin rengi yerine kabın rengi görünüyordu. */}
         <View className="w-[150px] h-[150px] rounded-[30px] overflow-hidden border-[3px] border-beige">
-          <AvatarSVG config={cfg} size={140} />
+          <AvatarSVG config={cfg} size={144} />
         </View>
         {/* Kaydet ARTIK BURADA DEĞİL, alt çubukta (kullanıcı isteği: "sağda
             kaydet solda vazgeç"). Üstte yalnızca rastgele üretme kaldı —
