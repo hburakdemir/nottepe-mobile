@@ -190,7 +190,7 @@ export default function MainTabsScreen() {
           boşluk yok) — burada da status bar'ın altındaki güvenli alan şeridi
           AppHeader'ın kendi arka planıyla birebir aynı renk olmalı. */}
       <SafeAreaView edges={['top']} className="bg-surface">
-        <AppHeader title={routeTitle(activeTab)} />
+        <AppHeader title={routeTitle(activeTab)} brand={activeTab === 'Home'} />
       </SafeAreaView>
 
       {/* Sekmelerin zemini uygulamanın ortak zemin rengi (`--ground`, bkz.

@@ -46,7 +46,6 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
       showsVerticalScrollIndicator={false}
     >
       <AuthHeader
-        icon={<Mail size={26} color={colors.accent} />}
         title="Şifremi Unuttum"
         subtitle="Email adresinize şifre sıfırlama kodu göndereceğiz"
       />

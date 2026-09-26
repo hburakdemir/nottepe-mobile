@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useQuery } from '@tanstack/react-query';
@@ -416,7 +416,15 @@ export default function MenuDrawerContent({ navigation }: DrawerContentComponent
               swipeEdgeWidth). Sağ üstte rozetli ikon çubuğu var; bizde bu
               ikonların karşılığı liste içindeki Bildirimler/Duyurular — o
               satırlar tekrar olmasın diye buraya taşındı. */}
-          <View className="flex-row items-center justify-end gap-2 px-1 pb-1">
+          {/* Logo sol üstte, avatarın üstünde (kullanıcı isteği) — BrandSplash
+              ile aynı ikon ve köşe oranı (~%22), açılış ekranının devamı gibi. */}
+          <View className="flex-row items-center gap-2 px-1 pb-3">
+            <View className="flex-row items-center gap-0.5 flex-1">
+              <Image source={require('../../../assets/icon.png')} style={{ width: 36, height: 36, borderRadius: 9 }} />
+              <Text className="text-ink text-[24px] font-extrabold" style={{ letterSpacing: 0.5 }}>
+                ottepe
+              </Text>
+            </View>
             <Pressable
               onPress={() => go(() => stackNavigation.navigate('Notifications', { initialTab: 'aktivite' }))}
               hitSlop={8}

@@ -150,7 +150,6 @@ export default function RegisterScreen({ navigation }: Props) {
       keyboardShouldPersistTaps="handled"
     >
         <AuthHeader
-          icon={<UserPlus size={26} color={colors.accent} />}
           title="Kayıt Ol"
           subtitle="Yeni hesap oluşturun"
           hint="Hacettepe mail adresi zorunlu değildir. İstediğiniz mail adresi ile kayıt olabilirsiniz."

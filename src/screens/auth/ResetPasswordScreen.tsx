@@ -69,7 +69,6 @@ export default function ResetPasswordScreen({ route, navigation }: Props) {
       keyboardShouldPersistTaps="handled"
     >
       <AuthHeader
-        icon={<Lock size={26} color={colors.accent} />}
         title="Yeni Şifre Belirle"
         subtitle={`${email} adresine gönderilen kodu girin`}
       />

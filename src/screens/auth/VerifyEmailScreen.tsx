@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Mail } from 'lucide-react-native';
 import { authAPI } from '../../lib/api';
 import { useThemeColors } from '../../context/ThemeContext';
 import AuthHeader from '../../components/auth/AuthHeader';
@@ -59,7 +58,6 @@ export default function VerifyEmailScreen({ route, navigation }: Props) {
       showsVerticalScrollIndicator={false}
     >
       <AuthHeader
-        icon={<Mail size={26} color={colors.accent} />}
         title="Email Doğrulama"
         subtitle={`${email} adresine gönderilen 6 haneli kodu girin`}
       />

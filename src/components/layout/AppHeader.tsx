@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, View } from 'react-native';
+import { Image, Text, View } from 'react-native';
 import { Pressable } from 'react-native-gesture-handler';
 import { DrawerActions, useNavigation } from '@react-navigation/native';
 import { useDrawerStatus } from '@react-navigation/drawer';
@@ -40,7 +40,13 @@ const SHADOW_SM = {
 // render ediliyor ve AppShell tanım gereği yalnızca push edilen ekranları
 // sarmalıyor. Push edilen ekranlarda menü artık açılamıyor (kullanıcı kararı):
 // kullanıcı geri gelip sekmeye döndüğünde avatar yine orada.
-function AppHeaderBase({ title: titleOverride, showBack = false }: { title?: string; showBack?: boolean } = {}) {
+// `brand`: Ana Sayfa'da ortada sayfa adı yerine logo + "Nottepe" (kullanıcı
+// isteği) — diğer sekmelerde ve push edilen ekranlarda yazılı başlık kalıyor.
+function AppHeaderBase({
+  title: titleOverride,
+  showBack = false,
+  brand = false,
+}: { title?: string; showBack?: boolean; brand?: boolean } = {}) {
   const { theme } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const avatar = useMyAvatar();
@@ -105,10 +111,23 @@ function AppHeaderBase({ title: titleOverride, showBack = false }: { title?: str
   return (
     <View className="bg-surface border-b border-line-soft" style={SHADOW_SM}>
       <View className="h-16 flex-row items-center px-4">
-        {!!title && (
+        {brand ? (
+          <View pointerEvents="none" className="absolute inset-0 items-center justify-center px-20">
+            {/* Logodaki N kelimenin ilk harfi — yazı bitişik "ottepe"; altında
+                sayfanın adı. */}
+            <View className="flex-row items-center">
+              <Image source={require('../../../assets/icon.png')} style={{ width: 30, height: 30, borderRadius: 6 }} />
+              <Text className="text-ink text-[25px] font-extrabold" style={{ marginLeft: 1, letterSpacing: 0.2 }}>
+                ottepe
+              </Text>
+            </View>
+            {!!title && <Text className="text-ink text-[14px] font-bold mt-0.5">{title}</Text>}
+          </View>
+        ) : !!title && (
           <View pointerEvents="none" className="absolute inset-0 items-center justify-center px-20">
             <Text className="text-ink text-[16px] font-bold" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
               {title}
+              
             </Text>
           </View>
         )}
@@ -184,7 +203,7 @@ function AppHeaderBase({ title: titleOverride, showBack = false }: { title?: str
 }
 
 // Bu bar İKİ yerde duruyor: `MainTabsScreen`'de kalıcı olarak ve push edilen her
-// ekranda `AppShell` içinde. Prop'ları ilkel (`title`, `showBack`), dolayısıyla
+// ekranda `AppShell` içinde. Prop'ları ilkel (`title`, `showBack`, `brand`), dolayısıyla
 // memo gerçekten tutuyor — ebeveyn başka bir sebeple render olduğunda (ör.
 // `MainTabsScreen`'in `setActiveTab`'i) bar ve altındaki avatar yeniden
 // kurulmuyor.

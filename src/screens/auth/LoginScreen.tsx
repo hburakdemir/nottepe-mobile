@@ -76,7 +76,7 @@ export default function LoginScreen({ navigation }: Props) {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-        <AuthHeader icon={<LogIn size={26} color={colors.accent} />} title="Giriş Yap" subtitle="Hesabınıza giriş yapın" />
+        <AuthHeader title="Giriş Yap" subtitle="Hesabınıza giriş yapın" />
 
         {!!error && (
           <View style={[styles.alertError, { backgroundColor: colors.dangerSoft, borderColor: colors.dangerLine }]}>
