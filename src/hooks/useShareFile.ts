@@ -1,6 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import * as Sharing from 'expo-sharing';
+import * as IntentLauncher from 'expo-intent-launcher';
+import { getContentUriAsync } from 'expo-file-system/legacy';
 import { ensureCachedFile, stageForSharing } from '../lib/fileCache';
 import { fileKindLabel } from '../theme/feedTokens';
 import { mimeTypeFor, shareFileName, utiFor } from '../utils/fileMeta';
@@ -55,5 +57,48 @@ export function useShareFile() {
     []
   );
 
-  return { share, sharing };
+  // "Cihazda aç": PDF'i telefonun kendi PDF uygulamasıyla açar.
+  //
+  // Android'de paylaşım penceresi (ACTION_SEND) bunun yerine GEÇMİYOR: PDF
+  // okuyucuların çoğu SEND değil VIEW dinliyor, pencerede hiç çıkmıyorlar. Dosya
+  // bir `content://` adresine çevrilip okuma izniyle ACTION_VIEW gönderiliyor
+  // (FLAG_GRANT_READ_URI_PERMISSION = 1); cihazda PDF uygulaması yoksa
+  // ActivityNotFound fırlıyor ve kullanıcıya söyleniyor.
+  //
+  // iOS'ta ayrı bir native yol yok: paylaşım penceresinin "Birlikte aç"
+  // satırı (Kitaplar, Dosyalar, Acrobat...) tam olarak bu işi görüyor.
+  const openInDeviceApp = useCallback(
+    async (remoteName: string, index: number, postTitle?: string) => {
+      if (Platform.OS !== 'android') {
+        await share(remoteName, index, postTitle);
+        return;
+      }
+      if (busy.current) return;
+      busy.current = true;
+      setSharing(true);
+
+      try {
+        const file = await ensureCachedFile(remoteName);
+        const pretty = await stageForSharing(file, shareFileName(remoteName, index, postTitle));
+        const contentUri = await getContentUriAsync(pretty.uri);
+        try {
+          await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+            data: contentUri,
+            type: mimeTypeFor(remoteName, file.type),
+            flags: 1,
+          });
+        } catch {
+          Alert.alert('Uygulama bulunamadı', 'Bu cihazda dosyayı açabilecek bir uygulama yok.');
+        }
+      } catch {
+        Alert.alert('Hata', 'Dosya hazırlanamadı. İnternet bağlantını kontrol et.');
+      } finally {
+        busy.current = false;
+        setSharing(false);
+      }
+    },
+    [share]
+  );
+
+  return { share, openInDeviceApp, sharing };
 }

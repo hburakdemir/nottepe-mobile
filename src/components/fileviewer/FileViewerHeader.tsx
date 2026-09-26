@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Share2 } from 'lucide-react-native';
+import { ExternalLink, Share2 } from 'lucide-react-native';
 import BackButton from '../layout/BackButton';
 import { fileKindLabel } from '../../theme/feedTokens';
 import { VIEWER_CHROME, VIEWER_INK, VIEWER_INK_DIM, VIEWER_LINE } from './viewerTokens';
@@ -12,6 +12,8 @@ interface Props {
   topInset: number;
   sharing: boolean;
   onShare: () => void;
+  /** Verilirse "cihazda aç" butonu çıkıyor (şimdilik yalnızca PDF). */
+  onOpenInDeviceApp?: () => void;
 }
 
 // Görüntüleyicinin kendi başlığı. Ortak `AppHeader` bilerek kullanılmıyor: sağ
@@ -25,6 +27,7 @@ export default function FileViewerHeader({
   topInset,
   sharing,
   onShare,
+  onOpenInDeviceApp,
 }: Props) {
   return (
     <View style={[styles.bar, { paddingTop: topInset }]}>
@@ -46,6 +49,17 @@ export default function FileViewerHeader({
         </View>
 
         <View style={[styles.side, styles.sideEnd]}>
+          {onOpenInDeviceApp && (
+            <Pressable
+              onPress={onOpenInDeviceApp}
+              disabled={sharing}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Cihazdaki uygulamayla aç"
+            >
+              <ExternalLink size={21} color={VIEWER_INK} strokeWidth={2} />
+            </Pressable>
+          )}
           <Pressable
             onPress={onShare}
             disabled={sharing}
@@ -76,8 +90,10 @@ const styles = StyleSheet.create({
   row: { height: 52, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12 },
   // Sol ve sağ eşit genişlikte: ortadaki etiket, geri tuşu görünsün ya da
   // görünmesin tam ortada kalıyor.
-  side: { width: 44, justifyContent: 'center' },
-  sideEnd: { alignItems: 'flex-end' },
+  // İki buton sığsın diye 44 → 76; sol taraf da aynı genişlikte ki etiket
+  // ortada kalsın.
+  side: { width: 76, justifyContent: 'center' },
+  sideEnd: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 20 },
   center: { flex: 1, alignItems: 'center', gap: 1 },
   label: { color: VIEWER_INK, fontSize: 15, fontWeight: '600' },
   counter: { color: VIEWER_INK_DIM, fontSize: 11, fontWeight: '600' },

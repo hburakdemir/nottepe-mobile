@@ -133,6 +133,28 @@ export default function PdfDom({ uri, base64, onReady, onFail }: PdfDomProps) {
         const context = canvas.getContext('2d');
         if (!context) return;
         await page.render({ canvas, canvasContext: context, viewport }).promise;
+        if (cancelled) return;
+
+        // METİN KATMANI — kelime kelime seçip kopyalayabilmek için. Canvas
+        // yalnızca bir resim; üstüne pdf.js'in görünmez (şeffaf) ama
+        // SEÇİLEBİLİR metin katmanı biniyor. Katman CSS pikselinde çiziliyor
+        // (`fit`, ekran yoğunluğu olmadan) çünkü canvas da CSS'te kabın
+        // genişliğine oturuyor. Katman kurulamazsa sayfa yine görünür kalıyor;
+        // yalnızca seçim çalışmaz.
+        try {
+          const textDiv = document.createElement('div');
+          textDiv.className = 'textLayer';
+          textDiv.style.setProperty('--total-scale-factor', String(fit));
+          holder.appendChild(textDiv);
+          const textLayer = new pdfjsLib.TextLayer({
+            textContentSource: page.streamTextContent(),
+            container: textDiv,
+            viewport: page.getViewport({ scale: fit }),
+          });
+          await textLayer.render();
+        } catch {
+          // Seçim olmadan devam.
+        }
       } catch {
         // Tek bir sayfanın çizilememesi belgenin tamamını düşürmemeli.
       }
@@ -206,6 +228,7 @@ export default function PdfDom({ uri, base64, onReady, onFail }: PdfDomProps) {
         }
         .pages { padding: 8px 0 24px; }
         .page {
+          position: relative;
           margin: 0 auto 10px;
           width: 100%;
           /* Sayfa gelene kadar yerini tutan koyu blok: canvas eklendiğinde
@@ -213,6 +236,51 @@ export default function PdfDom({ uri, base64, onReady, onFail }: PdfDomProps) {
           min-height: 40px;
         }
         canvas { display: block; }
+        /* pdf.js metin katmanı — web/pdf_viewer.css'teki .textLayer kurallarının
+           DÜZ (iç içe olmayan) karşılığı. Orijinali CSS nesting ve round()
+           kullanıyor; ikisi de eski Android WebView'larında (Chrome < 112/125)
+           yok ve kural tamamen düşüyordu. Genişlik/yükseklik pdf.js'in
+           round()'lu satır içi değerleri yerine inset:0 ile kaptan geliyor. */
+        .textLayer {
+          position: absolute;
+          inset: 0;
+          width: 100% !important;
+          height: 100% !important;
+          overflow: hidden;
+          line-height: 1;
+          text-align: initial;
+          letter-spacing: normal;
+          word-spacing: normal;
+          -webkit-text-size-adjust: none;
+          text-size-adjust: none;
+          forced-color-adjust: none;
+          transform-origin: 0 0;
+          z-index: 0;
+          --min-font-size: 1;
+          --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+          --min-font-size-inv: calc(1 / var(--min-font-size));
+        }
+        .textLayer span, .textLayer br {
+          color: transparent;
+          position: absolute;
+          white-space: pre;
+          cursor: text;
+          transform-origin: 0% 0%;
+          -webkit-user-select: text;
+          user-select: text;
+        }
+        .textLayer > :not(.markedContent),
+        .textLayer .markedContent span:not(.markedContent) {
+          z-index: 1;
+          --font-height: 0;
+          font-size: calc(var(--text-scale-factor) * var(--font-height));
+          --scale-x: 1;
+          --rotate: 0deg;
+          transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+        }
+        .textLayer .markedContent { display: contents; }
+        .textLayer span[role='img'] { -webkit-user-select: none; user-select: none; cursor: default; }
+        .textLayer ::selection { background: rgba(0, 100, 255, 0.3); }
       `}</style>
       <div className="pages" ref={hostRef} />
     </>

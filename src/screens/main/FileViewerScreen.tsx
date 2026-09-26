@@ -13,6 +13,7 @@ import { useShareFile } from '../../hooks/useShareFile';
 import { trimFileCache } from '../../lib/fileCache';
 import { useDrawerSwipeEnabled } from '../../navigation/drawerConstants';
 import type { RootStackParamList } from '../../navigation/types';
+import { fileExtension } from '../../theme/feedTokens';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Bu ekran `withAppShell` OLMADAN kaydediliyor — MainTabs dışında bunu yapan
@@ -43,7 +44,7 @@ export default function FileViewerScreen() {
   const navigation = useNavigation();
   const { files, index = 0, postTitle } = route.params;
   const insets = useSafeAreaInsets();
-  const { share, sharing } = useShareFile();
+  const { share, openInDeviceApp, sharing } = useShareFile();
 
   // AppShell'in yaptığı tek işi elle devralıyoruz. Kabuk olmadığı için çekmece
   // jesti bir önceki ekranın bıraktığı değerde kalıyor; MainTabs'ten
@@ -121,6 +122,11 @@ export default function FileViewerScreen() {
         topInset={insets.top}
         sharing={sharing}
         onShare={() => handleShare(activeName, active)}
+        // Uygulama içi görüntüleme varsayılan; PDF'lerde telefonun kendi PDF
+        // uygulamasına geçme seçeneği başlıkta duruyor.
+        onOpenInDeviceApp={
+          fileExtension(activeName) === 'pdf' ? () => openInDeviceApp(activeName, active, postTitle) : undefined
+        }
       />
 
       <View style={styles.pager} onLayout={onLayout}>
