@@ -105,6 +105,13 @@ export default function ProfileScreen() {
     if (idx >= 0) pagerRef.current?.scrollTo({ x: idx * screenWidth, animated: false });
   }, [initialTabParam, screenWidth]);
 
+  // Ayarlar → "Profil bilgilerini düzenle" buraya `openEdit` (zaman damgası)
+  // ile geliyor; her basışta değer değiştiği için modal yeniden açılıyor.
+  const openEditParam = route.params?.openEdit;
+  useEffect(() => {
+    if (openEditParam) setShowEditModal(true);
+  }, [openEditParam]);
+
   // --- Odak tazelemesi -----------------------------------------------------
   // Profil kalıcı mount'lu olduğu için bir gönderiye girip yorum ekleyip
   // dönmek listeyi tazelemiyordu (kullanıcı bildirdi). Aktif gönderi sekmesi

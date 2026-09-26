@@ -23,6 +23,8 @@ export const ROUTE_TITLES: Record<string, string> = {
   Ego130Schedule: '130 Ring Saatleri',
   Leaderboard: 'Liderlik Tablosu',
   Help: 'Yardım',
+  Settings: 'Ayarlar',
+  BlockedUsers: 'Engellenen Kullanıcılar',
   Notifications: 'Bildirimler',
   // Görüntüleyici kendi başlığını çiziyor (AppHeader orada yok), ama
   // `useActiveRouteName`'i tüketen başka yerler boş başlıkla karşılaşmasın.

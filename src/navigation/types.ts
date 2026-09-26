@@ -29,7 +29,9 @@ export type MainTabParamList = {
   CafeteriaMenu: undefined;
   // Menüdeki "Notlarım" / "Kaydettiğim Notlarım" kısayolları Profil'i ilgili
   // sekmeyle açıyor (bkz. ProfileScreen.tsx TABS, MenuDrawerContent.tsx).
-  Profile: { initialTab?: 'posts' | 'saved' } | undefined;
+  // `openEdit`: Ayarlar → "Profil bilgilerini düzenle" düzenleme modalını
+  // açıyor; değer bir zaman damgası, her basışta değişsin diye.
+  Profile: { initialTab?: 'posts' | 'saved'; openEdit?: number } | undefined;
 };
 
 // Sekmeler artık burada değil, `MainTabs` altında. Sekme adlarına gitmek için
@@ -53,6 +55,8 @@ export type RootStackParamList = {
   Ego130Schedule: undefined;
   Leaderboard: undefined;
   Help: undefined;
+  Settings: undefined;
+  BlockedUsers: undefined;
   // Web'de "/notifications" ve "/duyurular" aynı NotificationsPage'i farklı
   // initialTab ile açıyor (bkz. App.jsx) — mobilde de tek ekran, iki giriş noktası.
   Notifications: { initialTab?: 'duyurular' | 'aktivite' } | undefined;

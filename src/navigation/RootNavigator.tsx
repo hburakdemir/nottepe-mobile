@@ -30,6 +30,8 @@ import Ego130ScheduleScreen from '../screens/main/Ego130ScheduleScreen';
 import FileViewerScreen from '../screens/main/FileViewerScreen';
 import LeaderboardScreen from '../screens/main/LeaderboardScreen';
 import HelpScreen from '../screens/main/HelpScreen';
+import SettingsScreen from '../screens/main/SettingsScreen';
+import BlockedUsersScreen from '../screens/main/BlockedUsersScreen';
 import NotificationsScreen from '../screens/main/NotificationsScreen';
 import KvkkGateModal from '../components/onboarding/KvkkGateModal';
 import type { RootDrawerParamList, RootStackParamList } from './types';
@@ -87,6 +89,8 @@ const Suggestions = withAppShell(SuggestionsScreen);
 const SuggestionDetail = withAppShell(SuggestionDetailScreen);
 const Leaderboard = withAppShell(LeaderboardScreen);
 const Help = withAppShell(HelpScreen);
+const Settings = withAppShell(SettingsScreen);
+const BlockedUsers = withAppShell(BlockedUsersScreen);
 const Notifications = withAppShell(NotificationsScreen);
 
 export default function RootNavigator() {
@@ -152,6 +156,8 @@ export default function RootNavigator() {
         <Stack.Screen name="SuggestionDetail" component={SuggestionDetail} />
         <Stack.Screen name="Leaderboard" component={Leaderboard} />
         <Stack.Screen name="Help" component={Help} />
+        <Stack.Screen name="Settings" component={Settings} />
+        <Stack.Screen name="BlockedUsers" component={BlockedUsers} />
         <Stack.Screen name="Notifications" component={Notifications} />
         {/* Tek `withAppShell`siz push ekranı — gerekçesi FileViewerScreen.tsx'in
             başında. Kabuk olmadığı için yukarıdaki "modül kapsamında sarmala"

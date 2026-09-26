@@ -28,6 +28,8 @@ const ROOT_ROUTE_NAMES = [
   'Ego130Schedule',
   'Leaderboard',
   'Help',
+  'Settings',
+  'BlockedUsers',
   'Notifications',
 ] as const satisfies readonly (keyof RootStackParamList)[];
 

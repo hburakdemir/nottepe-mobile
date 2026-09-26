@@ -21,15 +21,14 @@ import {
   ListChecks,
   LogOut,
   Megaphone,
-  Moon,
-  Sun,
+  Settings,
   Trophy,
   UtensilsCrossed,
   Wrench,
   type LucideIcon,
 } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
-import { useTheme, type ThemePreference } from '../../context/ThemeContext';
+import { useTheme } from '../../context/ThemeContext';
 import { departmentFollowAPI, postsAPI, savedPostsAPI } from '../../lib/api';
 import { useMyAvatar } from '../../hooks/useMyAvatar';
 import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
@@ -38,7 +37,6 @@ import AvatarDisplay from '../avatar/AvatarDisplay';
 import DeerIcon from '../icons/DeerIcon';
 import { goToTab, navigateApp } from '../../navigation/navigateApp';
 import type { RootStackParamList } from '../../navigation/types';
-import OptionSheet from './OptionSheet';
 
 interface MenuLinkProps {
   icon: LucideIcon;
@@ -283,50 +281,6 @@ function ToolsSection({
   );
 }
 
-const THEME_OPTIONS: { key: ThemePreference; label: string }[] = [
-  { key: 'system', label: 'Sistem' },
-  { key: 'light', label: 'Açık' },
-  { key: 'dark', label: 'Koyu' },
-];
-
-// Uygulamadaki her "listeden seç" arayüzü gibi ortak OptionSheet'ten geliyor
-// (bkz. components/layout/OptionSheet.tsx) — burada eskiden kendi kopyası vardı.
-//
-// Tema değişimi 30sn'de bire kilitli (bkz. ThemeContext.tsx). Eskiden kilit
-// süresince her tıklamada AYNI Alert tekrar tekrar açılıyordu — kullanıcı
-// bunu "geri sayım yapmıyor, sadece tıklayınca tekrar açılıyor" diye tarif
-// etti. Artık kilitliyken diğer seçenekler soluk/devre dışı, başlığın altında
-// GERÇEKTEN saniyede bir azalan bir not var (`setInterval` + `Date.now()`,
-// panel açıkken çalışır).
-function ThemePickerModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const { themePreference, setThemePreference, themeChangeLockedUntil } = useTheme();
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    if (!visible) return;
-    setNow(Date.now());
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [visible]);
-
-  const remainingSec = Math.max(0, Math.ceil((themeChangeLockedUntil - now) / 1000));
-  const locked = remainingSec > 0;
-
-  return (
-    <OptionSheet
-      visible={visible}
-      title="Temayı Ayarla"
-      note={locked ? `Tekrar değiştirmek için ${remainingSec} saniye bekle.` : undefined}
-      disabledValues={locked ? THEME_OPTIONS.filter((o) => o.key !== themePreference).map((o) => o.key) : undefined}
-      options={THEME_OPTIONS.map((o) => ({ value: o.key, label: o.label }))}
-      value={themePreference}
-      searchable={false}
-      onSelect={(v) => setThemePreference(v as ThemePreference)}
-      onClose={onClose}
-    />
-  );
-}
-
 // PANELİN SAĞ KENARINDA GÖLGE YOK — BİR DAHA EKLEME.
 //
 // Burada `right:0, top:0, bottom:0, width:11` ölçülerinde, tam yükseklikte bir
@@ -352,7 +306,6 @@ function ThemePickerModal({ visible, onClose }: { visible: boolean; onClose: () 
 export default function MenuDrawerContent({ navigation }: DrawerContentComponentProps) {
   const { user, logout } = useAuth();
   const { theme } = useTheme();
-  const [showThemePicker, setShowThemePicker] = useState(false);
   const iconColor = theme === 'dark' ? '#DFD0B8' : '#374151';
   const brandColor = theme === 'dark' ? '#5A9690' : '#2F5755';
   const isOpen = useDrawerStatus() === 'open';
@@ -505,21 +458,15 @@ export default function MenuDrawerContent({ navigation }: DrawerContentComponent
 
           <Divider />
 
-          <Pressable
-            onPress={() => setShowThemePicker(true)}
-            className="flex-row items-center gap-4 px-3 py-3.5 rounded-md active:bg-inset"
-          >
-            {theme === 'dark' ? <Moon size={22} color={iconColor} /> : <Sun size={22} color={iconColor} />}
-            <Text className="text-ink2 text-[17px] font-bold">Temayı Ayarla</Text>
-          </Pressable>
+          {/* Eskiden "Temayı Ayarla" — tema artık Ayarlar sayfasının içinde
+              (kullanıcı isteği), yanında hesap, bildirim ve engel ayarları. */}
+          <MenuLink icon={Settings} label="Ayarlar" color={iconColor} onPress={() => go(() => stackNavigation.navigate('Settings'))} />
           <Pressable onPress={handleLogout} className="flex-row items-center gap-4 px-3 py-3.5 rounded-md active:bg-danger-soft">
             <LogOut size={22} color="#dc2626" />
             <Text className="text-red-600 text-[17px] font-bold">Çıkış Yap</Text>
           </Pressable>
         </ScrollView>
       </SafeAreaView>
-
-      <ThemePickerModal visible={showThemePicker} onClose={() => setShowThemePicker(false)} />
 
     </View>
   );
