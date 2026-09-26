@@ -52,7 +52,45 @@ export interface PdfDomProps {
   onReady: (pages: number) => Promise<void>;
   /** Açılamadı. `code` native tarafta mesaj seçmek için. */
   onFail: (code: string, message: string) => Promise<void>;
+  /**
+   * `'text'`: hiçbir şey ÇİZİLMİYOR; sayfaların metni satır satır ve soldan
+   * sağa sıralı olarak `onText`'e veriliyor (transkript aktarma, bkz.
+   * utils/transcript). Ayrı bir DOM bileşeni yerine bu dosyada bir mod, çünkü
+   * her "use dom" dosyası kendi web paketi — pdf.js APK'ya ikinci kez girerdi.
+   */
+  mode?: 'render' | 'text';
+  onText?: (rows: { page: number; items: { x: number; s: string }[] }[]) => Promise<void>;
   dom?: import('expo/dom').DOMProps;
+}
+
+// Aynı satırdaki parçaların taban çizgisi birkaç birim oynayabiliyor
+// (farklı yazı tipi/boyut); bu kadarı aynı satır sayılıyor.
+const ROW_TOLERANCE = 2;
+
+async function extractRows(doc: pdfjsLib.PDFDocumentProxy) {
+  const out: { page: number; items: { x: number; s: string }[] }[] = [];
+  for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber += 1) {
+    const page = await doc.getPage(pageNumber);
+    const content = await page.getTextContent();
+    const rows: { y: number; items: { x: number; s: string }[] }[] = [];
+    for (const item of content.items) {
+      if (!('str' in item) || !item.str.trim()) continue;
+      const y = item.transform[5];
+      let row = rows.find((r) => Math.abs(r.y - y) <= ROW_TOLERANCE);
+      if (!row) {
+        row = { y, items: [] };
+        rows.push(row);
+      }
+      row.items.push({ x: item.transform[4], s: item.str });
+    }
+    // PDF'te y yukarı doğru artıyor: yukarıdan aşağı okumak için büyükten küçüğe.
+    rows.sort((a, b) => b.y - a.y);
+    for (const row of rows) {
+      row.items.sort((a, b) => a.x - b.x);
+      out.push({ page: pageNumber, items: row.items });
+    }
+  }
+  return out;
 }
 
 function base64ToBytes(base64: string): Uint8Array {
@@ -97,7 +135,7 @@ function classifyError(error: unknown): { code: string; message: string } {
   return { code: 'unknown', message };
 }
 
-export default function PdfDom({ uri, base64, onReady, onFail }: PdfDomProps) {
+export default function PdfDom({ uri, base64, onReady, onFail, mode = 'render', onText }: PdfDomProps) {
   const hostRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -168,6 +206,12 @@ export default function PdfDom({ uri, base64, onReady, onFail }: PdfDomProps) {
         const doc = await task.promise;
         if (cancelled) return;
 
+        if (mode === 'text') {
+          const rows = await extractRows(doc);
+          if (!cancelled) await onText?.(rows);
+          return;
+        }
+
         // Her sayfa için bir tutucu; çizim, sayfa görünür alana YAKLAŞINCA
         // yapılıyor. 200 sayfalık bir ders notunu baştan çizmek belleği anında
         // tüketiyordu.
@@ -208,7 +252,7 @@ export default function PdfDom({ uri, base64, onReady, onFail }: PdfDomProps) {
       observer?.disconnect();
       void task?.destroy();
     };
-  }, [uri, base64, onReady, onFail]);
+  }, [uri, base64, onReady, onFail, mode, onText]);
 
   return (
     <>

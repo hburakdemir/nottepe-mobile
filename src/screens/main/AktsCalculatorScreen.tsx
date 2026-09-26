@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
@@ -56,6 +56,8 @@ import {
 } from '../../utils/gano';
 import { exportCoursesToExcel, parseCoursesFromExcel, type ImportedCourse, type ImportError, MAX_IMPORT_BYTES, formatBytes } from '../../utils/ganoExcel';
 import KeyboardAvoider, { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
+import PdfDom from '../../components/fileviewer/PdfDom';
+import { parseBilsisTranscript, type TextRow, type TranscriptSkip } from '../../utils/transcript/bilsis';
 
 interface SavedCalc {
   id: string;
@@ -147,6 +149,13 @@ export default function AktsCalculatorScreen() {
   const [showImport, setShowImport] = useState(false);
   const [importPreview, setImportPreview] = useState<{ valid: ImportedCourse[]; errors: ImportError[] } | null>(null);
   const [importParsing, setImportParsing] = useState(false);
+  // Transkript aktarma: PDF görünmez bir pdf.js WebView'ında okunuyor
+  // (`transcriptUri` doluyken mount'lu, bkz. modalın sonu). Excel'den farkı:
+  // mevcut derslerin ÜSTÜNE eklenmiyor, onların YERİNE geçiyor — aynı
+  // transkripti iki kez aktarmak her dersi ikiye katlayıp GANO'yu bozardı.
+  const [importSource, setImportSource] = useState<'excel' | 'bilsis'>('excel');
+  const [transcriptUri, setTranscriptUri] = useState<string | null>(null);
+  const [transcriptSkipped, setTranscriptSkipped] = useState<TranscriptSkip[]>([]);
 
   const fetchSaved = async () => {
     setLoadingSaved(true);
@@ -411,7 +420,46 @@ export default function AktsCalculatorScreen() {
   const openImportPicker = async () => {
     setShowImport(true);
     setImportPreview(null);
+    setTranscriptSkipped([]);
   };
+
+  const selectImportSource = (source: 'excel' | 'bilsis') => {
+    setImportSource(source);
+    setImportPreview(null);
+    setTranscriptSkipped([]);
+  };
+
+  const handleImportTranscript = async () => {
+    const result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf', copyToCacheDirectory: true });
+    if (result.canceled || !result.assets?.[0]) return;
+    setImportPreview(null);
+    setTranscriptSkipped([]);
+    setImportParsing(true);
+    setTranscriptUri(result.assets[0].uri);
+  };
+
+  const onTranscriptText = useCallback(async (rows: TextRow[]) => {
+    setTranscriptUri(null);
+    setImportParsing(false);
+    const parsed = parseBilsisTranscript(rows);
+    if (parsed.termCount === 0) {
+      Alert.alert(
+        'Transkript tanınmadı',
+        "Bu dosya bir BİLSİS transkripti gibi görünmüyor. BİLSİS'ten indirdiğin \"Not Durum Belgesi (Transkript)\" PDF'ini seç."
+      );
+      return;
+    }
+    setImportPreview({ valid: parsed.courses, errors: [] });
+    setTranscriptSkipped(parsed.skipped);
+  }, []);
+
+  const onTranscriptFail = useCallback(async (code: string) => {
+    setTranscriptUri(null);
+    setImportParsing(false);
+    Alert.alert('Hata', code === 'password' ? 'Bu PDF parola korumalı.' : 'PDF okunamadı. Dosyanın bozuk olmadığından emin ol.');
+  }, []);
+
+  const noopReady = useCallback(async () => {}, []);
 
   const handleImportFile = async () => {
     const result = await DocumentPicker.getDocumentAsync({
@@ -447,6 +495,32 @@ export default function AktsCalculatorScreen() {
 
   const handleConfirmImport = () => {
     if (!importPreview) return;
+    if (importSource === 'bilsis') {
+      const apply = () => {
+        setCourses(
+          importPreview.valid.map((c) => ({
+            id: makeCourseId(),
+            code: c.code || undefined,
+            name: c.lessonName,
+            semester: c.semester,
+            akts: c.akts,
+            grade: c.grade,
+          }))
+        );
+        setShowImport(false);
+        setImportPreview(null);
+        setTranscriptSkipped([]);
+      };
+      if (courses.length === 0) {
+        apply();
+        return;
+      }
+      Alert.alert('Mevcut dersler değişecek', `Listendeki ${courses.length} ders silinip transkriptteki derslerle değiştirilecek.`, [
+        { text: 'Vazgeç', style: 'cancel' },
+        { text: 'Değiştir', style: 'destructive', onPress: apply },
+      ]);
+      return;
+    }
     setCourses((prev) => [
       ...prev,
       ...importPreview.valid.map((c) => ({
@@ -1266,22 +1340,57 @@ export default function AktsCalculatorScreen() {
           <View className="flex-1 bg-black/50 justify-center p-4">
             <View className="bg-surface rounded-2xl p-5 max-h-[88%]">
               <View className="flex-row items-center justify-between">
-                <Text className="text-xl font-bold text-ink flex-1 pr-3">AKTS İçe Aktar (Excel / CSV)</Text>
+                <Text className="text-xl font-bold text-ink flex-1 pr-3">AKTS İçe Aktar</Text>
                 <Pressable onPress={() => setShowImport(false)} hitSlop={8}>
                   <X size={20} color={isDark ? '#9ca3af' : '#6b7280'} />
                 </Pressable>
               </View>
               <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 12 }}>
-                <Text className="text-sm text-muted mt-1">
-                  Beklenen kolonlar: Ders | Dönem | AKTS | Not (Kod isteğe bağlı; büyük/küçük harf fark etmez, ilk sayfa okunur).
-                </Text>
+                <View className="flex-row bg-inset rounded-lg p-1 mt-1">
+                  {(
+                    [
+                      { value: 'excel', label: 'Excel / CSV' },
+                      { value: 'bilsis', label: 'BİLSİS Transkripti' },
+                    ] as const
+                  ).map((opt) => {
+                    const active = importSource === opt.value;
+                    return (
+                      <Pressable
+                        key={opt.value}
+                        className={`flex-1 items-center rounded-md py-2 ${active ? 'bg-surface' : ''}`}
+                        onPress={() => selectImportSource(opt.value)}
+                        disabled={importParsing}
+                      >
+                        <Text className={`text-[13px] font-semibold ${active ? 'text-accent' : 'text-muted'}`} numberOfLines={1}>
+                          {opt.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                {importSource === 'excel' ? (
+                  <Text className="text-sm text-muted mt-3">
+                    Beklenen kolonlar: Ders | Dönem | AKTS | Not (Kod isteğe bağlı; büyük/küçük harf fark etmez, ilk sayfa okunur).
+                  </Text>
+                ) : (
+                  <Text className="text-sm text-muted mt-3">
+                    BİLSİS'ten indirdiğin "Not Durum Belgesi (Transkript)" PDF'ini seç. Dosya yalnızca bu cihazda okunur; ad, numara
+                    ve kimlik bilgilerin alınmaz. Notu henüz girilmemiş dersler aktarılmaz, tekrar alınan derslerde en son not
+                    sayılır.
+                  </Text>
+                )}
                 <Pressable
                   className="border-2 border-line border-dashed rounded-xl py-6 items-center gap-2 mt-3"
-                  onPress={handleImportFile}
+                  onPress={importSource === 'excel' ? handleImportFile : handleImportTranscript}
+                  disabled={importParsing}
                 >
-                  <Upload size={22} color={isDark ? '#9ca3af' : '#6b7280'} />
+                  {importParsing ? (
+                    <ActivityIndicator color={isDark ? '#9ca3af' : '#6b7280'} />
+                  ) : (
+                    <Upload size={22} color={isDark ? '#9ca3af' : '#6b7280'} />
+                  )}
                   <Text className="text-[13.5px] font-medium text-ink2">
-                    {importParsing ? 'Okunuyor...' : 'xlsx / xls / csv dosyası seç'}
+                    {importParsing ? 'Okunuyor...' : importSource === 'excel' ? 'xlsx / xls / csv dosyası seç' : 'Transkript PDF’i seç'}
                   </Text>
                 </Pressable>
 
@@ -1307,6 +1416,19 @@ export default function AktsCalculatorScreen() {
                           <Text className="text-[12.5px] text-muted2 px-1 pt-1">
                             …ve {importPreview.valid.length - PREVIEW_ROW_LIMIT} ders daha. Onaylarsan hepsi aktarılacak.
                           </Text>
+                        )}
+                      </View>
+                    )}
+                    {transcriptSkipped.length > 0 && (
+                      <View>
+                        <Text className="text-sm font-semibold text-ink2 mb-1.5">Aktarılmayanlar ({transcriptSkipped.length})</Text>
+                        {transcriptSkipped.slice(0, PREVIEW_ROW_LIMIT).map((skip, i) => (
+                          <Text key={i} className="text-[12.5px] text-muted mb-1">
+                            {skip.code} · {skip.lessonName}: {skip.reason}
+                          </Text>
+                        ))}
+                        {transcriptSkipped.length > PREVIEW_ROW_LIMIT && (
+                          <Text className="text-[12.5px] text-muted2 mb-1">…ve {transcriptSkipped.length - PREVIEW_ROW_LIMIT} ders daha.</Text>
                         )}
                       </View>
                     )}
@@ -1345,6 +1467,20 @@ export default function AktsCalculatorScreen() {
                 </Pressable>
               </View>
             </View>
+            {/* Görünmez okuyucu: pdf.js metni çıkarıp `onTranscriptText`'e
+                veriyor, hiçbir şey çizmiyor. Yalnızca okuma sürerken mount'lu. */}
+            {transcriptUri && (
+              <View style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} pointerEvents="none">
+                <PdfDom
+                  uri={transcriptUri}
+                  mode="text"
+                  onText={onTranscriptText}
+                  onReady={noopReady}
+                  onFail={onTranscriptFail}
+                  dom={{ style: { width: 1, height: 1 } }}
+                />
+              </View>
+            )}
           </View>
         </KeyboardAvoider>
       </Modal>
