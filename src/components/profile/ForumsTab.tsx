@@ -36,7 +36,7 @@ const ForumRow = React.memo(function ForumRow({
 });
 
 // Profil > Forumlar sekmesi — SSS yorumları ve öneri etkinliği tek listede.
-function ForumsTab({ active, width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
+function ForumsTab({ width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user } = useAuth();
   const { theme } = useTheme();
@@ -46,7 +46,7 @@ function ForumsTab({ active, width, headerHeight, scrollY, onRememberOffset }: P
   // Sorgu yalnızca sekme görünürken çalışıyor: forum etkinliği İKİ ağ isteği
   // (SSS + öneriler) ve sekme şeridinde sayacı yok — diğer beşinin aksine
   // açılışta çekilmesi için bir sebep yok.
-  const { data: items, isPending } = useMyForumActivity(active ? user?.id : undefined);
+  const { data: items, isPending } = useMyForumActivity(user?.id);
   // bkz. ChecklistsTab.tsx — aynı gecikmeli yükleme kuralı.
   const showLoading = isPending;
 
@@ -66,7 +66,12 @@ function ForumsTab({ active, width, headerHeight, scrollY, onRememberOffset }: P
       scrollY={scrollY}
       onRememberOffset={onRememberOffset}
     >
-      {active &&
+      {/* Aktif OLMASA DA çiziliyor: sekme yalnızca aktifken ya da komşuyken
+          mount'lu (bkz. ProfileScreen `mountedTabs`), içerik birkaç satır.
+          Eskiden `active &&` kapısı vardı ve kaydırırken gelen sayfa boş
+          görünüp içerik parmak kalkınca beliriyordu. Postlar/Kayıtlı'da kapı
+          duruyor — orada onlarca kart var. */}
+      {
         (showLoading ? (
           <TabLoading />
         ) : !items || items.length === 0 ? (

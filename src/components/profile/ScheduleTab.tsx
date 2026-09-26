@@ -37,7 +37,7 @@ const DayCard = React.memo(function DayCard({ day, courses }: { day: number; cou
 });
 
 // Profil > Program sekmesi.
-function ScheduleTab({ active, width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
+function ScheduleTab({ width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { data: schedule, isPending } = useMySchedule();
   // bkz. ChecklistsTab.tsx — aynı gecikmeli yükleme kuralı.
@@ -53,7 +53,12 @@ function ScheduleTab({ active, width, headerHeight, scrollY, onRememberOffset }:
       scrollY={scrollY}
       onRememberOffset={onRememberOffset}
     >
-      {active &&
+      {/* Aktif OLMASA DA çiziliyor: sekme yalnızca aktifken ya da komşuyken
+          mount'lu (bkz. ProfileScreen `mountedTabs`), içerik birkaç satır.
+          Eskiden `active &&` kapısı vardı ve kaydırırken gelen sayfa boş
+          görünüp içerik parmak kalkınca beliriyordu. Postlar/Kayıtlı'da kapı
+          duruyor — orada onlarca kart var. */}
+      {
         (showLoading ? (
           <TabLoading />
         ) : !schedule || schedule.length === 0 ? (

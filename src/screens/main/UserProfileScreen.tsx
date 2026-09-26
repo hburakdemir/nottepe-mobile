@@ -33,6 +33,7 @@ import type { Checklist } from '../../types/checklist';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
 import StateView from '../../components/StateView';
+import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 
 interface PublicProfile {
   id: number;
@@ -146,6 +147,14 @@ export default function UserProfileScreen() {
   const rememberPageHeight = useCallback((key: TabKey, height: number) => {
     setPageHeights((prev) => (prev[key] === height ? prev : { ...prev, [key]: height }));
   }, []);
+  // Pager'ın ALT SINIRI: ekranın pager'dan aşağısı. Aktif sekme kısaysa (ör.
+  // yalnızca "Henüz not paylaşılmamış" kartı) pager eskiden o kart kadar
+  // kısalıyordu — kartın altındaki boş alandan yatay kaydırma yapılamıyor,
+  // yandaki sayfa da kart boyunda kırpılıyordu. Dış ScrollView'ın yüksekliği
+  // ve pager'ın içerikteki konumu ölçülüp aradaki alan (alt dolgu hariç, o
+  // tab bar'ın altında) en az yükseklik olarak veriliyor.
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const [pagerTop, setPagerTop] = useState(0);
 
   // Görünür sekmeler profilin bölüm ayarına bağlı; pager indeksleri bu listeye
   // göre. Erken return'lerden ÖNCE hesaplanıyor çünkü aşağıdaki hook'lar okuyor.
@@ -381,6 +390,11 @@ export default function UserProfileScreen() {
   const isPrivate = profile.is_public === false;
   const sectionVisibility = { ...DEFAULT_SECTION_VISIBILITY, ...(profile.profile_section_visibility || {}) };
   const tabs = visibleTabs;
+  // Ölçümler gelmeden (ilk kare) sabit yükseklik verilmiyor: 0 yükseklik
+  // sayfaları gizler, onlar da kendi yüksekliklerini hiç bildiremezdi.
+  const minPagerHeight = viewportHeight > 0 ? viewportHeight - pagerTop - TAB_BAR_SAFE_PADDING : 0;
+  const pagerHeight = Math.max(pageHeights[activeTab] ?? 0, minPagerHeight);
+  const pagerStyle = pagerHeight > 0 ? { height: pagerHeight } : undefined;
 
   const renderTab = (key: TabKey) => {
     switch (key) {
@@ -563,7 +577,12 @@ export default function UserProfileScreen() {
   };
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="px-4 pt-8 pb-[150px]">
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      className="flex-1 bg-ground"
+      contentContainerClassName="px-4 pt-8 pb-[150px]"
+      onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
+    >
       {/* Düzen bilinçli olarak KENDİ profilindekiyle aynı (bkz. ProfileScreen.tsx):
           avatar solda, künye sağında — eskiden burada ortalanmış, dikey bir
           kart vardı ve iki profil sayfası birbirine hiç benzemiyordu. */}
@@ -628,6 +647,28 @@ export default function UserProfileScreen() {
             >
               {tabs.map(({ key, label, icon: Icon }) => {
                 const active = activeTab === key;
+                // Sayaçlar kendi profilindeki şeritle aynı kuralda (bkz.
+                // TabStrip.tsx): yalnızca veri geldiğinde gösteriliyor, yoksa
+                // açılışta hepsi yanıltıcı "(0)" görünürdü. Notların sayısı
+                // profilin kendisinden geliyor; diğerleri sekme (ya da komşu
+                // ön yüklemesi) yüklenince beliriyor. Forumlar kendi
+                // profilinde de sayaçsız.
+                const count =
+                  key === 'posts'
+                    ? (profile.post_count ?? null)
+                    : !loadedTabs.has(key)
+                      ? null
+                      : key === 'saved'
+                        ? savedPosts.length
+                        : key === 'lists'
+                          ? checklists.length
+                          : key === 'akts'
+                            ? aktsCalcs.length
+                            : key === 'schedule'
+                              ? scheduleCourses.length
+                              : key === 'follows'
+                                ? follows.length
+                                : null;
                 return (
                   <Pressable
                     key={key}
@@ -639,7 +680,10 @@ export default function UserProfileScreen() {
                     }}
                   >
                     <Icon size={16} color={active ? (isDark ? '#60a5fa' : '#1e3a8a') : isDark ? '#9ca3af' : '#6b7280'} />
-                    <Text className={`text-xs font-medium ${active ? 'text-info' : 'text-muted'}`}>{label}</Text>
+                    <Text className={`text-xs font-medium ${active ? 'text-info' : 'text-muted'}`}>
+                      {label}
+                      {count !== null ? ` (${count})` : ''}
+                    </Text>
                   </Pressable>
                 );
               })}
@@ -657,7 +701,12 @@ export default function UserProfileScreen() {
               yüksekliği aktif sayfanınkine eşitleniyor — yoksa en uzun sekme
               (ör. 12 gönderi) kısa bir sekmenin altında ekran boyu boşluk
               bırakırdı. */}
-          <View onLayout={(e) => setPageWidth(e.nativeEvent.layout.width)}>
+          <View
+            onLayout={(e) => {
+              setPageWidth(e.nativeEvent.layout.width);
+              setPagerTop(e.nativeEvent.layout.y);
+            }}
+          >
             {pageWidth > 0 && (
               <ScrollView
                 ref={pagerRef}
@@ -665,7 +714,7 @@ export default function UserProfileScreen() {
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
                 onMomentumScrollEnd={handlePagerMomentumEnd}
-                style={pageHeights[activeTab] ? { height: pageHeights[activeTab] } : undefined}
+                style={pagerStyle}
                 contentContainerStyle={{ alignItems: 'flex-start' }}
               >
                 {tabs.map(({ key }) =>

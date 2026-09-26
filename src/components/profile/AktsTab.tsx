@@ -50,7 +50,7 @@ const AktsRow = React.memo(function AktsRow({
 });
 
 // Profil > AKTS sekmesi.
-function AktsTab({ active, width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
+function AktsTab({ width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const { data: calcs, isPending } = useMyAktsCalcs();
@@ -93,7 +93,12 @@ function AktsTab({ active, width, headerHeight, scrollY, onRememberOffset }: Pro
       scrollY={scrollY}
       onRememberOffset={onRememberOffset}
     >
-      {active &&
+      {/* Aktif OLMASA DA çiziliyor: sekme yalnızca aktifken ya da komşuyken
+          mount'lu (bkz. ProfileScreen `mountedTabs`), içerik birkaç satır.
+          Eskiden `active &&` kapısı vardı ve kaydırırken gelen sayfa boş
+          görünüp içerik parmak kalkınca beliriyordu. Postlar/Kayıtlı'da kapı
+          duruyor — orada onlarca kart var. */}
+      {
         (showLoading ? (
           <TabLoading />
         ) : !calcs || calcs.length === 0 ? (

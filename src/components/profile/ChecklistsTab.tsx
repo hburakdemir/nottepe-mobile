@@ -21,7 +21,7 @@ import { EmptyState, TabLoading } from './profileCommon';
 // 1632 satırlık ağacın tamamını yeniden render ediyordu. Artık state burada ve
 // bileşen `React.memo` — dışarıdan gelen alakasız güncellemeler bu ağaca
 // girmiyor.
-function ChecklistsTab({ active, width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
+function ChecklistsTab({ width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const { data: checklists, isPending } = useMyChecklists();
@@ -76,7 +76,12 @@ function ChecklistsTab({ active, width, headerHeight, scrollY, onRememberOffset 
       scrollY={scrollY}
       onRememberOffset={onRememberOffset}
     >
-      {active &&
+      {/* Aktif OLMASA DA çiziliyor: sekme yalnızca aktifken ya da komşuyken
+          mount'lu (bkz. ProfileScreen `mountedTabs`), içerik birkaç satır.
+          Eskiden `active &&` kapısı vardı ve kaydırırken gelen sayfa boş
+          görünüp içerik parmak kalkınca beliriyordu. Postlar/Kayıtlı'da kapı
+          duruyor — orada onlarca kart var. */}
+      {
         (showLoading ? (
           <TabLoading />
         ) : !checklists || checklists.length === 0 ? (
