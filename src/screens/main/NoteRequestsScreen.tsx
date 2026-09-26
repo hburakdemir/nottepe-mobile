@@ -184,7 +184,12 @@ export default function NoteRequestsScreen() {
 
       {view === 'board' && (
         <>
-          <View className="flex-row gap-1 mt-3 bg-inset rounded-lg p-1 self-end">
+          {/* `max-w-full`: şerit `self-end` olduğu için genişliği içeriğinden
+              geliyordu ve üst sınırı yoktu — büyük yazı ölçeğinde "En Çok
+              İstenen" ekran kenarını aşıp kırpılıyordu. Etiketler sığmazsa
+              üç noktayla kısalıyor; `adjustsFontSizeToFit` bilerek YOK
+              (Android'de iteratif ölçüm, bkz. applyGlobalFont.ts). */}
+          <View className="flex-row gap-1 mt-3 bg-inset rounded-lg p-1 self-end max-w-full">
             {[
               { value: 'new' as const, label: 'En Yeni' },
               { value: 'top' as const, label: 'En Çok İstenen' },
@@ -193,11 +198,13 @@ export default function NoteRequestsScreen() {
               return (
                 <Pressable
                   key={s.value}
-                  className="px-3 py-1.5 rounded-md"
+                  className="px-3 py-1.5 rounded-md shrink"
                   style={active ? (isDark ? SHADOW_SM_DARK : SHADOW_SM) : undefined}
                   onPress={() => setSort(s.value)}
                 >
-                  <Text className={`text-xs font-semibold ${active ? 'text-accent' : 'text-muted'}`}>{s.label}</Text>
+                  <Text className={`text-xs font-semibold ${active ? 'text-accent' : 'text-muted'}`} numberOfLines={1}>
+                    {s.label}
+                  </Text>
                 </Pressable>
               );
             })}

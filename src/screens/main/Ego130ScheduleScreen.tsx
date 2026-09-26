@@ -504,5 +504,7 @@ const styles = StyleSheet.create({
   markers: { flexDirection: 'row', gap: 4, height: MARKER_SIZE },
   legend: { marginTop: 14, gap: 8, paddingHorizontal: 2 },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  legendText: { fontSize: 12 },
+  // `flex: 1`: işaretten sonra kalan genişlik hesaplanmadığı için uzun
+  // açıklamalar yatayda uzayıp kırpılıyordu.
+  legendText: { fontSize: 12, flex: 1 },
 });
