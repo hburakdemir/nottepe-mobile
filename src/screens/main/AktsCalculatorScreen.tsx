@@ -58,6 +58,7 @@ import {
 } from '../../utils/gano';
 import { exportCoursesToExcel, parseCoursesFromExcel, type ImportedCourse, type ImportError, MAX_IMPORT_BYTES, formatBytes } from '../../utils/ganoExcel';
 import KeyboardAvoider, { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
+import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
 import PdfDom from '../../components/fileviewer/PdfDom';
 import {
   parseBilsisText,
@@ -67,6 +68,9 @@ import {
   type TranscriptSkip,
 } from '../../utils/transcript/bilsis';
 import { File as FsFile } from 'expo-file-system';
+
+// Kayıtlı hesaplama açılırken iskeletin en kısa görünme süresi.
+const LOAD_SKELETON_MIN_MS = 500;
 
 interface SavedCalc {
   id: string;
@@ -128,6 +132,7 @@ export default function AktsCalculatorScreen() {
   const colors = useThemeColors();
   const loadId = (route.params as RootStackParamList['AktsCalculator'])?.loadId;
   const [title, setTitle] = useState('Hesaplamam');
+  const [loadingCalc, setLoadingCalc] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -362,8 +367,16 @@ export default function AktsCalculatorScreen() {
   };
 
   const handleLoadSaved = async (calc: SavedCalc) => {
+    if (loadingCalc) return;
+    setLoadingCalc(true);
     try {
-      const res = await aktsAPI.getById(calc.id);
+      // İskelet en az LOAD_SKELETON_MIN_MS görünüyor: sunucu hızlı cevap
+      // verdiğinde tek karelik bir parlama yerine hesaplamanın "açıldığı" belli
+      // olsun (kullanıcı isteği, ~yarım saniye).
+      const [res] = await Promise.all([
+        aktsAPI.getById(calc.id),
+        new Promise((resolve) => setTimeout(resolve, LOAD_SKELETON_MIN_MS)),
+      ]);
       const full = res.data.calculation;
       const { courses: loaded, skipped } = serverDataToCourses(full.data);
       setCourses(loaded);
@@ -375,6 +388,8 @@ export default function AktsCalculatorScreen() {
       }
     } catch {
       Alert.alert('Hata', 'Kayıt yüklenemedi.');
+    } finally {
+      setLoadingCalc(false);
     }
   };
 
@@ -627,6 +642,8 @@ export default function AktsCalculatorScreen() {
   }));
   const maxDistCount = Math.max(1, ...distributionRows.map((r) => r.count));
   const judgedAkts = baseTotals.passedAkts + baseTotals.failedAkts;
+
+  if (loadingCalc) return <AktsLoadingSkeleton />;
 
   return (
     <KeyboardAwareScroll showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="px-4 pt-6 pb-[150px] gap-4" keyboardShouldPersistTaps="handled">
@@ -1556,6 +1573,45 @@ export default function AktsCalculatorScreen() {
         </KeyboardAvoider>
       </Modal>
     </KeyboardAwareScroll>
+  );
+}
+
+// Kayıtlı hesaplama açılırken ekranın iskeleti: GANO kartı, beş özet kartı,
+// ad alanı ve ders satırları — gerçek yerleşimle aynı ölçülerde, içerik
+// geldiğinde ekran zıplamasın.
+function AktsLoadingSkeleton() {
+  return (
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      className="flex-1 bg-ground"
+      contentContainerClassName="px-4 pt-6 pb-[150px] gap-4"
+      scrollEnabled={false}
+    >
+      <SkeletonGroup>
+        <View className="gap-2">
+          <Skeleton width="80%" height={30} radius={8} />
+          <Skeleton width="95%" height={12} />
+          <Skeleton width="60%" height={12} />
+          <Skeleton height={84} radius={12} style={{ marginTop: 12 }} />
+        </View>
+        <View className="flex-row flex-wrap gap-2.5">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} width="47.5%" height={78} radius={8} />
+          ))}
+        </View>
+        <Skeleton height={44} radius={8} />
+        <View className="flex-row gap-2">
+          <Skeleton width={130} height={36} radius={8} />
+          <Skeleton width={115} height={36} radius={8} />
+          <Skeleton width={110} height={36} radius={8} />
+        </View>
+        <View className="gap-1.5">
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} height={52} radius={8} />
+          ))}
+        </View>
+      </SkeletonGroup>
+    </ScrollView>
   );
 }
 
