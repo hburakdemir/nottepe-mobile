@@ -83,8 +83,9 @@ const LEGEND: { kind: MarkerKind; label: string }[] = [
   { kind: 'kopru', label: 'Köprüden geçer' },
 ];
 
-// Elimizdeki tarife HUKUK FAKÜLTESİ kalkışları (otobussaatleri.net).
-// Metro tarifesi: Beytepe Metro İstasyonu'ndaki tahmini varış saatleri (Moovit).
+// Elimizdeki tarife EGO'nun "Servis Başlangıç Saati" (kampüs kalkışı) listesi.
+// Metro tarifesi: Beytepe Metro İstasyonu'ndaki tahmini geçiş saatleri — kalkış
+// + 7 dk; EGO'nun kendi durak geçiş tablosuyla üç günde de birebir tutuyor.
 
 type Origin = 'campus' | 'metro';
 
