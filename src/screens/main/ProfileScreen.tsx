@@ -151,7 +151,8 @@ export default function ProfileScreen() {
   //
   // Kaybedilen: sürüklerken şerit vurgusu parmağı takip etmiyor, bırakınca
   // yerine oturuyor. Kazanılan: rebuild jestin dışına çıktı ve sayısı yarıya
-  // indi. `active` kapısının kendisi hâlâ duruyor — o bir sonraki tek değişken.
+  // indi. Postlar/Kayıtlı'daki `active` kapısı da sonradan kaldırıldı (yan
+  // sekme önizlemesi için): o iki liste artık sekme değişince hiç sökülmüyor.
   //
   // (Tarihsel not: `contentOffset` prop'u da eskiden her render'da canlı
   // yazılıyordu ve o `onScroll` ara bir indeksi yuvarlayınca animasyonu BİR

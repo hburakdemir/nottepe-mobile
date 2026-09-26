@@ -8,9 +8,6 @@ import type { Post } from '../../types/post';
 import { EmptyState } from './profileCommon';
 import { PostListSkeleton } from '../PostCardSkeleton';
 
-// Sekme boşken FlatList'e verilen SABİT dizi.
-const NO_POSTS: Post[] = [];
-
 // Profil'in "Postlar" ve "Kayıtlı" sekmeleri — ikisi de aynı bileşen, tek fark
 // `kind`.
 //
@@ -99,7 +96,13 @@ function PostsTab({
       contentContainerStyle={contentStyle}
       onScroll={scrollHandler}
       scrollEventThrottle={16}
-      data={active ? posts : NO_POSTS}
+      // Pasif sekmede de DOLU: yan sekmeye kaydırırken kartlar görünsün
+      // (kullanıcı isteği). Eskiden `active ? posts : NO_POSTS` idi ve her
+      // sekme değişiminde liste söküp baştan kuruluyordu (bkz. ProfileScreen
+      // pager notu) — artık iki liste de mount'ta bir kez kuruluyor ve
+      // sanallaştırma sayesinde her biri yalnızca ekrana yakın kartları
+      // çiziyor. Sayfalama yine yalnızca aktif sekmede (`activeRef`).
+      data={posts}
       keyExtractor={postKey}
       renderItem={renderItem}
       // `removeClippedSubviews` BİLEREK KAPALI: kartlar dokunulabilir ve bu
@@ -119,7 +122,7 @@ function PostsTab({
       // ve o an ekran iskeleti devrede değil — hiçbir geri bildirim olmazsa
       // sekme boş görünürdü.
       ListEmptyComponent={
-        !active ? null : rows === null ? (
+        rows === null ? (
           kind === 'saved' ? <PostListSkeleton count={2} /> : null
         ) : (
           <EmptyState icon={FileText} text={emptyText} />
