@@ -17,12 +17,13 @@ import {
   type LucideIcon,
 } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { goToTab } from '../../navigation/navigateApp';
 import type { RootStackParamList } from '../../navigation/types';
 import NotificationSettingsSheet from '../../components/notifications/NotificationSettingsSheet';
 import ThemePickerModal from '../../components/settings/ThemePickerModal';
 import TermsModal from '../../components/auth/TermsModal';
 import DeleteAccountModal from '../../components/profile/DeleteAccountModal';
+import ProfileEditModal from '../../components/profile/ProfileEditModal';
+import { useBadgeVisibility } from '../../hooks/profile/useBadgeVisibility';
 
 const THEME_LABELS = { system: 'Sistem', light: 'Açık', dark: 'Koyu' } as const;
 
@@ -68,7 +69,8 @@ export default function SettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme, themePreference } = useTheme();
   const iconColor = theme === 'dark' ? '#DFD0B8' : '#374151';
-  const [sheet, setSheet] = useState<null | 'notifications' | 'theme' | 'terms' | 'delete'>(null);
+  const [sheet, setSheet] = useState<null | 'edit' | 'notifications' | 'theme' | 'terms' | 'delete'>(null);
+  const { badges, toggle: toggleBadgeVisibility } = useBadgeVisibility();
   const close = () => setSheet(null);
   const version = Constants.expoConfig?.version;
 
@@ -80,7 +82,7 @@ export default function SettingsScreen() {
             icon={UserPen}
             label="Profil bilgilerini düzenle"
             iconColor={iconColor}
-            onPress={() => goToTab(navigation, 'Profile', { openEdit: Date.now() })}
+            onPress={() => setSheet('edit')}
           />
           <Sep />
           <Row icon={Ban} label="Engellenen kullanıcılar" iconColor={iconColor} onPress={() => navigation.navigate('BlockedUsers')} />
@@ -123,6 +125,16 @@ export default function SettingsScreen() {
       <NotificationSettingsSheet visible={sheet === 'notifications'} onClose={close} />
       <ThemePickerModal visible={sheet === 'theme'} onClose={close} />
       <TermsModal visible={sheet === 'terms'} onClose={close} />
+      {/* Profil sekmesindekiyle aynı modal, burada da açılıyor — kullanıcıyı
+          Profil'e götürmüyor (kullanıcı isteği). */}
+      {sheet === 'edit' && (
+        <ProfileEditModal
+          badges={badges}
+          onToggleBadgeVisibility={toggleBadgeVisibility}
+          onClose={close}
+          onDeleteAccountRequest={() => setSheet('delete')}
+        />
+      )}
       {sheet === 'delete' && <DeleteAccountModal onClose={close} />}
     </View>
   );

@@ -29,9 +29,7 @@ export type MainTabParamList = {
   CafeteriaMenu: undefined;
   // Menüdeki "Notlarım" / "Kaydettiğim Notlarım" kısayolları Profil'i ilgili
   // sekmeyle açıyor (bkz. ProfileScreen.tsx TABS, MenuDrawerContent.tsx).
-  // `openEdit`: Ayarlar → "Profil bilgilerini düzenle" düzenleme modalını
-  // açıyor; değer bir zaman damgası, her basışta değişsin diye.
-  Profile: { initialTab?: 'posts' | 'saved'; openEdit?: number } | undefined;
+  Profile: { initialTab?: 'posts' | 'saved' } | undefined;
 };
 
 // Sekmeler artık burada değil, `MainTabs` altında. Sekme adlarına gitmek için

@@ -7,7 +7,7 @@ import type { RouteProp } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { avatarAPI, badgeAPI } from '../../lib/api';
+import { avatarAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useSavedPosts } from '../../context/SavedPostContext';
 import { type Badge } from '../../components/BadgeChip';
@@ -29,7 +29,8 @@ import AktsTab from '../../components/profile/AktsTab';
 import ScheduleTab from '../../components/profile/ScheduleTab';
 import FollowsTab from '../../components/profile/FollowsTab';
 import ForumsTab from '../../components/profile/ForumsTab';
-import { MY_BADGES_KEY, useMyBadges } from '../../hooks/profile/useProfileLists';
+import { useMyBadges } from '../../hooks/profile/useProfileLists';
+import { useBadgeVisibility } from '../../hooks/profile/useBadgeVisibility';
 import { usePostsPagination } from '../../hooks/profile/usePostsPagination';
 import { diagMark } from '../../lib/diagnostics';
 
@@ -104,13 +105,6 @@ export default function ProfileScreen() {
     const idx = TABS.findIndex((t) => t.key === initialTabParam);
     if (idx >= 0) pagerRef.current?.scrollTo({ x: idx * screenWidth, animated: false });
   }, [initialTabParam, screenWidth]);
-
-  // Ayarlar → "Profil bilgilerini düzenle" buraya `openEdit` (zaman damgası)
-  // ile geliyor; her basışta değer değiştiği için modal yeniden açılıyor.
-  const openEditParam = route.params?.openEdit;
-  useEffect(() => {
-    if (openEditParam) setShowEditModal(true);
-  }, [openEditParam]);
 
   // --- Odak tazelemesi -----------------------------------------------------
   // Profil kalıcı mount'lu olduğu için bir gönderiye girip yorum ekleyip
@@ -198,25 +192,8 @@ export default function ProfileScreen() {
   // Şeridin kendi ölçüm/ortalama mantığı artık `TabStrip`'in içinde — dört
   // `ref` ve bir effect daha bu bileşenden çıktı.
 
-  const handleToggleBadgeVisibility = useCallback(
-    async (badge: Badge) => {
-      const nextVisible = !(badge.is_visible !== false);
-      // En az bir rozet görünür kalmalı — sayım her çağrıda taze cache'ten.
-      if (!nextVisible && badges.filter((b) => b.is_visible !== false).length <= 1) {
-        Alert.alert('Uyarı', 'En az bir rozet görünür kalmalı.');
-        return;
-      }
-      try {
-        await badgeAPI.setVisibility(badge.id, nextVisible);
-        queryClient.setQueryData<Badge[]>(MY_BADGES_KEY, (prev) =>
-          prev?.map((b) => (b.id === badge.id ? { ...b, is_visible: nextVisible } : b))
-        );
-      } catch (err: any) {
-        Alert.alert('Hata', err.response?.data?.message || 'Rozet görünürlüğü güncellenemedi.');
-      }
-    },
-    [badges, queryClient]
-  );
+  // Rozet görünürlüğü Ayarlar'daki aynı modalla ortak (bkz. useBadgeVisibility).
+  const { toggle: handleToggleBadgeVisibility } = useBadgeVisibility();
 
   // `HeaderCard` memo'lu: satır içi ok fonksiyonu verseydik her render'da yeni
   // referans olur, memo hiçbir zaman bail-out yapamazdı.
