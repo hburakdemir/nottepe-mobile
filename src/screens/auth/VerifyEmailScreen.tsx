@@ -5,6 +5,7 @@ import { Mail } from 'lucide-react-native';
 import { authAPI } from '../../lib/api';
 import { useThemeColors } from '../../context/ThemeContext';
 import AuthHeader from '../../components/auth/AuthHeader';
+import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 import type { AuthStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'VerifyEmail'>;
@@ -49,7 +50,14 @@ export default function VerifyEmailScreen({ route, navigation }: Props) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.ground }]}>
+    // KeyboardAwareScroll: küçük ekranlarda klavye açılınca kutu ve buton
+    // klavyenin altında kalmasın, odaklanan alan görünür alana kaysın.
+    <KeyboardAwareScroll
+      style={{ flex: 1, backgroundColor: colors.ground }}
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
       <AuthHeader
         icon={<Mail size={26} color={colors.accent} />}
         title="Email Doğrulama"
@@ -88,14 +96,14 @@ export default function VerifyEmailScreen({ route, navigation }: Props) {
       <Pressable style={styles.resendLink} onPress={handleResend} disabled={resendLoading}>
         <Text style={[styles.resendLinkText, { color: colors.accent }]}>{resendLoading ? 'Gönderiliyor...' : 'Kodu tekrar gönder'}</Text>
       </Pressable>
-    </View>
+    </KeyboardAwareScroll>
   );
 }
 
 // Renkler kullanım yerinde (useThemeColors) — burada sadece ölçü/tipografi.
 // Tek istisna marka butonu ve üstündeki beyaz yazı.
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
+  container: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 32 },
   codeInput: {
     borderWidth: 1,
     borderRadius: 10,

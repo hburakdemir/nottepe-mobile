@@ -16,6 +16,8 @@ import {
 } from 'lucide-react-native';
 import { adminCommentAPI, commentAPI } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import ModerationMenu from './moderation/ModerationMenu';
+import { onBlockChanged } from '../lib/moderationEvents';
 import { useTheme } from '../context/ThemeContext';
 import { useGoToUserProfile } from '../hooks/useGoToUserProfile';
 import { useFeedTokens } from '../theme/feedTokens';
@@ -222,6 +224,15 @@ const CommentCard = React.memo(function CommentCard({
               <RotateCcw size={16} color={restoreIconColor} />
             </Pressable>
           )}
+          {!!user && !isCommentOwner && !isDeleted && !isEditing && (
+            <ModerationMenu
+              targetType="comment"
+              targetId={comment.id}
+              ownerId={comment.user_id}
+              ownerUsername={comment.username}
+              size={17}
+            />
+          )}
         </View>
       </View>
 
@@ -338,6 +349,16 @@ export default function CommentSection({
 
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [comments, setComments] = useState<Comment[]>(firstPage?.comments ?? []);
+
+  // Yorum listesi react-query dışında tutuluyor; engellenen kişinin yorumları
+  // yeniden çekim beklemeden hemen düşsün.
+  useEffect(
+    () =>
+      onBlockChanged((userId, blocked) => {
+        if (blocked) setComments((prev) => prev.filter((c) => Number(c.user_id) !== userId));
+      }),
+    []
+  );
   const [total, setTotal] = useState(firstPage?.total ?? 0);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { AlertCircle, Check, Eye, EyeOff, Lock, Mail, Phone, User, UserPlus } from 'lucide-react-native';
@@ -6,6 +6,7 @@ import { authAPI } from '../../lib/api';
 import { useThemeColors } from '../../context/ThemeContext';
 import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 import AuthHeader from '../../components/auth/AuthHeader';
+import TermsModal from '../../components/auth/TermsModal';
 import type { AuthStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
@@ -13,6 +14,21 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'Register'>;
 const PUNCTUATION_RE = /[!@#$%^&*(),.?":{}|<>]/;
 const TURKISH_NAME_RE = /^[ abcçdefgğhıijklmnoöprsştuüvyzABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ]+$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type Field = 'fullName' | 'username' | 'email' | 'password' | 'confirm' | 'phone' | 'terms';
+
+// Sunucu hata mesajını ilgili alana eşler — kırmızı çerçeve doğru kutuda çıksın.
+function fieldFromServerMessage(message: string): Field | null {
+  const m = message.toLocaleLowerCase('tr');
+  if (m.includes('koşul')) return 'terms';
+  if (m.includes('kullanıcı adı')) return 'username';
+  if (m.includes('email') || m.includes('e-posta')) return 'email';
+  if (m.includes('eşleşmiyor')) return 'confirm';
+  if (m.includes('şifre') || m.includes('karakter')) return 'password';
+  if (m.includes('telefon')) return 'phone';
+  if (m.includes('isim')) return 'fullName';
+  return null;
+}
 
 export default function RegisterScreen({ navigation }: Props) {
   // Renkler StyleSheet'ten çıkarıldı; aşağıdaki stiller sadece ölçü/tipografi.
@@ -26,7 +42,28 @@ export default function RegisterScreen({ navigation }: Props) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorField, setErrorField] = useState<Field | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Kullanım Koşulları onayı — backend kayıtta zorunlu tutuyor (acceptTerms).
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [termsOpen, setTermsOpen] = useState(false);
+  const scrollRef = useRef<React.ElementRef<typeof KeyboardAwareScroll>>(null);
+
+  // Hata kutusu formun EN ÜSTÜNDE. Kullanıcı en alttaki "Kayıt Ol"a basınca
+  // hata ekranın dışında kalıyor ve "hiçbir şey olmadı" sanılıyordu — hata
+  // her çıktığında sayfa başa kayıyor, hatalı alanın çerçevesi kırmızı oluyor.
+  const showError = (message: string, field: Field | null) => {
+    setError(message);
+    setErrorField(field);
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  };
+
+  const clearError = () => {
+    setError(null);
+    setErrorField(null);
+  };
+
+  const borderFor = (field: Field) => (errorField === field ? colors.danger : colors.line);
 
   const ruleMinLen = password.length >= 5;
   const ruleUpper = /[A-Z]/.test(password);
@@ -38,42 +75,46 @@ export default function RegisterScreen({ navigation }: Props) {
     const trimmedEmail = email.trim();
 
     if (!trimmedFullName || !trimmedUsername || !trimmedEmail || !password || !confirmPassword) {
-      setError('Lütfen zorunlu alanları doldurun');
+      showError('Lütfen zorunlu alanları doldurun', !trimmedFullName ? 'fullName' : !trimmedUsername ? 'username' : !trimmedEmail ? 'email' : !password ? 'password' : 'confirm');
       return false;
     }
     if (!TURKISH_NAME_RE.test(trimmedFullName)) {
-      setError('İsim sadece Türkçe harf ve boşluk içerebilir');
+      showError('İsim sadece Türkçe harf ve boşluk içerebilir', 'fullName');
       return false;
     }
     if (!EMAIL_RE.test(trimmedEmail)) {
-      setError('Geçerli bir email adresi girin');
+      showError('Geçerli bir email adresi girin', 'email');
       return false;
     }
     if (phone.trim() && phone.trim().length !== 11) {
-      setError('Telefon numarası 11 haneli olmalıdır (örn: 05551234567)');
+      showError('Telefon numarası 11 haneli olmalıdır (örn: 05551234567)', 'phone');
       return false;
     }
     if (!ruleMinLen) {
-      setError('Şifre en az 5 karakter olmalıdır');
+      showError('Şifre en az 5 karakter olmalıdır', 'password');
       return false;
     }
     if (!ruleUpper) {
-      setError('Şifre en az 1 büyük harf içermelidir');
+      showError('Şifre en az 1 büyük harf içermelidir', 'password');
       return false;
     }
     if (!rulePunct) {
-      setError('Şifre en az 1 noktalama işareti içermelidir (!@#$%^&* vb.)');
+      showError('Şifre en az 1 noktalama işareti içermelidir (!@#$%^&* vb.)', 'password');
       return false;
     }
     if (password !== confirmPassword) {
-      setError('Şifreler eşleşmiyor');
+      showError('Şifreler eşleşmiyor', 'confirm');
+      return false;
+    }
+    if (!acceptTerms) {
+      showError("Kayıt olmak için Kullanım Koşulları'nı kabul etmelisin", 'terms');
       return false;
     }
     return true;
   };
 
   const handleSubmit = async () => {
-    setError(null);
+    clearError();
     if (!validate()) return;
     setSubmitting(true);
     try {
@@ -84,10 +125,12 @@ export default function RegisterScreen({ navigation }: Props) {
         password,
         passwordConfirm: confirmPassword,
         phone: phone.trim(),
+        acceptTerms,
       });
       navigation.navigate('VerifyEmail', { email: email.trim() });
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Kayıt başarısız. Lütfen tekrar deneyin.');
+      const message: string = err.response?.data?.message || 'Kayıt başarısız. Lütfen tekrar deneyin.';
+      showError(message, fieldFromServerMessage(message));
     } finally {
       setSubmitting(false);
     }
@@ -100,6 +143,7 @@ export default function RegisterScreen({ navigation }: Props) {
     // tekrar) kutu klavyenin altında kalıyordu. KeyboardAwareScroll ikisini
     // birden yapıyor (bkz. components/layout/KeyboardAvoider.tsx).
     <KeyboardAwareScroll
+      ref={scrollRef}
       style={[styles.container, { backgroundColor: colors.ground }]}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.content}
@@ -120,7 +164,7 @@ export default function RegisterScreen({ navigation }: Props) {
         )}
 
         <Text style={[styles.label, { color: colors.ink2 }]}>İsim Soyisim *</Text>
-        <View style={[styles.inputRow, { borderColor: colors.line }]}>
+        <View style={[styles.inputRow, { borderColor: borderFor('fullName') }]}>
           <User size={18} color={colors.accent} />
           <TextInput
             style={[styles.input, { color: colors.ink }]}
@@ -129,13 +173,13 @@ export default function RegisterScreen({ navigation }: Props) {
             value={fullName}
             onChangeText={(t) => {
               setFullName(t.trimStart());
-              setError(null);
+              clearError();
             }}
           />
         </View>
 
         <Text style={[styles.label, { color: colors.ink2 }]}>Kullanıcı Adı *</Text>
-        <View style={[styles.inputRow, { borderColor: colors.line }]}>
+        <View style={[styles.inputRow, { borderColor: borderFor('username') }]}>
           <UserPlus size={18} color={colors.accent} />
           <TextInput
             style={[styles.input, { color: colors.ink }]}
@@ -146,13 +190,13 @@ export default function RegisterScreen({ navigation }: Props) {
             value={username}
             onChangeText={(t) => {
               setUsername(t.trimStart());
-              setError(null);
+              clearError();
             }}
           />
         </View>
 
         <Text style={[styles.label, { color: colors.ink2 }]}>E-posta *</Text>
-        <View style={[styles.inputRow, { borderColor: colors.line }]}>
+        <View style={[styles.inputRow, { borderColor: borderFor('email') }]}>
           <Mail size={18} color={colors.accent} />
           <TextInput
             style={[styles.input, { color: colors.ink }]}
@@ -163,13 +207,13 @@ export default function RegisterScreen({ navigation }: Props) {
             value={email}
             onChangeText={(t) => {
               setEmail(t.trimStart());
-              setError(null);
+              clearError();
             }}
           />
         </View>
 
         <Text style={[styles.label, { color: colors.ink2 }]}>Şifre *</Text>
-        <View style={[styles.inputRow, { borderColor: colors.line }]}>
+        <View style={[styles.inputRow, { borderColor: borderFor('password') }]}>
           <Lock size={18} color={colors.accent} />
           <TextInput
             style={[styles.input, { color: colors.ink }]}
@@ -179,7 +223,7 @@ export default function RegisterScreen({ navigation }: Props) {
             value={password}
             onChangeText={(t) => {
               setPassword(t);
-              setError(null);
+              clearError();
             }}
           />
           <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={8}>
@@ -204,7 +248,7 @@ export default function RegisterScreen({ navigation }: Props) {
         </View>
 
         <Text style={[styles.label, { color: colors.ink2 }]}>Şifre Tekrar *</Text>
-        <View style={[styles.inputRow, { borderColor: colors.line }]}>
+        <View style={[styles.inputRow, { borderColor: borderFor('confirm') }]}>
           <Lock size={18} color={colors.accent} />
           <TextInput
             style={[styles.input, { color: colors.ink }]}
@@ -214,7 +258,7 @@ export default function RegisterScreen({ navigation }: Props) {
             value={confirmPassword}
             onChangeText={(t) => {
               setConfirmPassword(t);
-              setError(null);
+              clearError();
             }}
           />
           <Pressable onPress={() => setShowConfirmPassword((v) => !v)} hitSlop={8}>
@@ -223,7 +267,7 @@ export default function RegisterScreen({ navigation }: Props) {
         </View>
 
         <Text style={[styles.label, { color: colors.ink2 }]}>Telefon</Text>
-        <View style={[styles.inputRow, { borderColor: colors.line }]}>
+        <View style={[styles.inputRow, { borderColor: borderFor('phone') }]}>
           <Phone size={18} color={colors.accent} />
           <TextInput
             style={[styles.input, { color: colors.ink }]}
@@ -234,11 +278,37 @@ export default function RegisterScreen({ navigation }: Props) {
             value={phone}
             onChangeText={(t) => {
               setPhone(t.replace(/\D/g, '').slice(0, 11));
-              setError(null);
+              clearError();
             }}
           />
         </View>
         <Text style={[styles.hintText, { color: colors.muted2 }]}>11 haneli (Örn: 05551234567)</Text>
+
+        <View style={styles.termsRow}>
+          <Pressable
+            onPress={() => {
+              setAcceptTerms((v) => !v);
+              clearError();
+            }}
+            hitSlop={8}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: acceptTerms }}
+            accessibilityLabel="Kullanım Koşulları'nı kabul ediyorum"
+            style={[
+              styles.termsBox,
+              { borderColor: errorField === 'terms' ? colors.danger : acceptTerms ? colors.success : colors.line },
+              acceptTerms && { backgroundColor: colors.success },
+            ]}
+          >
+            {acceptTerms && <Check size={13} color="#fff" strokeWidth={3} />}
+          </Pressable>
+          <Text style={[styles.termsText, { color: colors.ink2 }]}>
+            <Text style={[styles.linkStrong, { color: colors.accent }]} onPress={() => setTermsOpen(true)}>
+              Kullanım Koşulları
+            </Text>
+            'nı okudum ve kabul ediyorum. Uygunsuz içeriğe ve kullanıcılara tolerans gösterilmediğini biliyorum.
+          </Text>
+        </View>
 
         <Pressable style={styles.button} onPress={handleSubmit} disabled={submitting}>
           {submitting ? (
@@ -256,6 +326,7 @@ export default function RegisterScreen({ navigation }: Props) {
             Zaten hesabınız var mı? <Text style={[styles.linkStrong, { color: colors.accent }]}>Giriş Yap</Text>
           </Text>
         </Pressable>
+        <TermsModal visible={termsOpen} onClose={() => setTermsOpen(false)} />
     </KeyboardAwareScroll>
   );
 }
@@ -297,6 +368,17 @@ const styles = StyleSheet.create({
   },
   ruleLabel: { fontSize: 11.5 },
   hintText: { fontSize: 11, marginTop: 5 },
+  termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 20 },
+  termsBox: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  termsText: { flex: 1, fontSize: 12.5, lineHeight: 18 },
   button: {
     flexDirection: 'row',
     justifyContent: 'center',

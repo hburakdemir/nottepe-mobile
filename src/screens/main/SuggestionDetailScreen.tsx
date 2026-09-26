@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, Text, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { Lightbulb } from 'lucide-react-native';
 import { suggestionAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
@@ -10,6 +10,8 @@ import { useGoToUserProfile } from '../../hooks/useGoToUserProfile';
 import ForumCommentList, { type ForumComment } from '../../components/forum/ForumCommentList';
 import type { RootStackParamList } from '../../navigation/types';
 import StateView from '../../components/StateView';
+import ModerationMenu from '../../components/moderation/ModerationMenu';
+import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 
 const SUGGESTION_DETAIL_STALE_MS = 5 * 60 * 1000;
 
@@ -22,6 +24,7 @@ const EMPTY_COMMENTS: ForumComment[] = [];
 interface SuggestionDetail {
   id: number;
   content: string;
+  user_id?: number;
   username: string;
   full_name: string;
   created_at: string;
@@ -33,6 +36,7 @@ function formatDate(dateString: string): string {
 
 export default function SuggestionDetailScreen() {
   const route = useRoute<any>();
+  const navigation = useNavigation();
   const { id } = route.params as RootStackParamList['SuggestionDetail'];
   const { user } = useAuth();
   const { theme } = useTheme();
@@ -133,11 +137,25 @@ export default function SuggestionDetailScreen() {
   }
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="p-4 pb-[150px]">
+    // KeyboardAwareScroll: en alttaki yorum kutusu klavyenin altında kalmasın.
+    <KeyboardAwareScroll
+      showsVerticalScrollIndicator={false}
+      className="flex-1 bg-ground"
+      contentContainerClassName="p-4 pb-[150px]"
+      keyboardShouldPersistTaps="handled"
+    >
       <View className="bg-surface rounded-2xl p-4 mb-3.5">
         <View className="flex-row gap-2.5">
           <Lightbulb size={20} color={isDark ? '#5A9690' : '#2F5755'} style={{ marginTop: 2 }} />
           <Text className="flex-1 text-[15.5px] text-ink leading-[22px]">{suggestion.content}</Text>
+          <ModerationMenu
+            targetType="suggestion"
+            targetId={suggestion.id}
+            ownerId={suggestion.user_id ?? null}
+            ownerUsername={suggestion.username}
+            size={20}
+            onBlocked={() => navigation.goBack()}
+          />
         </View>
         <Pressable onPress={() => goToUserProfile(suggestion.username)}>
           <Text className="text-[11.5px] text-muted2 mt-3.5">
@@ -148,6 +166,7 @@ export default function SuggestionDetailScreen() {
 
       <View className="bg-surface rounded-2xl p-4 mb-3.5">
         <ForumCommentList
+          reportType="suggestion_comment"
           comments={comments}
           loading={isLoading}
           canModerate={canModerate}
@@ -156,6 +175,6 @@ export default function SuggestionDetailScreen() {
           onVoteComment={handleVoteComment}
         />
       </View>
-    </ScrollView>
+    </KeyboardAwareScroll>
   );
 }

@@ -6,6 +6,7 @@ import { ExternalLink, HeartHandshake, RotateCcw, ThumbsUp, Trash2, Upload, User
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import type { RootStackParamList, NoteRequestSummary } from '../../navigation/types';
+import ModerationMenu from '../moderation/ModerationMenu';
 
 export interface NoteRequest {
   id: number;
@@ -88,9 +89,19 @@ export default function RequestCard({ request, onFulfill, onSupport, onClose, on
         )}
       </View>
 
-      <Text className="text-ink" style={styles.title}>
-        {request.course_name}
-      </Text>
+      <View style={styles.titleRow}>
+        <Text className="text-ink" style={[styles.title, { flex: 1 }]}>
+          {request.course_name}
+        </Text>
+        {!isOwner && (
+          <ModerationMenu
+            targetType="note_request"
+            targetId={request.id}
+            ownerId={request.user_id}
+            ownerUsername={request.requester_username}
+          />
+        )}
+      </View>
       {!!request.description && (
         <Text className="text-ink2" style={styles.description}>
           {request.description}
@@ -180,6 +191,7 @@ export default function RequestCard({ request, onFulfill, onSupport, onClose, on
 }
 
 const styles = StyleSheet.create({
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   card: {
     borderRadius: 8,
     padding: 16,

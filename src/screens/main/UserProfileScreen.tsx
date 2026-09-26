@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { useQueryClient } from '@tanstack/react-query';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
+  Ban,
   Bell,
   Bookmark,
   Calculator,
@@ -19,7 +21,9 @@ import {
   ShieldOff,
   User as UserIcon,
 } from 'lucide-react-native';
-import { avatarAPI, badgeAPI, faqAPI, suggestionAPI, userAPI } from '../../lib/api';
+import { avatarAPI, badgeAPI, faqAPI, moderationAPI, suggestionAPI, userAPI } from '../../lib/api';
+import { emitBlockChanged } from '../../lib/moderationEvents';
+import ModerationMenu from '../../components/moderation/ModerationMenu';
 import { useTheme } from '../../context/ThemeContext';
 import PostCard from '../../components/PostCard';
 import { PostListSkeleton } from '../../components/PostCardSkeleton';
@@ -45,6 +49,8 @@ interface PublicProfile {
   post_count?: number;
   is_public: boolean;
   profile_section_visibility?: Record<string, boolean>;
+  /** İzleyen bu kullanıcıyı engellemiş mi (sunucu). */
+  is_blocked_by_me?: boolean;
 }
 
 interface AktsCalc {
@@ -104,6 +110,7 @@ export default function UserProfileScreen() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const { username } = route.params as RootStackParamList['UserProfile'];
+  const queryClient = useQueryClient();
 
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [avatar, setAvatar] = useState<AvatarData | null>(null);
@@ -255,7 +262,7 @@ export default function UserProfileScreen() {
   }, [username, loadRetryTick]);
 
   useEffect(() => {
-    if (!profile || profile.is_public === false) return;
+    if (!profile || profile.is_public === false || profile.is_blocked_by_me) return;
     let cancelled = false;
     (async () => {
       setPostsLoading(true);
@@ -342,7 +349,7 @@ export default function UserProfileScreen() {
   );
 
   useEffect(() => {
-    if (!profile || profile.is_public === false) return;
+    if (!profile || profile.is_public === false || profile.is_blocked_by_me) return;
     for (let i = activeIndex - 1; i <= activeIndex + 1; i += 1) {
       const key = visibleTabs[i]?.key;
       if (!key || key === 'posts' || requestedTabsRef.current.has(key)) continue;
@@ -592,9 +599,22 @@ export default function UserProfileScreen() {
             {avatar ? <AvatarDisplay avatar={avatar} size={80} /> : <UserIcon size={32} color="#fff" />}
           </View>
           <View className="flex-1">
-            <Text className="text-[19px] font-extrabold text-ink" numberOfLines={1}>
-              {profile.username}
-            </Text>
+            <View className="flex-row items-center gap-2">
+              <Text className="text-[19px] font-extrabold text-ink flex-shrink" numberOfLines={1}>
+                {profile.username}
+              </Text>
+              {!profile.is_blocked_by_me && (
+                <ModerationMenu
+                  targetType="user"
+                  targetId={profile.id}
+                  ownerId={profile.id}
+                  ownerUsername={profile.username}
+                  size={20}
+                  style={{ marginLeft: 'auto' }}
+                  onBlocked={() => setProfile((prev) => (prev ? { ...prev, is_blocked_by_me: true } : prev))}
+                />
+              )}
+            </View>
             {!!profile.full_name && <Text className="text-[13px] text-ink2 mt-0.5">{profile.full_name}</Text>}
             {!!profile.department && (
               <Text className="text-xs text-muted2 mt-0.5">
@@ -621,7 +641,28 @@ export default function UserProfileScreen() {
         )}
       </View>
 
-      {isPrivate ? (
+      {profile.is_blocked_by_me ? (
+        <View className="items-center gap-2 py-8 px-[30px] bg-surface rounded-lg" style={SHADOW_MD}>
+          <Ban size={44} color={isDark ? '#6b7280' : '#9ca3af'} />
+          <Text className="text-lg text-muted font-semibold">Bu kullanıcıyı engelledin.</Text>
+          <Text className="text-sm text-muted2 text-center">Gönderileri, yorumları ve diğer içerikleri sana gösterilmiyor.</Text>
+          <Pressable
+            className="bg-brand rounded-lg px-4 py-2.5 mt-2"
+            onPress={async () => {
+              try {
+                await moderationAPI.unblock(profile.id);
+                emitBlockChanged(profile.id, false);
+                queryClient.invalidateQueries();
+                setProfile((prev) => (prev ? { ...prev, is_blocked_by_me: false } : prev));
+              } catch {
+                Alert.alert('Hata', 'Engel kaldırılamadı.');
+              }
+            }}
+          >
+            <Text className="text-white text-sm font-semibold">Engeli kaldır</Text>
+          </Pressable>
+        </View>
+      ) : isPrivate ? (
         <View className="items-center gap-2 py-8 px-[30px] bg-surface rounded-lg" style={SHADOW_MD}>
           <Lock size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
           <Text className="text-lg text-muted font-semibold">Bu profil gizli.</Text>

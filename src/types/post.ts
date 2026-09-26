@@ -11,6 +11,8 @@ export interface Post {
   username: string;
   full_name?: string;
   user_id: number;
+  /** Gönderi detayında: izleyen bu gönderinin sahibini engellemiş mi (sunucu). */
+  is_blocked_by_me?: boolean;
   created_at: string;
   file_urls?: string[];
   status?: 'approved' | 'pending' | 'rejected';

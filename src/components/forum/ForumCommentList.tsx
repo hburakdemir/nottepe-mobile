@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { CornerDownRight, MessageSquare, Send, ThumbsDown, ThumbsUp, Trash2 } from 'lucide-react-native';
+import ModerationMenu from '../moderation/ModerationMenu';
 import { useGoToUserProfile } from '../../hooks/useGoToUserProfile';
 import { useTheme } from '../../context/ThemeContext';
 import { Skeleton, SkeletonGroup } from '../Skeleton';
 
 export interface ForumComment {
   id: number;
+  user_id?: number;
   username: string;
   full_name: string;
   content: string;
@@ -100,8 +102,10 @@ function CommentRow({
   onDeleteComment,
   onVoteComment,
   onReply,
+  reportType,
 }: {
   comment: ForumComment;
+  reportType?: 'faq_comment' | 'suggestion_comment';
   canModerate: boolean;
   canReply?: boolean;
   isReply?: boolean;
@@ -156,6 +160,15 @@ function CommentRow({
           </View>
           {replying && onReply && <ReplyForm onSubmit={(text) => onReply(comment.id, text)} onCancel={() => setReplying(false)} />}
         </View>
+        {!!reportType && (
+          <ModerationMenu
+            targetType={reportType}
+            targetId={comment.id}
+            ownerId={comment.user_id}
+            ownerUsername={comment.username}
+            size={17}
+          />
+        )}
         {canModerate && (
           <Pressable onPress={() => onDeleteComment(comment.id)} hitSlop={6}>
             <Trash2 size={15} color="#9ca3af" />
@@ -173,10 +186,12 @@ interface Props {
   onAddComment: (content: string, parentCommentId?: number | null) => Promise<void>;
   onDeleteComment: (commentId: number) => void;
   onVoteComment: (commentId: number, vote: number) => void;
+  /** Yorumlardaki Bildir/Engelle menüsü için şikâyet türü. */
+  reportType?: 'faq_comment' | 'suggestion_comment';
 }
 
 // SSS ve Öneriler detay ekranlarında paylaşılan, tek seviyeli yanıt destekli yorum listesi.
-export default function ForumCommentList({ comments, loading, canModerate, onAddComment, onDeleteComment, onVoteComment }: Props) {
+export default function ForumCommentList({ comments, loading, canModerate, onAddComment, onDeleteComment, onVoteComment, reportType }: Props) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const brandColor = isDark ? '#5A9690' : '#2F5755';
@@ -273,6 +288,7 @@ export default function ForumCommentList({ comments, loading, canModerate, onAdd
             <View key={c.id}>
               <CommentRow
                 comment={c}
+                reportType={reportType}
                 canModerate={canModerate}
                 canReply
                 onDeleteComment={onDeleteComment}
@@ -283,6 +299,7 @@ export default function ForumCommentList({ comments, loading, canModerate, onAdd
                 <CommentRow
                   key={r.id}
                   comment={r}
+                  reportType={reportType}
                   canModerate={canModerate}
                   isReply
                   onDeleteComment={onDeleteComment}

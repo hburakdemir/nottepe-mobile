@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, Text, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { HelpCircle, ThumbsDown, ThumbsUp } from 'lucide-react-native';
 import { Pressable } from 'react-native';
 import { faqAPI } from '../../lib/api';
@@ -10,6 +10,8 @@ import { useTheme } from '../../context/ThemeContext';
 import ForumCommentList, { type ForumComment } from '../../components/forum/ForumCommentList';
 import type { RootStackParamList } from '../../navigation/types';
 import StateView from '../../components/StateView';
+import ModerationMenu from '../../components/moderation/ModerationMenu';
+import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 
 // Soru ve cevabı moderasyondan geçiyor, sık değişmiyor; ama yorumlar ve oylar
 // canlı. Bu yüzden liste ekranının 24 saati yerine daha kısa bir tazelik:
@@ -28,6 +30,8 @@ interface FaqEntryDetail {
   question: string;
   answer: string;
   author_name?: string;
+  author_username?: string;
+  created_by?: number | null;
   created_at: string;
   upvotes?: number;
   downvotes?: number;
@@ -40,6 +44,7 @@ function formatDate(dateString: string): string {
 
 export default function FaqDetailScreen() {
   const route = useRoute<any>();
+  const navigation = useNavigation();
   const { id } = route.params as RootStackParamList['FaqDetail'];
   const { user } = useAuth();
   const { theme } = useTheme();
@@ -153,11 +158,25 @@ export default function FaqDetailScreen() {
   }
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="p-4 pb-[150px]">
+    // KeyboardAwareScroll: en alttaki yorum kutusu klavyenin altında kalmasın.
+    <KeyboardAwareScroll
+      showsVerticalScrollIndicator={false}
+      className="flex-1 bg-ground"
+      contentContainerClassName="p-4 pb-[150px]"
+      keyboardShouldPersistTaps="handled"
+    >
       <View className="bg-surface rounded-2xl p-4 mb-3.5">
         <View className="flex-row gap-2.5">
           <HelpCircle size={20} color={isDark ? '#5A9690' : '#2F5755'} style={{ marginTop: 2 }} />
           <Text className="flex-1 text-lg font-bold text-ink leading-6">{entry.question}</Text>
+          <ModerationMenu
+            targetType="faq"
+            targetId={entry.id}
+            ownerId={entry.created_by ?? null}
+            ownerUsername={entry.author_username}
+            size={20}
+            onBlocked={() => navigation.goBack()}
+          />
         </View>
         <Text className="text-sm text-ink2 mt-3 leading-5">{entry.answer}</Text>
         <View className="flex-row gap-2 mt-3">
@@ -185,6 +204,7 @@ export default function FaqDetailScreen() {
 
       <View className="bg-surface rounded-2xl p-4 mb-3.5">
         <ForumCommentList
+          reportType="faq_comment"
           comments={comments}
           loading={isLoading}
           canModerate={canModerate}
@@ -193,6 +213,6 @@ export default function FaqDetailScreen() {
           onVoteComment={handleVoteComment}
         />
       </View>
-    </ScrollView>
+    </KeyboardAwareScroll>
   );
 }

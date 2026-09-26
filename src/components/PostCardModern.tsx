@@ -14,6 +14,7 @@ import { buildPostAuthorAvatar } from '../lib/postAuthorAvatar';
 import AvatarDisplay from './avatar/AvatarDisplay';
 import FileTiles from './FileTiles';
 import SaveButton from './SaveButton';
+import ModerationMenu from './moderation/ModerationMenu';
 
 const MAX_LENGTH = 200;
 
@@ -198,6 +199,15 @@ export default function PostCardModern({ post, showStatus = false, showRating = 
             <Pressable onPress={handleDelete} hitSlop={8}>
               <Trash2 size={16} color={t.ink3} strokeWidth={2} />
             </Pressable>
+          )}
+          {isAuthenticated && !isOwner && (
+            <ModerationMenu
+              targetType="post"
+              targetId={postId}
+              ownerId={post.user_id}
+              ownerUsername={post.username}
+              size={17}
+            />
           )}
         </View>
       </View>

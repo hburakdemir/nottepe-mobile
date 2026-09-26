@@ -218,6 +218,25 @@ export const adminAPI = {
 };
 
 // Kullanıcı profili
+// Şikâyet ve engelleme (App Store 1.2) — sunucu tarafı: moderationController.js.
+export type ReportTargetType =
+  | 'post'
+  | 'comment'
+  | 'faq'
+  | 'faq_comment'
+  | 'suggestion'
+  | 'suggestion_comment'
+  | 'note_request'
+  | 'user';
+
+export const moderationAPI = {
+  report: (body: { targetType: ReportTargetType; targetId: string | number; reason: string; details?: string }) =>
+    api.post('/reports', body),
+  block: (userId: string | number) => api.post(`/users/${userId}/block`),
+  unblock: (userId: string | number) => api.delete(`/users/${userId}/block`),
+  myBlocks: () => api.get('/users/me/blocks'),
+};
+
 export const userAPI = {
   getProfile: (username: string) => api.get(`/users/${encodeURIComponent(username)}/profile`),
   getPosts: (username: string, { page = 1, limit = 12 } = {}) =>

@@ -20,6 +20,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { faculties, departments } from '../../data/departments';
 import BadgeChip, { type Badge } from '../BadgeChip';
 import KeyboardAvoider from '../layout/KeyboardAvoider';
+import BlockedUsersList from '../moderation/BlockedUsersList';
 import OptionSheet from '../layout/OptionSheet';
 
 const SECTION_VISIBILITY_FIELDS: { key: string; label: string }[] = [
@@ -431,6 +432,8 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
                       ))}
                     </View>
                   )}
+
+                  <BlockedUsersList />
 
                   <View style={styles.dangerZone}>
                     <Text className="text-danger" style={styles.dangerLabel}>

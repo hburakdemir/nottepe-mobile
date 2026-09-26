@@ -59,16 +59,18 @@ export default function KeyboardAvoider({
 // kaydırmıyor. Tek yerden değiştirilebilsin diye burada sabit.
 const DEFAULT_BOTTOM_OFFSET = 24;
 
-export function KeyboardAwareScroll({
-  children,
-  bottomOffset = DEFAULT_BOTTOM_OFFSET,
-  ...rest
-}: KeyboardAwareScrollViewProps) {
+//
+// `ref` iletiliyor: kayıt ekranı hata olunca `scrollTo({ y: 0 })` ile başa
+// dönüyor (bkz. RegisterScreen).
+export const KeyboardAwareScroll = React.forwardRef<
+  React.ElementRef<typeof KeyboardAwareScrollView>,
+  KeyboardAwareScrollViewProps
+>(function KeyboardAwareScroll({ children, bottomOffset = DEFAULT_BOTTOM_OFFSET, ...rest }, ref) {
   return (
-    <KeyboardAwareScrollView bottomOffset={bottomOffset} {...rest}>
+    <KeyboardAwareScrollView ref={ref} bottomOffset={bottomOffset} {...rest}>
       {children}
     </KeyboardAwareScrollView>
   );
-}
+});
 
 const styles = StyleSheet.create({ fill: { flex: 1 } });

@@ -21,6 +21,8 @@ import AvatarDisplay from '../../components/avatar/AvatarDisplay';
 import FileTiles from '../../components/FileTiles';
 import BadgeChip from '../../components/BadgeChip';
 import SaveButton from '../../components/SaveButton';
+import ModerationMenu from '../../components/moderation/ModerationMenu';
+import { moderationAPI } from '../../lib/api';
 import CommentSection, { type CommentsFirstPage } from '../../components/CommentSection';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
@@ -297,7 +299,40 @@ export default function PostDetailScreen() {
               </Pressable>
             </View>
           )}
+          {isAuthenticated && !isOwner && (
+            <View style={styles.actions}>
+              <ModerationMenu
+                targetType="post"
+                targetId={postId}
+                ownerId={post.user_id}
+                ownerUsername={post.username}
+                size={20}
+                onBlocked={() => navigation.goBack()}
+              />
+            </View>
+          )}
         </View>
+
+        {/* Engellenen yazar: içerik yine görünüyor (bildirimden gelinmiş
+            olabilir) ama durum belli ve buradan geri alınabiliyor. */}
+        {post.is_blocked_by_me && (
+          <View style={[styles.blockedNote, { backgroundColor: t.inset, borderColor: t.line }]}>
+            <Text style={[styles.blockedText, { color: t.ink2 }]}>Bu gönderinin sahibini engelledin.</Text>
+            <Pressable
+              hitSlop={8}
+              onPress={async () => {
+                try {
+                  await moderationAPI.unblock(post.user_id);
+                  queryClient.invalidateQueries();
+                } catch {
+                  Alert.alert('Hata', 'Engel kaldırılamadı.');
+                }
+              }}
+            >
+              <Text style={[styles.blockedAction, { color: t.accent }]}>Engeli kaldır</Text>
+            </Pressable>
+          </View>
+        )}
 
         <Text style={[styles.title, { color: t.ink }]}>{post.title}</Text>
 
@@ -397,6 +432,19 @@ const styles = StyleSheet.create({
   date: { fontSize: 11.5, marginTop: 1 },
   badgeRow: { flexDirection: 'row', gap: 3 },
   actions: { marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 16 },
+  blockedNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 10,
+  },
+  blockedText: { flex: 1, fontSize: 13 },
+  blockedAction: { fontSize: 13, fontWeight: '700' },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3, paddingTop: 14, marginTop: 6, borderTopWidth: StyleSheet.hairlineWidth },
   ratingText: { fontSize: 12.5, marginLeft: 8 },
   comments: {

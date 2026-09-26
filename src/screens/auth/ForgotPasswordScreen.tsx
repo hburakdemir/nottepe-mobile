@@ -5,6 +5,7 @@ import { AlertCircle, ArrowLeft, Mail } from 'lucide-react-native';
 import { passwordApi } from '../../lib/api';
 import { useThemeColors } from '../../context/ThemeContext';
 import AuthHeader from '../../components/auth/AuthHeader';
+import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 import type { AuthStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>;
@@ -36,7 +37,14 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.ground }]}>
+    // KeyboardAwareScroll: küçük ekranlarda klavye açılınca kutu ve buton
+    // klavyenin altında kalmasın, odaklanan alan görünür alana kaysın.
+    <KeyboardAwareScroll
+      style={{ flex: 1, backgroundColor: colors.ground }}
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
       <AuthHeader
         icon={<Mail size={26} color={colors.accent} />}
         title="Şifremi Unuttum"
@@ -82,14 +90,14 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
         <ArrowLeft size={14} color={colors.accent} />
         <Text style={[styles.backLinkText, { color: colors.accent }]}>Giriş sayfasına dön</Text>
       </Pressable>
-    </View>
+    </KeyboardAwareScroll>
   );
 }
 
 // Renkler kullanım yerinde (useThemeColors) — burada sadece ölçü/tipografi.
 // Tek istisna marka butonu ve üstündeki beyaz yazı.
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
+  container: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 32 },
   alertError: {
     flexDirection: 'row',
     alignItems: 'center',
