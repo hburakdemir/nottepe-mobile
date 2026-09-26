@@ -4,7 +4,7 @@ applyGlobalFont();
 import 'react-native-gesture-handler';
 import './global.css';
 import React from 'react';
-import { Image, Text, View } from 'react-native';
+import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { enableFreeze } from 'react-native-screens';
@@ -26,6 +26,7 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import { navigationRef, drainPendingTarget } from './src/navigation/navigationRef';
 import PushBridge from './src/components/PushBridge';
+import BrandSplash from './src/components/BrandSplash';
 import { queryClient } from './src/lib/queryClient';
 import { persistOptions } from './src/lib/queryPersist';
 import { LIGHT_VARS, DARK_VARS } from './src/theme/palette';
@@ -84,17 +85,12 @@ import DiagnosticsBadge from './src/components/DiagnosticsBadge';
 // taban değerler yukarıda yazılı.
 enableFreeze(true);
 
-// Fontlar hazır olana kadar (kullanıcı isteği: açılışta logo + altında
-// "Nottepe" yazmalı) — native splash bu JS bileşeni ekrana gelmeden önce
-// kendiliğinden kayboluyor (preventAutoHideAsync yönetimi yok), bu yüzden
-// boş bir "flash" yaşanmaması için ilk çizilen kare zaten markalı.
+// Fontlar hazır olana kadar markalı açılış ekranı — native splash bu JS
+// bileşeni ekrana gelmeden önce kendiliğinden kayboluyor (preventAutoHideAsync
+// yönetimi yok), bu yüzden boş bir "flash" yaşanmaması için ilk çizilen kare
+// zaten markalı. ThemeProvider henüz yok; sistem temasına bakıyoruz.
 function BootScreen() {
-  return (
-    <View style={{ flex: 1, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
-      <Image source={require('./assets/splash-icon.png')} style={{ width: 96, height: 96, resizeMode: 'contain' }} />
-      <Text style={{ marginTop: 12, fontSize: 20, fontWeight: '800', color: '#2F5755', letterSpacing: 0.5 }}>Nottepe</Text>
-    </View>
-  );
+  return <BrandSplash isDark={useColorScheme() === 'dark'} />;
 }
 
 // Expo SDK 54'ten itibaren Android'de edge-to-edge zorunlu ve expo-status-bar artik ayri bir

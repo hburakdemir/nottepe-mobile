@@ -1,11 +1,12 @@
 import React, { Suspense, useMemo } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useIsOffline } from '../hooks/useIsOffline';
 import OfflineEgoScreen from '../components/OfflineEgoScreen';
+import BrandSplash from '../components/BrandSplash';
 import AuthNavigator from './AuthNavigator';
 import { withAppShell } from '../components/layout/AppShell';
 import MenuDrawerContent from '../components/layout/MenuDrawerContent';
@@ -90,7 +91,7 @@ const Notifications = withAppShell(NotificationsScreen);
 
 export default function RootNavigator() {
   const { isAuthenticated, loading, user } = useAuth();
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
   const isOffline = useIsOffline();
   const drawerWidth = useDrawerWidth();
 
@@ -197,12 +198,11 @@ export default function RootNavigator() {
     </View>
   );
 
-  // Açılışta oturum kontrolü — depodan token okunuyor.
+  // Açılışta oturum kontrolü — depodan token okunuyor. Font bekleyişiyle aynı
+  // ekran (bkz. BrandSplash), yoksa logodan sonra bir spinner beliriyordu.
   if (loading) {
     return withOfflineOverlay(
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.ground }}>
-        <ActivityIndicator size="large" color="#1d4ed8" />
-      </View>
+      <BrandSplash isDark={theme === 'dark'} />
     );
   }
 
