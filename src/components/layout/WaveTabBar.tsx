@@ -152,6 +152,12 @@ const BASE_ICON_SIZE = 23;
 // `moveCapsuleTo`). Komşu sekmede ~195 ms, en uzun yolda (Profil -> Ana sayfa,
 // 4 sütun) ~330 ms. Tavan, hiçbir koşulda ağır hissettirmemesi için.
 const CAPSULE_BASE_MS = 150;
+// ANDROID'DE KAPSÜL KAYMIYOR, basılan sekmeye ANINDA atlıyor (kullanıcı isteği,
+// Play sürümü öncesi: "kayma efekti olmasın hiç, sadece tıklanan yerin rengi
+// değişsin"). Aşağıdaki süre/easing ayarları yalnızca iOS'ta geçerli; Android'de
+// kapsülün konumu ve opaklığı doğrudan yazılıyor, UI thread'inde hiç animasyon
+// çalışmıyor.
+const ANIMATE_CAPSULE = Platform.OS === 'ios';
 const CAPSULE_PER_COL_MS = 45;
 const CAPSULE_MAX_MS = 340;
 
@@ -270,7 +276,7 @@ function WaveTabBarBase({ activeRouteName }: { activeRouteName?: string } = {}) 
     // bulunduğu yerden devam ediyor.
     const nextOpacity = index === -1 ? 0 : 1;
     if (capsuleOpacity.value !== nextOpacity) {
-      capsuleOpacity.value = withTiming(nextOpacity, { duration: 150 });
+      capsuleOpacity.value = ANIMATE_CAPSULE ? withTiming(nextOpacity, { duration: 150 }) : nextOpacity;
     }
     const { colWidth: cw, capsuleSize } = capsuleGeomRef.current;
     if (index === -1 || cw === 0) return;
@@ -278,6 +284,11 @@ function WaveTabBarBase({ activeRouteName }: { activeRouteName?: string } = {}) 
     const target = (index + 0.5) * cw - capsuleSize / 2;
     if (lastTargetRef.current === target) return;
     lastTargetRef.current = target;
+
+    if (!ANIMATE_CAPSULE) {
+      capsuleX.value = target;
+      return;
+    }
 
     // SÜRE MESAFEYLE ÖLÇEKLENİYOR. Sabit 180 ms, 1 sütunluk geçişte doğruydu
     // ama Profil(4) -> Ana sayfa(0) yolunda yanlıştı: aynı sürede 4 kat mesafe,
