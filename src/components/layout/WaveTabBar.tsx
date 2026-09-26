@@ -11,6 +11,7 @@ import AvatarDisplay, { type AvatarData } from '../avatar/AvatarDisplay';
 import DeerIcon from '../icons/DeerIcon';
 import { TAB_ROUTE_NAMES, navigateApp } from '../../navigation/navigateApp';
 import { useMetrics } from '../../theme/metrics';
+import { emitTabReselect } from '../../lib/tabReselect';
 
 // Onaylanan "E · Instagram tarzı buzlu cam" mockup'ının RN karşılığı — kenarlardan
 // boşluklu, yüzen tam bir buzlu-cam hap (bar'ın kendi blur+arka planı+border+
@@ -79,7 +80,12 @@ const TabSlot = React.memo(function TabSlot({
   const Icon = ICONS[routeName];
 
   const handlePress = React.useCallback(() => {
-    if (isFocused) return;
+    // Zaten açık sekmeye basmak gezinme değil: ekran kendisi karar veriyor
+    // (Ana sayfa en üste kayıyor, bkz. HomeScreen).
+    if (isFocused) {
+      emitTabReselect(routeName);
+      return;
+    }
     onPress(routeName);
   }, [isFocused, onPress, routeName]);
 

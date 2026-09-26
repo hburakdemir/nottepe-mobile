@@ -19,6 +19,7 @@ import OptionSheet from '../../components/layout/OptionSheet';
 import StateView from '../../components/StateView';
 import HomeSkeleton from '../../components/home/HomeSkeleton';
 import { diagMark } from '../../lib/diagnostics';
+import { onTabReselect } from '../../lib/tabReselect';
 
 const LAST_FACULTY_KEY = 'nottepe_last_faculty';
 
@@ -49,6 +50,17 @@ export default function HomeScreen() {
   const [faculties, setFaculties] = useState<string[]>(ALL_FACULTIES);
   const [openRequestCount, setOpenRequestCount] = useState<number | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Ana sayfadayken Ana sayfa ikonuna tekrar basmak listeyi en üste kaydırıyor
+  // (bkz. lib/tabReselect.ts).
+  const listRef = useRef<FlatList<Post>>(null);
+  useEffect(
+    () =>
+      onTabReselect((routeName) => {
+        if (routeName === 'Home') listRef.current?.scrollToOffset({ offset: 0, animated: true });
+      }),
+    []
+  );
 
   useEffect(() => {
     AsyncStorage.getItem(LAST_FACULTY_KEY)
@@ -258,6 +270,7 @@ export default function HomeScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: t.ground }}>
       <FlatList
+        ref={listRef}
         showsVerticalScrollIndicator={false}
         className="flex-1"
         contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING, flexGrow: 1 }}
