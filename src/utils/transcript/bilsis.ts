@@ -54,13 +54,31 @@ export interface TranscriptParseResult {
 // Türkçe büyük harfler dahil: İNG111, AİT203, ÜNİ101.
 const COURSE_CODE = /^[A-ZÇĞİÖŞÜ]{2,5}\d{3}[A-ZÇĞİÖŞÜ]?$/u;
 
-const TERM_HEADER = /^(\d{4})-(\d{4})\s+(Güz|Bahar|Yaz)(\s+Muafiyet)?$/iu;
+// Dönem başlığı: "2025-2026 Güz", "2025-2026 Bahar Muafiyet", "… Yaz Okulu".
+const TERM_HEADER = /^(\d{4})-(\d{4})\s+(Güz|Bahar|Yaz)(\s+[\p{L}\s]+)?$/iu;
 
-// Güz < Bahar < Yaz. Yaz okulu kendi dönem numarasını ALMIYOR, aynı yılın
-// Bahar'ına ekleniyor: dönem sayısı öğrencinin gözünde "kaçıncı dönemdeyim"
-// demek ve yaz okulu onu artırmıyor. Muafiyet bölümü de ait olduğu dönemin
-// bir parçası (ör. "2025-2026 Bahar Muafiyet" → 2025-2026 Bahar).
-const SEASON_ORDER: Record<string, number> = { güz: 0, bahar: 1, yaz: 1 };
+// HER BÖLÜM KENDİ DÖNEMİ, belgedeki sırasıyla (kullanıcı isteği: aktarılan
+// sonuç belgeyle BİREBİR eşleşmeli). Belge her bölümün altına kendi ANO'sunu
+// yazıyor; "Bahar Muafiyet" Bahar'a eklenseydi hesaplayıcının dönem
+// ortalaması belgedekiyle tutmazdı (örnek transkriptte 2,06 ↔ 2,02). Aynı
+// başlık ikinci kez görülürse (sayfa sonunda tekrar) aynı numarayı alıyor.
+class TermRegistry {
+  private numbers = new Map<string, number>();
+
+  numberFor(header: string): number {
+    const key = header.replace(/\s+/g, ' ').trim().toLocaleLowerCase('tr-TR');
+    let n = this.numbers.get(key);
+    if (n === undefined) {
+      n = this.numbers.size + 1;
+      this.numbers.set(key, n);
+    }
+    return n;
+  }
+
+  get size(): number {
+    return this.numbers.size;
+  }
+}
 
 // Belgedeki harf → hesaplayıcının harfi. Transkriptte "D" yazıyor, hesaplayıcı
 // "D1" kullanıyor (ikisi de 1,75). F4 ve F6 belgede "Başarısız" (0,00);
@@ -69,12 +87,6 @@ const GRADE_ALIASES: Record<string, string> = { D: 'D1', F4: 'F3', F6: 'F3' };
 
 // "Kld" = kaldırılan ders: transkriptte görünüyor ama ortalamaya girmiyor.
 const REMOVED_STATUS = 'Kld';
-
-function termKey(match: RegExpExecArray): number {
-  const startYear = Number(match[1]);
-  const season = SEASON_ORDER[match[3].toLocaleLowerCase('tr-TR')] ?? 0;
-  return startYear * 10 + season;
-}
 
 function parseNumber(raw: string): number {
   return Number(raw.replace(',', '.'));
@@ -92,7 +104,7 @@ interface RawCourse {
 /** PDF girişi: pdf.js satırları (bkz. PdfDom `mode="text"`). */
 export function parseBilsisTranscript(rows: TextRow[]): TranscriptParseResult {
   const raw: RawCourse[] = [];
-  const terms = new Set<number>();
+  const terms = new TermRegistry();
   let currentTerm: number | null = null;
 
   for (const row of rows) {
@@ -100,10 +112,8 @@ export function parseBilsisTranscript(rows: TextRow[]): TranscriptParseResult {
     if (items.length === 0) continue;
 
     const joined = items.map((i) => i.s.trim()).join(' ');
-    const header = TERM_HEADER.exec(joined);
-    if (header) {
-      currentTerm = termKey(header);
-      terms.add(currentTerm);
+    if (TERM_HEADER.test(joined)) {
+      currentTerm = terms.numberFor(joined);
       continue;
     }
 
@@ -142,7 +152,7 @@ export function parseBilsisTranscript(rows: TextRow[]): TranscriptParseResult {
 export function parseBilsisText(input: string): TranscriptParseResult {
   const text = extractPre(input);
   const raw: RawCourse[] = [];
-  const terms = new Set<number>();
+  const terms = new TermRegistry();
   let currentTerm: number | null = null;
   let columns: { name: number; status: number; credit: number } | null = null;
   let last: RawCourse | null = null;
@@ -157,10 +167,8 @@ export function parseBilsisText(input: string): TranscriptParseResult {
     const content = line.slice(first + 1, lastBar);
     const trimmed = content.trim();
 
-    const header = TERM_HEADER.exec(trimmed);
-    if (header) {
-      currentTerm = termKey(header);
-      terms.add(currentTerm);
+    if (TERM_HEADER.test(trimmed)) {
+      currentTerm = terms.numberFor(trimmed);
       last = null;
       continue;
     }
@@ -219,11 +227,8 @@ function extractPre(input: string): string {
     .replace(/^\uFEFF/, '');
 }
 
-function finalize(raw: RawCourse[], terms: Set<number>): TranscriptParseResult {
+function finalize(raw: RawCourse[], terms: TermRegistry): TranscriptParseResult {
   const skipped: TranscriptSkip[] = [];
-  // Dönem numaraları: tanınan dönemler kronolojik sırayla 1, 2, 3...
-  const termNumbers = new Map([...terms].sort((a, b) => a - b).map((key, index) => [key, index + 1]));
-
   // Notu olanları ayır, sonra tekrar edilen dersleri ele.
   const graded: RawCourse[] = [];
   for (const c of raw) {
@@ -265,7 +270,7 @@ function finalize(raw: RawCourse[], terms: Set<number>): TranscriptParseResult {
     courses.push({
       code: c.code,
       lessonName: c.name,
-      semester: termNumbers.get(c.term) ?? 1,
+      semester: c.term,
       akts: c.akts,
       grade: c.grade,
     });
