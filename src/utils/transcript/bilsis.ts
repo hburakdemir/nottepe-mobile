@@ -80,11 +80,18 @@ function parseNumber(raw: string): number {
   return Number(raw.replace(',', '.'));
 }
 
+interface RawCourse {
+  code: string;
+  name: string;
+  akts: number;
+  grade: string;
+  status: string;
+  term: number;
+}
+
+/** PDF girişi: pdf.js satırları (bkz. PdfDom `mode="text"`). */
 export function parseBilsisTranscript(rows: TextRow[]): TranscriptParseResult {
-  // İlk geçiş: satırları dönemlere böl.
-  type RawCourse = { code: string; name: string; akts: number; grade: string; status: string; term: number };
   const raw: RawCourse[] = [];
-  const skipped: TranscriptSkip[] = [];
   const terms = new Set<number>();
   let currentTerm: number | null = null;
 
@@ -115,10 +122,109 @@ export function parseBilsisTranscript(rows: TextRow[]): TranscriptParseResult {
     raw.push({ code, name, akts: parseNumber(aktsRaw), grade: gradeRaw, status, term: currentTerm });
   }
 
+  return finalize(raw, terms);
+}
+
+/**
+ * TXT girişi: BİLSİS'in "metin olarak göster" çıktısı (show_mrt_content_buf_as_txt).
+ * Aynı tablo, kutu çizgili ve SABİT GENİŞLİKLİ:
+ *
+ *   │ Ders KoDers Adı          Eşd/Yrn Ders Durumu KredAKTS PuanHarf N│
+ *   │ BEB650 TEMEL BİLGİ VE İLETİŞİM                  1   2    6    B2│
+ *   │        TEKNOLOJİLERİ KULLANIMI                                  │  ← adın devamı
+ *
+ * Sütunlar başlık satırındaki konumlardan kesiliyor. Uzun ad bir alt satıra
+ * taşıyor (kod sütunu boş) — o satırın ad sütunu bir önceki derse ekleniyor.
+ * Puan da taşabiliyor ("11,2" / "5") ama puan kullanılmadığı için önemsiz;
+ * AKTS ve harf tek satıra sığıyor. Kayıtlı sayfa (.html) da kabul ediliyor:
+ * `<pre>` içi alınıp etiketler/varlıklar temizleniyor.
+ */
+export function parseBilsisText(input: string): TranscriptParseResult {
+  const text = extractPre(input);
+  const raw: RawCourse[] = [];
+  const terms = new Set<number>();
+  let currentTerm: number | null = null;
+  let columns: { name: number; status: number; credit: number } | null = null;
+  let last: RawCourse | null = null;
+
+  for (const line of text.split(/\r?\n/)) {
+    const first = line.indexOf('│');
+    const lastBar = line.lastIndexOf('│');
+    if (first === -1 || lastBar <= first) {
+      last = null; // kutu dışı / ayraç satırı: devam satırı zinciri kopuyor
+      continue;
+    }
+    const content = line.slice(first + 1, lastBar);
+    const trimmed = content.trim();
+
+    const header = TERM_HEADER.exec(trimmed);
+    if (header) {
+      currentTerm = termKey(header);
+      terms.add(currentTerm);
+      last = null;
+      continue;
+    }
+
+    if (trimmed.startsWith('Ders Ko')) {
+      const name = content.indexOf('Ders Adı');
+      const status = content.indexOf('Eşd/Yrn');
+      const credit = content.indexOf('Kred');
+      columns = name >= 0 && status > name && credit > status ? { name, status, credit } : null;
+      last = null;
+      continue;
+    }
+
+    if (currentTerm === null || !columns) continue;
+    const code = content.slice(0, columns.name).trim();
+
+    if (code === '') {
+      // Adın alt satıra taşan devamı.
+      const more = content.slice(columns.name, columns.status).trim();
+      if (last && more) last.name = `${last.name} ${more}`;
+      continue;
+    }
+    if (!COURSE_CODE.test(code)) {
+      last = null; // ANO / AGNO özet satırları
+      continue;
+    }
+
+    const tail = content.slice(columns.credit).trim().split(/\s+/);
+    if (tail.length < 4) continue;
+    const [, aktsRaw, , gradeRaw] = tail.slice(-4);
+    last = {
+      code,
+      name: content.slice(columns.name, columns.status).trim(),
+      akts: parseNumber(aktsRaw),
+      grade: gradeRaw,
+      status: content.slice(columns.status, columns.credit).trim(),
+      term: currentTerm,
+    };
+    raw.push(last);
+  }
+
+  return finalize(raw, terms);
+}
+
+function extractPre(input: string): string {
+  const pre = /<pre[^>]*>([\s\S]*?)<\/pre>/i.exec(input);
+  if (!pre) return input.replace(/^\uFEFF/, '');
+  return pre[1]
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/^\uFEFF/, '');
+}
+
+function finalize(raw: RawCourse[], terms: Set<number>): TranscriptParseResult {
+  const skipped: TranscriptSkip[] = [];
   // Dönem numaraları: tanınan dönemler kronolojik sırayla 1, 2, 3...
   const termNumbers = new Map([...terms].sort((a, b) => a - b).map((key, index) => [key, index + 1]));
 
-  // İkinci geçiş: notu olanları ayır, sonra tekrar edilen dersleri ele.
+  // Notu olanları ayır, sonra tekrar edilen dersleri ele.
   const graded: RawCourse[] = [];
   for (const c of raw) {
     if (c.status.split(/\s+/).includes(REMOVED_STATUS)) {

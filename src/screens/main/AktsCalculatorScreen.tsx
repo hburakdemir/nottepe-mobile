@@ -57,7 +57,14 @@ import {
 import { exportCoursesToExcel, parseCoursesFromExcel, type ImportedCourse, type ImportError, MAX_IMPORT_BYTES, formatBytes } from '../../utils/ganoExcel';
 import KeyboardAvoider, { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 import PdfDom from '../../components/fileviewer/PdfDom';
-import { parseBilsisTranscript, type TextRow, type TranscriptSkip } from '../../utils/transcript/bilsis';
+import {
+  parseBilsisText,
+  parseBilsisTranscript,
+  type TextRow,
+  type TranscriptParseResult,
+  type TranscriptSkip,
+} from '../../utils/transcript/bilsis';
+import { File as FsFile } from 'expo-file-system';
 
 interface SavedCalc {
   id: string;
@@ -156,6 +163,9 @@ export default function AktsCalculatorScreen() {
   const [importSource, setImportSource] = useState<'excel' | 'bilsis'>('excel');
   const [transcriptUri, setTranscriptUri] = useState<string | null>(null);
   const [transcriptSkipped, setTranscriptSkipped] = useState<TranscriptSkip[]>([]);
+  // BİLSİS'in "metin olarak göster" sayfasından kopyalanan tablo.
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [pasteText, setPasteText] = useState('');
 
   const fetchSaved = async () => {
     setLoadingSaved(true);
@@ -427,21 +437,38 @@ export default function AktsCalculatorScreen() {
     setImportSource(source);
     setImportPreview(null);
     setTranscriptSkipped([]);
+    setPasteOpen(false);
   };
 
   const handleImportTranscript = async () => {
-    const result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf', copyToCacheDirectory: true });
+    // PDF ya da BİLSİS'in metin çıktısı (.txt / kaydedilmiş sayfa .html).
+    const result = await DocumentPicker.getDocumentAsync({
+      type: ['application/pdf', 'text/plain', 'text/html'],
+      copyToCacheDirectory: true,
+    });
     if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
     setImportPreview(null);
     setTranscriptSkipped([]);
-    setImportParsing(true);
-    setTranscriptUri(result.assets[0].uri);
+
+    const isPdf = asset.mimeType === 'application/pdf' || /\.pdf$/i.test(asset.name);
+    if (isPdf) {
+      setImportParsing(true);
+      setTranscriptUri(asset.uri);
+      return;
+    }
+    if (typeof asset.size === 'number' && asset.size > MAX_IMPORT_BYTES) {
+      Alert.alert('Dosya çok büyük', `Seçtiğin dosya ${formatBytes(asset.size)}. En fazla ${formatBytes(MAX_IMPORT_BYTES)} olabilir.`);
+      return;
+    }
+    try {
+      showTranscriptResult(parseBilsisText(await new FsFile(asset.uri).text()));
+    } catch {
+      Alert.alert('Hata', 'Dosya okunamadı.');
+    }
   };
 
-  const onTranscriptText = useCallback(async (rows: TextRow[]) => {
-    setTranscriptUri(null);
-    setImportParsing(false);
-    const parsed = parseBilsisTranscript(rows);
+  const showTranscriptResult = useCallback((parsed: TranscriptParseResult) => {
     if (parsed.termCount === 0) {
       Alert.alert(
         'Transkript tanınmadı',
@@ -452,6 +479,21 @@ export default function AktsCalculatorScreen() {
     setImportPreview({ valid: parsed.courses, errors: [] });
     setTranscriptSkipped(parsed.skipped);
   }, []);
+
+  const onTranscriptText = useCallback(
+    async (rows: TextRow[]) => {
+      setTranscriptUri(null);
+      setImportParsing(false);
+      showTranscriptResult(parseBilsisTranscript(rows));
+    },
+    [showTranscriptResult]
+  );
+
+  const handleParsePasted = () => {
+    setImportPreview(null);
+    setTranscriptSkipped([]);
+    showTranscriptResult(parseBilsisText(pasteText));
+  };
 
   const onTranscriptFail = useCallback(async (code: string) => {
     setTranscriptUri(null);
@@ -1374,9 +1416,9 @@ export default function AktsCalculatorScreen() {
                   </Text>
                 ) : (
                   <Text className="text-sm text-muted mt-3">
-                    BİLSİS'ten indirdiğin "Not Durum Belgesi (Transkript)" PDF'ini seç. Dosya yalnızca bu cihazda okunur; ad, numara
-                    ve kimlik bilgilerin alınmaz. Notu henüz girilmemiş dersler aktarılmaz, tekrar alınan derslerde en son not
-                    sayılır.
+                    BİLSİS'ten indirdiğin "Not Durum Belgesi (Transkript)" PDF'ini ya da metin çıktısını seç. Dosya yalnızca bu
+                    cihazda okunur; ad, numara ve kimlik bilgilerin alınmaz. Notu henüz girilmemiş dersler aktarılmaz, tekrar alınan
+                    derslerde en son not sayılır.
                   </Text>
                 )}
                 <Pressable
@@ -1390,9 +1432,36 @@ export default function AktsCalculatorScreen() {
                     <Upload size={22} color={isDark ? '#9ca3af' : '#6b7280'} />
                   )}
                   <Text className="text-[13.5px] font-medium text-ink2">
-                    {importParsing ? 'Okunuyor...' : importSource === 'excel' ? 'xlsx / xls / csv dosyası seç' : 'Transkript PDF’i seç'}
+                    {importParsing ? 'Okunuyor...' : importSource === 'excel' ? 'xlsx / xls / csv dosyası seç' : 'PDF / txt dosyası seç'}
                   </Text>
                 </Pressable>
+                {importSource === 'bilsis' &&
+                  (pasteOpen ? (
+                    <View className="mt-3 gap-2">
+                      <TextInput
+                        className="border border-line rounded-lg px-3 py-2 text-ink text-[11px] bg-inset"
+                        style={{ minHeight: 120, maxHeight: 220, textAlignVertical: 'top', fontFamily: 'monospace' }}
+                        multiline
+                        value={pasteText}
+                        onChangeText={setPasteText}
+                        placeholder="BİLSİS'teki metin tablosunu buraya yapıştır"
+                        placeholderTextColor="#9ca3af"
+                        autoCorrect={false}
+                        autoCapitalize="none"
+                      />
+                      <Pressable
+                        className={`items-center rounded-lg border border-line py-2.5 ${pasteText.trim() ? '' : 'opacity-50'}`}
+                        onPress={handleParsePasted}
+                        disabled={!pasteText.trim()}
+                      >
+                        <Text className="text-ink2 text-sm font-semibold">Metni çözümle</Text>
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <Pressable onPress={() => setPasteOpen(true)} hitSlop={8} className="mt-2.5 self-center">
+                      <Text className="text-[13px] text-accent font-semibold">Ya da metni yapıştır</Text>
+                    </Pressable>
+                  ))}
 
                 {importPreview && (
                   <View className="mt-4 gap-2.5">
