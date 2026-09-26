@@ -233,7 +233,10 @@ export const moderationAPI = {
   report: (body: { targetType: ReportTargetType; targetId: string | number; reason: string; details?: string }) =>
     api.post('/reports', body),
   block: (userId: string | number) => api.post(`/users/${userId}/block`),
-  unblock: (userId: string | number) => api.delete(`/users/${userId}/block`),
+  // `reason`: profildeki engel ekranında "Pişmanım" / "Barıştık" — admin
+  // panelindeki "Engeli açılanlar" listesine düşüyor. Listeden kaldırmada yok.
+  unblock: (userId: string | number, reason?: 'regret' | 'reconciled') =>
+    api.delete(`/users/${userId}/block`, reason ? { data: { reason } } : undefined),
   myBlocks: () => api.get('/users/me/blocks'),
 };
 

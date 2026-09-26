@@ -5,7 +5,6 @@ import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  Ban,
   Bell,
   Bookmark,
   Calculator,
@@ -24,6 +23,7 @@ import {
 import { avatarAPI, badgeAPI, faqAPI, moderationAPI, suggestionAPI, userAPI } from '../../lib/api';
 import { emitBlockChanged } from '../../lib/moderationEvents';
 import ModerationMenu from '../../components/moderation/ModerationMenu';
+import BlockedDeerCard from '../../components/moderation/BlockedDeerCard';
 import { useTheme } from '../../context/ThemeContext';
 import PostCard from '../../components/PostCard';
 import { PostListSkeleton } from '../../components/PostCardSkeleton';
@@ -118,6 +118,8 @@ export default function UserProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [banned, setBanned] = useState(false);
+  // Profil sahibi BENİ engelledi (sunucu 403 + code BLOCKED_BY_USER).
+  const [blockedByThem, setBlockedByThem] = useState(false);
   // Sunucudan yanıt gelmeden başarısız olan istekler (zaman aşımı, bağlantı
   // kopması) eskiden de "Kullanıcı bulunamadı" gösteriyordu — yanıltıcıydı.
   // `err.response` yoksa bu bir ağ hatası, gerçek bir 404 değil.
@@ -249,7 +251,8 @@ export default function UserProfileScreen() {
         setBadges(badgeRes.data?.badges || []);
       } catch (err: any) {
         if (cancelled) return;
-        if (err.response?.status === 403) setBanned(true);
+        if (err.response?.data?.code === 'BLOCKED_BY_USER') setBlockedByThem(true);
+        else if (err.response?.status === 403) setBanned(true);
         else if (!err.response) setLoadError(true);
         else setNotFound(true);
       } finally {
@@ -374,6 +377,14 @@ export default function UserProfileScreen() {
         <ShieldOff size={48} color="#f87171" />
         <Text className="text-[15px] font-semibold text-ink2 text-center">Profil görüntülemeniz admin tarafından yasaklanmıştır</Text>
       </View>
+    );
+  }
+
+  if (blockedByThem) {
+    return (
+      <ScrollView className="flex-1 bg-ground" contentContainerStyle={{ padding: 16, paddingBottom: 120 }}>
+        <BlockedDeerCard mode="them" />
+      </ScrollView>
     );
   }
 
@@ -642,26 +653,19 @@ export default function UserProfileScreen() {
       </View>
 
       {profile.is_blocked_by_me ? (
-        <View className="items-center gap-2 py-8 px-[30px] bg-surface rounded-lg" style={SHADOW_MD}>
-          <Ban size={44} color={isDark ? '#6b7280' : '#9ca3af'} />
-          <Text className="text-lg text-muted font-semibold">Bu kullanıcıyı engelledin.</Text>
-          <Text className="text-sm text-muted2 text-center">Gönderileri, yorumları ve diğer içerikleri sana gösterilmiyor.</Text>
-          <Pressable
-            className="bg-brand rounded-lg px-4 py-2.5 mt-2"
-            onPress={async () => {
-              try {
-                await moderationAPI.unblock(profile.id);
-                emitBlockChanged(profile.id, false);
-                queryClient.invalidateQueries();
-                setProfile((prev) => (prev ? { ...prev, is_blocked_by_me: false } : prev));
-              } catch {
-                Alert.alert('Hata', 'Engel kaldırılamadı.');
-              }
-            }}
-          >
-            <Text className="text-white text-sm font-semibold">Engeli kaldır</Text>
-          </Pressable>
-        </View>
+        <BlockedDeerCard
+          mode="me"
+          onUnblock={async (reason) => {
+            try {
+              await moderationAPI.unblock(profile.id, reason);
+              emitBlockChanged(profile.id, false);
+              queryClient.invalidateQueries();
+              setProfile((prev) => (prev ? { ...prev, is_blocked_by_me: false } : prev));
+            } catch {
+              Alert.alert('Hata', 'Engel kaldırılamadı.');
+            }
+          }}
+        />
       ) : isPrivate ? (
         <View className="items-center gap-2 py-8 px-[30px] bg-surface rounded-lg" style={SHADOW_MD}>
           <Lock size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
