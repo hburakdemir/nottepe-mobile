@@ -2,7 +2,7 @@
   "expo": {
     "name": "Nottepe",
     "slug": "nottepe-mobile",
-    "version": "1.0.22",
+    "version": "1.0.23",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "scheme": "nottepe",
@@ -10,7 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.nottepe.app",
-      "buildNumber": "13",
+      "buildNumber": "14",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -25,7 +25,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.nottepe.app",
-      "versionCode": 16,
+      "versionCode": 17,
       "blockedPermissions": [
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.USE_EXACT_ALARM"
