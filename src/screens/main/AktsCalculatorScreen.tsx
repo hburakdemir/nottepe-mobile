@@ -29,7 +29,7 @@ import {
   XCircle,
 } from 'lucide-react-native';
 import { aktsAPI } from '../../lib/api';
-import { useTheme } from '../../context/ThemeContext';
+import { useThemeColors } from '../../context/ThemeContext';
 import type { RootStackParamList } from '../../navigation/types';
 import {
   ALL_GRADES,
@@ -120,8 +120,10 @@ function emptyQuickRow() {
 
 export default function AktsCalculatorScreen() {
   const route = useRoute<any>();
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
+  // İkon/çizim renkleri tema token'larından — eskiden her biri
+  // `isDark ? '#hex' : '#hex'` diye elle yazılıydı ve bazıları yanındaki
+  // yazının token'ıyla uyuşmuyordu (ör. koyu temada gri ikon + bej yazı).
+  const colors = useThemeColors();
   const loadId = (route.params as RootStackParamList['AktsCalculator'])?.loadId;
   const [title, setTitle] = useState('Hesaplamam');
   const [courses, setCourses] = useState<Course[]>([]);
@@ -629,7 +631,7 @@ export default function AktsCalculatorScreen() {
       {/* Başlık */}
       <View className="gap-1">
         <View className="flex-row items-center gap-2.5">
-          <Calculator size={32} color={isDark ? '#5A9690' : '#2F5755'} />
+          <Calculator size={32} color={colors.accent} />
           <Text className="text-3xl font-extrabold text-ink flex-shrink">AKTS / GANO Hesaplama</Text>
         </View>
         <Text className="text-sm text-muted mt-1">
@@ -649,28 +651,24 @@ export default function AktsCalculatorScreen() {
           icon={Layers}
           label="Toplam AKTS"
           value={baseTotals.totalAkts.toLocaleString('tr-TR')}
-          isDark={isDark}
           info="Bu hesaplamaya girdiğin derslerin AKTS toplamı — resmi transkriptindeki gerçek toplam AKTS'den farklı olabilir, çünkü sadece burada eklediğin dersleri sayar."
         />
         <StatCard
           icon={CheckCircle2}
           label="Başarılı AKTS"
           value={baseTotals.passedAkts.toLocaleString('tr-TR')}
-          isDark={isDark}
           info="Geçer bir notla tamamladığın derslerin AKTS toplamı."
         />
         <StatCard
           icon={XCircle}
           label="Başarısız AKTS"
           value={baseTotals.failedAkts.toLocaleString('tr-TR')}
-          isDark={isDark}
           info="Kaldığın (FF/FD gibi başarısız notlu) derslerin AKTS toplamı."
         />
         <StatCard
           icon={Sigma}
           label="Toplam Kalite Puanı"
           value={baseTotals.qualityPoints.toLocaleString('tr-TR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
-          isDark={isDark}
           info="Kredili her dersin AKTS × katsayı değerlerinin toplamı. GANO = Toplam Kalite Puanı ÷ Kredili AKTS."
         />
         <View className="w-[47.5%] bg-brand rounded-lg p-4" style={SHADOW_MD}>
@@ -690,7 +688,7 @@ export default function AktsCalculatorScreen() {
           onChangeText={setTitle}
           maxLength={120}
           placeholder="Hesaplama adı (örn. Lisans Notlarım)"
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={colors.muted2}
         />
       </View>
       <View className="flex-row flex-wrap gap-2">
@@ -705,15 +703,15 @@ export default function AktsCalculatorScreen() {
           </Text>
         </Pressable>
         <Pressable className="flex-row items-center gap-2 border border-line rounded-lg px-4 py-2" onPress={openImportPicker}>
-          <FileUp size={16} color={isDark ? '#9ca3af' : '#374151'} />
+          <FileUp size={16} color={colors.ink2} />
           <Text className="text-ink2 text-sm font-semibold">Dosyadan Aktar</Text>
         </Pressable>
         <Pressable className="flex-row items-center gap-2 border border-line rounded-lg px-4 py-2" onPress={handleExport}>
-          <FileDown size={16} color={isDark ? '#9ca3af' : '#374151'} />
+          <FileDown size={16} color={colors.ink2} />
           <Text className="text-ink2 text-sm font-semibold">Excel'e Aktar</Text>
         </Pressable>
         <Pressable className="flex-row items-center gap-2 border border-line rounded-lg px-4 py-2" onPress={handleClear}>
-          <RotateCcw size={16} color={isDark ? '#9ca3af' : '#374151'} />
+          <RotateCcw size={16} color={colors.ink2} />
           <Text className="text-ink2 text-sm font-semibold">Temizle</Text>
         </Pressable>
       </View>
@@ -733,12 +731,12 @@ export default function AktsCalculatorScreen() {
         onPress={() => setShowSaved((v) => !v)}
       >
         <Text className="text-sm font-semibold text-ink2">Kayıtlı Hesaplamalarım ({savedCalcs.length})</Text>
-        <ChevronDown size={16} color={isDark ? '#9ca3af' : '#6b7280'} style={{ transform: [{ rotate: showSaved ? '180deg' : '0deg' }] }} />
+        <ChevronDown size={16} color={colors.muted} style={{ transform: [{ rotate: showSaved ? '180deg' : '0deg' }] }} />
       </Pressable>
       {showSaved && (
         <View className="gap-2 mb-2">
           {showSavedLoading ? (
-            <ActivityIndicator color={isDark ? '#5A9690' : '#2F5755'} />
+            <ActivityIndicator color={colors.accent} />
           ) : savedCalcs.length === 0 ? (
             <Text className="text-muted2 text-sm py-1">Henüz kayıtlı hesaplama yok.</Text>
           ) : (
@@ -751,7 +749,7 @@ export default function AktsCalculatorScreen() {
                   </Text>
                 </Pressable>
                 <Pressable onPress={() => handleDeleteSaved(calc)} hitSlop={8}>
-                  <Trash2 size={16} color={isDark ? '#f87171' : '#dc2626'} />
+                  <Trash2 size={16} color={colors.danger} />
                 </Pressable>
               </View>
             ))
@@ -762,7 +760,7 @@ export default function AktsCalculatorScreen() {
       {/* Ders Ekle */}
       <View className="bg-surface rounded-xl p-5 border border-line-soft" style={SHADOW_MD}>
         <View className="flex-row items-center gap-2">
-          <Plus size={18} color={isDark ? '#5A9690' : '#2F5755'} />
+          <Plus size={18} color={colors.accent} />
           <Text className="text-base font-semibold text-ink">Ders Ekle</Text>
         </View>
         <Pressable className="flex-row items-center gap-1.5 bg-brand rounded-lg px-4 py-2 mt-3 self-start" onPress={openAddForm}>
@@ -779,7 +777,7 @@ export default function AktsCalculatorScreen() {
       >
         <View className="flex-row items-center justify-between flex-wrap gap-2">
           <View className="flex-row items-center gap-2">
-            <ListOrdered size={18} color={isDark ? '#5A9690' : '#2F5755'} />
+            <ListOrdered size={18} color={colors.accent} />
             <Text className="text-base font-semibold text-ink">Harf Notları ve Karşılıkları</Text>
           </View>
           <View className="flex-row items-center gap-2">
@@ -790,7 +788,7 @@ export default function AktsCalculatorScreen() {
             )}
             <ChevronDown
               size={18}
-              color={isDark ? '#9ca3af' : '#6b7280'}
+              color={colors.muted}
               style={{ transform: [{ rotate: gradeScaleOpen ? '180deg' : '0deg' }] }}
             />
           </View>
@@ -835,7 +833,7 @@ export default function AktsCalculatorScreen() {
           </Text>
         </View>
         <View className="flex-row items-center gap-1.5 mt-3">
-          <Filter size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
+          <Filter size={14} color={colors.muted} />
           <ScrollView
             showsVerticalScrollIndicator={false}
             horizontal
@@ -873,7 +871,7 @@ export default function AktsCalculatorScreen() {
                 >
                   <ChevronDown
                     size={14}
-                    color={isDark ? '#5A9690' : '#2F5755'}
+                    color={colors.accent}
                     style={{ transform: [{ rotate: isOpen ? '180deg' : '0deg' }] }}
                   />
                   <Text className="text-xs font-semibold text-accent uppercase">
@@ -887,7 +885,7 @@ export default function AktsCalculatorScreen() {
                 {isOpen && (
                   <View className="gap-1.5 mt-1.5">
                     {semCourses.map((course) => (
-                      <CourseRow key={course.id} course={course} onEdit={openEditForm} onDelete={handleDeleteCourse} isDark={isDark} />
+                      <CourseRow key={course.id} course={course} onEdit={openEditForm} onDelete={handleDeleteCourse} />
                     ))}
                   </View>
                 )}
@@ -897,7 +895,7 @@ export default function AktsCalculatorScreen() {
         ) : (
           <View className="gap-1.5 mt-3">
             {filteredCourses.map((course) => (
-              <CourseRow key={course.id} course={course} onEdit={openEditForm} onDelete={handleDeleteCourse} isDark={isDark} />
+              <CourseRow key={course.id} course={course} onEdit={openEditForm} onDelete={handleDeleteCourse} />
             ))}
           </View>
         )}
@@ -906,7 +904,7 @@ export default function AktsCalculatorScreen() {
       {/* Senaryo hesaplama */}
       <View className="bg-surface rounded-xl p-5 border border-line-soft" style={SHADOW_MD}>
         <View className="flex-row items-center gap-2">
-          <FlaskConical size={18} color={isDark ? '#5A9690' : '#2F5755'} />
+          <FlaskConical size={18} color={colors.accent} />
           <Text className="text-base font-semibold text-ink">Senaryo Hesaplama</Text>
         </View>
         <Text className="text-sm text-muted mt-1">Bir dersten farklı not alsaydın GANO'n ne olurdu? Gerçek verin değişmez.</Text>
@@ -963,7 +961,7 @@ export default function AktsCalculatorScreen() {
                 <Text className="text-muted2">→</Text>
                 <Text className="text-[12.5px] font-bold text-accent">{grade}</Text>
                 <Pressable onPress={() => removeScenarioOverride(course.id)} hitSlop={8}>
-                  <X size={16} color={isDark ? '#f87171' : '#660B05'} />
+                  <X size={16} color={colors.danger} />
                 </Pressable>
               </View>
             ))}
@@ -991,7 +989,7 @@ export default function AktsCalculatorScreen() {
       {/* Hedef GANO */}
       <View className="bg-surface rounded-xl p-5 border border-line-soft" style={SHADOW_MD}>
         <View className="flex-row items-center gap-2">
-          <Target size={18} color={isDark ? '#5A9690' : '#2F5755'} />
+          <Target size={18} color={colors.accent} />
           <Text className="text-base font-semibold text-ink">Hedef GANO</Text>
         </View>
         <Text className="text-sm text-muted mt-1">
@@ -1005,7 +1003,7 @@ export default function AktsCalculatorScreen() {
               value={targetGpa}
               onChangeText={setTargetGpa}
               placeholder="3.00"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.muted2}
               keyboardType="decimal-pad"
             />
           </View>
@@ -1015,7 +1013,7 @@ export default function AktsCalculatorScreen() {
               className="border border-line rounded-lg px-3 py-2 text-sm text-ink"
               value={plannedAkts}
               onChangeText={setPlannedAkts}
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.muted2}
               keyboardType="number-pad"
             />
           </View>
@@ -1052,7 +1050,7 @@ export default function AktsCalculatorScreen() {
       {/* Hızlı tahmin */}
       <View className="bg-surface rounded-xl p-5 border border-line-soft" style={SHADOW_MD}>
         <View className="flex-row items-center gap-2">
-          <Sparkles size={18} color={isDark ? '#5A9690' : '#2F5755'} />
+          <Sparkles size={18} color={colors.accent} />
           <Text className="text-base font-semibold text-ink">Hızlı Tahmin — Ortalamam Kaç Olur?</Text>
         </View>
         <Text className="text-sm text-muted mt-1">
@@ -1066,7 +1064,7 @@ export default function AktsCalculatorScreen() {
               value={quickGano}
               onChangeText={setQuickGano}
               placeholder="3.34"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.muted2}
               keyboardType="decimal-pad"
             />
           </View>
@@ -1077,7 +1075,7 @@ export default function AktsCalculatorScreen() {
               value={quickAkts}
               onChangeText={setQuickAkts}
               placeholder="120"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={colors.muted2}
               keyboardType="number-pad"
             />
           </View>
@@ -1093,7 +1091,7 @@ export default function AktsCalculatorScreen() {
                 value={row.akts}
                 onChangeText={(v) => setQuickRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, akts: v } : r)))}
                 placeholder="AKTS"
-                placeholderTextColor="#9ca3af"
+                placeholderTextColor={colors.muted2}
                 keyboardType="number-pad"
               />
               <Pressable
@@ -1124,7 +1122,7 @@ export default function AktsCalculatorScreen() {
                     value={row.score}
                     onChangeText={(v) => setQuickRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, score: v } : r)))}
                     placeholder="68"
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={colors.muted2}
                     keyboardType="number-pad"
                   />
                   {rowGrade && (
@@ -1136,14 +1134,14 @@ export default function AktsCalculatorScreen() {
               )}
               {quickRows.length > 1 && (
                 <Pressable onPress={() => setQuickRows((prev) => prev.filter((r) => r.id !== row.id))} hitSlop={8}>
-                  <X size={16} color={isDark ? '#f87171' : '#660B05'} />
+                  <X size={16} color={colors.danger} />
                 </Pressable>
               )}
             </View>
           );
         })}
         <Pressable className="flex-row items-center gap-[5px] mt-2" onPress={() => setQuickRows((prev) => [...prev, emptyQuickRow()])}>
-          <Plus size={14} color={isDark ? '#5A9690' : '#2F5755'} />
+          <Plus size={14} color={colors.accent} />
           <Text className="text-sm font-medium text-accent">Ders Ekle</Text>
         </Pressable>
 
@@ -1163,20 +1161,18 @@ export default function AktsCalculatorScreen() {
 
       {/* İstatistikler + grafikler */}
       <View className="flex-row flex-wrap gap-2.5">
-        <StatCard icon={FileSpreadsheet} label="Toplam Ders" value={String(stats.totalCourses)} isDark={isDark} />
+        <StatCard icon={FileSpreadsheet} label="Toplam Ders" value={String(stats.totalCourses)} />
         <StatCard
           icon={CheckCircle2}
           label="Başarı Oranı"
           value={stats.successRate === null ? '—' : `%${stats.successRate.toFixed(0)}`}
-          isDark={isDark}
         />
-        <StatCard icon={CheckCircle2} label="Başarılı Ders" value={String(stats.passedCourses)} isDark={isDark} />
-        <StatCard icon={XCircle} label="Başarısız Ders" value={String(stats.failedCourses)} isDark={isDark} />
+        <StatCard icon={CheckCircle2} label="Başarılı Ders" value={String(stats.passedCourses)} />
+        <StatCard icon={XCircle} label="Başarısız Ders" value={String(stats.failedCourses)} />
         <StatCard
           icon={Layers}
           label="Ort. AKTS / Dönem"
           value={stats.avgAktsPerSemester === null ? '—' : stats.avgAktsPerSemester.toFixed(1)}
-          isDark={isDark}
         />
       </View>
 
@@ -1235,18 +1231,18 @@ export default function AktsCalculatorScreen() {
             <View className="flex-row h-6 rounded-lg overflow-hidden gap-px">
               {baseTotals.passedAkts > 0 && <View className="bg-brand" style={{ flex: baseTotals.passedAkts }} />}
               {baseTotals.failedAkts > 0 && (
-                <View style={{ flex: baseTotals.failedAkts, backgroundColor: isDark ? '#dc2626' : '#8C1007' }} />
+                <View style={{ flex: baseTotals.failedAkts, backgroundColor: colors.fail }} />
               )}
             </View>
             <View className="flex-row flex-wrap gap-4 mt-3">
               <View className="flex-row items-center gap-1.5">
-                <View className="w-3 h-3 rounded-[3px]" style={{ backgroundColor: isDark ? '#5A9690' : '#2F5755' }} />
+                <View className="w-3 h-3 rounded-[3px]" style={{ backgroundColor: colors.accent }} />
                 <Text className="text-sm text-ink2">
                   Başarılı: <Text className="font-bold">{baseTotals.passedAkts} AKTS</Text>
                 </Text>
               </View>
               <View className="flex-row items-center gap-1.5">
-                <View className="w-3 h-3 rounded-[3px]" style={{ backgroundColor: isDark ? '#dc2626' : '#8C1007' }} />
+                <View className="w-3 h-3 rounded-[3px]" style={{ backgroundColor: colors.fail }} />
                 <Text className="text-sm text-ink2">
                   Başarısız: <Text className="font-bold">{baseTotals.failedAkts} AKTS</Text>
                 </Text>
@@ -1269,32 +1265,32 @@ export default function AktsCalculatorScreen() {
               <View className="flex-row items-center justify-between">
                 <Text className="text-xl font-bold text-ink flex-1 pr-3">{editingCourseId ? 'Dersi Düzenle' : 'Ders Ekle'}</Text>
                 <Pressable onPress={() => setShowForm(false)} hitSlop={8}>
-                  <X size={20} color={isDark ? '#9ca3af' : '#6b7280'} />
+                  <X size={20} color={colors.muted} />
                 </Pressable>
               </View>
               <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 12 }}>
-                <Text className="text-sm font-medium text-gray-700 mb-1.5 mt-3">Ders Adı *</Text>
+                <Text className="text-sm font-medium text-ink2 mb-1.5 mt-3">Ders Adı *</Text>
                 <TextInput
                   className="border border-line rounded-lg px-3 py-2 text-sm text-ink"
                   value={draft.name}
                   onChangeText={(v) => setDraft((d) => ({ ...d, name: v }))}
                   maxLength={120}
                   placeholder="Örn: Matematik I"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={colors.muted2}
                 />
-                <Text className="text-sm font-medium text-gray-700 mb-1.5 mt-3">Ders Kodu (ops.)</Text>
+                <Text className="text-sm font-medium text-ink2 mb-1.5 mt-3">Ders Kodu (ops.)</Text>
                 <TextInput
                   className="border border-line rounded-lg px-3 py-2 text-sm text-ink"
                   value={draft.code}
                   onChangeText={(v) => setDraft((d) => ({ ...d, code: v }))}
                   maxLength={20}
                   placeholder="Örn: MAT101"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={colors.muted2}
                   autoCapitalize="characters"
                 />
                 <View className="flex-row gap-2.5">
                   <View className="flex-1">
-                    <Text className="text-sm font-medium text-gray-700 mb-1.5 mt-3">Dönem</Text>
+                    <Text className="text-sm font-medium text-ink2 mb-1.5 mt-3">Dönem</Text>
                     <TextInput
                       className="border border-line rounded-lg px-3 py-2 text-sm text-ink"
                       value={draft.semester}
@@ -1304,7 +1300,7 @@ export default function AktsCalculatorScreen() {
                     />
                   </View>
                   <View className="flex-1">
-                    <Text className="text-sm font-medium text-gray-700 mb-1.5 mt-3">AKTS *</Text>
+                    <Text className="text-sm font-medium text-ink2 mb-1.5 mt-3">AKTS *</Text>
                     <TextInput
                       className="border border-line rounded-lg px-3 py-2 text-sm text-ink"
                       value={draft.akts}
@@ -1357,7 +1353,7 @@ export default function AktsCalculatorScreen() {
                         keyboardType="number-pad"
                         maxLength={3}
                         placeholder="68"
-                        placeholderTextColor="#9ca3af"
+                        placeholderTextColor={colors.muted2}
                       />
                       {effectiveDraftGrade && CREDITED_GRADES.includes(effectiveDraftGrade) && (
                         <View className="bg-accent-soft rounded-full px-2 py-1">
@@ -1384,7 +1380,7 @@ export default function AktsCalculatorScreen() {
               <View className="flex-row items-center justify-between">
                 <Text className="text-xl font-bold text-ink flex-1 pr-3">AKTS İçe Aktar</Text>
                 <Pressable onPress={() => setShowImport(false)} hitSlop={8}>
-                  <X size={20} color={isDark ? '#9ca3af' : '#6b7280'} />
+                  <X size={20} color={colors.muted} />
                 </Pressable>
               </View>
               <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 12 }}>
@@ -1427,9 +1423,9 @@ export default function AktsCalculatorScreen() {
                   disabled={importParsing}
                 >
                   {importParsing ? (
-                    <ActivityIndicator color={isDark ? '#9ca3af' : '#6b7280'} />
+                    <ActivityIndicator color={colors.muted} />
                   ) : (
-                    <Upload size={22} color={isDark ? '#9ca3af' : '#6b7280'} />
+                    <Upload size={22} color={colors.muted} />
                   )}
                   <Text className="text-[13.5px] font-medium text-ink2">
                     {importParsing ? 'Okunuyor...' : importSource === 'excel' ? 'xlsx / xls / csv dosyası seç' : 'PDF / txt dosyası seç'}
@@ -1445,7 +1441,7 @@ export default function AktsCalculatorScreen() {
                         value={pasteText}
                         onChangeText={setPasteText}
                         placeholder="BİLSİS'teki metin tablosunu buraya yapıştır"
-                        placeholderTextColor="#9ca3af"
+                        placeholderTextColor={colors.muted2}
                         autoCorrect={false}
                         autoCapitalize="none"
                       />
@@ -1504,7 +1500,7 @@ export default function AktsCalculatorScreen() {
                     {importPreview.errors.length > 0 && (
                       <View>
                         <View className="flex-row items-center gap-1.5 mb-1.5">
-                          <AlertTriangle size={15} color={isDark ? '#dc2626' : '#8C1007'} />
+                          <AlertTriangle size={15} color={colors.fail} />
                           <Text className="text-sm font-semibold text-fail">Hatalı satırlar ({importPreview.errors.length})</Text>
                         </View>
                         {importPreview.errors.slice(0, PREVIEW_ROW_LIMIT).map((err, i) => (
@@ -1561,19 +1557,18 @@ function StatCard({
   icon: Icon,
   label,
   value,
-  isDark,
   info,
 }: {
   icon: any;
   label: string;
   value: string;
-  isDark: boolean;
   info?: string;
 }) {
+  const colors = useThemeColors();
   return (
     <View className="w-[47.5%] bg-surface rounded-lg p-4" style={SHADOW_MD}>
       <View className="flex-row items-center gap-1.5 mb-1">
-        <Icon size={16} color={isDark ? '#5A9690' : '#2F5755'} />
+        <Icon size={16} color={colors.accent} />
         <Text className="text-xs font-medium text-muted flex-1" numberOfLines={1}>
           {label}
         </Text>
@@ -1585,7 +1580,7 @@ function StatCard({
           hitSlop={8}
           className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full items-center justify-center bg-inset"
         >
-          <Info size={12} color={isDark ? '#5A9690' : '#2F5755'} />
+          <Info size={12} color={colors.accent} />
         </Pressable>
       )}
     </View>
@@ -1604,13 +1599,12 @@ function CourseRow({
   course,
   onEdit,
   onDelete,
-  isDark,
 }: {
   course: Course;
   onEdit: (c: Course) => void;
   onDelete: (c: Course) => void;
-  isDark: boolean;
 }) {
+  const colors = useThemeColors();
   const coefficient = getCoefficient(course.grade);
   const qualityPoints = coefficient === null ? null : Number(course.akts) * coefficient;
   const failed = isFailGrade(course.grade);
@@ -1619,7 +1613,7 @@ function CourseRow({
     <View className="flex-row items-center bg-surface rounded-lg border border-line-soft px-3 py-2.5">
       <Pressable className="flex-1" onPress={() => onEdit(course)}>
         <Text className="text-[13.5px] font-semibold text-ink">
-          {course.code ? <Text className="text-gray-400 font-normal">{course.code} · </Text> : null}
+          {course.code ? <Text className="text-muted2 font-normal">{course.code} · </Text> : null}
           {course.name}
         </Text>
         <Text className="text-[11px] text-muted2 mt-[3px]">
@@ -1631,10 +1625,10 @@ function CourseRow({
         <Text className="text-xs font-bold text-ink2">{course.grade}</Text>
       </View>
       <Pressable onPress={() => onEdit(course)} hitSlop={8} className="ml-2.5">
-        <Pencil size={16} color={isDark ? '#5A9690' : '#2F5755'} />
+        <Pencil size={16} color={colors.accent} />
       </Pressable>
       <Pressable onPress={() => onDelete(course)} hitSlop={8} className="ml-2.5">
-        <Trash2 size={16} color={isDark ? '#f87171' : '#660B05'} />
+        <Trash2 size={16} color={colors.danger} />
       </Pressable>
     </View>
   );

@@ -111,6 +111,8 @@ export const THEME_COLORS = {
     accent: LIGHT_VARS['--accent'],
     accentSoft: LIGHT_VARS['--accent-soft'],
     danger: LIGHT_VARS['--danger'],
+    // AKTS: kalınan harf notu / kalınan AKTS çubuğu (bkz. --fail).
+    fail: LIGHT_VARS['--fail'],
     dangerSoft: LIGHT_VARS['--danger-soft'],
     dangerLine: LIGHT_VARS['--danger-line'],
     success: LIGHT_VARS['--success'],
@@ -132,6 +134,8 @@ export const THEME_COLORS = {
     accent: DARK_VARS['--accent'],
     accentSoft: DARK_VARS['--accent-soft'],
     danger: DARK_VARS['--danger'],
+    // AKTS: kalınan harf notu / kalınan AKTS çubuğu (bkz. --fail).
+    fail: DARK_VARS['--fail'],
     dangerSoft: DARK_VARS['--danger-soft'],
     dangerLine: DARK_VARS['--danger-line'],
     success: DARK_VARS['--success'],
