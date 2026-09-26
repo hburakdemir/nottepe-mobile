@@ -33,6 +33,8 @@ import { useThemeColors } from '../../context/ThemeContext';
 import type { RootStackParamList } from '../../navigation/types';
 import {
   ALL_GRADES,
+  computeAgnoThrough,
+  computeSemesterGano,
   computeStats,
   computeTargetPlan,
   computeTotals,
@@ -861,7 +863,8 @@ export default function AktsCalculatorScreen() {
           <Text className="text-muted2 text-sm py-1">Gösterilecek ders yok. Yukarıdan ders ekle veya dosyadan içe aktar.</Text>
         ) : groupedFiltered ? (
           groupedFiltered.map(([semKey, semCourses]) => {
-            const semGano = computeTotals(semCourses).gano;
+            const semGano = computeSemesterGano(semCourses);
+            const agno = typeof semKey === 'number' ? computeAgnoThrough(courses, semKey) : null;
             const isOpen = !collapsedSemesters.has(semKey);
             return (
               <View key={String(semKey)} className="mt-3">
@@ -879,6 +882,9 @@ export default function AktsCalculatorScreen() {
                     <Text className="text-muted2 font-normal normal-case">({semCourses.length} ders)</Text>
                     {semGano !== null && (
                       <Text className="text-muted2 font-normal normal-case"> · Dönem Ortalaması: {formatGpa(semGano)}</Text>
+                    )}
+                    {agno !== null && (
+                      <Text className="text-muted2 font-normal normal-case"> · AGNO: {formatGpa(agno)}</Text>
                     )}
                   </Text>
                 </Pressable>

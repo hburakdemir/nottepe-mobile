@@ -252,29 +252,18 @@ function finalize(raw: RawCourse[], terms: TermRegistry): TranscriptParseResult 
     graded.push({ ...c, grade });
   }
 
-  // Tekrar alınan derste yalnızca EN SON notlu deneme sayılıyor — resmi AGNO
-  // da böyle hesaplanıyor. Eski deneme de aktarılsaydı hem AKTS hem ortalama
-  // iki kez sayılırdı. Notu henüz girilmemiş tekrar ("--") yukarıda elendiği
-  // için eski not sayılmaya devam ediyor; bu da belgedeki AGNO ile tutarlı.
-  const latestByCode = new Map<string, RawCourse>();
-  for (const c of graded) {
-    const prev = latestByCode.get(c.code);
-    if (!prev || c.term >= prev.term) latestByCode.set(c.code, c);
-  }
-  const courses: TranscriptCourse[] = [];
-  for (const c of graded) {
-    if (latestByCode.get(c.code) !== c) {
-      skipped.push({ code: c.code, lessonName: c.name, reason: `Tekrar alındı, eski not (${c.grade}) sayılmadı` });
-      continue;
-    }
-    courses.push({
-      code: c.code,
-      lessonName: c.name,
-      semester: c.term,
-      akts: c.akts,
-      grade: c.grade,
-    });
-  }
+  // Tekrar alınan dersin HER denemesi kendi döneminde aktarılıyor: belgedeki
+  // dönem ortalamaları (ANO) eski F'leri de içeriyor. Genel ortalamada eski
+  // denemeyi eleyen hesaplayıcının kendisi (gano.ts `latestAttempts`). Notu
+  // henüz girilmemiş tekrar ("--") yukarıda elendiği için eski not sayılmaya
+  // devam ediyor; bu da belgedeki AGNO ile tutarlı.
+  const courses: TranscriptCourse[] = graded.map((c) => ({
+    code: c.code,
+    lessonName: c.name,
+    semester: c.term,
+    akts: c.akts,
+    grade: c.grade,
+  }));
 
   return { courses, skipped, termCount: terms.size };
 }

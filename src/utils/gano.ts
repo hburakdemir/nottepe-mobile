@@ -116,8 +116,33 @@ export function effectiveGrade(course: Course, overrides: Overrides = {}): strin
   return isValidGrade(override) ? override : course.grade;
 }
 
+// Tekrar alınan derste yalnızca EN SON deneme sayılıyor (resmi AGNO kuralı):
+// aynı ders kodu birden çok dönemde varsa en büyük dönem numaralısı kalıyor,
+// eşitlikte listede sonra geleni. Kodu olmayan dersler hep sayılıyor — elle
+// girilmiş iki ders adı tesadüfen aynı olabilir. Dönem ortalaması (ANO) bu
+// elemeyi YAPMIYOR: belge her dönemin altına o dönem alınan bütün derslerle
+// hesaplanmış ANO'yu yazıyor, eski F de dahil.
+export function latestAttempts(courses: Course[]): Course[] {
+  const latest = new Map<string, Course>();
+  for (const course of courses) {
+    const code = String(course.code ?? '').trim().toLocaleUpperCase('tr-TR');
+    if (!code) continue;
+    const prev = latest.get(code);
+    if (!prev || Number(course.semester) >= Number(prev.semester)) latest.set(code, course);
+  }
+  return courses.filter((course) => {
+    const code = String(course.code ?? '').trim().toLocaleUpperCase('tr-TR');
+    return !code || latest.get(code) === course;
+  });
+}
+
 // GANO = Σ(AKTS × katsayı) / Σ(kredili AKTS). Kredisiz dersler (G/K/H/M) orana girmez.
+// Tekrar edilen derslerin eski denemeleri sayılmaz (bkz. latestAttempts).
 export function computeTotals(courses: Course[], overrides: Overrides = {}): Totals {
+  return sumCourses(latestAttempts(courses), overrides);
+}
+
+function sumCourses(courses: Course[], overrides: Overrides): Totals {
   let creditedAkts = 0;
   let qualityPoints = 0;
   let totalAkts = 0;
@@ -149,6 +174,20 @@ export function computeTotals(courses: Course[], overrides: Overrides = {}): Tot
   };
 }
 
+// Tek dönemin ortalaması (ANO): o dönemin bütün dersleri, eleme yok.
+export function computeSemesterGano(semesterCourses: Course[], overrides: Overrides = {}): number | null {
+  return sumCourses(semesterCourses, overrides).gano;
+}
+
+// Belgedeki dönem satırının AGNO'su: o döneme kadarki (dahil) derslerin genel
+// ortalaması, tekrar edilen derslerde o güne kadarki son deneme.
+export function computeAgnoThrough(courses: Course[], semester: number, overrides: Overrides = {}): number | null {
+  return computeTotals(
+    courses.filter((course) => Number(course.semester) <= semester),
+    overrides
+  ).gano;
+}
+
 export interface SemesterRow {
   semester: number;
   courseCount: number;
@@ -168,7 +207,7 @@ export function computeSemesterRows(courses: Course[], overrides: Overrides = {}
   return [...bySemester.entries()]
     .sort(([a], [b]) => a - b)
     .map(([semester, semesterCourses]) => {
-      const totals = computeTotals(semesterCourses, overrides);
+      const totals = sumCourses(semesterCourses, overrides);
       return { semester, courseCount: semesterCourses.length, totalAkts: totals.totalAkts, gano: totals.gano };
     });
 }
@@ -191,7 +230,9 @@ export function computeStats(courses: Course[], overrides: Overrides = {}): Stat
   let failedCourses = 0;
   const gradeDistribution: Record<string, number> = {};
 
-  for (const course of courses) {
+  // Sayılar ve dağılım dersin güncel durumunu gösteriyor: sonradan geçilen
+  // dersin eski F'si "başarısız" sayılmıyor.
+  for (const course of latestAttempts(courses)) {
     const grade = effectiveGrade(course, overrides);
     if (parseAkts(course) === null || !isValidGrade(grade)) continue;
     totalCourses += 1;
