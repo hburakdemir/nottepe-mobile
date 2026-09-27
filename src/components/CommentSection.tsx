@@ -26,6 +26,7 @@ import BadgeChip from './BadgeChip';
 import { Skeleton, SkeletonGroup } from './Skeleton';
 import type { Comment } from '../types/comment';
 import BlockedContentGate from './moderation/BlockedContentGate';
+import BlockedMeTag from './moderation/BlockedMeTag';
 
 const LIMIT = 5;
 const EDIT_WINDOW_MS = 60 * 60 * 1000;
@@ -183,6 +184,7 @@ const CommentCard = React.memo(function CommentCard({
           <View style={{ flex: 1 }}>
             <View style={styles.usernameRow}>
               <Text style={[styles.username, { color: t.ink }]}>{comment.username || 'Anonim'}</Text>
+              <BlockedMeTag userId={comment.user_id} />
               {!!comment.badges?.length && (
                 <View style={styles.badgeRow}>
                   {comment.badges.map((b) => (

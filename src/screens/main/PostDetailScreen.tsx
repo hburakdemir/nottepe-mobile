@@ -31,6 +31,7 @@ import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 import StateView from '../../components/StateView';
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
 import BlockedContentGate from '../../components/moderation/BlockedContentGate';
+import BlockedMeTag from '../../components/moderation/BlockedMeTag';
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('tr-TR', {
@@ -290,6 +291,7 @@ export default function PostDetailScreen() {
                 )}
               </View>
               <Text style={[styles.date, { color: t.ink3 }]}>{formatDate(post.created_at)}</Text>
+              <BlockedMeTag userId={post.user_id} style={{ marginTop: 4 }} />
             </View>
           </Pressable>
 

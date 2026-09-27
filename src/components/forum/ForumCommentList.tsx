@@ -6,6 +6,7 @@ import { useGoToUserProfile } from '../../hooks/useGoToUserProfile';
 import { useTheme } from '../../context/ThemeContext';
 import { Skeleton, SkeletonGroup } from '../Skeleton';
 import BlockedContentGate from '../moderation/BlockedContentGate';
+import BlockedMeTag from '../moderation/BlockedMeTag';
 
 export interface ForumComment {
   id: number;
@@ -135,6 +136,7 @@ function CommentRow({
               <Text className="text-muted" style={styles.commentMeta}>
                 @{comment.username}
               </Text>
+              <BlockedMeTag userId={comment.user_id} />
               <Text className="text-muted" style={styles.commentMeta}>
                 {formatDateTime(comment.created_at)}
               </Text>

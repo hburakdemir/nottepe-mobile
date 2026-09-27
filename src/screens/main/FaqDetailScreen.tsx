@@ -13,6 +13,7 @@ import StateView from '../../components/StateView';
 import ModerationMenu from '../../components/moderation/ModerationMenu';
 import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 import BlockedContentGate from '../../components/moderation/BlockedContentGate';
+import BlockedMeTag from '../../components/moderation/BlockedMeTag';
 
 // Soru ve cevabı moderasyondan geçiyor, sık değişmiyor; ama yorumlar ve oylar
 // canlı. Bu yüzden liste ekranının 24 saati yerine daha kısa bir tazelik:
@@ -180,6 +181,7 @@ export default function FaqDetailScreen() {
               onBlocked={() => navigation.goBack()}
             />
           </View>
+          <BlockedMeTag userId={entry.created_by} style={{ marginTop: 8 }} />
           <Text className="text-sm text-ink2 mt-3 leading-5">{entry.answer}</Text>
           <View className="flex-row gap-2 mt-3">
             <Pressable

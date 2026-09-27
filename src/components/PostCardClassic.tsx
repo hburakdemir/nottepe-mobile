@@ -16,6 +16,7 @@ import AvatarDisplay from './avatar/AvatarDisplay';
 import BadgeChip from './BadgeChip';
 import SaveButton from './SaveButton';
 import BlockedContentGate from './moderation/BlockedContentGate';
+import BlockedMeTag from './moderation/BlockedMeTag';
 
 const MAX_LENGTH = 200;
 
@@ -170,6 +171,7 @@ function PostCardClassicInner({ post, showStatus = false, showRating = true, onD
         <Text className="text-ink2" style={styles.username}>
           {post.username || 'Anonim'}
         </Text>
+        <BlockedMeTag userId={post.user_id} style={{ marginLeft: 6, alignSelf: 'center' }} />
         {!!post.badges?.length && (
           <View style={styles.badgeRow}>
             {post.badges.map((badge) => (

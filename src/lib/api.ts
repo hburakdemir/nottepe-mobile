@@ -238,6 +238,8 @@ export const moderationAPI = {
   unblock: (userId: string | number, reason?: 'regret' | 'reconciled') =>
     api.delete(`/users/${userId}/block`, reason ? { data: { reason } } : undefined),
   myBlocks: () => api.get('/users/me/blocks'),
+  // Yalnızca yönetici/moderatör: beni engelleyenlerin id'leri.
+  blockedByIds: () => api.get('/users/me/blocked-by'),
 };
 
 export const userAPI = {

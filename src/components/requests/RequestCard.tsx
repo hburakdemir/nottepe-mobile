@@ -8,6 +8,7 @@ import { useTheme } from '../../context/ThemeContext';
 import type { RootStackParamList, NoteRequestSummary } from '../../navigation/types';
 import ModerationMenu from '../moderation/ModerationMenu';
 import BlockedContentGate from '../moderation/BlockedContentGate';
+import BlockedMeTag from '../moderation/BlockedMeTag';
 
 export interface NoteRequest {
   id: number;
@@ -114,6 +115,7 @@ function RequestCardInner({ request, onFulfill, onSupport, onClose, onReopen, on
         <Text className="text-muted" style={styles.metaText}>
           {request.requester_full_name || request.requester_username || 'Bir öğrenci'} · {formatDate(request.created_at)}
         </Text>
+        <BlockedMeTag userId={request.user_id} style={{ marginLeft: 4 }} />
       </View>
 
       {request.status === 'fulfilled' && request.fulfilled_post_id && (

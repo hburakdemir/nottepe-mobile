@@ -23,6 +23,7 @@ import {
 import { avatarAPI, badgeAPI, faqAPI, moderationAPI, suggestionAPI, userAPI } from '../../lib/api';
 import { emitBlockChanged } from '../../lib/moderationEvents';
 import ModerationMenu from '../../components/moderation/ModerationMenu';
+import BlockedMeTag from '../../components/moderation/BlockedMeTag';
 import BlockedDeerCard from '../../components/moderation/BlockedDeerCard';
 import { useTheme } from '../../context/ThemeContext';
 import PostCard from '../../components/PostCard';
@@ -627,6 +628,7 @@ export default function UserProfileScreen() {
               )}
             </View>
             {!!profile.full_name && <Text className="text-[13px] text-ink2 mt-0.5">{profile.full_name}</Text>}
+            <BlockedMeTag userId={profile.id} style={{ marginTop: 4 }} />
             {!!profile.department && (
               <Text className="text-xs text-muted2 mt-0.5">
                 {profile.department}

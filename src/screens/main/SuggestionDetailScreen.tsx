@@ -13,6 +13,7 @@ import StateView from '../../components/StateView';
 import ModerationMenu from '../../components/moderation/ModerationMenu';
 import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 import BlockedContentGate from '../../components/moderation/BlockedContentGate';
+import BlockedMeTag from '../../components/moderation/BlockedMeTag';
 
 const SUGGESTION_DETAIL_STALE_MS = 5 * 60 * 1000;
 
@@ -164,6 +165,7 @@ export default function SuggestionDetailScreen() {
               <Text className="text-accent font-semibold">{suggestion.full_name}</Text> tarafından {formatDate(suggestion.created_at)}
             </Text>
           </Pressable>
+          <BlockedMeTag userId={suggestion.user_id} style={{ marginTop: 6 }} />
         </View>
       </BlockedContentGate>
 

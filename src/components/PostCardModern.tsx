@@ -16,6 +16,7 @@ import FileTiles from './FileTiles';
 import SaveButton from './SaveButton';
 import ModerationMenu from './moderation/ModerationMenu';
 import BlockedContentGate from './moderation/BlockedContentGate';
+import BlockedMeTag from './moderation/BlockedMeTag';
 
 const MAX_LENGTH = 200;
 
@@ -172,6 +173,7 @@ function PostCardModernInner({ post, showStatus = false, showRating = true, onDe
         </Pressable>
       ) : null}
 
+      <BlockedMeTag userId={post.user_id} style={{ marginBottom: 6 }} />
       {/* Alt satır sabit hizada: kimlik solda, sayaçlar + kaydet sağda. */}
       <View style={styles.foot}>
         <Pressable style={styles.who} onPress={() => goToUserProfile(post.username)} hitSlop={6}>
