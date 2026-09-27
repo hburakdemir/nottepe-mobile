@@ -15,6 +15,7 @@ import AvatarDisplay from './avatar/AvatarDisplay';
 import FileTiles from './FileTiles';
 import SaveButton from './SaveButton';
 import ModerationMenu from './moderation/ModerationMenu';
+import BlockedContentGate from './moderation/BlockedContentGate';
 
 const MAX_LENGTH = 200;
 
@@ -60,7 +61,7 @@ const STATUS_BADGES: Record<string, { bg: string; text: string; label: string }>
 // Şerit nötr yüzeyde duruyor, renk yalnızca ikon karesinde — on satır arka
 // arkaya geldiğinde dolu teal bloklar akışı yoruyordu (bkz. tasarım panosu).
 // Eski tasarım PostCardClassic.tsx'te; geçiş PostCard.tsx'teki tek bayrakla.
-export default function PostCardModern({ post, showStatus = false, showRating = true, onDelete }: Props) {
+function PostCardModernInner({ post, showStatus = false, showRating = true, onDelete }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const t = useFeedTokens();
   const cardSurface = useCardSurface();
@@ -260,3 +261,12 @@ const styles = StyleSheet.create({
   ratingPicker: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   ratingPickerText: { fontSize: 12, marginLeft: 6 },
 });
+
+// Engellediğim kişinin gönderisi kapalı kutuyla (bkz. BlockedContentGate).
+export default function PostCardModern(props: Props) {
+  return (
+    <BlockedContentGate authorId={props.post.user_id} kind="gönderi" style={{ marginHorizontal: 12, marginTop: 10 }}>
+      <PostCardModernInner {...props} />
+    </BlockedContentGate>
+  );
+}

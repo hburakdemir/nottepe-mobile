@@ -17,7 +17,6 @@ import {
 import { adminCommentAPI, commentAPI } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import ModerationMenu from './moderation/ModerationMenu';
-import { onBlockChanged } from '../lib/moderationEvents';
 import { useTheme } from '../context/ThemeContext';
 import { useGoToUserProfile } from '../hooks/useGoToUserProfile';
 import { useFeedTokens } from '../theme/feedTokens';
@@ -26,6 +25,7 @@ import AvatarDisplay from './avatar/AvatarDisplay';
 import BadgeChip from './BadgeChip';
 import { Skeleton, SkeletonGroup } from './Skeleton';
 import type { Comment } from '../types/comment';
+import BlockedContentGate from './moderation/BlockedContentGate';
 
 const LIMIT = 5;
 const EDIT_WINDOW_MS = 60 * 60 * 1000;
@@ -350,15 +350,6 @@ export default function CommentSection({
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [comments, setComments] = useState<Comment[]>(firstPage?.comments ?? []);
 
-  // Yorum listesi react-query dışında tutuluyor; engellenen kişinin yorumları
-  // yeniden çekim beklemeden hemen düşsün.
-  useEffect(
-    () =>
-      onBlockChanged((userId, blocked) => {
-        if (blocked) setComments((prev) => prev.filter((c) => Number(c.user_id) !== userId));
-      }),
-    []
-  );
   const [total, setTotal] = useState(firstPage?.total ?? 0);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(
@@ -567,16 +558,17 @@ export default function CommentSection({
           ) : (
             <View style={{ gap: 10, marginTop: 10 }}>
               {comments.map((c) => (
-                <CommentCard
-                  key={c.id}
-                  comment={c}
-                  postOwnerId={postOwnerId}
-                  isAdmin={isAdmin}
-                  onDelete={handleDelete}
-                  onRestore={handleRestore}
-                  onEdit={handleEdit}
-                  onEditRatingChange={onRatingChange}
-                />
+                <BlockedContentGate key={c.id} authorId={c.user_id} kind="yorum">
+                  <CommentCard
+                    comment={c}
+                    postOwnerId={postOwnerId}
+                    isAdmin={isAdmin}
+                    onDelete={handleDelete}
+                    onRestore={handleRestore}
+                    onEdit={handleEdit}
+                    onEditRatingChange={onRatingChange}
+                  />
+                </BlockedContentGate>
               ))}
               {totalPages > 1 && (
                 <View style={styles.pagerRow}>

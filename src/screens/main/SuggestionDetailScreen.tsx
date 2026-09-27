@@ -12,6 +12,7 @@ import type { RootStackParamList } from '../../navigation/types';
 import StateView from '../../components/StateView';
 import ModerationMenu from '../../components/moderation/ModerationMenu';
 import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
+import BlockedContentGate from '../../components/moderation/BlockedContentGate';
 
 const SUGGESTION_DETAIL_STALE_MS = 5 * 60 * 1000;
 
@@ -144,25 +145,27 @@ export default function SuggestionDetailScreen() {
       contentContainerClassName="p-4 pb-[150px]"
       keyboardShouldPersistTaps="handled"
     >
-      <View className="bg-surface rounded-2xl p-4 mb-3.5">
-        <View className="flex-row gap-2.5">
-          <Lightbulb size={20} color={isDark ? '#5A9690' : '#2F5755'} style={{ marginTop: 2 }} />
-          <Text className="flex-1 text-[15.5px] text-ink leading-[22px]">{suggestion.content}</Text>
-          <ModerationMenu
-            targetType="suggestion"
-            targetId={suggestion.id}
-            ownerId={suggestion.user_id ?? null}
-            ownerUsername={suggestion.username}
-            size={20}
-            onBlocked={() => navigation.goBack()}
-          />
+      <BlockedContentGate authorId={suggestion.user_id} kind="öneri" style={{ marginBottom: 14 }}>
+        <View className="bg-surface rounded-2xl p-4 mb-3.5">
+          <View className="flex-row gap-2.5">
+            <Lightbulb size={20} color={isDark ? '#5A9690' : '#2F5755'} style={{ marginTop: 2 }} />
+            <Text className="flex-1 text-[15.5px] text-ink leading-[22px]">{suggestion.content}</Text>
+            <ModerationMenu
+              targetType="suggestion"
+              targetId={suggestion.id}
+              ownerId={suggestion.user_id ?? null}
+              ownerUsername={suggestion.username}
+              size={20}
+              onBlocked={() => navigation.goBack()}
+            />
+          </View>
+          <Pressable onPress={() => goToUserProfile(suggestion.username)}>
+            <Text className="text-[11.5px] text-muted2 mt-3.5">
+              <Text className="text-accent font-semibold">{suggestion.full_name}</Text> tarafından {formatDate(suggestion.created_at)}
+            </Text>
+          </Pressable>
         </View>
-        <Pressable onPress={() => goToUserProfile(suggestion.username)}>
-          <Text className="text-[11.5px] text-muted2 mt-3.5">
-            <Text className="text-accent font-semibold">{suggestion.full_name}</Text> tarafından {formatDate(suggestion.created_at)}
-          </Text>
-        </Pressable>
-      </View>
+      </BlockedContentGate>
 
       <View className="bg-surface rounded-2xl p-4 mb-3.5">
         <ForumCommentList

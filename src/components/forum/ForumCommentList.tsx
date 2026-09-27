@@ -5,6 +5,7 @@ import ModerationMenu from '../moderation/ModerationMenu';
 import { useGoToUserProfile } from '../../hooks/useGoToUserProfile';
 import { useTheme } from '../../context/ThemeContext';
 import { Skeleton, SkeletonGroup } from '../Skeleton';
+import BlockedContentGate from '../moderation/BlockedContentGate';
 
 export interface ForumComment {
   id: number;
@@ -286,25 +287,28 @@ export default function ForumCommentList({ comments, loading, canModerate, onAdd
         <View style={{ gap: 10 }}>
           {topLevel.map((c) => (
             <View key={c.id}>
-              <CommentRow
-                comment={c}
-                reportType={reportType}
-                canModerate={canModerate}
-                canReply
-                onDeleteComment={onDeleteComment}
-                onVoteComment={onVoteComment}
-                onReply={(parentId, replyText) => onAddComment(replyText, parentId)}
-              />
-              {(repliesByParent[c.id] || []).map((r) => (
+              <BlockedContentGate authorId={c.user_id} kind="yorum">
                 <CommentRow
-                  key={r.id}
-                  comment={r}
+                  comment={c}
                   reportType={reportType}
                   canModerate={canModerate}
-                  isReply
+                  canReply
                   onDeleteComment={onDeleteComment}
                   onVoteComment={onVoteComment}
+                  onReply={(parentId, replyText) => onAddComment(replyText, parentId)}
                 />
+              </BlockedContentGate>
+              {(repliesByParent[c.id] || []).map((r) => (
+                <BlockedContentGate key={r.id} authorId={r.user_id} kind="yanıt" style={{ marginLeft: 24, marginTop: 8 }}>
+                  <CommentRow
+                    comment={r}
+                    reportType={reportType}
+                    canModerate={canModerate}
+                    isReply
+                    onDeleteComment={onDeleteComment}
+                    onVoteComment={onVoteComment}
+                  />
+                </BlockedContentGate>
               ))}
             </View>
           ))}

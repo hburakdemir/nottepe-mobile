@@ -15,6 +15,7 @@ import { buildPostAuthorAvatar } from '../lib/postAuthorAvatar';
 import AvatarDisplay from './avatar/AvatarDisplay';
 import BadgeChip from './BadgeChip';
 import SaveButton from './SaveButton';
+import BlockedContentGate from './moderation/BlockedContentGate';
 
 const MAX_LENGTH = 200;
 
@@ -42,7 +43,7 @@ const STATUS_BADGES: Record<string, { bg: string; text: string; label: string }>
 // ESKİ (klasik) kart tasarımı — yeni düzen beğenilmezse `PostCard.tsx`
 // içindeki POSTCARD_VARIANT bayrağı 'classic' yapılınca bu dosya devreye
 // giriyor. Prop sözleşmesi PostCardModern ile birebir aynı.
-export default function PostCardClassic({ post, showStatus = false, showRating = true, onDelete }: Props) {
+function PostCardClassicInner({ post, showStatus = false, showRating = true, onDelete }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -284,3 +285,12 @@ const styles = StyleSheet.create({
   commentPill: { borderRadius: 100, paddingHorizontal: 6, paddingVertical: 1 },
   commentPillText: { fontSize: 11, fontWeight: '700' },
 });
+
+// Engellediğim kişinin gönderisi kapalı kutuyla (bkz. BlockedContentGate).
+export default function PostCardClassic(props: Props) {
+  return (
+    <BlockedContentGate authorId={props.post.user_id} kind="gönderi" style={{ marginBottom: 12 }}>
+      <PostCardClassicInner {...props} />
+    </BlockedContentGate>
+  );
+}

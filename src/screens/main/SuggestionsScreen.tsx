@@ -8,11 +8,13 @@ import { suggestionAPI } from '../../lib/api';
 import { useTheme } from '../../context/ThemeContext';
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
 import type { RootStackParamList } from '../../navigation/types';
+import BlockedContentGate from '../../components/moderation/BlockedContentGate';
 
 const PAGE_LIMIT = 20;
 
 interface Suggestion {
   id: number;
+  user_id?: number;
   content: string;
   full_name: string;
   comment_count: number;
@@ -99,22 +101,24 @@ export default function SuggestionsScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: Suggestion }) => (
-      <Pressable
-        className="flex-row items-start gap-2.5 bg-surface rounded-xl p-3.5 mb-2.5"
-        onPress={() => navigation.navigate('SuggestionDetail', { id: item.id })}
-      >
-        <View className="flex-1">
-          <Text className="text-[13.5px] text-ink2 leading-[19px]" numberOfLines={3}>
-            {item.content}
-          </Text>
-          <View className="flex-row items-center gap-[5px] mt-2">
-            <Text className="text-[11px] text-muted2">{item.full_name}</Text>
-            <MessageSquare size={12} color={isDark ? '#6b7280' : '#9ca3af'} />
-            <Text className="text-[11px] text-muted2">{item.comment_count} yorum</Text>
+      <BlockedContentGate authorId={item.user_id} kind="öneri" style={{ marginBottom: 10 }}>
+        <Pressable
+          className="flex-row items-start gap-2.5 bg-surface rounded-xl p-3.5 mb-2.5"
+          onPress={() => navigation.navigate('SuggestionDetail', { id: item.id })}
+        >
+          <View className="flex-1">
+            <Text className="text-[13.5px] text-ink2 leading-[19px]" numberOfLines={3}>
+              {item.content}
+            </Text>
+            <View className="flex-row items-center gap-[5px] mt-2">
+              <Text className="text-[11px] text-muted2">{item.full_name}</Text>
+              <MessageSquare size={12} color={isDark ? '#6b7280' : '#9ca3af'} />
+              <Text className="text-[11px] text-muted2">{item.comment_count} yorum</Text>
+            </View>
           </View>
-        </View>
-        <ChevronRight size={18} color={isDark ? '#6b7280' : '#d1d5db'} />
-      </Pressable>
+          <ChevronRight size={18} color={isDark ? '#6b7280' : '#d1d5db'} />
+        </Pressable>
+      </BlockedContentGate>
     ),
     [navigation, isDark]
   );

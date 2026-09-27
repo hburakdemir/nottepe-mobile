@@ -12,6 +12,7 @@ import type { RootStackParamList } from '../../navigation/types';
 import StateView from '../../components/StateView';
 import ModerationMenu from '../../components/moderation/ModerationMenu';
 import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
+import BlockedContentGate from '../../components/moderation/BlockedContentGate';
 
 // Soru ve cevabı moderasyondan geçiyor, sık değişmiyor; ama yorumlar ve oylar
 // canlı. Bu yüzden liste ekranının 24 saati yerine daha kısa bir tazelik:
@@ -165,42 +166,44 @@ export default function FaqDetailScreen() {
       contentContainerClassName="p-4 pb-[150px]"
       keyboardShouldPersistTaps="handled"
     >
-      <View className="bg-surface rounded-2xl p-4 mb-3.5">
-        <View className="flex-row gap-2.5">
-          <HelpCircle size={20} color={isDark ? '#5A9690' : '#2F5755'} style={{ marginTop: 2 }} />
-          <Text className="flex-1 text-lg font-bold text-ink leading-6">{entry.question}</Text>
-          <ModerationMenu
-            targetType="faq"
-            targetId={entry.id}
-            ownerId={entry.created_by ?? null}
-            ownerUsername={entry.author_username}
-            size={20}
-            onBlocked={() => navigation.goBack()}
-          />
+      <BlockedContentGate authorId={entry.created_by} kind="soru" style={{ marginBottom: 14 }}>
+        <View className="bg-surface rounded-2xl p-4 mb-3.5">
+          <View className="flex-row gap-2.5">
+            <HelpCircle size={20} color={isDark ? '#5A9690' : '#2F5755'} style={{ marginTop: 2 }} />
+            <Text className="flex-1 text-lg font-bold text-ink leading-6">{entry.question}</Text>
+            <ModerationMenu
+              targetType="faq"
+              targetId={entry.id}
+              ownerId={entry.created_by ?? null}
+              ownerUsername={entry.author_username}
+              size={20}
+              onBlocked={() => navigation.goBack()}
+            />
+          </View>
+          <Text className="text-sm text-ink2 mt-3 leading-5">{entry.answer}</Text>
+          <View className="flex-row gap-2 mt-3">
+            <Pressable
+              className={`flex-row items-center gap-[5px] border rounded-lg px-2.5 py-1.5 ${entry.my_vote === 1 ? 'border-accent' : 'border-line'}`}
+              onPress={() => handleVoteAnswer(1)}
+            >
+              <ThumbsUp size={14} color={entry.my_vote === 1 ? (isDark ? '#5A9690' : '#2F5755') : isDark ? '#9ca3af' : '#6b7280'} />
+              <Text className={`text-xs font-semibold ${entry.my_vote === 1 ? 'text-accent' : 'text-muted'}`}>{entry.upvotes || 0}</Text>
+            </Pressable>
+            <Pressable
+              className={`flex-row items-center gap-[5px] border rounded-lg px-2.5 py-1.5 ${entry.my_vote === -1 ? 'border-red-600' : 'border-line'}`}
+              onPress={() => handleVoteAnswer(-1)}
+            >
+              <ThumbsDown size={14} color={entry.my_vote === -1 ? '#dc2626' : isDark ? '#9ca3af' : '#6b7280'} />
+              <Text className={`text-xs font-semibold ${entry.my_vote === -1 ? 'text-red-600' : 'text-muted'}`}>{entry.downvotes || 0}</Text>
+            </Pressable>
+          </View>
+          {!!entry.author_name && (
+            <Text className="text-[11px] text-muted2 mt-3">
+              {entry.author_name} tarafından {formatDate(entry.created_at)}
+            </Text>
+          )}
         </View>
-        <Text className="text-sm text-ink2 mt-3 leading-5">{entry.answer}</Text>
-        <View className="flex-row gap-2 mt-3">
-          <Pressable
-            className={`flex-row items-center gap-[5px] border rounded-lg px-2.5 py-1.5 ${entry.my_vote === 1 ? 'border-accent' : 'border-line'}`}
-            onPress={() => handleVoteAnswer(1)}
-          >
-            <ThumbsUp size={14} color={entry.my_vote === 1 ? (isDark ? '#5A9690' : '#2F5755') : isDark ? '#9ca3af' : '#6b7280'} />
-            <Text className={`text-xs font-semibold ${entry.my_vote === 1 ? 'text-accent' : 'text-muted'}`}>{entry.upvotes || 0}</Text>
-          </Pressable>
-          <Pressable
-            className={`flex-row items-center gap-[5px] border rounded-lg px-2.5 py-1.5 ${entry.my_vote === -1 ? 'border-red-600' : 'border-line'}`}
-            onPress={() => handleVoteAnswer(-1)}
-          >
-            <ThumbsDown size={14} color={entry.my_vote === -1 ? '#dc2626' : isDark ? '#9ca3af' : '#6b7280'} />
-            <Text className={`text-xs font-semibold ${entry.my_vote === -1 ? 'text-red-600' : 'text-muted'}`}>{entry.downvotes || 0}</Text>
-          </Pressable>
-        </View>
-        {!!entry.author_name && (
-          <Text className="text-[11px] text-muted2 mt-3">
-            {entry.author_name} tarafından {formatDate(entry.created_at)}
-          </Text>
-        )}
-      </View>
+      </BlockedContentGate>
 
       <View className="bg-surface rounded-2xl p-4 mb-3.5">
         <ForumCommentList

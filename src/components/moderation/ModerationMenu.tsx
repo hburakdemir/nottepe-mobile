@@ -25,10 +25,9 @@ const ACTION_REPORT = 'report';
 const ACTION_BLOCK = 'block';
 
 // İçeriklerin "…" menüsü: Bildir + Kullanıcıyı engelle (App Store 1.2).
-// Engelleme sunucuda kalıcı ve web ile ortak; sonrasında tüm react-query
-// listeleri tazeleniyor (engellenen kişinin içeriği sunucuda ayıklandığı için
-// listelerden düşüyor), react-query dışı listelere de `emitBlockChanged` ile
-// haber veriliyor.
+// Engelleme sunucuda kalıcı ve web ile ortak. Engellenen kişinin içeriği
+// listelerde kalıyor ama BlockedContentGate onu kapalı kutuyla gösteriyor;
+// `emitBlockChanged` engel kümesini (useBlockedIds) anında güncelliyor.
 export default function ModerationMenu({ targetType, targetId, ownerId, ownerUsername, onBlocked, size = 18, style }: Props) {
   const { user } = useAuth();
   const colors = useThemeColors();
@@ -43,7 +42,7 @@ export default function ModerationMenu({ targetType, targetId, ownerId, ownerUse
       emitBlockChanged(ownerId, true);
       queryClient.invalidateQueries();
       onBlocked?.(ownerId);
-      Alert.alert('Engellendi', `${ownerUsername ? '@' + ownerUsername : 'Kullanıcı'} engellendi. İçerikleri artık sana gösterilmeyecek.`);
+      Alert.alert('Engellendi', `${ownerUsername ? '@' + ownerUsername : 'Kullanıcı'} engellendi. İçerikleri artık kapalı gösterilecek, sana yorum yapamayacak ve bildirim gönderemeyecek.`);
     } catch (err: any) {
       Alert.alert('Engellenemedi', err.response?.data?.message || 'Bir sorun oluştu, tekrar dene.');
     }
@@ -52,7 +51,7 @@ export default function ModerationMenu({ targetType, targetId, ownerId, ownerUse
   const confirmBlock = useCallback(() => {
     Alert.alert(
       `${ownerUsername ? '@' + ownerUsername : 'Kullanıcı'} engellensin mi?`,
-      'Gönderileri, yorumları ve diğer içerikleri sana gösterilmeyecek. Engeli profilinden ya da Profil → Düzenle ekranından istediğin zaman kaldırabilirsin.',
+      'İçerikleri sana kapalı gösterilecek; birbirinizin gönderilerine yorum yapamaz, puan veremezsiniz. Engeli profilinden ya da Ayarlar → Engellenen kullanıcılar ekranından istediğin zaman kaldırabilirsin.',
       [
         { text: 'Vazgeç', style: 'cancel' },
         { text: 'Engelle', style: 'destructive', onPress: block },

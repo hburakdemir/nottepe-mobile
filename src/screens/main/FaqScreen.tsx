@@ -9,6 +9,7 @@ import { useTheme } from '../../context/ThemeContext';
 import KeyboardAvoider from '../../components/layout/KeyboardAvoider';
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
 import type { RootStackParamList } from '../../navigation/types';
+import BlockedContentGate from '../../components/moderation/BlockedContentGate';
 
 const PAGE_LIMIT = 20;
 
@@ -27,6 +28,7 @@ interface FaqEntry {
   answer: string;
   comment_count: number;
   author_name?: string;
+  created_by?: number | null;
 }
 
 export default function FaqScreen() {
@@ -90,23 +92,25 @@ export default function FaqScreen() {
 
   const renderItem = useCallback(
     ({ item }: { item: FaqEntry }) => (
-      <Pressable
-        className="flex-row items-start gap-2.5 bg-surface rounded-xl p-3.5 mb-2.5"
-        onPress={() => navigation.navigate('FaqDetail', { id: item.id })}
-      >
-        <View className="flex-1">
-          <Text className="text-[14.5px] font-bold text-ink">{item.question}</Text>
-          <Text className="text-[12.5px] text-muted mt-1 leading-[17px]" numberOfLines={2}>
-            {item.answer}
-          </Text>
-          <View className="flex-row items-center gap-[5px] mt-2">
-            <MessageSquare size={12} color={isDark ? '#9ca3af' : '#6b7280'} />
-            <Text className="text-[11px] text-muted2">{item.comment_count} yorum</Text>
-            {!!item.author_name && <Text className="text-[11px] text-muted2">· {item.author_name}</Text>}
+      <BlockedContentGate authorId={item.created_by} kind="soru" style={{ marginBottom: 10 }}>
+        <Pressable
+          className="flex-row items-start gap-2.5 bg-surface rounded-xl p-3.5 mb-2.5"
+          onPress={() => navigation.navigate('FaqDetail', { id: item.id })}
+        >
+          <View className="flex-1">
+            <Text className="text-[14.5px] font-bold text-ink">{item.question}</Text>
+            <Text className="text-[12.5px] text-muted mt-1 leading-[17px]" numberOfLines={2}>
+              {item.answer}
+            </Text>
+            <View className="flex-row items-center gap-[5px] mt-2">
+              <MessageSquare size={12} color={isDark ? '#9ca3af' : '#6b7280'} />
+              <Text className="text-[11px] text-muted2">{item.comment_count} yorum</Text>
+              {!!item.author_name && <Text className="text-[11px] text-muted2">· {item.author_name}</Text>}
+            </View>
           </View>
-        </View>
-        <ChevronRight size={18} color={isDark ? '#4b5563' : '#d1d5db'} />
-      </Pressable>
+          <ChevronRight size={18} color={isDark ? '#4b5563' : '#d1d5db'} />
+        </Pressable>
+      </BlockedContentGate>
     ),
     [navigation, isDark]
   );

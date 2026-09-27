@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import type { RootStackParamList, NoteRequestSummary } from '../../navigation/types';
 import ModerationMenu from '../moderation/ModerationMenu';
+import BlockedContentGate from '../moderation/BlockedContentGate';
 
 export interface NoteRequest {
   id: number;
@@ -45,7 +46,7 @@ interface Props {
   onDelete: (request: NoteRequest) => void;
 }
 
-export default function RequestCard({ request, onFulfill, onSupport, onClose, onReopen, onDelete }: Props) {
+function RequestCardInner({ request, onFulfill, onSupport, onClose, onReopen, onDelete }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user } = useAuth();
   const { theme } = useTheme();
@@ -271,3 +272,12 @@ const styles = StyleSheet.create({
   },
   actionBtnDangerText: { fontSize: 13, fontWeight: '600' },
 });
+
+// Engellediğim kişinin not isteği kapalı kutuyla (bkz. BlockedContentGate).
+export default function RequestCard(props: Props) {
+  return (
+    <BlockedContentGate authorId={props.request.user_id} kind="not isteği" style={{ marginBottom: 16 }}>
+      <RequestCardInner {...props} />
+    </BlockedContentGate>
+  );
+}

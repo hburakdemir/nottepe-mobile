@@ -30,6 +30,7 @@ import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 import StateView from '../../components/StateView';
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
+import BlockedContentGate from '../../components/moderation/BlockedContentGate';
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('tr-TR', {
@@ -334,21 +335,27 @@ export default function PostDetailScreen() {
           </View>
         )}
 
-        <Text style={[styles.title, { color: t.ink }]}>{post.title}</Text>
+        {/* Engellediğim kişinin gönderisi: başlık, içerik ve dosyalar tıklanınca
+            açılan kutunun arkasında (bkz. BlockedContentGate). */}
+        <BlockedContentGate authorId={post.user_id} kind="gönderi" style={{ marginVertical: 8 }}>
+          <View>
+            <Text style={[styles.title, { color: t.ink }]}>{post.title}</Text>
 
-        {!!post.content && <Text style={[styles.body, { color: t.ink2 }]}>{post.content}</Text>}
+            {!!post.content && <Text style={[styles.body, { color: t.ink2 }]}>{post.content}</Text>}
 
-        {/* Detayda sınır yok: bütün dosyalar kendi kutucuğuyla listeleniyor. */}
-        {files.length > 0 && <FileTiles files={files} postTitle={post.title} />}
+            {/* Detayda sınır yok: bütün dosyalar kendi kutucuğuyla listeleniyor. */}
+            {files.length > 0 && <FileTiles files={files} postTitle={post.title} />}
 
-        {post.link ? (
-          <Pressable style={styles.linkRow} onPress={() => Linking.openURL(post.link!)} hitSlop={6}>
-            <Link2 size={14} color={t.ink2} strokeWidth={2} />
-            <Text style={[styles.linkText, { color: t.ink2 }]} numberOfLines={1}>
-              Bağlantıyı aç
-            </Text>
-          </Pressable>
-        ) : null}
+            {post.link ? (
+              <Pressable style={styles.linkRow} onPress={() => Linking.openURL(post.link!)} hitSlop={6}>
+                <Link2 size={14} color={t.ink2} strokeWidth={2} />
+                <Text style={[styles.linkText, { color: t.ink2 }]} numberOfLines={1}>
+                  Bağlantıyı aç
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </BlockedContentGate>
 
         <Text style={[styles.crumb, { color: t.ink3 }]}>
           {post.faculty}
