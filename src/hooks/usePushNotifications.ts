@@ -132,7 +132,14 @@ export function usePushNotifications(): void {
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
       if (state !== 'active') return;
-      queryClient.invalidateQueries({ queryKey: UNREAD_NOTIFICATIONS_KEY });
+      // `cancelRefetch: false` ŞART: aynı anda react-query'nin odak dinleyicisi
+      // de (bkz. lib/queryClient.ts `focusManager`, sayacın
+      // `refetchOnWindowFocus: true`'su) bu sorguyu yeniden çekmeye başlıyor.
+      // Varsayılan (`true`) o isteği iptal edip ikinci bir istek atıyordu —
+      // dönüşte JS'in zaten en meşgul olduğu anda çift istek ve çift işlem.
+      // Böyle sorgu yine bayat işaretleniyor, ama süren istek varsa ona
+      // katılıyor.
+      queryClient.invalidateQueries({ queryKey: UNREAD_NOTIFICATIONS_KEY }, { cancelRefetch: false });
       if (isAuthenticated && user?.id) registerToken(user.id);
     });
     return () => sub.remove();

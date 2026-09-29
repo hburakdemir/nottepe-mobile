@@ -54,7 +54,8 @@
             "enableShrinkResourcesInReleaseBuilds": true
           }
         }
-      ]
+      ],
+      "./plugins/withDeferredTrimMemory"
     ],
     "owner": "hakanburakdemir",
     "extra": {

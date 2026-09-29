@@ -63,7 +63,7 @@ const COLD_START_GRACE_MS = 1200;
 // 2000 -> 750 ms. Debounce ile birlikte en kötü algılama gecikmesi 3,5 sn'den
 // ~1 sn'nin altına indi. Yoklamayı daha da sıklaştırmak cazip ama her tur bir
 // native çağrı: ekran açıkken saniyede birden fazla sorgu, kazancı olmayan bir
-// pil maliyeti olurdu. Arka planda hiç yoklanmıyor (aşağıdaki `isAppActive`).
+// pil maliyeti olurdu. Arka planda hiç yoklanmıyor (aşağıdaki `isAppActiveRef`).
 const ANDROID_POLL_MS = 750;
 
 // ÖNE DÖNÜŞ PAYI — `COLD_START_GRACE_MS`'in dönüş karşılığı, aynı sebeple var.
@@ -123,9 +123,35 @@ export function useIsOffline(): boolean {
   // ama koruma YERİNDE KALIYOR — şimdi iki işe yarıyor: arka planda boşa
   // native yoklama yapılmıyor ve `onlineManager` kullanıcı yokken gereksizce
   // kapatılıp açılmıyor (aşağıdaki nota bak).
-  const [isAppActive, setIsAppActive] = useState(AppState.currentState === 'active');
+  //
+  // ⚠️ Ön planda olma bilgisi artık STATE DEĞİL, REF (2026-09-28). State iken
+  // her arka plan/ön plan geçişi bu hook'u — yani RootNavigator'ı ve onunla
+  // birlikte çekmece menüsünü, PushableStack'i — yeniden çizdiriyordu. Uzun
+  // arka plandan dönüşte JS thread'i birkaç saniye meşgul kalıyor (liste
+  // kayıyor, basışlar çalışmıyor); o işin bir parçası buydu. Kararı dondurmak
+  // için render gerekmiyor: arka plana geçişte bekleyen zamanlayıcı
+  // dinleyicide iptal ediliyor. Dönüşte yeniden karar yalnızca değer
+  // ÇEVRİMDIŞI ise gerekiyor (çevrimiçiyse kilit zaten kapalı), o durumda
+  // `resumeTick` aşağıdaki efekti bir kez yeniden çalıştırıyor.
+  const isAppActiveRef = useRef(AppState.currentState === 'active');
+  const [resumeTick, setResumeTick] = useState(0);
+  const isConnectedRef = useRef(isConnected);
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (next) => setIsAppActive(next === 'active'));
+    isConnectedRef.current = isConnected;
+  }, [isConnected]);
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      const active = next === 'active';
+      isAppActiveRef.current = active;
+      if (!active) {
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+        }
+        return;
+      }
+      if (isConnectedRef.current === false) setResumeTick((t) => t + 1);
+    });
     return () => sub.remove();
   }, []);
 
@@ -152,13 +178,12 @@ export function useIsOffline(): boolean {
     const appStateSub = AppState.addEventListener('change', (next) => {
       if (next !== 'active') return;
       lastResumeAtRef.current = Date.now();
-      // BAYAT DEĞERİ ÖNCE TEMİZLİYORUZ, sonra taze okuma yapıyoruz. Sıra
-      // önemli: arka plana alınmadan önceki son okuma `false` ise (ör. ekran
-      // kapanırken Wi-Fi düşmüştü), taze okuma dönene kadar o `false` geçerli
-      // sayılırdı ve 300 ms'lik debounce bitip kilit binebilirdi. `undefined`,
-      // aşağıdaki "true ya da henüz undefined → çevrimdışı sayılmıyor" dalına
-      // düşüyor, yani bayat değeri ANINDA etkisizleştiriyor.
-      setPolledIsConnected(undefined);
+      // Eskiden burada taze okumadan önce `setPolledIsConnected(undefined)` ile
+      // bayat değer temizleniyordu. KALDIRILDI (2026-09-28): dönüşte fazladan
+      // iki render demekti (bkz. `isAppActiveRef` notu). Koruduğu şey hâlâ
+      // korunuyor: arka plandan kalma bayat bir `false`, RESUME_GRACE_MS
+      // dolmadan kilidi bindiremiyor; taze okuma `true` dönünce de bekleyen
+      // zamanlayıcı aşağıdaki efektte iptal ediliyor.
       readNetworkState();
     });
 
@@ -184,9 +209,10 @@ export function useIsOffline(): boolean {
 
     // Ön planda değilsek karar verilmiyor: bekleyen zamanlayıcı yukarıda zaten
     // iptal edildi, `debouncedOffline` olduğu değerde kalıyor (bkz. yukarıdaki
-    // `isAppActive` notu). Ön plana dönüşte `isAppActive` değiştiği için bu
-    // efekt yeniden çalışıyor.
-    if (!isAppActive) return;
+    // `isAppActiveRef` notu). Ön plana dönüşte değer çevrimdışıysa
+    // `resumeTick` bu efekti yeniden çalıştırıyor; değer değişirse zaten
+    // `isConnected` bağımlılığı çalıştırıyor.
+    if (!isAppActiveRef.current) return;
 
     if (isConnected === false) {
       if (!hasBeenOnlineRef.current) {
@@ -219,7 +245,7 @@ export function useIsOffline(): boolean {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [isConnected, isAppActive]);
+  }, [isConnected, resumeTick]);
 
   // react-query'ye de haber veriyoruz ve bu ZORUNLU, süs değil.
   //
