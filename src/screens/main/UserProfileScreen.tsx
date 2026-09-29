@@ -1,45 +1,49 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
-import { useQueryClient } from '@tanstack/react-query';
+import { Alert, ScrollView, Text, View } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import {
-  Bell,
-  Bookmark,
-  Calculator,
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
-  FileText,
-  HelpCircle,
-  Lightbulb,
-  ListChecks,
-  Lock,
-  MessagesSquare,
-  ShieldOff,
-  User as UserIcon,
-} from 'lucide-react-native';
-import { avatarAPI, badgeAPI, faqAPI, moderationAPI, suggestionAPI, userAPI } from '../../lib/api';
+import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { useRoute } from '@react-navigation/native';
+import { useQueryClient } from '@tanstack/react-query';
+import { Lock, ShieldOff, User as UserIcon } from 'lucide-react-native';
+import { avatarAPI, badgeAPI, moderationAPI, userAPI } from '../../lib/api';
 import { emitBlockChanged } from '../../lib/moderationEvents';
 import ModerationMenu from '../../components/moderation/ModerationMenu';
 import BlockedMeTag from '../../components/moderation/BlockedMeTag';
-import BlockedDeerCard from '../../components/moderation/BlockedDeerCard';
+import BlockedDeerCard, { type UnblockReason } from '../../components/moderation/BlockedDeerCard';
 import { useTheme } from '../../context/ThemeContext';
-import PostCard from '../../components/PostCard';
-import { PostListSkeleton } from '../../components/PostCardSkeleton';
-import BadgeChip, { type Badge } from '../../components/BadgeChip';
-import ChecklistCard from '../../components/ChecklistCard';
-import AvatarDisplay from '../../components/avatar/AvatarDisplay';
+import type { Badge } from '../../components/BadgeChip';
 import type { AvatarData } from '../../components/avatar/AvatarDisplay';
-import { DAY_NAMES, getCourseColor, toMinutes, type ScheduleCourse } from '../../utils/schedule';
-import { formatGpa } from '../../utils/gano';
-import type { Checklist } from '../../types/checklist';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
 import StateView from '../../components/StateView';
-import UserProfileSkeleton from '../../components/profile/UserProfileSkeleton';
+import { useMetrics } from '../../theme/metrics';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
+import ProfileSkeleton from '../../components/profile/ProfileSkeleton';
+import { SHADOW_MD, TABS, type TabKey } from '../../components/profile/profileCommon';
+import { PagerPlaceholder } from '../../components/profile/PagerPage';
+import HeaderCard, { type ProfileIdentity } from '../../components/profile/HeaderCard';
+import TabStrip from '../../components/profile/TabStrip';
+import PostsTab from '../../components/profile/PostsTab';
+import ChecklistsTab from '../../components/profile/ChecklistsTab';
+import AktsTab from '../../components/profile/AktsTab';
+import ScheduleTab from '../../components/profile/ScheduleTab';
+import FollowsTab from '../../components/profile/FollowsTab';
+import ForumsTab from '../../components/profile/ForumsTab';
+import { useUserSavedPosts, type ProfileOwner } from '../../hooks/profile/useProfileLists';
+import { useUserPostsPagination } from '../../hooks/profile/useUserPostsPagination';
+
+// BAŞKASININ PROFİLİ — kendi profilinle (ProfileScreen.tsx) BİREBİR aynı ekran.
+//
+// Eskiden bu dosya 800 satırlık ayrı bir tasarımdı: farklı sekme adları
+// ("Paylaştığı Notlar"), mavi şerit, düz dikey kaydırma, kendi kart/boş durum
+// stilleri, 12'şerlik sayfa düğmeleri. Kullanıcı isteği: iki profil "kart, yazı,
+// her detay" aynı olsun, yalnızca Düzenle hariç. Artık aynı bileşenler
+// (HeaderCard, TabStrip, PostsTab, sekme bileşenleri, ProfileSkeleton) ve aynı
+// kabuk (yatay pager + üstte kayan başlık + ±1 sayfa pencereleme) kullanılıyor;
+// bileşenler `owner` üzerinden sahibe özel düğmeleri kendileri gizliyor.
+//
+// Kabuğun her kararının gerekçesi ProfileScreen.tsx'teki notlarda — buradaki
+// kopya bilerek onunla aynı tutuluyor, birinde değişen diğerinde de değişmeli.
 
 interface PublicProfile {
   id: number;
@@ -55,31 +59,6 @@ interface PublicProfile {
   is_blocked_by_me?: boolean;
 }
 
-interface AktsCalc {
-  id: string;
-  title: string;
-  gpa: number | null;
-  semester_count: number;
-  course_count: number;
-  updated_at: string;
-}
-
-interface Follow {
-  faculty: string;
-  department: string;
-}
-
-interface ForumItem {
-  key: string;
-  kind: 'faq' | 'suggestion';
-  targetId: number;
-  created_at: string;
-  title: string;
-  body?: string;
-}
-
-const POSTS_LIMIT = 12;
-
 const DEFAULT_SECTION_VISIBILITY: Record<string, boolean> = {
   saved_posts: true,
   my_lists: true,
@@ -90,33 +69,34 @@ const DEFAULT_SECTION_VISIBILITY: Record<string, boolean> = {
   badges: true,
 };
 
-const TAB_DEFS = [
-  { key: 'posts', label: 'Paylaştığı Notlar', icon: FileText, sectionKey: null },
-  { key: 'saved', label: 'Kaydettikleri', icon: Bookmark, sectionKey: 'saved_posts' },
-  { key: 'lists', label: 'Checklistleri', icon: ListChecks, sectionKey: 'my_lists' },
-  { key: 'akts', label: 'AKTS Hesapları', icon: Calculator, sectionKey: 'akts' },
-  { key: 'schedule', label: 'Ders Programı', icon: CalendarDays, sectionKey: 'schedule' },
-  { key: 'follows', label: 'Takip Ettikleri', icon: Bell, sectionKey: 'follows' },
-  { key: 'forums', label: 'Forumlar', icon: MessagesSquare, sectionKey: 'forums' },
-] as const;
+// Sekme → profil ayarındaki bölüm anahtarı. Postlar her zaman görünür.
+const SECTION_KEY: Record<TabKey, string | null> = {
+  posts: null,
+  saved: 'saved_posts',
+  lists: 'my_lists',
+  akts: 'akts',
+  schedule: 'schedule',
+  follows: 'follows',
+  forums: 'forums',
+};
 
-type TabKey = (typeof TAB_DEFS)[number]['key'];
-
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' });
-}
+const NO_BADGES: Badge[] = [];
+const NO_POSTS: Post[] = [];
+const noop = () => {};
 
 export default function UserProfileScreen() {
   const route = useRoute<any>();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const { username } = route.params as RootStackParamList['UserProfile'];
   const queryClient = useQueryClient();
 
+  const { width: windowWidth, contentMaxWidth } = useMetrics();
+  const screenWidth = Math.min(windowWidth, contentMaxWidth);
+
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [avatar, setAvatar] = useState<AvatarData | null>(null);
-  const [badges, setBadges] = useState<Badge[]>([]);
+  const [badges, setBadges] = useState<Badge[]>(NO_BADGES);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [banned, setBanned] = useState(false);
@@ -129,50 +109,18 @@ export default function UserProfileScreen() {
   const [loadRetryTick, setLoadRetryTick] = useState(0);
 
   const [activeTab, setActiveTab] = useState<TabKey>('posts');
-  const [loadedTabs, setLoadedTabs] = useState<Set<TabKey>>(new Set());
-
-  // Sekmeler hiçbir zaman ortalanmıyordu (bkz. ProfileScreen.tsx'teki aynı
-  // düzeltme) — şeridin kendisi ölçülüp aktif sekme ortasına kaydırılıyor.
-  const stripRef = useRef<ScrollView>(null);
-  const stripWidthRef = useRef(0);
-  const stripContentWidthRef = useRef(0);
-  const tabLayoutsRef = useRef<Partial<Record<TabKey, { x: number; width: number }>>>({});
-
-  const centerStripOn = useCallback((key: TabKey) => {
-    const item = tabLayoutsRef.current[key];
-    const stripWidth = stripWidthRef.current;
-    if (!item || stripWidth <= 0) return;
-    const maxScroll = Math.max(0, stripContentWidthRef.current - stripWidth);
-    const target = Math.min(Math.max(item.x + item.width / 2 - stripWidth / 2, 0), maxScroll);
-    stripRef.current?.scrollTo({ x: target, animated: true });
-  }, []);
-
-  useEffect(() => {
-    centerStripOn(activeTab);
-  }, [activeTab, centerStripOn]);
-
-  // --- Sekme pager'ı (bkz. render'daki not) ---------------------------------
   const pagerRef = useRef<ScrollView>(null);
-  const [pageWidth, setPageWidth] = useState(0);
-  const [pageHeights, setPageHeights] = useState<Partial<Record<TabKey, number>>>({});
-  const rememberPageHeight = useCallback((key: TabKey, height: number) => {
-    setPageHeights((prev) => (prev[key] === height ? prev : { ...prev, [key]: height }));
-  }, []);
-  // Pager'ın ALT SINIRI: ekranın pager'dan aşağısı. Aktif sekme kısaysa (ör.
-  // yalnızca "Henüz not paylaşılmamış" kartı) pager eskiden o kart kadar
-  // kısalıyordu — kartın altındaki boş alandan yatay kaydırma yapılamıyor,
-  // yandaki sayfa da kart boyunda kırpılıyordu. Dış ScrollView'ın yüksekliği
-  // ve pager'ın içerikteki konumu ölçülüp aradaki alan (alt dolgu hariç, o
-  // tab bar'ın altında) en az yükseklik olarak veriliyor.
-  const [viewportHeight, setViewportHeight] = useState(0);
-  const [pagerTop, setPagerTop] = useState(0);
 
-  // Görünür sekmeler profilin bölüm ayarına bağlı; pager indeksleri bu listeye
-  // göre. Erken return'lerden ÖNCE hesaplanıyor çünkü aşağıdaki hook'lar okuyor.
-  const visibleTabs = useMemo(() => {
-    const visibility = { ...DEFAULT_SECTION_VISIBILITY, ...(profile?.profile_section_visibility || {}) };
-    return TAB_DEFS.filter((t) => t.sectionKey === null || visibility[t.sectionKey]);
-  }, [profile]);
+  const sectionVisibility = useMemo(
+    () => ({ ...DEFAULT_SECTION_VISIBILITY, ...(profile?.profile_section_visibility || {}) }),
+    [profile]
+  );
+  // Görünür sekmeler: başkasının gizlediği bölümün sekmesi hiç yok. Pager
+  // indeksleri bu listeye göre.
+  const visibleTabs = useMemo(
+    () => TABS.filter((t) => SECTION_KEY[t.key] === null || sectionVisibility[SECTION_KEY[t.key]!]),
+    [sectionVisibility]
+  );
   const activeIndex = Math.max(
     0,
     visibleTabs.findIndex((t) => t.key === activeTab)
@@ -189,68 +137,67 @@ export default function UserProfileScreen() {
       return next.size === prev.length ? prev : Array.from(next);
     });
   }, [activeIndex, visibleTabs]);
+  const isTabMounted = useCallback((key: TabKey) => mountedTabs.includes(key), [mountedTabs]);
 
-  // TEK KARAR NOKTASI: parmak kalkıp sayfa hizaya oturunca.
-  const handlePagerMomentumEnd = useCallback(
-    ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
-      if (pageWidth <= 0) return;
-      const key = visibleTabs[Math.round(nativeEvent.contentOffset.x / pageWidth)]?.key;
-      if (key && key !== activeTab) setActiveTab(key);
-    },
-    [pageWidth, visibleTabs, activeTab]
-  );
+  // --- Kayan başlık (bkz. ProfileScreen.tsx) --------------------------------
+  const scrollY = useSharedValue(0);
+  const [cardHeight, setCardHeight] = useState(0);
+  const cardHeightShared = useSharedValue(0);
+  const [stripHeight, setStripHeight] = useState(0);
+  const headerTotalHeight = cardHeight + stripHeight;
+  const pageScrollOffsets = useRef<Record<TabKey, number>>({
+    posts: 0,
+    saved: 0,
+    lists: 0,
+    akts: 0,
+    schedule: 0,
+    follows: 0,
+    forums: 0,
+  });
+  const rememberPageOffset = useCallback((key: TabKey, y: number) => {
+    pageScrollOffsets.current[key] = y;
+  }, []);
+  useEffect(() => {
+    scrollY.value = pageScrollOffsets.current[activeTab] ?? 0;
+  }, [activeTab, scrollY]);
+  const headerAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: -Math.min(scrollY.value, cardHeightShared.value) }],
+  }));
+  const cardAnimStyle = useAnimatedStyle(() => ({
+    opacity: cardHeightShared.value > 0 ? 1 - Math.min(scrollY.value, cardHeightShared.value * 0.7) / (cardHeightShared.value * 0.7) : 1,
+  }));
 
-  const handleTabPress = useCallback(
-    (key: TabKey) => {
-      setActiveTab(key);
-      const idx = visibleTabs.findIndex((t) => t.key === key);
-      if (idx >= 0) pagerRef.current?.scrollTo({ x: idx * pageWidth, animated: true });
-    },
-    [visibleTabs, pageWidth]
-  );
-
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [postsTotal, setPostsTotal] = useState(0);
-  const [postsPage, setPostsPage] = useState(1);
-  const [postsLoading, setPostsLoading] = useState(false);
-
-  const [savedPosts, setSavedPosts] = useState<Post[]>([]);
-  const [checklists, setChecklists] = useState<Checklist[]>([]);
-  const [expandedChecklistId, setExpandedChecklistId] = useState<number | null>(null);
-  const [aktsCalcs, setAktsCalcs] = useState<AktsCalc[]>([]);
-  const [scheduleCourses, setScheduleCourses] = useState<ScheduleCourse[]>([]);
-  const [follows, setFollows] = useState<Follow[]>([]);
-  const showPostsLoading = postsLoading;
-  const [forumItems, setForumItems] = useState<ForumItem[] | null>(null);
-  const showForumsLoading = forumItems === null;
-
+  // --- Profil yüklemesi -----------------------------------------------------
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
       setNotFound(false);
       setBanned(false);
+      setBlockedByThem(false);
       setLoadError(false);
+      // Aynı ekran başka bir kullanıcı adıyla yeniden kullanılabiliyor
+      // (navigate aynı rotaya parametre günceller) — sekme durumu sıfırlansın.
       setActiveTab('posts');
-      setLoadedTabs(new Set());
-      setForumItems(null);
       setMountedTabs(['posts']);
-      setPageHeights({});
+      for (const k of Object.keys(pageScrollOffsets.current) as TabKey[]) pageScrollOffsets.current[k] = 0;
+      scrollY.value = 0;
+      pagerRef.current?.scrollTo({ x: 0, animated: false });
       try {
         const profileRes = await userAPI.getProfile(username);
         if (cancelled) return;
         const p: PublicProfile = profileRes.data.profile;
-        setProfile(p);
-        const sectionVisibility = { ...DEFAULT_SECTION_VISIBILITY, ...(p.profile_section_visibility || {}) };
+        const visibility = { ...DEFAULT_SECTION_VISIBILITY, ...(p.profile_section_visibility || {}) };
         const [avatarRes, badgeRes] = await Promise.all([
           avatarAPI.getByUserId(p.id).catch(() => ({ data: { avatar: null } })),
-          sectionVisibility.badges
+          visibility.badges
             ? badgeAPI.getByUser(p.id).catch(() => ({ data: { badges: [] } }))
             : Promise.resolve({ data: { badges: [] } }),
         ]);
         if (cancelled) return;
+        setProfile(p);
         setAvatar(avatarRes.data?.avatar || null);
-        setBadges(badgeRes.data?.badges || []);
+        setBadges(badgeRes.data?.badges || NO_BADGES);
       } catch (err: any) {
         if (cancelled) return;
         if (err.response?.data?.code === 'BLOCKED_BY_USER') setBlockedByThem(true);
@@ -264,111 +211,100 @@ export default function UserProfileScreen() {
     return () => {
       cancelled = true;
     };
-  }, [username, loadRetryTick]);
+  }, [username, loadRetryTick, scrollY]);
 
-  useEffect(() => {
-    if (!profile || profile.is_public === false || profile.is_blocked_by_me) return;
-    let cancelled = false;
-    (async () => {
-      setPostsLoading(true);
-      try {
-        const res = await userAPI.getPosts(username, { page: postsPage, limit: POSTS_LIMIT });
-        if (cancelled) return;
-        setPosts(res.data.posts || []);
-        setPostsTotal(res.data.total || 0);
-      } catch {
-        if (!cancelled) setPosts([]);
-      } finally {
-        if (!cancelled) setPostsLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [profile, postsPage, username]);
+  const canViewContent = !!profile && profile.is_public !== false && !profile.is_blocked_by_me;
 
-  // Aktif sekme VE iki komşusu yükleniyor: kaydırırken yandaki sayfa hazır
-  // gelsin, yükleme göstergesi değil. Her sekme profil başına BİR KEZ isteniyor
-  // (`requestedTabsRef`). İstek sekme değişince İPTAL EDİLMİYOR — yalnızca
-  // profil değişince: komşu için başlamış bir isteği kullanıcı o sekmeyi
-  // geçti diye çöpe atmak, döndüğünde aynı isteği tekrar atmak demekti.
-  const requestedTabsRef = useRef<Set<TabKey>>(new Set());
-  const profileGenRef = useRef(0);
-  useEffect(() => {
-    profileGenRef.current += 1;
-    requestedTabsRef.current = new Set();
-  }, [profile]);
-
-  const loadTab = useCallback(
-    async (key: TabKey, p: PublicProfile) => {
-      const gen = profileGenRef.current;
-      const isCurrent = () => profileGenRef.current === gen;
-      try {
-        if (key === 'saved') {
-          const res = await userAPI.getSavedPosts(username);
-          if (isCurrent()) setSavedPosts(res.data.posts || []);
-        } else if (key === 'lists') {
-          const res = await userAPI.getChecklists(username);
-          if (isCurrent()) setChecklists(res.data.checklists || []);
-        } else if (key === 'akts') {
-          const res = await userAPI.getAkts(username);
-          if (isCurrent()) setAktsCalcs(res.data.calculations || []);
-        } else if (key === 'schedule') {
-          const res = await userAPI.getSchedule(username);
-          if (isCurrent()) setScheduleCourses(res.data.courses || []);
-        } else if (key === 'follows') {
-          const res = await userAPI.getFollows(username);
-          if (isCurrent()) setFollows(res.data.follows || []);
-        } else if (key === 'forums') {
-          const [faqRes, sugRes] = await Promise.all([
-            faqAPI.getUserActivity(p.id).catch(() => ({ data: { activity: [] } })),
-            suggestionAPI.getUserActivity(p.id).catch(() => ({ data: { activity: [] } })),
-          ]);
-          const faqItems: ForumItem[] = (faqRes.data.activity || []).map((a: any) => ({
-            key: `faq-${a.comment_id}`,
-            kind: 'faq',
-            targetId: a.entry_id,
-            created_at: a.created_at,
-            title: a.question,
-            body: a.comment_content,
-          }));
-          const sugItems: ForumItem[] = (sugRes.data.activity || []).map((a: any) => ({
-            key: `suggestion-${a.type}-${a.comment_id || a.suggestion_id}`,
-            kind: 'suggestion',
-            targetId: a.suggestion_id,
-            created_at: a.created_at,
-            title: a.type === 'started' ? 'Yeni öneri paylaştı' : 'Öneriye yorum yaptı',
-            body: a.type === 'started' ? a.suggestion_content : a.comment_content,
-          }));
-          if (isCurrent()) {
-            setForumItems([...faqItems, ...sugItems].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-          }
-        }
-      } catch {
-        // sessizce geç
-      } finally {
-        if (isCurrent()) setLoadedTabs((prev) => new Set(prev).add(key));
-      }
-    },
-    [username]
+  // Kendi profilindeki `usePostsPagination` ile aynı çıktı şekli.
+  const posts = useUserPostsPagination(username, canViewContent);
+  const saved = useUserSavedPosts(
+    username,
+    canViewContent && sectionVisibility.saved_posts && isTabMounted('saved')
   );
 
-  useEffect(() => {
-    if (!profile || profile.is_public === false || profile.is_blocked_by_me) return;
-    for (let i = activeIndex - 1; i <= activeIndex + 1; i += 1) {
-      const key = visibleTabs[i]?.key;
-      if (!key || key === 'posts' || requestedTabsRef.current.has(key)) continue;
-      requestedTabsRef.current.add(key);
-      loadTab(key, profile);
-    }
-  }, [activeIndex, visibleTabs, profile, loadTab]);
-  const showLoading = loading;
+  // Sekme bileşenleri `React.memo`'lu — `owner` referansı stabil kalmalı.
+  const profileId = profile?.id;
+  const profileUsername = profile?.username;
+  const owner = useMemo<ProfileOwner | null>(
+    () => (profileId != null && profileUsername ? { kind: 'user', username: profileUsername, userId: profileId } : null),
+    [profileId, profileUsername]
+  );
 
-  if (showLoading) {
-    return <UserProfileSkeleton />;
+  const identity = useMemo<ProfileIdentity | null>(
+    () =>
+      profile
+        ? {
+            username: profile.username,
+            full_name: profile.full_name,
+            department: profile.department,
+            faculty: profile.faculty,
+            bio: profile.bio,
+          }
+        : null,
+    [profile]
+  );
+
+  // `HeaderCard` memo'lu: satır içi JSX her render'da yeni referans olurdu.
+  const isBlockedByMe = !!profile?.is_blocked_by_me;
+  const nameAccessory = useMemo(
+    () =>
+      profileId != null && !isBlockedByMe ? (
+        <ModerationMenu
+          targetType="user"
+          targetId={profileId}
+          ownerId={profileId}
+          ownerUsername={profileUsername}
+          size={20}
+          style={{ marginLeft: 'auto' }}
+          onBlocked={() => setProfile((prev) => (prev ? { ...prev, is_blocked_by_me: true } : prev))}
+        />
+      ) : null,
+    [profileId, profileUsername, isBlockedByMe]
+  );
+  const belowName = useMemo(
+    () => (profileId != null ? <BlockedMeTag userId={profileId} style={{ marginTop: 4 }} /> : null),
+    [profileId]
+  );
+
+  // TEK KARAR NOKTASI: parmak kalkıp sayfa hizaya oturunca (bkz. ProfileScreen).
+  const handlePagerMomentumEnd = useCallback(
+    ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (screenWidth <= 0) return;
+      const key = visibleTabs[Math.round(nativeEvent.contentOffset.x / screenWidth)]?.key;
+      if (key && key !== activeTab) setActiveTab(key);
+    },
+    [screenWidth, visibleTabs, activeTab]
+  );
+
+  const handleTabPress = useCallback(
+    (index: number) => {
+      const key = visibleTabs[index]?.key;
+      if (!key) return;
+      setActiveTab(key);
+      pagerRef.current?.scrollTo({ x: index * screenWidth, animated: true });
+    },
+    [visibleTabs, screenWidth]
+  );
+
+  const handleUnblock = useCallback(
+    async (reason: UnblockReason) => {
+      if (profileId == null) return;
+      try {
+        await moderationAPI.unblock(profileId, reason);
+        emitBlockChanged(profileId, false);
+        queryClient.invalidateQueries();
+        setProfile((prev) => (prev ? { ...prev, is_blocked_by_me: false } : prev));
+      } catch {
+        Alert.alert('Hata', 'Engel kaldırılamadı.');
+      }
+    },
+    [profileId, queryClient]
+  );
+
+  if (loading || posts.firstLoading) {
+    return <ProfileSkeleton own={false} />;
   }
-  // bkz. FaqDetailScreen.tsx — gecikme dolmadan "kullanıcı bulunamadı"
-  // yanlışlıkla yanıp sönmesin diye ara boş görünüm.
+
   if (banned) {
     return (
       <View className="flex-1 items-center justify-center gap-3 px-8 bg-ground">
@@ -394,7 +330,7 @@ export default function UserProfileScreen() {
     );
   }
 
-  if (notFound || !profile) {
+  if (notFound || !profile || !owner) {
     return (
       <View className="flex-1 items-center justify-center gap-3 px-8 bg-ground">
         <UserIcon size={48} color={isDark ? '#4b5563' : '#d1d5db'} />
@@ -403,400 +339,143 @@ export default function UserProfileScreen() {
     );
   }
 
-  const isPrivate = profile.is_public === false;
-  const sectionVisibility = { ...DEFAULT_SECTION_VISIBILITY, ...(profile.profile_section_visibility || {}) };
-  const tabs = visibleTabs;
-  // Ölçümler gelmeden (ilk kare) sabit yükseklik verilmiyor: 0 yükseklik
-  // sayfaları gizler, onlar da kendi yüksekliklerini hiç bildiremezdi.
-  const minPagerHeight = viewportHeight > 0 ? viewportHeight - pagerTop - TAB_BAR_SAFE_PADDING : 0;
-  const pagerHeight = Math.max(pageHeights[activeTab] ?? 0, minPagerHeight);
-  const pagerStyle = pagerHeight > 0 ? { height: pagerHeight } : undefined;
+  const headerCard = (
+    <HeaderCard
+      identity={identity}
+      avatar={avatar}
+      badges={badges}
+      showBadges={sectionVisibility.badges}
+      nameAccessory={nameAccessory}
+      belowName={belowName}
+    />
+  );
 
-  const renderTab = (key: TabKey) => {
+  // Engellediğin ya da gizli profil: aynı başlık kartı, altında şerit/pager
+  // yerine tek bir bilgi kartı.
+  if (!canViewContent) {
+    return (
+      <ScrollView
+        className="flex-1 bg-ground"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}
+      >
+        {headerCard}
+        <View className="mx-4">
+          {profile.is_blocked_by_me ? (
+            <BlockedDeerCard mode="me" onUnblock={handleUnblock} />
+          ) : (
+            <View className="items-center gap-2 py-8 px-[30px] bg-surface rounded-lg" style={SHADOW_MD}>
+              <Lock size={40} color={isDark ? '#6b7280' : '#d1d5db'} />
+              <Text className="text-[15px] text-ink2 font-semibold">Bu profil gizli.</Text>
+              <Text className="text-muted2 text-[13.5px] text-center">
+                Kullanıcı postlarını ve listelerini yalnızca kendisi görebilir.
+              </Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    );
+  }
+
+  const tabProps = {
+    owner,
+    width: screenWidth,
+    headerHeight: headerTotalHeight,
+    scrollY,
+    onRememberOffset: rememberPageOffset,
+  };
+
+  const renderPage = (key: TabKey) => {
     switch (key) {
       case 'posts':
-        // Sayfa düğmesiyle geçişte de bu dal çalışıyor: kart iskeleti, spinner
-        // yerine gelecek içeriğin yerini tutuyor (bkz. PostListSkeleton).
-        return showPostsLoading ? (
-          <PostListSkeleton count={2} />
-        ) : posts.length === 0 ? (
-          <EmptyState icon={FileText} text="Henüz onaylı not paylaşılmamış." isDark={isDark} />
-        ) : (
-          <>
-            {posts.map((post) => (
-              <PostCard key={String(post.id ?? post.post_id)} post={post} showRating={false} />
-            ))}
-            {postsTotal > POSTS_LIMIT && (
-              <View className="flex-row items-center justify-center gap-4 py-3.5">
-                <Pressable
-                  className={`w-[34px] h-[34px] rounded-[17px] bg-surface items-center justify-center ${postsPage <= 1 ? 'opacity-50' : ''}`}
-                  disabled={postsPage <= 1}
-                  onPress={() => setPostsPage((p) => Math.max(1, p - 1))}
-                >
-                  <ChevronLeft size={16} color={postsPage <= 1 ? (isDark ? '#4b5563' : '#d1d5db') : isDark ? '#5A9690' : '#2F5755'} />
-                </Pressable>
-                <Text className="text-[12.5px] text-muted font-semibold">
-                  Sayfa {postsPage} / {Math.ceil(postsTotal / POSTS_LIMIT)}
-                </Text>
-                <Pressable
-                  className={`w-[34px] h-[34px] rounded-[17px] bg-surface items-center justify-center ${postsPage >= Math.ceil(postsTotal / POSTS_LIMIT) ? 'opacity-50' : ''}`}
-                  disabled={postsPage >= Math.ceil(postsTotal / POSTS_LIMIT)}
-                  onPress={() => setPostsPage((p) => p + 1)}
-                >
-                  <ChevronRight
-                    size={16}
-                    color={
-                      postsPage >= Math.ceil(postsTotal / POSTS_LIMIT) ? (isDark ? '#4b5563' : '#d1d5db') : isDark ? '#5A9690' : '#2F5755'
-                    }
-                  />
-                </Pressable>
-              </View>
-            )}
-          </>
+        return (
+          <PostsTab
+            key={key}
+            own={false}
+            kind="posts"
+            active={activeTab === 'posts'}
+            {...tabProps}
+            posts={posts.posts}
+            rows={posts.rows}
+            loadingMore={posts.loadingMore}
+            loadMore={posts.loadMore}
+            emptyText="Henüz onaylı not paylaşılmamış."
+          />
         );
       case 'saved':
-        return !loadedTabs.has('saved') ? (
-          <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
-        ) : savedPosts.length === 0 ? (
-          <EmptyState icon={Bookmark} text="Henüz not kaydetmemiş." isDark={isDark} />
-        ) : (
-          savedPosts.map((post) => <PostCard key={String(post.id ?? post.post_id)} post={post} showRating={false} />)
+        return (
+          <PostsTab
+            key={key}
+            own={false}
+            kind="saved"
+            active={activeTab === 'saved'}
+            {...tabProps}
+            posts={saved.data ?? NO_POSTS}
+            rows={saved.data ?? null}
+            loadingMore={false}
+            loadMore={noop}
+            emptyText="Henüz not kaydetmemiş."
+          />
         );
+    }
+    if (!isTabMounted(key)) return <PagerPlaceholder key={key} width={screenWidth} />;
+    switch (key) {
       case 'lists':
-        return !loadedTabs.has('lists') ? (
-          <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
-        ) : checklists.length === 0 ? (
-          <EmptyState icon={ListChecks} text="Henüz bir checklist oluşturmamış." isDark={isDark} />
-        ) : (
-          checklists.map((checklist) => (
-            <ChecklistCard
-              key={checklist.id}
-              checklist={checklist}
-              isOpen={expandedChecklistId === checklist.id}
-              onToggleOpen={(c) => setExpandedChecklistId((prev) => (prev === c.id ? null : c.id))}
-              readOnlyItems
-            />
-          ))
-        );
+        return <ChecklistsTab key={key} active={activeTab === key} {...tabProps} />;
       case 'akts':
-        return !loadedTabs.has('akts') ? (
-          <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
-        ) : aktsCalcs.length === 0 ? (
-          <EmptyState icon={Calculator} text="Henüz kayıtlı bir AKTS hesaplaması yok." isDark={isDark} />
-        ) : (
-          aktsCalcs.map((calc) => {
-            const semesterCount = calc.semester_count || 0;
-            const courseCount = calc.course_count || 0;
-            return (
-              <View key={calc.id} className="flex-row items-center justify-between bg-surface rounded-lg p-5 mb-1" style={SHADOW_MD}>
-                <View className="flex-1">
-                  <Text className="text-sm font-semibold text-ink" numberOfLines={1}>
-                    {calc.title}
-                  </Text>
-                  <Text className="text-sm text-muted mt-0.5">
-                    {semesterCount} dönem · {courseCount} ders · {formatDate(calc.updated_at)}
-                  </Text>
-                </View>
-                <View className="items-center">
-                  <Text className="text-2xl font-extrabold text-accent">{formatGpa(calc.gpa)}</Text>
-                  <Text className="text-[10px] text-muted2 uppercase">GANO</Text>
-                </View>
-              </View>
-            );
-          })
-        );
+        return <AktsTab key={key} active={activeTab === key} {...tabProps} />;
       case 'schedule':
-        return !loadedTabs.has('schedule') ? (
-          <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
-        ) : scheduleCourses.length === 0 ? (
-          <EmptyState icon={CalendarDays} text="Henüz ders programı oluşturmamış." isDark={isDark} />
-        ) : (
-          [1, 2, 3, 4, 5, 6].map((day) => {
-            const dayCourses = scheduleCourses.filter((c) => c.day === day).sort((a, b) => toMinutes(a.start) - toMinutes(b.start));
-            if (dayCourses.length === 0) return null;
-            return (
-              <View key={day} className="bg-surface rounded-lg p-3 mb-2" style={SHADOW_MD}>
-                <Text className="text-[13px] font-bold text-ink mb-2">{DAY_NAMES[day]}</Text>
-                {dayCourses.map((c) => (
-                  <View key={c.id} className="flex-row items-center gap-2 py-1.5">
-                    <View className="w-1 h-[26px] rounded-sm" style={{ backgroundColor: getCourseColor(c.colorIdx).hex }} />
-                    <View className="flex-1">
-                      <Text className="text-[12.5px] font-semibold text-ink" numberOfLines={1}>
-                        {c.name}
-                      </Text>
-                      <Text className="text-[11px] text-muted mt-px">
-                        {c.start}–{c.end}
-                        {c.location ? ` · ${c.location}` : ''}
-                      </Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
-            );
-          })
-        );
+        return <ScheduleTab key={key} active={activeTab === key} {...tabProps} />;
       case 'follows':
-        return !loadedTabs.has('follows') ? (
-          <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
-        ) : follows.length === 0 ? (
-          <EmptyState icon={Bell} text="Henüz bir bölüm takip etmiyor." isDark={isDark} />
-        ) : (
-          follows.map((f) => (
-            <Pressable
-              key={`${f.faculty}-${f.department}`}
-              className="flex-row items-center justify-between bg-surface rounded-lg p-5 mb-1"
-              style={SHADOW_MD}
-              onPress={() => navigation.navigate('DepartmentDetail', { faculty: f.faculty, department: f.department })}
-            >
-              <View>
-                <Text className="text-sm font-semibold text-ink">{f.department}</Text>
-                <Text className="text-sm text-muted mt-0.5">{f.faculty}</Text>
-              </View>
-            </Pressable>
-          ))
-        );
+        return <FollowsTab key={key} active={activeTab === key} {...tabProps} />;
       case 'forums':
-        return showForumsLoading ? (
-          <ActivityIndicator style={{ marginTop: 24 }} color={isDark ? '#5A9690' : '#2F5755'} />
-        ) : forumItems.length === 0 ? (
-          <EmptyState icon={MessagesSquare} text="Henüz bir foruma katılmadı." isDark={isDark} />
-        ) : (
-          forumItems.map((item) => (
-            <Pressable
-              key={item.key}
-              className="flex-row gap-2 bg-surface rounded-lg p-3 mb-1"
-              style={SHADOW_MD}
-              onPress={() =>
-                item.kind === 'faq'
-                  ? navigation.navigate('FaqDetail', { id: item.targetId })
-                  : navigation.navigate('SuggestionDetail', { id: item.targetId })
-              }
-            >
-              {item.kind === 'faq' ? (
-                <HelpCircle size={15} color={isDark ? '#5A9690' : '#2F5755'} />
-              ) : (
-                <Lightbulb size={15} color={isDark ? '#5A9690' : '#2F5755'} />
-              )}
-              <View className="flex-1">
-                <Text className="text-[11.5px] font-semibold text-muted">{item.title}</Text>
-                {!!item.body && (
-                  <Text className="text-sm text-ink2 mt-[3px]" numberOfLines={2}>
-                    {item.body}
-                  </Text>
-                )}
-                <Text className="text-[10.5px] text-muted2 mt-1">{formatDate(item.created_at)}</Text>
-              </View>
-            </Pressable>
-          ))
-        );
+        return <ForumsTab key={key} active={activeTab === key} {...tabProps} />;
     }
   };
 
   return (
-    <ScrollView
-      showsVerticalScrollIndicator={false}
-      className="flex-1 bg-ground"
-      contentContainerClassName="px-4 pt-8 pb-[150px]"
-      onLayout={(e) => setViewportHeight(e.nativeEvent.layout.height)}
-    >
-      {/* Düzen bilinçli olarak KENDİ profilindekiyle aynı (bkz. ProfileScreen.tsx):
-          avatar solda, künye sağında — eskiden burada ortalanmış, dikey bir
-          kart vardı ve iki profil sayfası birbirine hiç benzemiyordu. */}
-      <View className="bg-surface rounded-lg p-4 mb-8" style={SHADOW_MD}>
-        <View className="flex-row gap-3.5">
-          <View className="w-20 h-20 rounded-[20px] bg-brand border-2 border-avatar-ring items-center justify-center overflow-hidden">
-            {avatar ? <AvatarDisplay avatar={avatar} size={80} /> : <UserIcon size={32} color="#fff" />}
-          </View>
-          <View className="flex-1">
-            <View className="flex-row items-center gap-2">
-              <Text className="text-[19px] font-extrabold text-ink flex-shrink" numberOfLines={1}>
-                {profile.username}
-              </Text>
-              {!profile.is_blocked_by_me && (
-                <ModerationMenu
-                  targetType="user"
-                  targetId={profile.id}
-                  ownerId={profile.id}
-                  ownerUsername={profile.username}
-                  size={20}
-                  style={{ marginLeft: 'auto' }}
-                  onBlocked={() => setProfile((prev) => (prev ? { ...prev, is_blocked_by_me: true } : prev))}
-                />
-              )}
-            </View>
-            {!!profile.full_name && <Text className="text-[13px] text-ink2 mt-0.5">{profile.full_name}</Text>}
-            <BlockedMeTag userId={profile.id} style={{ marginTop: 4 }} />
-            {!!profile.department && (
-              <Text className="text-xs text-muted2 mt-0.5">
-                {profile.department}
-                {profile.faculty ? ` · ${profile.faculty}` : ''}
-              </Text>
-            )}
-            {typeof profile.post_count === 'number' && (
-              <Text className="text-[12.5px] text-muted mt-1">{profile.post_count} onaylı not</Text>
-            )}
-          </View>
-        </View>
+    <View className="flex-1 bg-ground">
+      <ScrollView
+        ref={pagerRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={handlePagerMomentumEnd}
+        style={{ flex: 1 }}
+      >
+        {visibleTabs.map(({ key }) => renderPage(key))}
+      </ScrollView>
 
-        {!!profile.bio && <Text className="text-[12.5px] text-ink2 mt-1.5 leading-[17px]">{profile.bio}</Text>}
-
-        {sectionVisibility.badges && (
-          <View className="flex-row flex-wrap gap-2 mt-3.5">
-            {badges.length === 0 ? (
-              <Text className="text-[11.5px] text-muted2">Henüz rozet yok.</Text>
-            ) : (
-              badges.map((badge) => <BadgeChip key={badge.id} badge={badge} />)
-            )}
-          </View>
-        )}
-      </View>
-
-      {profile.is_blocked_by_me ? (
-        <BlockedDeerCard
-          mode="me"
-          onUnblock={async (reason) => {
-            try {
-              await moderationAPI.unblock(profile.id, reason);
-              emitBlockChanged(profile.id, false);
-              queryClient.invalidateQueries();
-              setProfile((prev) => (prev ? { ...prev, is_blocked_by_me: false } : prev));
-            } catch {
-              Alert.alert('Hata', 'Engel kaldırılamadı.');
-            }
+      {/* Başlık katmanı — bkz. ProfileScreen.tsx (`collapsable={false}` ve
+          iç içe iki Animated.View'in gerekçesi orada). */}
+      <Animated.View
+        pointerEvents="box-none"
+        collapsable={false}
+        style={[{ position: 'absolute', top: 0, left: 0, right: 0 }, headerAnimStyle]}
+      >
+        <Animated.View
+          onLayout={(e) => {
+            const h = e.nativeEvent.layout.height;
+            setCardHeight(h);
+            cardHeightShared.value = h;
           }}
+          style={cardAnimStyle}
+        >
+          {headerCard}
+        </Animated.View>
+
+        <TabStrip
+          owner={owner}
+          countsUsername={profile.username}
+          tabs={visibleTabs}
+          activeTab={activeTab}
+          // Notlar: sayfalamanın toplamı, gelmeden profildeki sayı.
+          postsCount={posts.total ?? profile.post_count ?? null}
+          savedCount={saved.data ? saved.data.length : null}
+          onTabPress={handleTabPress}
+          onHeightChange={setStripHeight}
         />
-      ) : isPrivate ? (
-        <View className="items-center gap-2 py-8 px-[30px] bg-surface rounded-lg" style={SHADOW_MD}>
-          <Lock size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
-          <Text className="text-lg text-muted font-semibold">Bu profil gizli.</Text>
-          <Text className="text-sm text-muted2 text-center">Kullanıcı postlarını ve listelerini yalnızca kendisi görebilir.</Text>
-        </View>
-      ) : (
-        <>
-          <View className="bg-surface rounded-lg mb-8" style={SHADOW_MD}>
-            <ScrollView
-              ref={stripRef}
-              showsVerticalScrollIndicator={false}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              className="border-b border-line"
-              contentContainerStyle={{ paddingHorizontal: 16 }}
-              onLayout={(e) => {
-                stripWidthRef.current = e.nativeEvent.layout.width;
-                centerStripOn(activeTab);
-              }}
-              onContentSizeChange={(w) => {
-                stripContentWidthRef.current = w;
-              }}
-            >
-              {tabs.map(({ key, label, icon: Icon }) => {
-                const active = activeTab === key;
-                // Sayaçlar kendi profilindeki şeritle aynı kuralda (bkz.
-                // TabStrip.tsx): yalnızca veri geldiğinde gösteriliyor, yoksa
-                // açılışta hepsi yanıltıcı "(0)" görünürdü. Notların sayısı
-                // profilin kendisinden geliyor; diğerleri sekme (ya da komşu
-                // ön yüklemesi) yüklenince beliriyor. Forumlar kendi
-                // profilinde de sayaçsız.
-                const count =
-                  key === 'posts'
-                    ? (profile.post_count ?? null)
-                    : !loadedTabs.has(key)
-                      ? null
-                      : key === 'saved'
-                        ? savedPosts.length
-                        : key === 'lists'
-                          ? checklists.length
-                          : key === 'akts'
-                            ? aktsCalcs.length
-                            : key === 'schedule'
-                              ? scheduleCourses.length
-                              : key === 'follows'
-                                ? follows.length
-                                : null;
-                return (
-                  <Pressable
-                    key={key}
-                    className={`flex-row items-center gap-1.5 py-3 mr-5 border-b-2 ${active ? 'border-b-[#1e40af]' : 'border-b-transparent'}`}
-                    onPress={() => handleTabPress(key)}
-                    onLayout={(e) => {
-                      tabLayoutsRef.current[key] = { x: e.nativeEvent.layout.x, width: e.nativeEvent.layout.width };
-                      if (active) centerStripOn(key);
-                    }}
-                  >
-                    <Icon size={16} color={active ? (isDark ? '#60a5fa' : '#1e3a8a') : isDark ? '#9ca3af' : '#6b7280'} />
-                    <Text className={`text-xs font-medium ${active ? 'text-info' : 'text-muted'}`}>
-                      {label}
-                      {count !== null ? ` (${count})` : ''}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </View>
-
-          {/* Sekmeler arasında kaydırarak geçiş — kendi profilindeki pager'ın
-              deseni (bkz. ProfileScreen.tsx'teki uzun not): sayfa YALNIZCA
-              `onMomentumScrollEnd`'de değişiyor, sürüklerken değil. Aktif sekme
-              ve iki komşusu mount'lu; bir kez mount olan sayfa kalıyor.
-
-              Kendi profilinden farkı: burada başlık kartı sayfayla birlikte
-              dikey kayıyor, yani pager dikey bir ScrollView'ın İÇİNDE. Sayfalar
-              içerikleri kadar uzun (`alignItems: 'flex-start'`) ve pager'ın
-              yüksekliği aktif sayfanınkine eşitleniyor — yoksa en uzun sekme
-              (ör. 12 gönderi) kısa bir sekmenin altında ekran boyu boşluk
-              bırakırdı. */}
-          <View
-            onLayout={(e) => {
-              setPageWidth(e.nativeEvent.layout.width);
-              setPagerTop(e.nativeEvent.layout.y);
-            }}
-          >
-            {pageWidth > 0 && (
-              <ScrollView
-                ref={pagerRef}
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                onMomentumScrollEnd={handlePagerMomentumEnd}
-                style={pagerStyle}
-                contentContainerStyle={{ alignItems: 'flex-start' }}
-              >
-                {tabs.map(({ key }) =>
-                  mountedTabs.includes(key) ? (
-                    <View
-                      key={key}
-                      style={{ width: pageWidth }}
-                      className={key === 'posts' || key === 'saved' ? '' : 'gap-3'}
-                      onLayout={(e) => rememberPageHeight(key, e.nativeEvent.layout.height)}
-                    >
-                      {renderTab(key)}
-                    </View>
-                  ) : (
-                    <View key={key} style={{ width: pageWidth }} />
-                  )
-                )}
-              </ScrollView>
-            )}
-          </View>
-        </>
-      )}
-    </ScrollView>
-  );
-}
-
-function EmptyState({ icon: Icon, text, isDark }: { icon: any; text: string; isDark: boolean }) {
-  return (
-    <View className="items-center py-8 gap-2.5 bg-surface rounded-lg" style={SHADOW_MD}>
-      <Icon size={48} color={isDark ? '#6b7280' : '#9ca3af'} />
-      <Text className="text-muted text-base text-center px-[30px]">{text}</Text>
+      </Animated.View>
     </View>
   );
 }
-
-const SHADOW_MD = {
-  shadowColor: '#000',
-  shadowOpacity: 0.1,
-  shadowRadius: 8,
-  shadowOffset: { width: 0, height: 3 },
-  elevation: 3,
-} as const;

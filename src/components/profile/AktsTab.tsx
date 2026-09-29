@@ -7,7 +7,7 @@ import { Calculator, Trash2 } from 'lucide-react-native';
 import { aktsAPI } from '../../lib/api';
 import { formatGpa } from '../../utils/gano';
 import type { RootStackParamList } from '../../navigation/types';
-import { MY_AKTS_KEY, useMyAktsCalcs, type AktsCalc } from '../../hooks/profile/useProfileLists';
+import { MY_AKTS_KEY, useProfileAktsCalcs, type AktsCalc } from '../../hooks/profile/useProfileLists';
 import PagerPage, { type ProfileTabProps } from './PagerPage';
 import { EmptyState, SHADOW_SM, TabLoading, formatDate } from './profileCommon';
 
@@ -19,8 +19,9 @@ const AktsRow = React.memo(function AktsRow({
   onDelete,
 }: {
   calc: AktsCalc;
-  onEdit: (id: string) => void;
-  onDelete: (id: string) => void;
+  /** Verilmezse (başkasının profili) Düzenle/Sil düğmeleri çizilmiyor. */
+  onEdit?: (id: string) => void;
+  onDelete?: (id: string) => void;
 }) {
   const semesterCount = calc.semester_count || 0;
   const courseCount = calc.course_count || 0;
@@ -35,25 +36,30 @@ const AktsRow = React.memo(function AktsRow({
           {semesterCount} dönem · {courseCount} ders · {formatDate(calc.updated_at)}
         </Text>
       </View>
-      <View className="items-center mr-2.5">
+      <View className={onEdit ? 'items-center mr-2.5' : 'items-center'}>
         <Text className="text-lg font-extrabold text-accent">{formatGpa(calc.gpa)}</Text>
         <Text className="text-xs text-muted2 uppercase">GANO</Text>
       </View>
-      <Pressable className="bg-brand rounded-lg px-2.5 py-[7px]" onPress={() => onEdit(calc.id)}>
-        <Text className="text-white text-xs font-bold">Düzenle</Text>
-      </Pressable>
-      <Pressable onPress={() => onDelete(calc.id)} hitSlop={8} className="ml-2">
-        <Trash2 size={17} color="#dc2626" />
-      </Pressable>
+      {!!onEdit && (
+        <Pressable className="bg-brand rounded-lg px-2.5 py-[7px]" onPress={() => onEdit(calc.id)}>
+          <Text className="text-white text-xs font-bold">Düzenle</Text>
+        </Pressable>
+      )}
+      {!!onDelete && (
+        <Pressable onPress={() => onDelete(calc.id)} hitSlop={8} className="ml-2">
+          <Trash2 size={17} color="#dc2626" />
+        </Pressable>
+      )}
     </View>
   );
 });
 
 // Profil > AKTS sekmesi.
-function AktsTab({ width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
+function AktsTab({ owner, width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
-  const { data: calcs, isPending } = useMyAktsCalcs();
+  const isOwn = owner.kind === 'me';
+  const { data: calcs, isPending } = useProfileAktsCalcs(owner);
   // bkz. ChecklistsTab.tsx — aynı gecikmeli yükleme kuralı.
   const showLoading = isPending;
 
@@ -104,12 +110,19 @@ function AktsTab({ width, headerHeight, scrollY, onRememberOffset }: ProfileTabP
         ) : !calcs || calcs.length === 0 ? (
           <EmptyState
             icon={Calculator}
-            text="Henüz kayıtlı AKTS hesaplaman yok."
-            actionLabel="Hesaplayıcıya Git"
-            onAction={goToCalculator}
+            text={isOwn ? 'Henüz kayıtlı AKTS hesaplaman yok.' : 'Henüz kayıtlı AKTS hesaplaması yok.'}
+            actionLabel={isOwn ? 'Hesaplayıcıya Git' : undefined}
+            onAction={isOwn ? goToCalculator : undefined}
           />
         ) : (
-          calcs.map((calc) => <AktsRow key={calc.id} calc={calc} onEdit={handleEdit} onDelete={handleDelete} />)
+          calcs.map((calc) => (
+            <AktsRow
+              key={calc.id}
+              calc={calc}
+              onEdit={isOwn ? handleEdit : undefined}
+              onDelete={isOwn ? handleDelete : undefined}
+            />
+          ))
         ))}
     </PagerPage>
   );

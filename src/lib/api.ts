@@ -251,6 +251,7 @@ export const userAPI = {
   getSchedule: (username: string) => api.get(`/users/${encodeURIComponent(username)}/schedule`),
   getFollows: (username: string) => api.get(`/users/${encodeURIComponent(username)}/follows`),
   getSavedPosts: (username: string) => api.get(`/users/${encodeURIComponent(username)}/saved-posts`),
+  getProfileCounts: (username: string) => api.get(`/users/${encodeURIComponent(username)}/profile-counts`),
   banProfileView: (userId: string | number, banned: boolean, reason = '') => api.patch(`/users/${userId}/profile-ban`, { banned, reason }),
   getProfileBans: ({ page = 1, limit = 20 } = {}) => api.get(`/users/profile-bans${toQueryString({ page, limit })}`),
 };

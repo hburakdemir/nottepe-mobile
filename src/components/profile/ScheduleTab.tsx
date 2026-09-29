@@ -5,7 +5,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CalendarDays, Edit2 } from 'lucide-react-native';
 import { DAY_NAMES, getCourseColor, toMinutes, type ScheduleCourse } from '../../utils/schedule';
 import type { RootStackParamList } from '../../navigation/types';
-import { useMySchedule } from '../../hooks/profile/useProfileLists';
+import { useProfileSchedule } from '../../hooks/profile/useProfileLists';
 import PagerPage, { type ProfileTabProps } from './PagerPage';
 import { EmptyState, SHADOW_SM, TabLoading } from './profileCommon';
 
@@ -37,9 +37,10 @@ const DayCard = React.memo(function DayCard({ day, courses }: { day: number; cou
 });
 
 // Profil > Program sekmesi.
-function ScheduleTab({ width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
+function ScheduleTab({ owner, width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { data: schedule, isPending } = useMySchedule();
+  const isOwn = owner.kind === 'me';
+  const { data: schedule, isPending } = useProfileSchedule(owner);
   // bkz. ChecklistsTab.tsx — aynı gecikmeli yükleme kuralı.
   const showLoading = isPending;
 
@@ -64,19 +65,21 @@ function ScheduleTab({ width, headerHeight, scrollY, onRememberOffset }: Profile
         ) : !schedule || schedule.length === 0 ? (
           <EmptyState
             icon={CalendarDays}
-            text="Henüz ders programı oluşturmadın."
-            actionLabel="Ders Programı Oluştur"
-            onAction={goToSchedule}
+            text={isOwn ? 'Henüz ders programı oluşturmadın.' : 'Henüz ders programı oluşturmamış.'}
+            actionLabel={isOwn ? 'Ders Programı Oluştur' : undefined}
+            onAction={isOwn ? goToSchedule : undefined}
           />
         ) : (
           <View>
-            <Pressable
-              className="flex-row self-end items-center gap-1.5 bg-brand rounded-lg px-3 py-2 mb-2.5"
-              onPress={goToSchedule}
-            >
-              <Edit2 size={13} color="#fff" />
-              <Text className="text-white text-xs font-bold">Düzenle</Text>
-            </Pressable>
+            {isOwn && (
+              <Pressable
+                className="flex-row self-end items-center gap-1.5 bg-brand rounded-lg px-3 py-2 mb-2.5"
+                onPress={goToSchedule}
+              >
+                <Edit2 size={13} color="#fff" />
+                <Text className="text-white text-xs font-bold">Düzenle</Text>
+              </Pressable>
+            )}
             {DAYS.map((day) => {
               const dayCourses = schedule
                 .filter((c) => c.day === day)

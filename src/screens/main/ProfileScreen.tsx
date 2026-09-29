@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Modal, ScrollView, View } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
@@ -29,7 +29,7 @@ import AktsTab from '../../components/profile/AktsTab';
 import ScheduleTab from '../../components/profile/ScheduleTab';
 import FollowsTab from '../../components/profile/FollowsTab';
 import ForumsTab from '../../components/profile/ForumsTab';
-import { useMyBadges } from '../../hooks/profile/useProfileLists';
+import { ME_OWNER, useMyBadges } from '../../hooks/profile/useProfileLists';
 import { useBadgeVisibility } from '../../hooks/profile/useBadgeVisibility';
 import { usePostsPagination } from '../../hooks/profile/usePostsPagination';
 import { diagMark } from '../../lib/diagnostics';
@@ -233,6 +233,12 @@ export default function ProfileScreen() {
     }
   }, [invalidateMyAvatar, queryClient]);
 
+  // `HeaderCard` memo'lu — eylem nesnesi de stabil referans olmalı.
+  const ownerActions = useMemo(
+    () => ({ photoUploading, onPickPhoto: handlePickPhoto, onOpenAvatarBuilder: openAvatarBuilder, onOpenEdit: openEditModal }),
+    [photoUploading, handlePickPhoto, openAvatarBuilder, openEditModal]
+  );
+
   // --- Kayan (collapsing) profil başlığı -----------------------------------
   // Eskiden profil kartı + sekme şeridi pager'ın DIŞINDA, sabit duruyordu —
   // "aşağı kaydırdıkça profil kısmı sabit kalmamalı, kaymalı, en üstte tablar
@@ -329,6 +335,7 @@ export default function ProfileScreen() {
   // `headerHeight`: sayfa içeriği başlık kadar boşlukla başlıyor (kart + şerit
   // pager'ın ÜSTÜNDE mutlak konumlu duruyor).
   const tabProps = {
+    owner: ME_OWNER,
     width: screenWidth,
     headerHeight: headerTotalHeight,
     scrollY,
@@ -434,17 +441,13 @@ export default function ProfileScreen() {
           }}
           style={cardAnimStyle}
         >
-          <HeaderCard
-            avatar={avatar}
-            badges={badges}
-            photoUploading={photoUploading}
-            onPickPhoto={handlePickPhoto}
-            onOpenAvatarBuilder={openAvatarBuilder}
-            onOpenEdit={openEditModal}
-          />
+          <HeaderCard identity={user} avatar={avatar} badges={badges} ownerActions={ownerActions} />
         </Animated.View>
 
         <TabStrip
+          owner={ME_OWNER}
+          countsUsername={user?.username}
+          tabs={TABS}
           activeTab={activeTab}
           // Sayaç "ekranda kaç satır var" değil, sunucudaki TOPLAM.
           // "Kayıtlı"nın yedeği context'in id kümesi: sunucu toplamı sentinel'e

@@ -16,7 +16,10 @@ import { SHADOW_MD } from './profileCommon';
 // SABİT KALAN ÖGELER: avatarın üstündeki iki düğme (palet/kamera), "Düzenle"
 // butonu ve sekme etiketleri+ikonları. Bunlar veriye bağlı değil — her zaman
 // aynı; yalnızca kimlik satırları, rozetler ve sekme sayaçları gri blok.
-export default function ProfileSkeleton() {
+//
+// `own={false}`: başkasının profili — gerçek kart gibi palet/kamera, e-posta
+// satırı ve "Düzenle" yok (bkz. HeaderCard.tsx).
+export default function ProfileSkeleton({ own = true }: { own?: boolean }) {
   return (
     <SkeletonGroup>
       <View className="flex-1 bg-ground">
@@ -25,18 +28,22 @@ export default function ProfileSkeleton() {
           <View className="flex-row gap-3.5">
             <View className="w-20 h-20">
               <Skeleton width={80} height={80} radius={20} />
-              <View className="absolute -bottom-[3px] -right-[3px] w-[22px] h-[22px] rounded-[11px] bg-indigo-600 items-center justify-center">
-                <Palette size={12} color="#fff" />
-              </View>
-              <View className="absolute -bottom-[3px] -left-[3px] w-[22px] h-[22px] rounded-[11px] bg-brand items-center justify-center">
-                <Camera size={12} color="#fff" />
-              </View>
+              {own && (
+                <>
+                  <View className="absolute -bottom-[3px] -right-[3px] w-[22px] h-[22px] rounded-[11px] bg-indigo-600 items-center justify-center">
+                    <Palette size={12} color="#fff" />
+                  </View>
+                  <View className="absolute -bottom-[3px] -left-[3px] w-[22px] h-[22px] rounded-[11px] bg-brand items-center justify-center">
+                    <Camera size={12} color="#fff" />
+                  </View>
+                </>
+              )}
             </View>
             {/* Kimlik: kullanıcı adı, ad soyad, e-posta, bölüm, biyografi. */}
             <View className="flex-1 gap-1.5">
               <Skeleton width={104} height={19} />
               <Skeleton width={128} height={13} />
-              <Skeleton width={164} height={12} />
+              {own && <Skeleton width={164} height={12} />}
               <Skeleton width={112} height={12} />
               <Skeleton width="100%" height={12} />
             </View>
@@ -50,10 +57,12 @@ export default function ProfileSkeleton() {
 
           {/* Buton kabuğu ve ikonu duruyor, etiketi çubuk. Marka zemininde gri
               blok okunmadığı için çubuk yarı saydam beyaz. */}
-          <View className="flex-row items-center justify-center gap-1.5 bg-brand rounded-[10px] py-2.5 mt-3.5">
-            <Edit2 size={15} color="#fff" />
-            <Skeleton width={56} height={13} style={{ backgroundColor: 'rgba(255,255,255,0.35)' }} />
-          </View>
+          {own && (
+            <View className="flex-row items-center justify-center gap-1.5 bg-brand rounded-[10px] py-2.5 mt-3.5">
+              <Edit2 size={15} color="#fff" />
+              <Skeleton width={56} height={13} style={{ backgroundColor: 'rgba(255,255,255,0.35)' }} />
+            </View>
+          )}
         </View>
 
         {/* TabStrip: mx-4 mb-5, sekme py-3 mr-[18px] */}

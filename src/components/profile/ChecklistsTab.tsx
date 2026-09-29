@@ -10,7 +10,7 @@ import ChecklistEditModal from '../ChecklistEditModal';
 import { checklistAPI } from '../../lib/api';
 import { isWithinEditWindow, type Checklist, type ChecklistItem } from '../../types/checklist';
 import type { RootStackParamList } from '../../navigation/types';
-import { MY_CHECKLISTS_KEY, useMyChecklists } from '../../hooks/profile/useProfileLists';
+import { MY_CHECKLISTS_KEY, useProfileChecklists } from '../../hooks/profile/useProfileLists';
 import PagerPage, { type ProfileTabProps } from './PagerPage';
 import { EmptyState, TabLoading } from './profileCommon';
 
@@ -21,10 +21,11 @@ import { EmptyState, TabLoading } from './profileCommon';
 // 1632 satırlık ağacın tamamını yeniden render ediyordu. Artık state burada ve
 // bileşen `React.memo` — dışarıdan gelen alakasız güncellemeler bu ağaca
 // girmiyor.
-function ChecklistsTab({ width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
+function ChecklistsTab({ owner, width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
-  const { data: checklists, isPending } = useMyChecklists();
+  const isOwn = owner.kind === 'me';
+  const { data: checklists, isPending } = useProfileChecklists(owner);
   // Gösterge yükleme başlar başlamaz geliyor, veri gelince anında gidiyor —
   // arada yapay bir eşik YOK (kullanıcı kararı: "süre belirtme, en akıcı
   // nasıl olacaksa öyle olsun").
@@ -87,9 +88,9 @@ function ChecklistsTab({ width, headerHeight, scrollY, onRememberOffset }: Profi
         ) : !checklists || checklists.length === 0 ? (
           <EmptyState
             icon={ListChecks}
-            text="Henüz bir checklist oluşturmadın."
-            actionLabel="Checklistlere Git"
-            onAction={goToChecklists}
+            text={isOwn ? 'Henüz bir checklist oluşturmadın.' : 'Henüz bir checklist oluşturmamış.'}
+            actionLabel={isOwn ? 'Checklistlere Git' : undefined}
+            onAction={isOwn ? goToChecklists : undefined}
           />
         ) : (
           checklists.map((checklist) => (
@@ -98,10 +99,12 @@ function ChecklistsTab({ width, headerHeight, scrollY, onRememberOffset }: Profi
               checklist={checklist}
               isOpen={expandedId === checklist.id}
               onToggleOpen={handleToggleOpen}
-              onToggleItem={handleToggleItem}
-              onStatsClick={setStatsChecklist}
-              onEditClick={setEditChecklist}
-              canEdit={isWithinEditWindow(checklist)}
+              // Başkasının listesi salt okunur: işaretleme, düzenleme, istatistik yok.
+              readOnlyItems={!isOwn}
+              onToggleItem={isOwn ? handleToggleItem : undefined}
+              onStatsClick={isOwn ? setStatsChecklist : undefined}
+              onEditClick={isOwn ? setEditChecklist : undefined}
+              canEdit={isOwn && isWithinEditWindow(checklist)}
             />
           ))
         ))}

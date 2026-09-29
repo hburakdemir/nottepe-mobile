@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View } from 'react-native';
 import Animated, { runOnJS, useAnimatedScrollHandler, type SharedValue } from 'react-native-reanimated';
 import { TAB_BAR_SAFE_PADDING } from '../layout/tabBarMetrics';
+import type { ProfileOwner } from '../../hooks/profile/useProfileLists';
 import type { TabKey } from './profileCommon';
 
 // Profil pager'ındaki "basit" sekmelerin (checklist / AKTS / program / takip /
@@ -26,6 +27,8 @@ import type { TabKey } from './profileCommon';
  *  shared value, ya `useCallback`'li) — sekme bileşenlerinin `React.memo`'su bu
  *  sayede iş görüyor. */
 export type ProfileTabProps = {
+  /** Kimin profili — veri kaynağını ve sahibe özel düğmeleri belirliyor. */
+  owner: ProfileOwner;
   /** Sayfa görünür mü — görünmeyen sayfa içeriğini hiç çizmiyor (kap duruyor). */
   active: boolean;
   width: number;

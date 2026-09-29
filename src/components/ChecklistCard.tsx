@@ -118,7 +118,9 @@ function ChecklistCard({
             <Pencil size={15} color={mutedColor} />
           </Pressable>
         )}
-        {isUserList && checklist.completion && (
+        {/* İstatistik yalnızca listenin sahibine açık — başkasının profilinde
+            (handler verilmiyor) ölü bir düğme kalmasın. */}
+        {!!onStatsClick && isUserList && checklist.completion && (
           <Pressable className="bg-inset" style={styles.actionBtn} onPress={() => onStatsClick?.(checklist)} hitSlop={8}>
             <BarChart2 size={15} color={mutedColor} />
           </Pressable>

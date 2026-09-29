@@ -20,6 +20,7 @@ import { PostListSkeleton } from '../PostCardSkeleton';
 // kez. ProfileScreen'in gövdesindeyken `loadMore` zinciri üzerinden her liste
 // mutasyonunda yeniden inşa ediliyordu (bkz. usePostsPagination.ts).
 function PostsTab({
+  own = true,
   kind,
   active,
   width,
@@ -33,6 +34,8 @@ function PostsTab({
   onDelete,
   emptyText,
 }: {
+  /** Kendi profili mi — onay durumu rozeti ve silme yalnızca sahibine. */
+  own?: boolean;
   kind: PostsKind;
   active: boolean;
   width: number;
@@ -44,7 +47,7 @@ function PostsTab({
   rows: Post[] | null;
   loadingMore: boolean;
   loadMore: () => void;
-  onDelete: (id: string | number) => void;
+  onDelete?: (id: string | number) => void;
   emptyText: string;
 }) {
   // Worklet'in closure'ına `active` GİRMİYOR: girseydi her sekme değişiminde
@@ -76,9 +79,9 @@ function PostsTab({
 
   const renderItem = useCallback(
     ({ item }: { item: Post }) => (
-      <PostCard post={item} showStatus showRating={kind === 'saved'} onDelete={onDelete} />
+      <PostCard post={item} showStatus={own} showRating={kind === 'saved'} onDelete={onDelete} />
     ),
-    [kind, onDelete]
+    [own, kind, onDelete]
   );
 
   const pageStyle = useMemo(() => ({ width }), [width]);

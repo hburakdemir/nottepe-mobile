@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { aktsAPI, badgeAPI, checklistAPI, departmentFollowAPI, faqAPI, scheduleAPI, suggestionAPI } from '../../lib/api';
+import { aktsAPI, badgeAPI, checklistAPI, departmentFollowAPI, faqAPI, scheduleAPI, suggestionAPI, userAPI } from '../../lib/api';
 import type { Badge } from '../../components/BadgeChip';
 import type { Checklist } from '../../types/checklist';
+import type { Post } from '../../types/post';
 import type { ScheduleCourse } from '../../utils/schedule';
 
 // Profil'in "küçük" sekmelerinin (checklist / AKTS / program / takip / forum)
@@ -83,60 +84,106 @@ export function useMyBadges() {
   });
 }
 
-export function useMyChecklists() {
+// PROFİLİN SAHİBİ. Kendi profili ile başkasının profili AYNI sekme
+// bileşenleriyle çiziliyor (bkz. UserProfileScreen.tsx); fark yalnızca verinin
+// nereden geldiği ve sahibe özel düğmelerin görünüp görünmediği.
+//
+// `me` mevcut "kendim" uçlarını ve MEVCUT anahtarları (`MY_*_KEY`) kullanıyor —
+// iyimser güncellemeler ve invalidate'ler o anahtarlara yazıyor.
+// `user` başkasının `/users/:username/...` uçlarını kullanıyor.
+//
+// Bileşenler `React.memo`'lu olduğu için `owner` referansı STABİL olmalı:
+// kendi profili `ME_OWNER` sabitini, başkasınınki `useMemo` ile kurulanı veriyor.
+export type ProfileOwner = { kind: 'me' } | { kind: 'user'; username: string; userId: number };
+export const ME_OWNER: ProfileOwner = { kind: 'me' };
+
+type ListKey = 'lists' | 'akts' | 'schedule' | 'follows' | 'saved';
+const MY_KEYS: Record<Exclude<ListKey, 'saved'>, readonly unknown[]> = {
+  lists: MY_CHECKLISTS_KEY,
+  akts: MY_AKTS_KEY,
+  schedule: MY_SCHEDULE_KEY,
+  follows: MY_FOLLOWS_KEY,
+};
+const userKey = (username: string, key: ListKey | 'forums') => ['user-profile', username, key] as const;
+
+export function profileForumsKey(owner: ProfileOwner, myUserId: string | number | undefined) {
+  return owner.kind === 'me' ? [...MY_FORUMS_KEY, myUserId] : userKey(owner.username, 'forums');
+}
+
+export const userSavedPostsKey = (username: string) => userKey(username, 'saved');
+
+export function profileListKey(owner: ProfileOwner, key: Exclude<ListKey, 'saved'>) {
+  return owner.kind === 'me' ? MY_KEYS[key] : userKey(owner.username, key);
+}
+
+// Yukarıdaki "hata → `[]`" kuralı burada da geçerli. Başkasının gizlediği bölümde sunucu `{ hidden: true }` döndürüyor — dizi
+// alanı yok, sonuç yine `[]` (sekme zaten gösterilmiyor).
+function useOwnerList<T>(
+  owner: ProfileOwner,
+  key: Exclude<ListKey, 'saved'>,
+  fetchMine: () => Promise<T[]>,
+  fetchUser: (username: string) => Promise<T[]>
+) {
   return useQuery({
-    queryKey: MY_CHECKLISTS_KEY,
+    queryKey: profileListKey(owner, key),
     queryFn: async () => {
       try {
-        const res = await checklistAPI.getMine();
-        return (res.data.checklists || []) as Checklist[];
+        return owner.kind === 'me' ? await fetchMine() : await fetchUser(owner.username);
       } catch {
-        return [] as Checklist[];
+        return [] as T[];
       }
     },
     staleTime: LIST_STALE_MS,
   });
 }
 
-export function useMyAktsCalcs() {
-  return useQuery({
-    queryKey: MY_AKTS_KEY,
-    queryFn: async () => {
-      try {
-        const res = await aktsAPI.getAll();
-        return (res.data.calculations || []) as AktsCalc[];
-      } catch {
-        return [] as AktsCalc[];
-      }
-    },
-    staleTime: LIST_STALE_MS,
-  });
+export function useProfileChecklists(owner: ProfileOwner) {
+  return useOwnerList<Checklist>(
+    owner,
+    'lists',
+    async () => (await checklistAPI.getMine()).data.checklists || [],
+    async (u) => (await userAPI.getChecklists(u)).data.checklists || []
+  );
 }
 
-export function useMySchedule() {
-  return useQuery({
-    queryKey: MY_SCHEDULE_KEY,
-    queryFn: async () => {
-      try {
-        const res = await scheduleAPI.getMine();
-        return (res.data?.courses || []) as ScheduleCourse[];
-      } catch {
-        return [] as ScheduleCourse[];
-      }
-    },
-    staleTime: LIST_STALE_MS,
-  });
+export function useProfileAktsCalcs(owner: ProfileOwner) {
+  return useOwnerList<AktsCalc>(
+    owner,
+    'akts',
+    async () => (await aktsAPI.getAll()).data.calculations || [],
+    async (u) => (await userAPI.getAkts(u)).data.calculations || []
+  );
 }
 
-export function useMyFollows() {
+export function useProfileSchedule(owner: ProfileOwner) {
+  return useOwnerList<ScheduleCourse>(
+    owner,
+    'schedule',
+    async () => (await scheduleAPI.getMine()).data?.courses || [],
+    async (u) => (await userAPI.getSchedule(u)).data?.courses || []
+  );
+}
+
+export function useProfileFollows(owner: ProfileOwner) {
+  return useOwnerList<Follow>(
+    owner,
+    'follows',
+    async () => (await departmentFollowAPI.getMine()).data.follows || [],
+    async (u) => (await userAPI.getFollows(u)).data.follows || []
+  );
+}
+
+// Başkasının "Kayıtlı" sekmesi. Kendi Kayıtlı'n sayfalı durum makinesini
+// kullanıyor (bkz. usePostsPagination.ts); bu uç sayfasız, tüm listeyi döndürüyor.
+export function useUserSavedPosts(username: string, enabled: boolean) {
   return useQuery({
-    queryKey: MY_FOLLOWS_KEY,
+    queryKey: userSavedPostsKey(username),
+    enabled,
     queryFn: async () => {
       try {
-        const res = await departmentFollowAPI.getMine();
-        return (res.data.follows || []) as Follow[];
+        return ((await userAPI.getSavedPosts(username)).data.posts || []) as Post[];
       } catch {
-        return [] as Follow[];
+        return [] as Post[];
       }
     },
     staleTime: LIST_STALE_MS,
@@ -145,10 +192,11 @@ export function useMyFollows() {
 
 // Forum etkinliği İKİ uçtan geliyor (SSS yorumları + öneriler) ve tek listede
 // tarihe göre birleşiyor. `enabled: !!userId` — kullanıcı kimliği olmadan
-// çağrılamıyor; eski koddaki `!user?.id` kontrolünün karşılığı.
-export function useMyForumActivity(userId: string | number | undefined) {
+// çağrılamıyor. Kendi profilinde anahtar eskisi gibi `[...MY_FORUMS_KEY, id]`.
+export function useProfileForumActivity(owner: ProfileOwner, myUserId: string | number | undefined) {
+  const userId = owner.kind === 'me' ? myUserId : owner.userId;
   return useQuery({
-    queryKey: [...MY_FORUMS_KEY, userId],
+    queryKey: profileForumsKey(owner, myUserId),
     enabled: !!userId,
     queryFn: async () => {
       const [faqRes, sugRes] = await Promise.all([
@@ -179,6 +227,32 @@ export function useMyForumActivity(userId: string | number | undefined) {
   });
 }
 
+// --- Sekme sayaçları ---------------------------------------------------------
+// "Sekme sayaçları tıklamadan dolmalı" kuralı eskiden dört listenin TAMAMINI
+// açılışta çekerek sağlanıyordu (forum hiç sayılmıyordu). Artık sunucu yedi
+// sayıyı tek sorguda veriyor (`/users/:username/profile-counts`); listeler
+// yalnızca sekme görülünce çekiliyor. Gizlenen bölümün anahtarı yanıtta yok.
+//
+// Uç yoksa (eski sunucu) ya da hata verirse `{}` — sayaç, sekme listesi
+// yüklenince beliriyor (eski davranış).
+export type ProfileCounts = Partial<Record<'posts' | 'saved' | 'lists' | 'akts' | 'schedule' | 'follows' | 'forums', number>>;
+export const PROFILE_COUNTS_KEY = ['profile-counts'] as const;
+
+export function useProfileCounts(username: string | undefined) {
+  return useQuery({
+    queryKey: [...PROFILE_COUNTS_KEY, username],
+    enabled: !!username,
+    queryFn: async () => {
+      try {
+        return ((await userAPI.getProfileCounts(username!)).data.counts || {}) as ProfileCounts;
+      } catch {
+        return {} as ProfileCounts;
+      }
+    },
+    staleTime: LIST_STALE_MS,
+  });
+}
+
 /**
  * Bir listeyi değiştiren akışlar (silme, takipten çıkma, checklist kaydetme)
  * için. Eski kodda bu, sentinel'i `null`'a çekip effect'i yeniden tetiklemekti;
@@ -186,5 +260,8 @@ export function useMyForumActivity(userId: string | number | undefined) {
  */
 export function useInvalidateProfileList() {
   const queryClient = useQueryClient();
-  return (key: readonly unknown[]) => queryClient.invalidateQueries({ queryKey: key });
+  return (key: readonly unknown[]) => {
+    queryClient.invalidateQueries({ queryKey: key });
+    queryClient.invalidateQueries({ queryKey: PROFILE_COUNTS_KEY });
+  };
 }

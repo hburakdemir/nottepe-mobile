@@ -9,7 +9,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { FOLLOWED_DEPARTMENTS_KEY } from '../layout/MenuDrawerContent';
 import { goToTab } from '../../navigation/navigateApp';
 import type { RootStackParamList } from '../../navigation/types';
-import { MY_FOLLOWS_KEY, useMyFollows, type Follow } from '../../hooks/profile/useProfileLists';
+import { MY_FOLLOWS_KEY, useProfileFollows, type Follow } from '../../hooks/profile/useProfileLists';
 import PagerPage, { type ProfileTabProps } from './PagerPage';
 import { EmptyState, SHADOW_SM, TabLoading } from './profileCommon';
 
@@ -21,7 +21,8 @@ const FollowRow = React.memo(function FollowRow({
 }: {
   follow: Follow;
   onOpen: (f: Follow) => void;
-  onUnfollow: (f: Follow) => void;
+  /** Verilmezse (başkasının profili) "Bırak" düğmesi çizilmiyor. */
+  onUnfollow?: (f: Follow) => void;
   iconColor: string;
 }) {
   return (
@@ -32,23 +33,26 @@ const FollowRow = React.memo(function FollowRow({
         </Text>
         <Text className="text-[11.5px] text-muted2 mt-0.5">{follow.faculty}</Text>
       </Pressable>
-      <Pressable
-        className="flex-row items-center gap-[5px] border border-line rounded-lg px-2.5 py-[7px]"
-        onPress={() => onUnfollow(follow)}
-      >
-        <BellOff size={13} color={iconColor} />
-        <Text className="text-[11.5px] text-muted font-semibold">Bırak</Text>
-      </Pressable>
+      {!!onUnfollow && (
+        <Pressable
+          className="flex-row items-center gap-[5px] border border-line rounded-lg px-2.5 py-[7px]"
+          onPress={() => onUnfollow(follow)}
+        >
+          <BellOff size={13} color={iconColor} />
+          <Text className="text-[11.5px] text-muted font-semibold">Bırak</Text>
+        </Pressable>
+      )}
     </View>
   );
 });
 
 // Profil > Takip sekmesi.
-function FollowsTab({ width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
+function FollowsTab({ owner, width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const { theme } = useTheme();
-  const { data: follows, isPending } = useMyFollows();
+  const isOwn = owner.kind === 'me';
+  const { data: follows, isPending } = useProfileFollows(owner);
   // bkz. ChecklistsTab.tsx — aynı gecikmeli yükleme kuralı.
   const showLoading = isPending;
 
@@ -102,9 +106,13 @@ function FollowsTab({ width, headerHeight, scrollY, onRememberOffset }: ProfileT
         ) : !follows || follows.length === 0 ? (
           <EmptyState
             icon={Bell}
-            text='Henüz bölüm takip etmiyorsun. Bölüm sayfasındaki "Takip Et" butonuyla haberdar olabilirsin.'
-            actionLabel="Bölümlere Göz At"
-            onAction={goToDepartments}
+            text={
+              isOwn
+                ? 'Henüz bölüm takip etmiyorsun. Bölüm sayfasındaki "Takip Et" butonuyla haberdar olabilirsin.'
+                : 'Henüz bir bölüm takip etmiyor.'
+            }
+            actionLabel={isOwn ? 'Bölümlere Göz At' : undefined}
+            onAction={isOwn ? goToDepartments : undefined}
           />
         ) : (
           follows.map((f) => (
@@ -112,7 +120,7 @@ function FollowsTab({ width, headerHeight, scrollY, onRememberOffset }: ProfileT
               key={`${f.faculty}-${f.department}`}
               follow={f}
               onOpen={handleOpen}
-              onUnfollow={handleUnfollow}
+              onUnfollow={isOwn ? handleUnfollow : undefined}
               iconColor={iconColor}
             />
           ))

@@ -6,7 +6,7 @@ import { HelpCircle, Lightbulb, MessagesSquare } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import type { RootStackParamList } from '../../navigation/types';
-import { useMyForumActivity, type ForumItem } from '../../hooks/profile/useProfileLists';
+import { useProfileForumActivity, type ForumItem } from '../../hooks/profile/useProfileLists';
 import PagerPage, { type ProfileTabProps } from './PagerPage';
 import { EmptyState, SHADOW_SM, TabLoading, formatDate } from './profileCommon';
 
@@ -36,17 +36,16 @@ const ForumRow = React.memo(function ForumRow({
 });
 
 // Profil > Forumlar sekmesi — SSS yorumları ve öneri etkinliği tek listede.
-function ForumsTab({ width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
+function ForumsTab({ owner, width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user } = useAuth();
   const { theme } = useTheme();
   // `bg-brand` ile aynı marka rengi — temadan bağımsız olduğu için ham değer.
   const iconColor = theme === 'dark' ? '#5A9690' : '#2F5755';
 
-  // Sorgu yalnızca sekme görünürken çalışıyor: forum etkinliği İKİ ağ isteği
-  // (SSS + öneriler) ve sekme şeridinde sayacı yok — diğer beşinin aksine
-  // açılışta çekilmesi için bir sebep yok.
-  const { data: items, isPending } = useMyForumActivity(user?.id);
+  // Sorgu yalnızca sekme mount'lu iken çalışıyor (forum etkinliği İKİ ağ
+  // isteği: SSS + öneriler). Şeritteki sayaç sayım ucundan geliyor.
+  const { data: items, isPending } = useProfileForumActivity(owner, user?.id);
   // bkz. ChecklistsTab.tsx — aynı gecikmeli yükleme kuralı.
   const showLoading = isPending;
 
@@ -75,7 +74,10 @@ function ForumsTab({ width, headerHeight, scrollY, onRememberOffset }: ProfileTa
         (showLoading ? (
           <TabLoading />
         ) : !items || items.length === 0 ? (
-          <EmptyState icon={MessagesSquare} text="Henüz bir foruma katılmadı." />
+          <EmptyState
+            icon={MessagesSquare}
+            text={owner.kind === 'me' ? 'Henüz bir foruma katılmadın.' : 'Henüz bir foruma katılmadı.'}
+          />
         ) : (
           items.map((item) => <ForumRow key={item.key} item={item} onOpen={handleOpen} iconColor={iconColor} />)
         ))}
