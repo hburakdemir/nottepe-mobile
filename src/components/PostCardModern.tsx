@@ -17,6 +17,7 @@ import SaveButton from './SaveButton';
 import ModerationMenu from './moderation/ModerationMenu';
 import BlockedContentGate from './moderation/BlockedContentGate';
 import BlockedMeTag from './moderation/BlockedMeTag';
+import { tap } from '../lib/haptics';
 
 const MAX_LENGTH = 200;
 
@@ -97,6 +98,7 @@ function PostCardModernInner({ post, showStatus = false, showRating = true, onDe
     }
     setRating(true);
     try {
+      tap();
       const res = await ratingAPI.ratePost(postId, star);
       setAvgRating(parseFloat(res.data.rating_info.avg_rating));
       setRatingCount(res.data.rating_info.rating_count);

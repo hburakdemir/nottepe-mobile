@@ -12,6 +12,7 @@ import DeerIcon from '../icons/DeerIcon';
 import { TAB_ROUTE_NAMES, navigateApp } from '../../navigation/navigateApp';
 import { useMetrics } from '../../theme/metrics';
 import { emitTabReselect } from '../../lib/tabReselect';
+import { tap } from '../../lib/haptics';
 
 // Onaylanan "E · Instagram tarzı buzlu cam" mockup'ının RN karşılığı — kenarlardan
 // boşluklu, yüzen tam bir buzlu-cam hap (bar'ın kendi blur+arka planı+border+
@@ -350,6 +351,7 @@ function WaveTabBarBase({ activeRouteName }: { activeRouteName?: string } = {}) 
       // render'ı bu thread'i uzun süre meşgul edebiliyor; animasyonu ondan önce
       // başlatınca UI thread'ine devredilmiş oluyor (gerekçe `moveCapsuleTo`
       // üstündeki notta).
+      tap();
       moveCapsuleTo(TAB_ROUTES.indexOf(routeName as (typeof TAB_ROUTES)[number]));
       navigateApp(navigation, routeName);
     },

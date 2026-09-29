@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { useQueryClient } from '@tanstack/react-query';
 import { savedPostsAPI } from '../lib/api';
 import { useAuth } from './AuthContext';
+import { impact } from '../lib/haptics';
 
 // Kaydedilenler listesinin sorgu anahtarı BURADA tanımlı, ekranda değil:
 // ekranda olsaydı context onu içe aktarmak zorunda kalır, ekran da zaten
@@ -68,6 +69,7 @@ export const SavedPostsProvider = ({ children }: { children: React.ReactNode }) 
       if (!isAuthenticated) return;
       const id = String(postId);
       const wasSaved = savedPosts.includes(id);
+      impact();
       setSavedPosts((prev) => (wasSaved ? prev.filter((pid) => pid !== id) : [...prev, id]));
       try {
         if (wasSaved) {

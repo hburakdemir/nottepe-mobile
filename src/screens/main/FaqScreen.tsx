@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronRight, Inbox, MessageSquare, Plus, Send, X } from 'lucide-react-native';
 import { faqAPI } from '../../lib/api';
@@ -10,12 +10,14 @@ import KeyboardAvoider from '../../components/layout/KeyboardAvoider';
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
 import type { RootStackParamList } from '../../navigation/types';
 import BlockedContentGate from '../../components/moderation/BlockedContentGate';
+import { success } from '../../lib/haptics';
 
 const PAGE_LIMIT = 20;
 
-// SSS neredeyse statik: sorular moderasyondan geçerek yayınlanıyor, gün içinde
-// değişmesi beklenmiyor. 24 saat taze — ekrana her girişte liste anında geliyor.
-const FAQ_STALE_MS = 24 * 60 * 60 * 1000;
+// SSS artık canlı: kullanıcı soruları cevapsız onaylanıp sonradan cevaplanıyor,
+// yorum sayıları değişiyor. Liste diske de yazıldığı için (queryPersist) açılış
+// yine anında; 2 dk'dan eskiyse arkada tazeleniyor (eskiden 24 saatti).
+const FAQ_STALE_MS = 2 * 60 * 1000;
 
 interface FaqPage {
   entries: FaqEntry[];
@@ -25,7 +27,7 @@ interface FaqPage {
 interface FaqEntry {
   id: number;
   question: string;
-  answer: string;
+  answer: string | null;
   comment_count: number;
   author_name?: string;
   created_by?: number | null;
@@ -45,7 +47,7 @@ export default function FaqScreen() {
   // Fazla Göster"e üç kez bastıysa, geri döndüğünde yine üç sayfayı da görüyor
   // ve hiçbiri yeniden istenmiyor. Eskiden liste her girişte 1. sayfaya
   // sıfırlanıyordu.
-  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage, isStale, refetch } = useInfiniteQuery({
     queryKey: ['faq', 'list'],
     queryFn: async ({ pageParam }) => {
       const res = await faqAPI.getAll({ page: pageParam, limit: PAGE_LIMIT });
@@ -59,6 +61,16 @@ export default function FaqScreen() {
     staleTime: FAQ_STALE_MS,
   });
 
+  // Liste ekranı yığında altta takılı kalıyor (detaydan geri dönüşte yeniden
+  // mount olmuyor), o yüzden react-query'nin mount tazelemesi burada işlemiyor:
+  // odak geri gelince bayatsa sessizce tazele — yeni sorular/cevaplar/yorum
+  // sayıları görünsün. Sayfalar yerinde kalıyor, spinner çıkmıyor.
+  useFocusEffect(
+    useCallback(() => {
+      if (isStale) refetch();
+    }, [isStale, refetch])
+  );
+
   const entries = useMemo(() => data?.pages.flatMap((p) => p.entries) ?? [], [data]);
 
   const handleAskSubmit = async () => {
@@ -66,6 +78,7 @@ export default function FaqScreen() {
     setAsking(true);
     try {
       await faqAPI.askQuestion(question.trim());
+      success();
       Alert.alert('Başarılı', 'Sorunuz alındı, incelendikten sonra yayınlanacak.');
       setQuestion('');
       setAskModalOpen(false);
@@ -99,9 +112,15 @@ export default function FaqScreen() {
         >
           <View className="flex-1">
             <Text className="text-[14.5px] font-bold text-ink">{item.question}</Text>
-            <Text className="text-[12.5px] text-muted mt-1 leading-[17px]" numberOfLines={2}>
-              {item.answer}
-            </Text>
+            {item.answer ? (
+              <Text className="text-[12.5px] text-muted mt-1 leading-[17px]" numberOfLines={2}>
+                {item.answer}
+              </Text>
+            ) : (
+              <View className="flex-row self-start items-center mt-1.5 px-2 py-0.5 rounded-full bg-warn-soft">
+                <Text className="text-[11px] font-semibold text-warn-ink">Henüz cevaplanmadı</Text>
+              </View>
+            )}
             <View className="flex-row items-center gap-[5px] mt-2">
               <MessageSquare size={12} color={isDark ? '#9ca3af' : '#6b7280'} />
               <Text className="text-[11px] text-muted2">{item.comment_count} yorum</Text>

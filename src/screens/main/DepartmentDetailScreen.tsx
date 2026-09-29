@@ -15,6 +15,7 @@ import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 import StateView from '../../components/StateView';
+import { impact } from '../../lib/haptics';
 
 interface PostsPage {
   posts: Post[];
@@ -45,6 +46,7 @@ export default function DepartmentDetailScreen() {
   const toggleFollow = async () => {
     if (followBusy) return;
     const next = !isFollowing;
+    impact();
     setIsFollowing(next);
     setFollowBusy(true);
     try {

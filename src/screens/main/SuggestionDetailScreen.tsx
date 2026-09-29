@@ -10,6 +10,8 @@ import { useGoToUserProfile } from '../../hooks/useGoToUserProfile';
 import ForumCommentList, { type ForumComment } from '../../components/forum/ForumCommentList';
 import type { RootStackParamList } from '../../navigation/types';
 import StateView from '../../components/StateView';
+import { setListCommentCount } from '../../lib/forumListCache';
+import { tap, success } from '../../lib/haptics';
 import ModerationMenu from '../../components/moderation/ModerationMenu';
 import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 import BlockedContentGate from '../../components/moderation/BlockedContentGate';
@@ -18,6 +20,7 @@ import BlockedMeTag from '../../components/moderation/BlockedMeTag';
 const SUGGESTION_DETAIL_STALE_MS = 5 * 60 * 1000;
 
 const suggestionDetailKey = (id: number) => ['suggestions', 'detail', id] as const;
+const LIST_KEY = ['suggestions', 'list'] as const;
 
 // Modül seviyesinde sabit: her render'da yeni `[]` üretilseydi yorum listesinin
 // prop'u sürekli değişir, memo'su hiç tutmazdı.
@@ -58,6 +61,7 @@ export default function SuggestionDetailScreen() {
       return {
         suggestion: suggestionRes.data.suggestion as SuggestionDetail,
         comments: (commentsRes.data.comments || []) as ForumComment[],
+        total: Number(commentsRes.data.total) || 0,
       };
     },
     staleTime: SUGGESTION_DETAIL_STALE_MS,
@@ -68,19 +72,24 @@ export default function SuggestionDetailScreen() {
   const comments = data?.comments ?? EMPTY_COMMENTS;
 
   const patch = useCallback(
-    (fn: (prev: { suggestion: SuggestionDetail; comments: ForumComment[] }) => { suggestion: SuggestionDetail; comments: ForumComment[] }) => {
-      queryClient.setQueryData(queryKey, (prev: { suggestion: SuggestionDetail; comments: ForumComment[] } | undefined) =>
-        prev ? fn(prev) : prev
-      );
+    (fn: (prev: { suggestion: SuggestionDetail; comments: ForumComment[]; total: number }) => { suggestion: SuggestionDetail; comments: ForumComment[]; total: number }) => {
+      queryClient.setQueryData(queryKey, (prev: { suggestion: SuggestionDetail; comments: ForumComment[]; total: number } | undefined) => {
+        if (!prev) return prev;
+        const next = fn(prev);
+        // Liste ekranındaki "N yorum" da aynı toplamı göstersin.
+        if (next.total !== prev.total) setListCommentCount(queryClient, LIST_KEY, 'suggestions', id, next.total);
+        return next;
+      });
     },
-    [queryClient, queryKey]
+    [queryClient, queryKey, id]
   );
 
   const handleAddComment = async (content: string, parentCommentId?: number | null) => {
     try {
       await suggestionAPI.addComment(id, content, parentCommentId ?? null);
+      success();
       const res = await suggestionAPI.getComments(id);
-      patch((prev) => ({ ...prev, comments: (res.data.comments || []) as ForumComment[] }));
+      patch((prev) => ({ ...prev, comments: (res.data.comments || []) as ForumComment[], total: Number(res.data.total) || 0 }));
     } catch (err: any) {
       Alert.alert('Hata', err.response?.data?.message || 'Yorum eklenemedi.');
     }
@@ -94,8 +103,14 @@ export default function SuggestionDetailScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await suggestionAPI.deleteComment(commentId, '');
-            patch((prev) => ({ ...prev, comments: prev.comments.filter((c) => c.id !== commentId) }));
+            const res = await suggestionAPI.deleteComment(commentId, '');
+            // Sunucu üst yorumla birlikte yanıtlarını da siliyor (`deletedCount`).
+            const removed = Number(res.data?.deletedCount) || 1;
+            patch((prev) => ({
+              ...prev,
+              comments: prev.comments.filter((c) => c.id !== commentId && c.parent_comment_id !== commentId),
+              total: Math.max(0, prev.total - removed),
+            }));
           } catch {
             Alert.alert('Hata', 'Yorum silinemedi.');
           }
@@ -106,6 +121,7 @@ export default function SuggestionDetailScreen() {
 
   const handleVoteComment = async (commentId: number, vote: number) => {
     try {
+      tap();
       const res = await suggestionAPI.voteComment(commentId, vote);
       patch((prev) => ({ ...prev, comments: prev.comments.map((c) => (c.id === commentId ? { ...c, ...res.data } : c)) }));
     } catch {
@@ -173,6 +189,7 @@ export default function SuggestionDetailScreen() {
         <ForumCommentList
           reportType="suggestion_comment"
           comments={comments}
+          total={data?.total}
           loading={isLoading}
           canModerate={canModerate}
           onAddComment={handleAddComment}

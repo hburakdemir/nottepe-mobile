@@ -5,6 +5,7 @@ import { checklistAPI } from '../lib/api';
 import type { Checklist } from '../types/checklist';
 import { useTheme } from '../context/ThemeContext';
 import KeyboardAvoider from './layout/KeyboardAvoider';
+import { success } from '../lib/haptics';
 
 interface EditItem {
   id: number | null;
@@ -61,6 +62,7 @@ export default function ChecklistEditModal({ checklist, onClose, onSaved }: Prop
         }
       }
 
+      success();
       onSaved();
       onClose();
     } catch (err: any) {

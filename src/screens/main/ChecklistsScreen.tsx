@@ -14,6 +14,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 import KeyboardAvoider from '../../components/layout/KeyboardAvoider';
+import { success } from '../../lib/haptics';
 
 const CHECKLISTS_STALE_MS = 5 * 60 * 1000;
 
@@ -122,6 +123,7 @@ export default function ChecklistsScreen() {
         description: createDesc.trim() || undefined,
         items,
       });
+      success();
       Alert.alert('Başarılı', res.data.message || 'Checklist oluşturuldu!');
       setShowCreate(false);
       fetchChecklists();

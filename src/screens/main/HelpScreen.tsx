@@ -1,35 +1,13 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { ChevronDown, ExternalLink, HelpCircle, Mail, Send, Target } from 'lucide-react-native';
+import { ChevronRight, ExternalLink, HelpCircle, Mail, Send, Target } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../../navigation/types';
 import { feedbackAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import helpFaq from '../../data/helpFaq';
 import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
-
-function FaqAccordion({ isDark }: { isDark: boolean }) {
-  const [openIndex, setOpenIndex] = useState(0);
-  return (
-    <View className="gap-2.5">
-      {helpFaq.map((item, i) => {
-        const isOpen = openIndex === i;
-        return (
-          <View key={item.q} className="bg-inset rounded-[14px] border border-line overflow-hidden">
-            <Pressable className="flex-row items-center justify-between gap-2.5 p-3.5" onPress={() => setOpenIndex(isOpen ? -1 : i)}>
-              <Text className="flex-1 text-sm font-semibold text-ink">{item.q}</Text>
-              <ChevronDown
-                size={18}
-                color={isDark ? '#9ca3af' : '#6b7280'}
-                style={{ transform: [{ rotate: isOpen ? '180deg' : '0deg' }] }}
-              />
-            </Pressable>
-            {isOpen && <Text className="text-xs text-muted leading-[18px] px-3.5 pb-3.5">{item.a}</Text>}
-          </View>
-        );
-      })}
-    </View>
-  );
-}
 
 function FeedbackForm() {
   const { user } = useAuth();
@@ -99,6 +77,7 @@ function FeedbackForm() {
 export default function HelpScreen() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   return (
     <KeyboardAwareScroll showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="p-4 pb-[150px]" keyboardShouldPersistTaps="handled">
@@ -115,13 +94,18 @@ export default function HelpScreen() {
         </Text>
       </View>
 
-      <View className="bg-surface rounded-[18px] p-4 mb-3.5 border border-line-soft">
-        <View className="flex-row items-center gap-2 mb-3">
-          <HelpCircle size={20} color={isDark ? '#5A9690' : '#2F5755'} />
-          <Text className="text-base font-semibold text-ink mb-1.5">Sık Sorulan Sorular</Text>
+      {/* SSS artık veritabanında (SSS ekranı); buradaki sabit liste kaldırıldı. */}
+      <Pressable
+        className="flex-row items-center gap-3 bg-surface rounded-[18px] p-4 mb-3.5 border border-line-soft"
+        onPress={() => navigation.navigate('Faq')}
+      >
+        <HelpCircle size={20} color={isDark ? '#5A9690' : '#2F5755'} />
+        <View className="flex-1">
+          <Text className="text-base font-semibold text-ink">Sık Sorulan Sorular</Text>
+          <Text className="text-xs text-muted mt-0.5">Merak edilenler ve Nottepelilerin tartışmaları</Text>
         </View>
-        <FaqAccordion isDark={isDark} />
-      </View>
+        <ChevronRight size={18} color={isDark ? '#9ca3af' : '#6b7280'} />
+      </Pressable>
 
       <View className="bg-surface rounded-[18px] p-4 mb-3.5 border border-line-soft">
         <Text className="text-base font-semibold text-ink mb-1.5">İletişim</Text>

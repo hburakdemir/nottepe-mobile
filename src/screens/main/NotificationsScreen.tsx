@@ -22,6 +22,8 @@ import type { RootStackParamList } from '../../navigation/types';
 import { useTheme } from '../../context/ThemeContext';
 import SwipeActions from '../../components/layout/SwipeActions';
 import NotificationSettingsSheet from '../../components/notifications/NotificationSettingsSheet';
+import UndoBar from '../../components/notifications/UndoBar';
+import { tap } from '../../lib/haptics';
 import { useNotificationPrefs } from '../../lib/notificationPrefs';
 import { setNotificationsScreenFocused } from '../../lib/push/pushState';
 import { useInvalidateUnreadNotifications, useMarkNotificationsRead } from '../../hooks/useUnreadNotifications';
@@ -70,8 +72,8 @@ function formatDateTime(dateString: string): string {
 
 // Aktivite listesi sayfalı çekiliyor (bkz. userNotificationAPI.getAll).
 const ACTIVITY_PAGE_LIMIT = 30;
-// "Geri al" şeridinin ekranda kalma süresi.
-const UNDO_TIMEOUT_MS = 4000;
+// "Geri al" çubuğunun ekranda kalma süresi (kullanıcı isteği: 10 sn, sayaçlı).
+const UNDO_TIMEOUT_MS = 10000;
 
 const ACTIVITY_TYPE_META: Record<string, { icon: any; label: (n: any) => string }> = {
   comment_on_post: {
@@ -304,7 +306,7 @@ export default function NotificationsScreen() {
   const invalidateActivityUnread = useInvalidateUnreadNotifications();
 
   // Silinen son satırın id'si + türü — "Geri al" şeridi bunu hedefliyor.
-  const [undoTarget, setUndoTarget] = useState<{ id: string; kind: 'announcement' | 'activity' } | null>(null);
+  const [undoTarget, setUndoTarget] = useState<{ id: string; kind: 'announcement' | 'activity'; at: number } | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -427,7 +429,7 @@ export default function NotificationsScreen() {
     (id: string | number, kind: 'announcement' | 'activity') => {
       prefs.hide(kind, id);
       if (undoTimer.current) clearTimeout(undoTimer.current);
-      setUndoTarget({ id: String(id), kind });
+      setUndoTarget({ id: String(id), kind, at: Date.now() });
       undoTimer.current = setTimeout(() => {
         setUndoTarget(null);
         undoTimer.current = null;
@@ -442,6 +444,7 @@ export default function NotificationsScreen() {
       clearTimeout(undoTimer.current);
       undoTimer.current = null;
     }
+    tap();
     prefs.unhide(undoTarget.kind, undoTarget.id);
     setUndoTarget(null);
   }, [undoTarget, prefs.unhide]);
@@ -460,8 +463,11 @@ export default function NotificationsScreen() {
   // false kaldığı için kart "Yeni" görünmeye devam ediyordu ("okundu/okunmadı
   // kartı çalışmıyor" şikayeti). Aktivitede bu ayrıma gerek yok: o liste
   // zaten girişte tamamen okundu sayılıyor (bkz. fetchActivity).
-  const rowActions = (id: string | number, isUnread: boolean, kind: 'announcement' | 'activity') => [
-    {
+  //
+  // Sol (sağa çekiş) = okundu/okunmadı, sağ (sola çekiş) = sil. Tam kaydırma
+  // işlemi dokunmadan tamamlıyor (bkz. SwipeActions).
+  const rowActions = (id: string | number, isUnread: boolean, kind: 'announcement' | 'activity') => ({
+    leftAction: {
       key: 'read',
       icon: MailOpen,
       label: isUnread ? 'Okundu' : 'Okunmadı',
@@ -483,8 +489,15 @@ export default function NotificationsScreen() {
         invalidateActivityUnread();
       },
     },
-    { key: 'delete', icon: Trash2, label: 'Sil', color: colors.danger, onPress: () => handleDelete(id, kind) },
-  ];
+    rightAction: {
+      key: 'delete',
+      icon: Trash2,
+      label: 'Sil',
+      color: colors.danger,
+      dismiss: true,
+      onPress: () => handleDelete(id, kind),
+    },
+  });
 
   const renderAnnouncement = useCallback<ListRenderItem<Announcement>>(
     ({ item }) => {
@@ -493,7 +506,7 @@ export default function NotificationsScreen() {
       // karttaki rozet aynı değerden çıkıyor.
       const isUnread = prefs.isUnread('announcement', item.id) || !item.is_viewed;
       return (
-        <SwipeActions actions={rowActions(item.id, isUnread, 'announcement')}>
+        <SwipeActions {...rowActions(item.id, isUnread, 'announcement')}>
           <AnnouncementCard notif={item} unread={isUnread} />
         </SwipeActions>
       );
@@ -505,7 +518,7 @@ export default function NotificationsScreen() {
     ({ item }) => {
       const isUnread = prefs.isUnread('activity', item.id) || !item.read_at;
       return (
-        <SwipeActions actions={rowActions(item.id, isUnread, 'activity')}>
+        <SwipeActions {...rowActions(item.id, isUnread, 'activity')}>
           <ActivityCard notif={item} unread={isUnread} />
         </SwipeActions>
       );
@@ -636,14 +649,15 @@ export default function NotificationsScreen() {
         />
       )}
 
-      {/* Silme geri alma şeridi — tab çubuğunun hemen üstünde duruyor. */}
+      {/* Silme geri alma çubuğu — tab çubuğunun hemen üstünde, 10 sn sayaçlı. */}
       {undoTarget !== null && (
-        <View className="absolute left-3 right-3 bottom-[96px] flex-row items-center gap-3 bg-surface border border-line rounded-xl px-3.5 py-3">
-          <Text className="flex-1 text-[13px] text-ink2">Bildirim silindi.</Text>
-          <Pressable onPress={handleUndo} hitSlop={10}>
-            <Text className="text-[13px] font-bold text-accent">Geri al</Text>
-          </Pressable>
-        </View>
+        <UndoBar
+          key={undoTarget.at}
+          startedAt={undoTarget.at}
+          durationMs={UNDO_TIMEOUT_MS}
+          message="Bu bildirimi sildiniz."
+          onUndo={handleUndo}
+        />
       )}
 
       <NotificationSettingsSheet visible={showSettings} onClose={() => setShowSettings(false)} />

@@ -6,6 +6,7 @@ import { faculties, departments } from '../../data/departments';
 import { useTheme } from '../../context/ThemeContext';
 import KeyboardAvoider from '../layout/KeyboardAvoider';
 import OptionSheet from '../layout/OptionSheet';
+import { success } from '../../lib/haptics';
 
 interface Props {
   onClose: () => void;
@@ -36,6 +37,7 @@ export default function CreateRequestModal({ onClose, onCreated }: Props) {
         course_name: courseName.trim(),
         description: description.trim(),
       });
+      success();
       onCreated();
       onClose();
     } catch (err: any) {

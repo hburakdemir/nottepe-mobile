@@ -2,7 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 import { Alert, Text, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { HelpCircle, ThumbsDown, ThumbsUp } from 'lucide-react-native';
+import { Clock, HelpCircle, ThumbsDown, ThumbsUp } from 'lucide-react-native';
 import { Pressable } from 'react-native';
 import { faqAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
@@ -10,6 +10,9 @@ import { useTheme } from '../../context/ThemeContext';
 import ForumCommentList, { type ForumComment } from '../../components/forum/ForumCommentList';
 import type { RootStackParamList } from '../../navigation/types';
 import StateView from '../../components/StateView';
+import LinkifiedText from '../../components/LinkifiedText';
+import { setListCommentCount } from '../../lib/forumListCache';
+import { tap, success } from '../../lib/haptics';
 import ModerationMenu from '../../components/moderation/ModerationMenu';
 import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 import BlockedContentGate from '../../components/moderation/BlockedContentGate';
@@ -22,6 +25,7 @@ import BlockedMeTag from '../../components/moderation/BlockedMeTag';
 const FAQ_DETAIL_STALE_MS = 5 * 60 * 1000;
 
 const faqDetailKey = (id: number) => ['faq', 'detail', id] as const;
+const LIST_KEY = ['faq', 'list'] as const;
 
 // Modül seviyesinde sabit: her render'da yeni `[]` üretilseydi CommentSection'ın
 // prop'u sürekli değişir, memo'su hiç tutmazdı.
@@ -30,7 +34,8 @@ const EMPTY_COMMENTS: ForumComment[] = [];
 interface FaqEntryDetail {
   id: number;
   question: string;
-  answer: string;
+  /** Kullanıcı sorusu cevapsız onaylandıysa `null`. */
+  answer: string | null;
   author_name?: string;
   author_username?: string;
   created_by?: number | null;
@@ -68,6 +73,7 @@ export default function FaqDetailScreen() {
       return {
         entry: entryRes.data.entry as FaqEntryDetail,
         comments: (commentsRes.data.comments || []) as ForumComment[],
+        total: Number(commentsRes.data.total) || 0,
       };
     },
     staleTime: FAQ_DETAIL_STALE_MS,
@@ -82,19 +88,24 @@ export default function FaqDetailScreen() {
   // hem de ekranın yanıp sönmesine yol açardı. Oy verme gibi anlık geri
   // bildirim isteyen yerlerde fark belirgin.
   const patch = useCallback(
-    (fn: (prev: { entry: FaqEntryDetail; comments: ForumComment[] }) => { entry: FaqEntryDetail; comments: ForumComment[] }) => {
-      queryClient.setQueryData(queryKey, (prev: { entry: FaqEntryDetail; comments: ForumComment[] } | undefined) =>
-        prev ? fn(prev) : prev
-      );
+    (fn: (prev: { entry: FaqEntryDetail; comments: ForumComment[]; total: number }) => { entry: FaqEntryDetail; comments: ForumComment[]; total: number }) => {
+      queryClient.setQueryData(queryKey, (prev: { entry: FaqEntryDetail; comments: ForumComment[]; total: number } | undefined) => {
+        if (!prev) return prev;
+        const next = fn(prev);
+        // Liste ekranındaki "N yorum" da aynı toplamı göstersin.
+        if (next.total !== prev.total) setListCommentCount(queryClient, LIST_KEY, 'entries', id, next.total);
+        return next;
+      });
     },
-    [queryClient, queryKey]
+    [queryClient, queryKey, id]
   );
 
   const handleAddComment = async (content: string, parentCommentId?: number | null) => {
     try {
       await faqAPI.addComment(id, content, parentCommentId ?? null);
+      success();
       const res = await faqAPI.getComments(id);
-      patch((prev) => ({ ...prev, comments: (res.data.comments || []) as ForumComment[] }));
+      patch((prev) => ({ ...prev, comments: (res.data.comments || []) as ForumComment[], total: Number(res.data.total) || 0 }));
     } catch (err: any) {
       Alert.alert('Hata', err.response?.data?.message || 'Yorum eklenemedi.');
     }
@@ -108,8 +119,14 @@ export default function FaqDetailScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await faqAPI.deleteComment(commentId, '');
-            patch((prev) => ({ ...prev, comments: prev.comments.filter((c) => c.id !== commentId) }));
+            const res = await faqAPI.deleteComment(commentId, '');
+            // Sunucu üst yorumla birlikte yanıtlarını da siliyor (`deletedCount`).
+            const removed = Number(res.data?.deletedCount) || 1;
+            patch((prev) => ({
+              ...prev,
+              comments: prev.comments.filter((c) => c.id !== commentId && c.parent_comment_id !== commentId),
+              total: Math.max(0, prev.total - removed),
+            }));
           } catch {
             Alert.alert('Hata', 'Yorum silinemedi.');
           }
@@ -120,6 +137,7 @@ export default function FaqDetailScreen() {
 
   const handleVoteComment = async (commentId: number, vote: number) => {
     try {
+      tap();
       const res = await faqAPI.voteComment(commentId, vote);
       patch((prev) => ({ ...prev, comments: prev.comments.map((c) => (c.id === commentId ? { ...c, ...res.data } : c)) }));
     } catch {
@@ -129,6 +147,7 @@ export default function FaqDetailScreen() {
 
   const handleVoteAnswer = async (vote: number) => {
     try {
+      tap();
       const res = await faqAPI.voteAnswer(id, vote);
       patch((prev) => ({ ...prev, entry: { ...prev.entry, ...res.data } }));
     } catch {
@@ -182,23 +201,35 @@ export default function FaqDetailScreen() {
             />
           </View>
           <BlockedMeTag userId={entry.created_by} style={{ marginTop: 8 }} />
-          <Text className="text-sm text-ink2 mt-3 leading-5">{entry.answer}</Text>
-          <View className="flex-row gap-2 mt-3">
-            <Pressable
-              className={`flex-row items-center gap-[5px] border rounded-lg px-2.5 py-1.5 ${entry.my_vote === 1 ? 'border-accent' : 'border-line'}`}
-              onPress={() => handleVoteAnswer(1)}
-            >
-              <ThumbsUp size={14} color={entry.my_vote === 1 ? (isDark ? '#5A9690' : '#2F5755') : isDark ? '#9ca3af' : '#6b7280'} />
-              <Text className={`text-xs font-semibold ${entry.my_vote === 1 ? 'text-accent' : 'text-muted'}`}>{entry.upvotes || 0}</Text>
-            </Pressable>
-            <Pressable
-              className={`flex-row items-center gap-[5px] border rounded-lg px-2.5 py-1.5 ${entry.my_vote === -1 ? 'border-red-600' : 'border-line'}`}
-              onPress={() => handleVoteAnswer(-1)}
-            >
-              <ThumbsDown size={14} color={entry.my_vote === -1 ? '#dc2626' : isDark ? '#9ca3af' : '#6b7280'} />
-              <Text className={`text-xs font-semibold ${entry.my_vote === -1 ? 'text-red-600' : 'text-muted'}`}>{entry.downvotes || 0}</Text>
-            </Pressable>
-          </View>
+          {entry.answer ? (
+            <>
+            <LinkifiedText className="text-sm text-ink2 mt-3 leading-5" selectable>
+              {entry.answer}
+            </LinkifiedText>
+            <View className="flex-row gap-2 mt-3">
+              <Pressable
+                className={`flex-row items-center gap-[5px] border rounded-lg px-2.5 py-1.5 ${entry.my_vote === 1 ? 'border-accent' : 'border-line'}`}
+                onPress={() => handleVoteAnswer(1)}
+              >
+                <ThumbsUp size={14} color={entry.my_vote === 1 ? (isDark ? '#5A9690' : '#2F5755') : isDark ? '#9ca3af' : '#6b7280'} />
+                <Text className={`text-xs font-semibold ${entry.my_vote === 1 ? 'text-accent' : 'text-muted'}`}>{entry.upvotes || 0}</Text>
+              </Pressable>
+              <Pressable
+                className={`flex-row items-center gap-[5px] border rounded-lg px-2.5 py-1.5 ${entry.my_vote === -1 ? 'border-red-600' : 'border-line'}`}
+                onPress={() => handleVoteAnswer(-1)}
+              >
+                <ThumbsDown size={14} color={entry.my_vote === -1 ? '#dc2626' : isDark ? '#9ca3af' : '#6b7280'} />
+                <Text className={`text-xs font-semibold ${entry.my_vote === -1 ? 'text-red-600' : 'text-muted'}`}>{entry.downvotes || 0}</Text>
+              </Pressable>
+            </View>
+            </>
+          ) : (
+            // Kullanıcı sorusu cevapsız onaylanmış: tartışma yorumlarda sürüyor.
+            <View className="flex-row self-start items-center gap-1.5 mt-3 px-2.5 py-1 rounded-full bg-warn-soft">
+              <Clock size={13} color={isDark ? '#FDE047' : '#854D0E'} />
+              <Text className="text-xs font-semibold text-warn-ink">Henüz cevaplanmadı</Text>
+            </View>
+          )}
           {!!entry.author_name && (
             <Text className="text-[11px] text-muted2 mt-3">
               {entry.author_name} tarafından {formatDate(entry.created_at)}
@@ -211,6 +242,7 @@ export default function FaqDetailScreen() {
         <ForumCommentList
           reportType="faq_comment"
           comments={comments}
+          total={data?.total}
           loading={isLoading}
           canModerate={canModerate}
           onAddComment={handleAddComment}

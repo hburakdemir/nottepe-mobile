@@ -5,6 +5,7 @@ import Animated, {
   Extrapolation,
   interpolate,
   runOnJS,
+  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -12,155 +13,251 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import type { LucideIcon } from 'lucide-react-native';
+import { impact, impactMedium } from '../../lib/haptics';
 
 export interface SwipeAction {
   key: string;
   icon: LucideIcon;
   label: string;
-  /** Butonun dolgu rengi — ikon ve yazı her zaman beyaz çiziliyor. */
+  /** Zemin rengi — ikon ve yazı her zaman beyaz çiziliyor. */
   color: string;
   onPress: () => void;
+  /**
+   * İşlem tamamlanınca satır o yöne ekran dışına kayıp orada kalsın mı
+   * (silme gibi satırı listeden düşüren işlemler). Değilse (okundu/okunmadı)
+   * satır yerine yaylanıyor.
+   */
+  dismiss?: boolean;
 }
 
+// Kısmi kaydırmada açık kalan aksiyon alanının genişliği.
 const ACTION_WIDTH = 76;
+// Bu kadarı geçilip bırakılırsa alan açık kalır (dokunarak tetiklenir).
 const OPEN_THRESHOLD = 0.4;
-// Sona gelince parmak "duvara çarpmış" gibi hissettirmesin diye hafif bir
-// lastik payı — üst sınır tam `width` değil, biraz ötesi.
-const RUBBER_BAND = 1.15;
+// Satır genişliğinin bu oranı geçilirse "tam kaydırma": bırakınca işlem
+// dokunmaya gerek kalmadan tamamlanır.
+const FULL_SWIPE_RATIO = 0.55;
+const SPRING = { damping: 20, stiffness: 220 };
 
-// Tek bir aksiyon butonu: BÜYÜKLÜĞÜ kaydırma mesafesine bağlı (kullanıcı
-// isteği — eskiden şerit sabit boyutta gelip yalnız opaklığı değişiyordu,
-// "az kaydırınca az az gözükmeli, büyüyerek gelmeli" istendi). Her buton
-// kendi payına düşen aralıkta (`index*ACTION_WIDTH` → `(index+1)*ACTION_WIDTH`)
-// 0'dan 1'e büyüyor — soldaki (ekranın kenarına en yakın) buton önce, sağdaki
-// parmak daha ileri gidince büyümeye başlıyor. `translateX` tek paylaşılan
-// değer olduğu için açılış (spring/timing ile) ve kapanış TAMAMEN simetrik:
-// aynı interpolasyon ekrana geri sarılırken küçülmeyi de otomatik veriyor.
-function SwipeActionButton({
+type Side = 'left' | 'right';
+
+// Bir kenarın aksiyon zemini. BÜYÜMESİ çekildiği kenardan (kullanıcı isteği:
+// "soldan çekilen soldan, sağdan çekilen sağdan büyüyerek gelmeli"): zemin o
+// kenara yapışık, genişliği satırın kaydığı mesafe kadar — satırın arkasından
+// uzayarak açılıyor. Eskiden buton ortasından küçükten büyüyordu (scale 0.3→1).
+//
+// İkon + etiket kenarda sabit durup opaklıkla beliriyor; tam kaydırma eşiği
+// geçilince ("armed") parmağın tarafına, satırın kenarına doğru kayıyor —
+// bırakınca işlemin tamamlanacağını haber veriyor (iOS Mail'deki gibi).
+function ActionLayer({
+  side,
   action,
-  index,
   translateX,
+  armed,
+  open,
   onPress,
 }: {
+  side: Side;
   action: SwipeAction;
-  index: number;
   translateX: SharedValue<number>;
+  armed: SharedValue<number>;
+  open: boolean;
   onPress: () => void;
 }) {
   const { icon: Icon, label, color } = action;
-  const rangeStart = index * ACTION_WIDTH;
-  const rangeEnd = rangeStart + ACTION_WIDTH;
+  const sign = side === 'left' ? 1 : -1;
 
-  // Arka plan rengi de büyümeye dahil — yalnız ikon/yazı değil, TÜM buton
-  // (rengiyle birlikte) ufacık başlayıp tam boyuta büyüyor. `opacity` ayrıca
-  // gerekli: `scale` küçükken View'ın kendisi hâlâ tam boyutta yer kaplar,
-  // saydamlık olmadan yarı büyümüş bir buton hep "orada duruyormuş" gibi
-  // görünürdü.
-  const style = useAnimatedStyle(() => {
-    const progress = interpolate(translateX.value, [rangeStart, rangeEnd], [0, 1], Extrapolation.CLAMP);
+  const bgStyle = useAnimatedStyle(() => ({
+    width: Math.max(0, sign * translateX.value),
+  }));
+
+  const contentStyle = useAnimatedStyle(() => {
+    const revealed = Math.max(0, sign * translateX.value);
+    // Eşik geçilince içerik kenardan, açığa çıkan alanın öbür ucuna kayıyor.
+    const shift = armed.value * Math.max(0, revealed - ACTION_WIDTH);
     return {
-      opacity: progress,
-      transform: [{ scale: interpolate(progress, [0, 1], [0.3, 1], Extrapolation.CLAMP) }],
+      opacity: interpolate(revealed, [ACTION_WIDTH * 0.25, ACTION_WIDTH * 0.8], [0, 1], Extrapolation.CLAMP),
+      transform: [{ translateX: sign * shift }],
     };
   });
 
   return (
-    <View style={{ width: ACTION_WIDTH, overflow: 'hidden' }}>
-      <Animated.View style={[{ flex: 1, backgroundColor: color, alignItems: 'center', justifyContent: 'center', gap: 4 }, style]}>
-        <Pressable className="items-center justify-center gap-1" onPress={onPress} accessibilityLabel={label} hitSlop={4}>
+    <Animated.View
+      pointerEvents={open ? 'auto' : 'none'}
+      style={[
+        { position: 'absolute', top: 0, bottom: 0, backgroundColor: color, overflow: 'hidden' },
+        side === 'left' ? { left: 0 } : { right: 0 },
+        bgStyle,
+      ]}
+    >
+      <Animated.View
+        style={[
+          { position: 'absolute', top: 0, bottom: 0, width: ACTION_WIDTH },
+          side === 'left' ? { left: 0 } : { right: 0 },
+          contentStyle,
+        ]}
+      >
+        <Pressable className="flex-1 items-center justify-center gap-1" onPress={onPress} accessibilityLabel={label} hitSlop={4}>
           <Icon size={19} color="#fff" />
           <Text className="text-white text-[11px] font-semibold" numberOfLines={1}>
             {label}
           </Text>
         </Pressable>
       </Animated.View>
-    </View>
+    </Animated.View>
   );
 }
 
-// Satırı sağa çekince SOLDAN açılan aksiyon şeridi (kullanıcı isteği:
-// "sağa kaydırınca okunmadı ve sil ikonları çıkmalı yan yana").
+// Satır kaydırma aksiyonları: sağa çekince SOLDAN `leftAction`, sola çekince
+// SAĞDAN `rightAction` açılıyor (bildirimlerde sol = okundu/okunmadı, sağ = sil).
 //
-// NEDEN KÜTÜPHANE DEĞİL: önce `react-native-gesture-handler/ReanimatedSwipeable`
-// kullanıldı; görünüm doğruydu ama BUTONLAR DOKUNMA ALMIYORDU. Sebep, o
-// bileşenin aksiyonları satırın ALTINA (z-sırasında önce) koyup satırı
-// `translateX` ile kaydırması: Fabric'te dokunma hedeflemesi satırın
-// kaydırılmamış yerleşim dikdörtgenini kullandığı için satır, açığa çıkan
-// aksiyon alanının üstünü kapatıyor ve dokunuşları yutuyor. Burada aksiyon
-// katmanı satırın ÜSTÜNDE (z-sırasında sonra) duruyor — dokunuşlar doğrudan
-// butonlara gidiyor.
+// Üç sonuç var:
+//  - kısa çekiş → kapanır;
+//  - `OPEN_THRESHOLD` geçilip bırakılırsa → alan açık kalır, dokununca çalışır;
+//  - satırın %55'i geçilip bırakılırsa → işlem kendiliğinden tamamlanır
+//    (eşik geçilirken titreşim).
 //
-// İKİNCİ DÜZELTME (bu revizyon): `GestureDetector` eskiden yalnızca satırı
-// sarıyordu — açıldıktan sonra parmak butonların ÜZERİNDEN sürüklenince pan
-// hiç tetiklenmiyordu (butonlar `Pressable`, RN'in kendi dokunma sistemini
-// kullanıyor, pan'e hiç ulaşmıyordu), kapatmak için satırın dar, butonsuz
-// şeridinden çekmek gerekiyordu. `GestureDetector` artık aksiyon katmanı DAHİL
-// tüm bileşeni sarıyor: RNGH bir sürükleme başladığını (`activeOffsetX` eşiği
-// aşılınca) algılayınca alttaki `Pressable`nin dokunuşunu iptal edip pan'i
-// devralıyor, kısa bir dokunuş ise değişmeden butona gidiyor.
+// NEDEN KÜTÜPHANE DEĞİL: `ReanimatedSwipeable` aksiyonları satırın ALTINA
+// koyup satırı `translateX` ile kaydırıyor; Fabric'te dokunma hedeflemesi
+// satırın kaydırılmamış dikdörtgenini kullandığı için satır, açığa çıkan
+// butonların üstünü kapatıp dokunuşları yutuyordu. Burada aksiyon katmanları
+// satırın ÜSTÜNDE (z-sırasında sonra) ve `GestureDetector` hepsini sarıyor:
+// açıkken butonun üzerinden sürüklemek de pan'i başlatıyor, kısa dokunuş
+// butona gidiyor. Kapalıyken katmanlar `pointerEvents="none"`.
 //
-// Aksiyon katmanı artık HER ZAMAN mount'lu (eskiden yalnızca `open` iken
-// render ediliyordu, bu da butonların sürüklerken değil ancak bırakınca "pat"
-// diye belirmesine yol açıyordu) — görünürlüğü ve boyutunu `translateX`'e bağlı
-// her butonun kendi büyüme animasyonu belirliyor, kapalıyken `pointerEvents="none"`
-// ile dokunuşu yutmuyor.
-//
-// Çekmece jesti bu ekranda kapalı: bu bileşen yalnızca push edilen ekranlarda
-// kullanılıyor ve çekmece kaydırması artık yalnızca sekme ekranlarında açık
-// (bkz. RootNavigator/DrawerSwipeSync + drawerConstants TAB_ROUTES). Açık
-// olsaydı sağa çekiş satır aksiyonları yerine menüyü açardı.
-export default function SwipeActions({ actions, children }: { actions: SwipeAction[]; children: React.ReactNode }) {
-  const width = ACTION_WIDTH * actions.length;
+// Çekmece jesti bu ekranda kapalı (bkz. RootNavigator/DrawerSwipeSync) —
+// açık olsaydı sağa çekiş satır yerine menüyü açardı.
+export default function SwipeActions({
+  leftAction,
+  rightAction,
+  children,
+}: {
+  leftAction?: SwipeAction;
+  rightAction?: SwipeAction;
+  children: React.ReactNode;
+}) {
   const translateX = useSharedValue(0);
-  const [open, setOpen] = useState(false);
+  const rowWidth = useSharedValue(0);
+  // 0/1 — tam kaydırma eşiği geçildi mi (içerik konumunu da süren değer).
+  const armed = useSharedValue(0);
+  const armedFlag = useSharedValue(false);
+  const [open, setOpen] = useState<Side | null>(null);
+
+  const hasLeft = !!leftAction;
+  const hasRight = !!rightAction;
 
   const close = useCallback(() => {
     translateX.value = withTiming(0, { duration: 160 });
-    setOpen(false);
+    setOpen(null);
   }, [translateX]);
+
+  const runAction = useCallback(
+    (side: Side) => {
+      const action = side === 'left' ? leftAction : rightAction;
+      setOpen(null);
+      action?.onPress();
+    },
+    [leftAction, rightAction]
+  );
+
+  // Tamamla: `dismiss` ise satır o yöne ekran dışına kayıp kalıyor (liste onu
+  // zaten düşürecek), değilse yerine yaylanıyor.
+  const complete = useCallback(
+    (side: Side) => {
+      const action = side === 'left' ? leftAction : rightAction;
+      if (!action) return;
+      const sign = side === 'left' ? 1 : -1;
+      impactMedium();
+      if (action.dismiss) {
+        translateX.value = withTiming(sign * rowWidth.value, { duration: 180 }, (done) => {
+          if (done) runOnJS(runAction)(side);
+        });
+      } else {
+        // Geri yaylanırken eşikten çıkış ikinci kez titretmesin.
+        armedFlag.value = false;
+        armed.value = withTiming(0, { duration: 140 });
+        translateX.value = withSpring(0, SPRING);
+        runAction(side);
+      }
+    },
+    [leftAction, rightAction, translateX, rowWidth, runAction, armed, armedFlag]
+  );
+
+  // Eşiğe girip çıkarken hafif titreşim + içerik kayması.
+  useAnimatedReaction(
+    () => rowWidth.value > 0 && Math.abs(translateX.value) > rowWidth.value * FULL_SWIPE_RATIO,
+    (isArmed, prev) => {
+      if (prev === null || isArmed === prev) return;
+      armed.value = withTiming(isArmed ? 1 : 0, { duration: 140 });
+      if (armedFlag.value !== isArmed) {
+        armedFlag.value = isArmed;
+        runOnJS(impact)();
+      }
+    }
+  );
 
   const pan = Gesture.Pan()
     .activeOffsetX([-20, 20])
     .failOffsetY([-12, 12])
     .onChange((event) => {
+      const max = rowWidth.value || ACTION_WIDTH * 4;
       const next = translateX.value + event.changeX;
-      translateX.value = Math.min(width * RUBBER_BAND, Math.max(0, next));
+      translateX.value = Math.min(hasLeft ? max : 0, Math.max(hasRight ? -max : 0, next));
     })
     .onEnd(() => {
-      const shouldOpen = translateX.value > width * OPEN_THRESHOLD;
-      translateX.value = withSpring(shouldOpen ? width : 0, { damping: 20, stiffness: 220 });
-      runOnJS(setOpen)(shouldOpen);
+      const x = translateX.value;
+      const side: Side = x > 0 ? 'left' : 'right';
+      const abs = Math.abs(x);
+      if (rowWidth.value > 0 && abs > rowWidth.value * FULL_SWIPE_RATIO) {
+        runOnJS(complete)(side);
+        return;
+      }
+      const shouldOpen = abs > ACTION_WIDTH * OPEN_THRESHOLD;
+      translateX.value = withSpring(shouldOpen ? (x > 0 ? ACTION_WIDTH : -ACTION_WIDTH) : 0, SPRING);
+      runOnJS(setOpen)(shouldOpen ? side : null);
     });
 
   const rowStyle = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));
 
   return (
     <GestureDetector gesture={pan}>
-      <View style={{ overflow: 'hidden', borderRadius: 12 }}>
-        {/* Satır ÖNCE (z-sırasında altta) — kendi (opak) arka planıyla
-            kapalıyken aksiyon katmanının tamamını örtüyor. */}
+      <View style={{ overflow: 'hidden', borderRadius: 12 }} onLayout={(e) => (rowWidth.value = e.nativeEvent.layout.width)}>
+        {/* Satır ÖNCE (z-sırasında altta). */}
         <Animated.View style={rowStyle}>{children}</Animated.View>
 
-        {/* Aksiyon katmanı SONRA (z-sırasında üstte): açığa çıkan alandaki
-            dokunuşlar, satırın (Fabric'te yanlış raporlanan, kaydırılmamış)
-            hit-test dikdörtgeni ne derse desin doğrudan buraya geliyor. */}
-        <Animated.View
-          pointerEvents={open ? 'auto' : 'none'}
-          style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width, flexDirection: 'row' }}
-        >
-          {actions.map((action, index) => (
-            <SwipeActionButton
-              key={action.key}
-              action={action}
-              index={index}
-              translateX={translateX}
-              onPress={() => {
+        {/* Aksiyon katmanları SONRA (z-sırasında üstte) — bkz. yukarıdaki not. */}
+        {leftAction && (
+          <ActionLayer
+            side="left"
+            action={leftAction}
+            translateX={translateX}
+            armed={armed}
+            open={open === 'left'}
+            onPress={() => {
+              if (leftAction.dismiss) complete('left');
+              else {
                 close();
-                action.onPress();
-              }}
-            />
-          ))}
-        </Animated.View>
+                leftAction.onPress();
+              }
+            }}
+          />
+        )}
+        {rightAction && (
+          <ActionLayer
+            side="right"
+            action={rightAction}
+            translateX={translateX}
+            armed={armed}
+            open={open === 'right'}
+            onPress={() => {
+              if (rightAction.dismiss) complete('right');
+              else {
+                close();
+                rightAction.onPress();
+              }
+            }}
+          />
+        )}
       </View>
     </GestureDetector>
   );

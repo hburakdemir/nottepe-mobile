@@ -14,7 +14,10 @@ import {
 } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { AlertCircle, CheckCircle, Eye, EyeOff, Trash2, X } from 'lucide-react-native';
-import { profileupdateAPI } from '../../lib/api';
+import { useQueryClient } from '@tanstack/react-query';
+import { badgeAPI, profileupdateAPI } from '../../lib/api';
+import { MY_BADGES_KEY } from '../../hooks/profile/useProfileLists';
+import { success as hapticSuccess, tap } from '../../lib/haptics';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { faculties, departments } from '../../data/departments';
@@ -44,12 +47,11 @@ const DEFAULT_SECTION_VISIBILITY: Record<string, boolean> = {
 
 interface Props {
   badges: Badge[];
-  onToggleBadgeVisibility: (badge: Badge) => void;
   onClose: () => void;
   onDeleteAccountRequest: () => void;
 }
 
-export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onClose, onDeleteAccountRequest }: Props) {
+export default function ProfileEditModal({ badges, onClose, onDeleteAccountRequest }: Props) {
   const { user, updateUser } = useAuth();
   const { theme, colors } = useTheme();
   // `sheet`'in yüksekliği eskiden yalnızca `maxHeight: '90%'`(içerik-tabanlı,
@@ -154,6 +156,24 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
     ...((user?.profile_section_visibility as Record<string, boolean>) || {}),
   });
 
+  // Rozet görünürlüğü TASLAĞI: göz ikonu yalnızca bunu değiştirir, sunucuya
+  // diğer alanlarla birlikte "Kaydet"te gider (eskiden her dokunuşta
+  // kaydediliyordu). İptal/kapatma taslağı atar.
+  const queryClient = useQueryClient();
+  const [badgeDraft, setBadgeDraft] = useState<Record<string, boolean>>({});
+  const isBadgeVisible = (b: Badge) => badgeDraft[b.id] ?? b.is_visible !== false;
+  const toggleBadge = (badge: Badge) => {
+    const next = !isBadgeVisible(badge);
+    if (!next && badges.filter(isBadgeVisible).length <= 1) {
+      setError('En az bir rozet görünür kalmalı.');
+      return;
+    }
+    tap();
+    setError('');
+    setSuccess('');
+    setBadgeDraft((prev) => ({ ...prev, [badge.id]: next }));
+  };
+
   const [showFacultyPicker, setShowFacultyPicker] = useState(false);
   const [showDeptPicker, setShowDeptPicker] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -181,19 +201,33 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
     });
     if (Object.keys(visibilityPatch).length > 0) updates.profile_section_visibility = visibilityPatch;
 
-    if (Object.keys(updates).length === 0) {
+    const badgeChanges = badges.filter((b) => b.id in badgeDraft && badgeDraft[b.id] !== (b.is_visible !== false));
+
+    if (Object.keys(updates).length === 0 && badgeChanges.length === 0) {
       setError('Hiçbir değişiklik yapmadınız.');
       setLoading(false);
       return;
     }
 
     try {
-      const res = await profileupdateAPI.updateProfile(updates);
-      updateUser(res.data.user);
+      if (Object.keys(updates).length > 0) {
+        const res = await profileupdateAPI.updateProfile(updates);
+        updateUser(res.data.user);
+      }
+      if (badgeChanges.length > 0) {
+        // Önce görünür yapılanlar: "en az bir görünür" kuralına ara durumda takılmasın.
+        const ordered = [...badgeChanges].sort((a, b) => Number(badgeDraft[b.id]) - Number(badgeDraft[a.id]));
+        for (const b of ordered) await badgeAPI.setVisibility(b.id, badgeDraft[b.id]);
+        queryClient.setQueryData<Badge[]>(MY_BADGES_KEY, (prev) =>
+          prev?.map((b) => (b.id in badgeDraft ? { ...b, is_visible: badgeDraft[b.id] } : b))
+        );
+        setBadgeDraft({});
+      }
+      hapticSuccess();
       setSuccess('Profil başarıyla güncellendi!');
       setTimeout(onClose, 1200);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Güncelleme başarısız oldu.');
+      setError(err.response?.data?.error || err.response?.data?.message || 'Güncelleme başarısız oldu.');
     } finally {
       setLoading(false);
     }
@@ -383,7 +417,7 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
                         Kapatırsan başkaları sadece adını, avatarını ve rozetlerini görür.
                       </Text>
                     </View>
-                    <Switch value={isPublic} onValueChange={setIsPublic} trackColor={{ true: '#2F5755' }} />
+                    <Switch value={isPublic} onValueChange={(v) => { tap(); setIsPublic(v); }} trackColor={{ true: '#2F5755' }} />
                   </View>
 
                   <Text className="text-ink2" style={styles.label}>
@@ -400,7 +434,10 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
                         </Text>
                         <Switch
                           value={!!visibility[key]}
-                          onValueChange={(v) => setVisibility((prev) => ({ ...prev, [key]: v }))}
+                          onValueChange={(v) => {
+                            tap();
+                            setVisibility((prev) => ({ ...prev, [key]: v }));
+                          }}
                           trackColor={{ true: '#2F5755' }}
                         />
                       </View>
@@ -411,7 +448,7 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
                     Rozetlerim
                   </Text>
                   <Text className="text-muted" style={styles.hint}>
-                    Gizlediğin bir rozet profilinde görünmez. En az bir rozet görünür kalmalı.
+                    Gizlediğin bir rozet profilinde görünmez. En az bir rozet görünür kalmalı. Değişiklikler "Kaydet" ile uygulanır.
                   </Text>
                   {badges.length === 0 ? (
                     <Text className="text-muted" style={styles.hint}>
@@ -421,11 +458,11 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
                     <View className="border-line-soft" style={styles.visibilityBox}>
                       {badges.map((badge) => (
                         <View key={badge.id} className="border-line-soft" style={styles.visibilityRow}>
-                          <View style={{ flex: 1, opacity: badge.is_visible ? 1 : 0.4 }}>
+                          <View style={{ flex: 1, opacity: isBadgeVisible(badge) ? 1 : 0.4 }}>
                             <BadgeChip badge={badge} />
                           </View>
-                          <Pressable onPress={() => onToggleBadgeVisibility(badge)} hitSlop={8}>
-                            {badge.is_visible ? <Eye size={16} color={mutedIconColor} /> : <EyeOff size={16} color={mutedIconColor} />}
+                          <Pressable onPress={() => toggleBadge(badge)} hitSlop={8}>
+                            {isBadgeVisible(badge) ? <Eye size={16} color={mutedIconColor} /> : <EyeOff size={16} color={mutedIconColor} />}
                           </Pressable>
                         </View>
                       ))}
@@ -465,7 +502,7 @@ export default function ProfileEditModal({ badges, onToggleBadgeVisibility, onCl
                 </Text>
               </Pressable>
               <Pressable style={[styles.saveBtn, loading && { opacity: 0.6 }]} onPress={handleSubmit} disabled={loading}>
-                <Text style={styles.saveText}>{loading ? 'Güncelleniyor...' : 'Güncelle'}</Text>
+                <Text style={styles.saveText}>{loading ? 'Kaydediliyor...' : 'Kaydet'}</Text>
               </Pressable>
             </View>
           </View>

@@ -12,6 +12,7 @@ import type { RootStackParamList } from '../../navigation/types';
 import { MY_FOLLOWS_KEY, useProfileFollows, type Follow } from '../../hooks/profile/useProfileLists';
 import PagerPage, { type ProfileTabProps } from './PagerPage';
 import { EmptyState, SHADOW_SM, TabLoading } from './profileCommon';
+import { impact } from '../../lib/haptics';
 
 const FollowRow = React.memo(function FollowRow({
   follow,
@@ -68,6 +69,7 @@ function FollowsTab({ owner, width, headerHeight, scrollY, onRememberOffset }: P
 
   const handleUnfollow = useCallback(
     async (f: Follow) => {
+      impact();
       // İyimser: satır anında gidiyor.
       queryClient.setQueryData<Follow[]>(MY_FOLLOWS_KEY, (prev) =>
         prev?.filter((x) => !(x.faculty === f.faculty && x.department === f.department))

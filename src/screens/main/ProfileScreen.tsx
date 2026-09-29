@@ -30,7 +30,6 @@ import ScheduleTab from '../../components/profile/ScheduleTab';
 import FollowsTab from '../../components/profile/FollowsTab';
 import ForumsTab from '../../components/profile/ForumsTab';
 import { ME_OWNER, useMyBadges } from '../../hooks/profile/useProfileLists';
-import { useBadgeVisibility } from '../../hooks/profile/useBadgeVisibility';
 import { usePostsPagination } from '../../hooks/profile/usePostsPagination';
 import { diagMark } from '../../lib/diagnostics';
 
@@ -191,9 +190,6 @@ export default function ProfileScreen() {
 
   // Şeridin kendi ölçüm/ortalama mantığı artık `TabStrip`'in içinde — dört
   // `ref` ve bir effect daha bu bileşenden çıktı.
-
-  // Rozet görünürlüğü Ayarlar'daki aynı modalla ortak (bkz. useBadgeVisibility).
-  const { toggle: handleToggleBadgeVisibility } = useBadgeVisibility();
 
   // `HeaderCard` memo'lu: satır içi ok fonksiyonu verseydik her render'da yeni
   // referans olur, memo hiçbir zaman bail-out yapamazdı.
@@ -466,7 +462,6 @@ export default function ProfileScreen() {
       {showEditModal && (
         <ProfileEditModal
           badges={badges}
-          onToggleBadgeVisibility={handleToggleBadgeVisibility}
           onClose={() => setShowEditModal(false)}
           onDeleteAccountRequest={() => setShowDeleteModal(true)}
         />

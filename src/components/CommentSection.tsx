@@ -27,6 +27,7 @@ import { Skeleton, SkeletonGroup } from './Skeleton';
 import type { Comment } from '../types/comment';
 import BlockedContentGate from './moderation/BlockedContentGate';
 import BlockedMeTag from './moderation/BlockedMeTag';
+import { success } from '../lib/haptics';
 
 const LIMIT = 5;
 const EDIT_WINDOW_MS = 60 * 60 * 1000;
@@ -431,6 +432,7 @@ export default function CommentSection({
     setSubmitting(true);
     try {
       const res = await commentAPI.create({ post_id: postId, content: content.trim() || undefined, rating: rating || undefined });
+      success();
       setContent('');
       setRating(0);
       setTotal((t) => t + 1);

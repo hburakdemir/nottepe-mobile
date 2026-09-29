@@ -23,7 +23,8 @@ import ThemePickerModal from '../../components/settings/ThemePickerModal';
 import TermsModal from '../../components/auth/TermsModal';
 import DeleteAccountModal from '../../components/profile/DeleteAccountModal';
 import ProfileEditModal from '../../components/profile/ProfileEditModal';
-import { useBadgeVisibility } from '../../hooks/profile/useBadgeVisibility';
+import { useMyBadges } from '../../hooks/profile/useProfileLists';
+import type { Badge } from '../../components/BadgeChip';
 
 const THEME_LABELS = { system: 'Sistem', light: 'Açık', dark: 'Koyu' } as const;
 
@@ -65,12 +66,14 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 // Menüdeki eski "Temayı Ayarla" satırının yerini alan sayfa (kullanıcı isteği):
 // hesap, bildirim, görünüm ve hukuki metinler tek yerde. Yeni ayarlar ileride
 // buraya bölüm olarak eklenecek. Web'deki karşılığı client/src/pages/SettingsPage.jsx.
+const NO_BADGES: Badge[] = [];
+
 export default function SettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme, themePreference } = useTheme();
   const iconColor = theme === 'dark' ? '#DFD0B8' : '#374151';
   const [sheet, setSheet] = useState<null | 'edit' | 'notifications' | 'theme' | 'terms' | 'delete'>(null);
-  const { badges, toggle: toggleBadgeVisibility } = useBadgeVisibility();
+  const { data: badges = NO_BADGES } = useMyBadges();
   const close = () => setSheet(null);
   const version = Constants.expoConfig?.version;
 
@@ -130,7 +133,6 @@ export default function SettingsScreen() {
       {sheet === 'edit' && (
         <ProfileEditModal
           badges={badges}
-          onToggleBadgeVisibility={toggleBadgeVisibility}
           onClose={close}
           onDeleteAccountRequest={() => setSheet('delete')}
         />

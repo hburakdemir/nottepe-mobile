@@ -11,6 +11,7 @@ import { goToTab } from '../../navigation/navigateApp';
 import OptionSheet from '../../components/layout/OptionSheet';
 import type { RootStackParamList } from '../../navigation/types';
 import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
+import { success as hapticSuccess } from '../../lib/haptics';
 
 const MAX_FILES = 5;
 const MAX_SIZE = 10 * 1024 * 1024;
@@ -123,6 +124,7 @@ export default function AddPostScreen() {
       });
 
       await postsAPI.addPost(formData);
+      hapticSuccess();
       setSuccess(true);
       setTitle('');
       setContent('');

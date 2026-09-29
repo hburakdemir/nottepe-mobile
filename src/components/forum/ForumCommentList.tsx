@@ -184,6 +184,8 @@ function CommentRow({
 
 interface Props {
   comments: ForumComment[];
+  /** Sunucunun toplamı (yüklenen sayfa 50 ile sınırlı); yoksa `comments.length`. */
+  total?: number;
   loading: boolean;
   canModerate: boolean;
   onAddComment: (content: string, parentCommentId?: number | null) => Promise<void>;
@@ -194,7 +196,7 @@ interface Props {
 }
 
 // SSS ve Öneriler detay ekranlarında paylaşılan, tek seviyeli yanıt destekli yorum listesi.
-export default function ForumCommentList({ comments, loading, canModerate, onAddComment, onDeleteComment, onVoteComment, reportType }: Props) {
+export default function ForumCommentList({ comments, total, loading, canModerate, onAddComment, onDeleteComment, onVoteComment, reportType }: Props) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const brandColor = isDark ? '#5A9690' : '#2F5755';
@@ -227,7 +229,7 @@ export default function ForumCommentList({ comments, loading, canModerate, onAdd
       <View style={styles.header}>
         <MessageSquare size={16} color={brandColor} />
         <Text className="text-ink" style={styles.headerText}>
-          Yorumlar {comments ? `(${comments.length})` : ''}
+          Yorumlar {comments ? `(${total ?? comments.length})` : ''}
         </Text>
       </View>
 

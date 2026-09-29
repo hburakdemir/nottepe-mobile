@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, Text, TextInput, View } from 'react-native';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronRight, Inbox, MessageSquare, Send } from 'lucide-react-native';
 import { suggestionAPI } from '../../lib/api';
@@ -9,6 +9,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
 import type { RootStackParamList } from '../../navigation/types';
 import BlockedContentGate from '../../components/moderation/BlockedContentGate';
+import { success } from '../../lib/haptics';
 
 const PAGE_LIMIT = 20;
 
@@ -20,10 +21,10 @@ interface Suggestion {
   comment_count: number;
 }
 
-// Öneriler akışı yavaş değişiyor ama kullanıcının kendi önerisi gönderildiği
-// anda listenin başında görünmeli — o yüzden gönderimden sonra anahtar
-// geçersiz kılınıyor, tazelik süresi de kısa tutulmuyor.
-const SUGGESTIONS_STALE_MS = 5 * 60 * 1000;
+// Kullanıcının kendi önerisi gönderildiği anda listenin başında görünmeli —
+// o yüzden gönderimden sonra anahtar geçersiz kılınıyor. Başkalarının yeni
+// önerileri/yorumları için odakta 2 dk'dan eskiyse tazeleniyor.
+const SUGGESTIONS_STALE_MS = 2 * 60 * 1000;
 
 const SUGGESTIONS_KEY = ['suggestions', 'list'] as const;
 
@@ -40,7 +41,7 @@ export default function SuggestionsScreen() {
   const [submitting, setSubmitting] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+  const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage, isStale, refetch } = useInfiniteQuery({
     queryKey: SUGGESTIONS_KEY,
     queryFn: async ({ pageParam }) => {
       const res = await suggestionAPI.getAll({ page: pageParam, limit: PAGE_LIMIT });
@@ -54,6 +55,16 @@ export default function SuggestionsScreen() {
     staleTime: SUGGESTIONS_STALE_MS,
   });
 
+  // Liste ekranı yığında altta takılı kalıyor (detaydan geri dönüşte yeniden
+  // mount olmuyor), o yüzden react-query'nin mount tazelemesi burada işlemiyor:
+  // odak geri gelince bayatsa sessizce tazele — yeni sorular/cevaplar/yorum
+  // sayıları görünsün. Sayfalar yerinde kalıyor, spinner çıkmıyor.
+  useFocusEffect(
+    useCallback(() => {
+      if (isStale) refetch();
+    }, [isStale, refetch])
+  );
+
   const suggestions = useMemo(() => data?.pages.flatMap((p) => p.suggestions) ?? [], [data]);
 
   const handleSubmit = async () => {
@@ -61,6 +72,7 @@ export default function SuggestionsScreen() {
     setSubmitting(true);
     try {
       await suggestionAPI.create(text.trim());
+      success();
       setText('');
       // Kendi önerisi listenin başında görünsün: tüm sayfalar atılıp ilk
       // sayfa yeniden çekiliyor.
