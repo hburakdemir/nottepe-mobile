@@ -1,28 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
-import { WifiOff, type LucideIcon } from 'lucide-react-native';
+import { type LucideIcon } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
-import { navigateWhenReady } from '../navigation/navigationRef';
 
-// Ortak yükleme/hata/boş/çevrimdışı durumu — eskiden 25+ ekranın her biri
-// kendi "… yüklenemedi" `<Text>`'ini ya da `Alert.alert('Hata', …)` çağrısını
-// elle yazıyordu; hiçbirinde "tekrar dene" yoktu ve çevrimdışı için AYRI bir
-// dal hiçbirinde yoktu (bkz. RootNavigator.tsx'teki tam çevrimdışı kilidi —
-// bu bileşen, kilidin YAKALAYAMADIĞI durumlar için var: kilit yalnızca
-// `expo-network`in `isConnected:false` dediği zaman devreye giriyor; zayıf
-// sinyal/DNS/kısıtlı-portal gibi "bağlıyım ama istek hiç bitmiyor" durumlarını
-// yakalamıyor).
+// Ortak yükleme/hata/boş durumu — eskiden 25+ ekranın her biri kendi
+// "… yüklenemedi" `<Text>`'ini ya da `Alert.alert('Hata', …)` çağrısını elle
+// yazıyordu; hiçbirinde "tekrar dene" yoktu.
 //
-// `kind="loading"` iken 1 saniye sonra HÂLÂ yükleniyorsa (istek bu kadar
-// gecikmesi zaten anormal — bkz. api.ts'teki 12sn timeout + react-query'nin
-// `retry:1`'i, normalde bu ikisi çok daha hızlı başarı/hataya düşer) ekran
-// sessizce dönmeye devam etmek yerine doğrudan "İnternet bağlantınız yok"
-// mesajına geçiyor — kullanıcı isteği ("internet gittiğinde loading spinner
-// çok uzun dönüyor, 1 saniye dönmeli sonra internet bağlantınız yok demeli").
-const LOADING_TO_OFFLINE_MS = 1000;
+// Yükleme durumu yalnızca spinner. Eskiden 1 saniye sonra kendiliğinden bir
+// çevrimdışı mesajına (EGO 130 ring saatlerine yönlendiren) geçiyordu; bağlantı
+// yerindeyken de yavaş isteklerde çıktığı için kullanıcı isteğiyle kaldırıldı.
+// Geri eklemeyin.
 
 interface Props {
-  kind: 'loading' | 'error' | 'empty' | 'offline';
+  kind: 'loading' | 'error' | 'empty';
   icon?: LucideIcon;
   title?: string;
   message?: string;
@@ -32,45 +23,15 @@ interface Props {
   loadingColor?: string;
 }
 
-function OfflineMessage({ compact }: { compact?: boolean }) {
-  const { colors } = useTheme();
-  return (
-    <View style={{ alignItems: 'center', gap: 4, paddingVertical: compact ? 8 : 24, paddingHorizontal: 24 }}>
-      <WifiOff size={compact ? 20 : 28} color={colors.warn} style={{ marginBottom: 4 }} />
-      <Text style={{ color: colors.ink, fontSize: 13.5, fontWeight: '700', textAlign: 'center' }}>İnternet bağlantınız yok</Text>
-      <Pressable onPress={() => navigateWhenReady('Ego130Schedule')} hitSlop={8}>
-        <Text style={{ color: colors.accent, fontSize: 12.5, fontWeight: '600', marginTop: 2, textAlign: 'center' }}>
-          Ring seferlerini görmek ister misiniz?
-        </Text>
-      </Pressable>
-    </View>
-  );
-}
-
 export default function StateView({ kind, icon: Icon, title, message, actionLabel, onAction, loadingColor }: Props) {
   const { colors } = useTheme();
-  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
-
-  useEffect(() => {
-    if (kind !== 'loading') {
-      setLoadingTimedOut(false);
-      return;
-    }
-    const id = setTimeout(() => setLoadingTimedOut(true), LOADING_TO_OFFLINE_MS);
-    return () => clearTimeout(id);
-  }, [kind]);
 
   if (kind === 'loading') {
-    if (loadingTimedOut) return <OfflineMessage />;
     return (
       <View style={{ paddingVertical: 24, alignItems: 'center' }}>
         <ActivityIndicator size="large" color={loadingColor ?? colors.accent} />
       </View>
     );
-  }
-
-  if (kind === 'offline') {
-    return <OfflineMessage />;
   }
 
   // error / empty: aynı düzen, yalnızca "tekrar dene" yalnızca hata için var.

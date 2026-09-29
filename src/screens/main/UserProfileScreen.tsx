@@ -38,6 +38,7 @@ import type { Checklist } from '../../types/checklist';
 import type { RootStackParamList } from '../../navigation/types';
 import type { Post } from '../../types/post';
 import StateView from '../../components/StateView';
+import UserProfileSkeleton from '../../components/profile/UserProfileSkeleton';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 
 interface PublicProfile {
@@ -364,11 +365,7 @@ export default function UserProfileScreen() {
   const showLoading = loading;
 
   if (showLoading) {
-    return (
-      <View className="flex-1 items-center justify-center gap-3 px-8 bg-ground">
-        <StateView kind="loading" loadingColor={isDark ? '#5A9690' : '#2F5755'} />
-      </View>
-    );
+    return <UserProfileSkeleton />;
   }
   // bkz. FaqDetailScreen.tsx — gecikme dolmadan "kullanıcı bulunamadı"
   // yanlışlıkla yanıp sönmesin diye ara boş görünüm.

@@ -16,12 +16,9 @@ interface Props {
 
 // Görüntüleyicinin yükleme/hata kabuğu.
 //
-// ⚠️ Buradaki yükleme durumu için ortak `StateView` KULLANILAMIYOR: o bileşen
-// `kind="loading"` ile çizildiğinde 1 saniye sonra kendiliğinden "İnternet
-// bağlantınız yok" mesajına düşüyor (bkz. StateView.tsx). Bir ek indirmesi bu
-// eşiği rutin olarak aşıyor ve kullanıcı bağlantısı gayet yerindeyken hata
-// okuyordu. Hata durumunda ise StateView'ın kendi zemini açık temada beyaz;
-// bu ekran koyu olduğu için görsel olarak da uymuyor.
+// Buradaki yükleme/hata durumu için ortak `StateView` kullanılmıyor: indirme
+// ilerlemesini göstermesi gerekiyor, StateView'ın zemini de açık temada beyaz;
+// bu ekran koyu olduğu için görsel olarak uymuyor.
 export default function SlideStatus({ kind, progress, title, message, onRetry, onHandoff }: Props) {
   return (
     <View style={styles.wrap}>

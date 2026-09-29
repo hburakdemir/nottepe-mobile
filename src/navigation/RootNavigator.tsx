@@ -294,10 +294,7 @@ export default function RootNavigator() {
       {/* Eskiden burada `isOffline &&` ile üstte bir OfflineBanner belirirdi.
           Artık çevrimdışı durumu bu ağaçta hiç ele alınmıyor: tam kilit
           `withOfflineOverlay` ile bu ağacın ÜSTÜNE biniyor (bkz. yukarısı) ve
-          tüm giriş durumlarında geçerli. `OfflineBanner` bileşeni silinmedi:
-          onun "İnternet bağlantınız yok / Ring seferlerini görmek ister
-          misiniz?" metni ve ikonu artık StateView.tsx'in offline durumunda
-          yeniden kullanılıyor. */}
+          tüm giriş durumlarında geçerli. */}
       {/* `!isOffline` ŞART. Bu bir RN `Modal`, yani native olarak AYRI bir
           pencerede, çevrimdışı katmanının bile ÜSTÜNDE çiziliyor — katman onu
           kapatamaz. Kilit eskiden tüm ağacı unmount ettiği için bu modal
