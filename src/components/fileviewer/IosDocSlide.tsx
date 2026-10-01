@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { WebView } from 'react-native-webview';
 import type { ShouldStartLoadRequest } from 'react-native-webview/lib/WebViewTypes';
 import { viewDocument } from '@react-native-documents/viewer';
@@ -83,11 +84,41 @@ export default function IosDocSlide({ fileName, title, width, height, active, on
     }
   }, [fileUri, fileName, title]);
 
+  // Ekranın kayarak açılma geçişi BİTMEDEN Quick Look açılmamalı.
+  //
+  // Kütüphane `presentViewController`'ı çağırıp sonucuna bakmadan promise'i
+  // çözüyor (RNDocumentViewer.mm). iOS, süren bir geçiş sırasında gelen sunumu
+  // SESSİZCE YOK SAYIYOR: dosya önbellekteyse ya da hızlı indiyse istek
+  // geçişin ortasına denk geliyor, Quick Look hiç görünmüyor ve kullanıcı
+  // doğrudan "Tekrar aç" kartını görüyordu (1.0.28'de bildirildi). "Tekrar
+  // aç"a basınca açılıyordu çünkü o anda geçiş çoktan bitmiş oluyordu.
+  //
+  // `transitionEnd` native-stack'ten geliyor; ekran zaten oturmuşsa olay bir
+  // daha gelmeyeceği için 900 ms'lik emniyet zamanlayıcısı da aynı bayrağı
+  // kaldırıyor.
+  const navigation = useNavigation();
+  const [settled, setSettled] = useState(false);
   useEffect(() => {
-    if (useWebView || !active || !fileUri || autoOpenedFor.current === fileUri) return;
-    autoOpenedFor.current = fileUri;
-    void openQuickLook();
-  }, [useWebView, active, fileUri, openQuickLook]);
+    const unsubscribe = navigation.addListener('transitionEnd' as never, () => setSettled(true));
+    const timer = setTimeout(() => setSettled(true), 900);
+    return () => {
+      unsubscribe();
+      clearTimeout(timer);
+    };
+  }, [navigation]);
+
+  useEffect(() => {
+    if (!settled || useWebView || !active || !fileUri || autoOpenedFor.current === fileUri) return;
+    // Geçiş bittikten sonra da kısa bir pay: başlık şeridinin ve yükleme
+    // ekranından karta dönüşün çizimi otursun. "Açıldı" işareti zamanlayıcının
+    // İÇİNDE konuyor: efekt bu arada iptal olursa bir sonraki çalışmada yine
+    // denensin, sessizce atlanmasın.
+    const timer = setTimeout(() => {
+      autoOpenedFor.current = fileUri;
+      void openQuickLook();
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [settled, useWebView, active, fileUri, openQuickLook]);
 
   // Yalnızca yerel dosyaya gidilebiliyor; belgedeki bir bağlantıya basılırsa
   // görüntüleyici yarım bir web sayfasına dönmesin. `fileUri` ile birebir

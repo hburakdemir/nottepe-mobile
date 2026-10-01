@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { File } from 'expo-file-system';
-import { ensureCachedFile } from '../lib/fileCache';
+import { cachedFile, ensureCachedFile } from '../lib/fileCache';
 
 export type CachedFileState =
   | { status: 'idle' }
@@ -38,6 +38,32 @@ export function useCachedFile(
 
     const controller = new AbortController();
     let alive = true;
+    // %100 BEKÇİSİ. 1.0.28'de iPhone'da indirme göstergesinin %100'de kalıp
+    // dosyanın açılmadığı bildirildi; kodda buna yol açan bir yol bulunamadı
+    // (ölçülemedi). Tahmin yerine emniyet: son bayt geldikten sonra 6 sn
+    // içinde indirme sonuçlanmazsa diske bakılıyor — dosya yerindeyse açılıyor,
+    // değilse "tekrar dene" hatası. Kullanıcı hiçbir durumda %100'de asılı
+    // kalmıyor.
+    let settled = false;
+    let watchdog: ReturnType<typeof setTimeout> | null = null;
+    const armWatchdog = () => {
+      if (watchdog) return;
+      watchdog = setTimeout(() => {
+        if (!alive || settled) return;
+        settled = true;
+        try {
+          const file = cachedFile(remoteName);
+          if (file.exists && (file.size ?? 0) > 0) {
+            setState({ status: 'ready', file });
+            return;
+          }
+        } catch {
+          // aşağıdaki hataya düş
+        }
+        controller.abort();
+        setState({ status: 'error', message: 'İndirme tamamlanamadı' });
+      }, 6000);
+    };
     lastPercent.current = -1;
     setState({ status: 'downloading', progress: null, bytesWritten: 0, totalBytes: null });
 
@@ -54,6 +80,7 @@ export function useCachedFile(
           setState({ status: 'downloading', progress: null, bytesWritten, totalBytes: null });
           return;
         }
+        if (bytesWritten >= totalBytes) armWatchdog();
         const ratio = bytesWritten / totalBytes;
         const percent = Math.floor(ratio * 100);
         if (percent === lastPercent.current) return;
@@ -62,12 +89,15 @@ export function useCachedFile(
       },
     })
       .then((file) => {
-        if (alive) setState({ status: 'ready', file });
+        if (!alive || settled) return;
+        settled = true;
+        setState({ status: 'ready', file });
       })
       .catch((error: unknown) => {
         // Ekrandan çıkıldığı ya da slayt değiştiği için iptal ettiysek bu bir
         // hata değil: kullanıcıya "dosya açılamadı" göstermek yanlış olurdu.
-        if (!alive || controller.signal.aborted) return;
+        if (!alive || settled || controller.signal.aborted) return;
+        settled = true;
         setState({
           status: 'error',
           message: error instanceof Error ? error.message : 'Dosya indirilemedi',
@@ -76,6 +106,7 @@ export function useCachedFile(
 
     return () => {
       alive = false;
+      if (watchdog) clearTimeout(watchdog);
       controller.abort();
     };
   }, [remoteName, enabled, attempt]);
