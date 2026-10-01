@@ -10,7 +10,7 @@ import FileSlide from '../../components/fileviewer/FileSlide';
 import FileViewerHeader from '../../components/fileviewer/FileViewerHeader';
 import { VIEWER_BG } from '../../components/fileviewer/viewerTokens';
 import { useShareFile } from '../../hooks/useShareFile';
-import { trimFileCache } from '../../lib/fileCache';
+import { rememberFileTitles, trimFileCache } from '../../lib/fileCache';
 import { useDrawerSwipeEnabled } from '../../navigation/drawerConstants';
 import type { RootStackParamList } from '../../navigation/types';
 import { fileExtension } from '../../theme/feedTokens';
@@ -64,6 +64,11 @@ export default function FileViewerScreen() {
   useEffect(() => {
     trimFileCache();
   }, []);
+
+  // Ayarlar > Depolama listesinde sunucu adı yerine gönderi başlığı görünsün.
+  useEffect(() => {
+    rememberFileTitles(files, postTitle);
+  }, [files, postTitle]);
 
   // Olmaması gereken durum; yine de çökmek yerine sessizce geri dön.
   useEffect(() => {

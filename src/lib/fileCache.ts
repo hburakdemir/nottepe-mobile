@@ -30,7 +30,10 @@ import { getFileUrl } from './config';
 // sunucudan yeniden indirilebilir. Sistem yer darlığında silebilir — bu yüzden
 // bir dosyanın URI'si ASLA kalıcı state'te (AsyncStorage, react-query persist)
 // tutulmuyor; her açılışta `exists` tek doğru kaynak.
-const FILES_DIR = 'files';
+// `files` → `files-v2`: durum kodu kontrolünden önce indirilmiş ekler arasında
+// HTML gövdeli bozuk kopyalar olabilir; eski dizin trimFileCache'te siliniyor.
+const FILES_DIR = 'files-v2';
+const LEGACY_FILES_DIRS = ['files'];
 const SHARE_DIR = 'share';
 
 // Budama eşikleri. Ders notu ekleri 10 MB ile sınırlı (bkz. AddPostScreen), yani
@@ -71,6 +74,11 @@ function safeKey(remoteName: string): string {
 
 export function cachedFile(remoteName: string): File {
   return new File(filesDir(), safeKey(remoteName));
+}
+
+/** iOS WebView'ına verilen okuma izninin kapsamı (bkz. IosDocSlide). */
+export function cachedFilesDirUri(): string {
+  return filesDir().uri;
 }
 
 /**
@@ -137,6 +145,21 @@ export async function ensureCachedFile(remoteName: string, options?: EnsureOptio
     // sessizce başarı saymak, diskte olmayan bir dosyayı "hazır" durumuna
     // geçirir ve görüntüleyici boş bir PDF açmaya çalışırdı.
     if (!result || cancelled) throw new Error('İndirme iptal edildi');
+
+    // ⚠️ Legacy indirici HTTP hatasında da FIRLATMIYOR: 403/404'ün ya da bir
+    // Cloudflare sayfasının gövdesini dosyanın adıyla diske yazıp başarı
+    // dönüyor. Kontrol olmadan `.pdf` adlı bir HTML dosyası önbelleğe giriyor,
+    // 14 gün boyunca her açılışta o okunuyor (görüntüleyici boş kalıyor) ve
+    // "Dosyalar'a Kaydet" ile paylaşıldığında iPhone onu Chrome'da açıyor.
+    // Ekler hiçbir zaman HTML değil; HTML gelmişse yanlış bir şey gelmiştir.
+    const contentType = Object.entries(result.headers ?? {})
+      .find(([key]) => key.toLowerCase() === 'content-type')?.[1]
+      ?.toLowerCase();
+    if (result.status !== 200 || contentType?.startsWith('text/html')) {
+      const broken = cachedFile(remoteName);
+      if (broken.exists) broken.delete();
+      throw new Error(`Sunucu dosyayı vermedi (HTTP ${result.status})`);
+    }
     return cachedFile(remoteName);
   } finally {
     clearTimeout(timeout);
@@ -166,6 +189,15 @@ export async function stageForSharing(source: File, prettyName: string): Promise
  * olması hiçbir akışı bozmuyor.
  */
 export function trimFileCache(): void {
+  for (const name of LEGACY_FILES_DIRS) {
+    try {
+      const legacy = new Directory(Paths.cache, name);
+      if (legacy.exists) legacy.delete();
+    } catch {
+      // Bir sonraki açılışta yeniden denenir.
+    }
+  }
+
   try {
     const dir = filesDir();
     if (!dir.exists) return;
@@ -198,5 +230,113 @@ export function trimFileCache(): void {
     if (staging.exists) staging.delete();
   } catch {
     // Yer açmak en iyi çabadır; başarısızlığı sessiz.
+  }
+}
+
+// ── Ayarlar > Depolama ───────────────────────────────────────────────────────
+//
+// Diskteki ad sunucu adı (`files-1760…pdf`), kullanıcıya gösterilemez. Okunaklı
+// ad için gönderi başlığı görüntüleyici açılırken bu küçük dizine yazılıyor
+// (bkz. FileViewerScreen). Dizin `files-v2/`'nin DIŞINDA: içinde olsaydı
+// budama onu da bir ek gibi sayıp silebilirdi. Dizinde kaydı olmayan dosya
+// türünün adıyla ("PDF") gösteriliyor — bir şey bozulmuyor.
+const TITLES_FILE = 'files-titles.json';
+
+function titlesFile(): File {
+  return new File(Paths.cache, TITLES_FILE);
+}
+
+function readTitles(): Record<string, string> {
+  try {
+    const file = titlesFile();
+    if (!file.exists) return {};
+    const parsed = JSON.parse(file.textSync());
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeTitles(titles: Record<string, string>): void {
+  try {
+    const file = titlesFile();
+    if (!file.exists) file.create();
+    file.write(JSON.stringify(titles));
+  } catch {
+    // Yalnızca görüntü adı; yazılamazsa liste türün adını gösterir.
+  }
+}
+
+/** Görüntüleyici açılırken çağrılıyor; çok dosyalı gönderide sıra numarası ekleniyor. */
+export function rememberFileTitles(remoteNames: string[], postTitle?: string): void {
+  const title = postTitle?.trim();
+  if (!title) return;
+  const titles = readTitles();
+  remoteNames.forEach((name, i) => {
+    try {
+      titles[safeKey(name)] = remoteNames.length > 1 ? `${title} (${i + 1})` : title;
+    } catch {
+      // Geçersiz ad — atla.
+    }
+  });
+  writeTitles(titles);
+}
+
+export interface CachedFileEntry {
+  key: string;
+  title: string | null;
+  size: number;
+  /** ms; bilinmiyorsa 0 */
+  at: number;
+}
+
+/** Yeniden eskiye. */
+export function listCachedFiles(): CachedFileEntry[] {
+  try {
+    const dir = filesDir();
+    if (!dir.exists) return [];
+    const titles = readTitles();
+    return dir
+      .list()
+      .filter((entry): entry is File => entry instanceof File)
+      .map((file) => ({
+        key: file.name,
+        title: titles[file.name] ?? null,
+        size: file.size ?? 0,
+        at: file.modificationTime ?? 0,
+      }))
+      .sort((a, b) => b.at - a.at);
+  } catch {
+    return [];
+  }
+}
+
+export function deleteCachedFile(key: string): void {
+  try {
+    const file = new File(filesDir(), safeKey(key));
+    if (file.exists) file.delete();
+    const titles = readTitles();
+    if (key in titles) {
+      delete titles[key];
+      writeTitles(titles);
+    }
+  } catch {
+    // Liste yeniden okunduğunda gerçek durum görünür.
+  }
+}
+
+export function clearFileCache(): void {
+  for (const dir of [filesDir(), shareDir()]) {
+    try {
+      if (dir.exists) dir.delete();
+    } catch {
+      // En iyi çaba.
+    }
+  }
+  try {
+    const titles = titlesFile();
+    if (titles.exists) titles.delete();
+  } catch {
+    // En iyi çaba.
   }
 }
