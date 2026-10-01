@@ -326,15 +326,21 @@ export default function MenuDrawerContent({ navigation }: DrawerContentComponent
   // Drawer içeriği artık kalıcı mount'lu (her açılışta unmount/remount olmuyor)
   // — bu yüzden bu fetch'ler `isOpen`'a bağlı: her açılışta tazeleniyor, eski
   // (her seferinde taze mount olan) davranışla aynı garanti korunuyor.
+  //
+  // Yalnızca SAYI lazım: `page` verilince sunucu ayrı bir COUNT sorgusuyla
+  // `total` döndürüyor, `limit: 1` ile gövdede tek satır geliyor. Eskiden
+  // `page` verilmiyordu ve sunucu TÜM listeyi (rozetleriyle) gönderiyordu;
+  // menü her açıldığında yalnızca `.length` okumak için. Profil sekmesindeki
+  // sayaçlar da aynı `total`'den geliyor, yani iki yer artık aynı sayıyı gösterir.
   useEffect(() => {
     if (!isOpen) return;
     postsAPI
-      .getMyPosts()
-      .then((res) => setMyPostsCount(res.data?.length || 0))
+      .getMyPosts({ page: 1, limit: 1 })
+      .then((res) => setMyPostsCount(Number(res.data?.total) || 0))
       .catch(() => setMyPostsCount(0));
     savedPostsAPI
-      .getSavedPosts()
-      .then((res) => setSavedPostsCount(res.data?.length || 0))
+      .getSavedPosts({ page: 1, limit: 1 })
+      .then((res) => setSavedPostsCount(Number(res.data?.total) || 0))
       .catch(() => setSavedPostsCount(0));
   }, [isOpen]);
 
