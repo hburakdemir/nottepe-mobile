@@ -30,7 +30,10 @@ import { getFileUrl } from './config';
 // sunucudan yeniden indirilebilir. Sistem yer darlığında silebilir — bu yüzden
 // bir dosyanın URI'si ASLA kalıcı state'te (AsyncStorage, react-query persist)
 // tutulmuyor; her açılışta `exists` tek doğru kaynak.
-const FILES_DIR = 'files';
+// `files` → `files-v2`: durum kodu kontrolünden önce indirilmiş ekler arasında
+// HTML gövdeli bozuk kopyalar olabilir; eski dizin trimFileCache'te siliniyor.
+const FILES_DIR = 'files-v2';
+const LEGACY_FILES_DIRS = ['files'];
 const SHARE_DIR = 'share';
 
 // Budama eşikleri. Ders notu ekleri 10 MB ile sınırlı (bkz. AddPostScreen), yani
@@ -142,6 +145,21 @@ export async function ensureCachedFile(remoteName: string, options?: EnsureOptio
     // sessizce başarı saymak, diskte olmayan bir dosyayı "hazır" durumuna
     // geçirir ve görüntüleyici boş bir PDF açmaya çalışırdı.
     if (!result || cancelled) throw new Error('İndirme iptal edildi');
+
+    // ⚠️ Legacy indirici HTTP hatasında da FIRLATMIYOR: 403/404'ün ya da bir
+    // Cloudflare sayfasının gövdesini dosyanın adıyla diske yazıp başarı
+    // dönüyor. Kontrol olmadan `.pdf` adlı bir HTML dosyası önbelleğe giriyor,
+    // 14 gün boyunca her açılışta o okunuyor (görüntüleyici boş kalıyor) ve
+    // "Dosyalar'a Kaydet" ile paylaşıldığında iPhone onu Chrome'da açıyor.
+    // Ekler hiçbir zaman HTML değil; HTML gelmişse yanlış bir şey gelmiştir.
+    const contentType = Object.entries(result.headers ?? {})
+      .find(([key]) => key.toLowerCase() === 'content-type')?.[1]
+      ?.toLowerCase();
+    if (result.status !== 200 || contentType?.startsWith('text/html')) {
+      const broken = cachedFile(remoteName);
+      if (broken.exists) broken.delete();
+      throw new Error(`Sunucu dosyayı vermedi (HTTP ${result.status})`);
+    }
     return cachedFile(remoteName);
   } finally {
     clearTimeout(timeout);
@@ -171,6 +189,15 @@ export async function stageForSharing(source: File, prettyName: string): Promise
  * olması hiçbir akışı bozmuyor.
  */
 export function trimFileCache(): void {
+  for (const name of LEGACY_FILES_DIRS) {
+    try {
+      const legacy = new Directory(Paths.cache, name);
+      if (legacy.exists) legacy.delete();
+    } catch {
+      // Bir sonraki açılışta yeniden denenir.
+    }
+  }
+
   try {
     const dir = filesDir();
     if (!dir.exists) return;
