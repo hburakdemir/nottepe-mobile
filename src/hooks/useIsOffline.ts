@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
 import { getNetworkStateAsync, useNetworkState } from 'expo-network';
 import { onlineManager } from '@tanstack/react-query';
+import { API_BASE } from '../lib/config';
 
 // `isConnected` cihazın aktif bir ağ arayüzüne (wifi/hücresel) sahip olup
 // olmadığını söylüyor — `isInternetReachable` ilk okumada genelde `undefined`
@@ -83,6 +84,32 @@ const ANDROID_POLL_MS = 750;
 // geciktiriyor, açılmayı değil.
 const RESUME_GRACE_MS = 2500;
 
+// ELLE YENİDEN DENEME — çevrimdışı ekranında aşağı çekince (bkz.
+// OfflineEgoScreen). Ağ arayüzünün durumuna DEĞİL, sunucuya gerçekten ulaşılıp
+// ulaşılamadığına bakıyor: olay akışı bayat kaldıysa bile kullanıcının elinde
+// kesin bir çıkış yolu olsun. Herhangi bir HTTP yanıtı (404 dahil) "internet
+// var" demek; yalnızca ağ hatası/zaman aşımı "yok".
+const RECHECK_TIMEOUT_MS = 5000;
+let recheckHandler: (() => Promise<boolean>) | null = null;
+
+/** Çevrimdışı kilidini elle yeniden dener. Bağlantı varsa kilit kalkar; sonuç döner. */
+export function recheckConnectivity(): Promise<boolean> {
+  return recheckHandler ? recheckHandler() : Promise.resolve(false);
+}
+
+async function canReachServer(): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), RECHECK_TIMEOUT_MS);
+  try {
+    await fetch(API_BASE, { method: 'HEAD', signal: controller.signal, cache: 'no-store' });
+    return true;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export function useIsOffline(): boolean {
   const { isConnected: eventIsConnected } = useNetworkState();
   const [polledIsConnected, setPolledIsConnected] = useState<boolean | undefined>(undefined);
@@ -136,6 +163,8 @@ export function useIsOffline(): boolean {
   const isAppActiveRef = useRef(AppState.currentState === 'active');
   const [resumeTick, setResumeTick] = useState(0);
   const isConnectedRef = useRef(isConnected);
+  const debouncedOfflineRef = useRef(debouncedOffline);
+  debouncedOfflineRef.current = debouncedOffline;
   useEffect(() => {
     isConnectedRef.current = isConnected;
   }, [isConnected]);
@@ -150,7 +179,11 @@ export function useIsOffline(): boolean {
         }
         return;
       }
-      if (isConnectedRef.current === false) setResumeTick((t) => t + 1);
+      // Kilit açıksa da yeniden karar ver: kullanıcı interneti Kontrol
+      // Merkezi'nden açtığında uygulama o sırada `inactive`; çevrimiçi sinyali
+      // arka planda geldiyse dönüşte `isConnected` zaten `true` ama kilit
+      // takılı kalmış olabilir (eski bir hatanın emniyet kemeri).
+      if (isConnectedRef.current === false || debouncedOfflineRef.current) setResumeTick((t) => t + 1);
     });
     return () => sub.remove();
   }, []);
@@ -207,14 +240,19 @@ export function useIsOffline(): boolean {
       timerRef.current = null;
     }
 
-    // Ön planda değilsek karar verilmiyor: bekleyen zamanlayıcı yukarıda zaten
-    // iptal edildi, `debouncedOffline` olduğu değerde kalıyor (bkz. yukarıdaki
-    // `isAppActiveRef` notu). Ön plana dönüşte değer çevrimdışıysa
-    // `resumeTick` bu efekti yeniden çalıştırıyor; değer değişirse zaten
-    // `isConnected` bağımlılığı çalıştırıyor.
-    if (!isAppActiveRef.current) return;
-
     if (isConnected === false) {
+      // Ön planda değilsek KİLİTLENMİYOR: bekleyen zamanlayıcı yukarıda zaten
+      // iptal edildi (bkz. `isAppActiveRef` notu). Ön plana dönüşte değer
+      // hâlâ çevrimdışıysa `resumeTick` bu efekti yeniden çalıştırıyor.
+      //
+      // ⚠️ Bu koşul eskiden `if` bloğunun DIŞINDAYDI ve çevrimiçiye DÖNÜŞÜ de
+      // engelliyordu: iPhone'da Kontrol Merkezi'nden interneti açınca uygulama
+      // `inactive` oluyor, `true` sinyali tam o sırada geliyor ve yok
+      // sayılıyordu. Dönüşte `isConnected` zaten `true` olduğu için yeniden
+      // karar da tetiklenmiyordu — 130 ekranı internet gelse de kalkmıyordu.
+      // Çevrimiçiye dönüş artık her koşulda anında.
+      if (!isAppActiveRef.current) return;
+
       if (!hasBeenOnlineRef.current) {
         // Hiç çevrimiçi olunmadı: soğuk-açılış doğrulama payı henüz
         // dolmadıysa native tarafın toparlanması için kısa süre bekleniyor;
@@ -263,6 +301,27 @@ export function useIsOffline(): boolean {
   // Not: react-query'nin kendi varsayılan çevrimiçi algılaması RN'de ölü
   // (tarayıcının `online`/`offline` olaylarını dinliyor, o olaylar burada hiç
   // yok) ve bu yüzden her zaman "çevrimiçi" diyordu. Tek yazan taraf burası.
+  useEffect(() => {
+    recheckHandler = async () => {
+      const reachable = await canReachServer();
+      if (reachable) {
+        hasBeenOnlineRef.current = true;
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+        }
+        if (isAndroid) setPolledIsConnected(true);
+        setDebouncedOffline(false);
+      } else if (isAndroid) {
+        readNetworkState();
+      }
+      return reachable;
+    };
+    return () => {
+      recheckHandler = null;
+    };
+  }, [isAndroid, readNetworkState]);
+
   useEffect(() => {
     onlineManager.setOnline(!debouncedOffline);
   }, [debouncedOffline]);

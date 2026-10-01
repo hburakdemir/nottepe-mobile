@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { ArrowUpDown, Bus, Clock } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
@@ -251,7 +251,22 @@ const Tile = React.memo(function Tile({
   );
 });
 
-export default function Ego130ScheduleScreen() {
+/**
+ * `onRefresh` yalnızca çevrimdışı ekranında veriliyor (bkz. OfflineEgoScreen):
+ * orada aşağı çekmek sefer verisini değil BAĞLANTIYI yeniden deniyor. Normal
+ * kullanımda veri uygulamaya gömülü, yenilenecek bir şey yok.
+ */
+export default function Ego130ScheduleScreen({ onRefresh }: { onRefresh?: () => Promise<unknown> } = {}) {
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = async () => {
+    if (!onRefresh) return;
+    setRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setRefreshing(false);
+    }
+  };
   const { theme } = useTheme();
   const t = useFeedTokens();
   const cardSurface = useCardSurface();
@@ -362,6 +377,9 @@ export default function Ego130ScheduleScreen() {
       // zaten AppShell'de bu ekranın DIŞINDA, ayrı bir katmanda duruyor —
       // buradaki box-none onun için de gerekli değildi.
       style={{ flex: 1, backgroundColor: t.ground }}
+      refreshControl={
+        onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={t.accent} colors={[t.accent]} /> : undefined
+      }
       contentContainerStyle={{ padding: SCREEN_PADDING, paddingTop: 16, paddingBottom: TAB_BAR_SAFE_PADDING }}
     >
       <View style={styles.titleRow}>
