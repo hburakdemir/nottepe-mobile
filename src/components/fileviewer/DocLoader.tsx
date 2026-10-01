@@ -9,6 +9,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
+import { ArrowDown } from 'lucide-react-native';
 import { fileExtension, fileKind, type FileKind } from '../../theme/feedTokens';
 import { VIEWER_INK, VIEWER_INK_DIM, VIEWER_LINE } from './viewerTokens';
 
@@ -32,6 +33,11 @@ const KIND_COLOR: Record<FileKind, string> = {
 const DOC_W = 76;
 const DOC_H = 96;
 const FOLD = 22;
+// Sıvı dalgası: belgeden çok büyük, köşeleri yuvarlatılmış bir kare DÖNÜYOR;
+// yalnızca üst kenarı belgenin içinde görünüyor ve o kenar dönerken dalga gibi
+// iniş çıkış yapıyor. İki katman farklı hız/yönde → derinlik.
+const WAVE = 190;
+const WAVE_RADIUS = WAVE * 0.42;
 
 export function formatMegabytes(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -40,7 +46,7 @@ export function formatMegabytes(bytes: number): string {
 
 interface Props {
   fileName?: string;
-  /** 0-1; null/undefined → belirsiz (nefes alan dolgu). */
+  /** 0-1; null/undefined → belirsiz (dalga seviyesi yükselip alçalıyor). */
   progress?: number | null;
 }
 
@@ -51,6 +57,8 @@ export default function DocLoader({ fileName, progress }: Props) {
 
   const level = useSharedValue(determinate ? progress : 0.15);
   const float = useSharedValue(0);
+  const spin = useSharedValue(0);
+  const bounce = useSharedValue(0);
 
   useEffect(() => {
     if (determinate) {
@@ -68,20 +76,49 @@ export default function DocLoader({ fileName, progress }: Props) {
     }
   }, [determinate, progress, level]);
 
-  // Belge hafifçe süzülüyor — ekran donmuş gibi görünmesin.
+  // Sürekli hareket: belge süzülüyor, dalga dönüyor, ok zıplıyor.
   useEffect(() => {
     float.value = withRepeat(withTiming(1, { duration: 1600, easing: Easing.inOut(Easing.sin) }), -1, true);
-    return () => cancelAnimation(float);
-  }, [float]);
+    spin.value = withRepeat(withTiming(1, { duration: 2600, easing: Easing.linear }), -1, false);
+    bounce.value = withRepeat(withTiming(1, { duration: 700, easing: Easing.inOut(Easing.quad) }), -1, true);
+    return () => {
+      cancelAnimation(float);
+      cancelAnimation(spin);
+      cancelAnimation(bounce);
+    };
+  }, [float, spin, bounce]);
 
-  const fillStyle = useAnimatedStyle(() => ({ height: `${Math.max(0, Math.min(1, level.value)) * 100}%` }));
+  // Dalganın üst kenarı = dolgu seviyesi. Kare WAVE boyunda; üst kenarını
+  // seviyeye oturtmak için kare (WAVE - kenar sarkması) kadar yukarı kaydırılıyor.
+  const waveTop = (l: number) => {
+    'worklet';
+    const clamped = Math.max(0, Math.min(1, l));
+    return DOC_H * (1 - clamped) - 8;
+  };
+  const backWaveStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: waveTop(level.value) - 3 }, { rotate: `${-spin.value * 360 + 40}deg` }],
+  }));
+  const frontWaveStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: waveTop(level.value) }, { rotate: `${spin.value * 360}deg` }],
+  }));
   const floatStyle = useAnimatedStyle(() => ({ transform: [{ translateY: -4 * float.value }] }));
+  const arrowStyle = useAnimatedStyle(() => ({
+    opacity: 0.55 + 0.45 * bounce.value,
+    transform: [{ translateY: 5 * bounce.value }],
+  }));
+  const downloading = determinate && progress < 1;
 
   return (
     <Animated.View style={[styles.doc, floatStyle]}>
       <View style={[styles.body, { borderColor: color }]}>
-        <Animated.View style={[styles.fill, { backgroundColor: color }, fillStyle]} />
+        <Animated.View style={[styles.wave, { backgroundColor: color, opacity: 0.45 }, backWaveStyle]} />
+        <Animated.View style={[styles.wave, { backgroundColor: color, opacity: 0.9 }, frontWaveStyle]} />
         {!!ext && <Text style={styles.ext}>{ext}</Text>}
+        {downloading && (
+          <Animated.View style={[styles.arrow, arrowStyle]}>
+            <ArrowDown size={16} color={VIEWER_INK} strokeWidth={2.5} />
+          </Animated.View>
+        )}
       </View>
       {/* Kıvrık köşe: gövdenin sağ üstünü zemin rengiyle "keser", üstüne
           katlanmış üçgeni çizer. */}
@@ -113,7 +150,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: VIEWER_LINE,
   },
-  fill: { position: 'absolute', left: 0, right: 0, bottom: 0, opacity: 0.85 },
+  wave: {
+    position: 'absolute',
+    top: 0,
+    left: (DOC_W - 4 - WAVE) / 2,
+    width: WAVE,
+    height: WAVE,
+    borderRadius: WAVE_RADIUS,
+  },
+  arrow: { marginTop: 4 },
   ext: { color: VIEWER_INK, fontSize: 15, fontWeight: '800', letterSpacing: 0.5 },
   cornerMask: {
     position: 'absolute',
