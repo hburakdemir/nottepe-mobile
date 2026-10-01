@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { keepPreviousData, useInfiniteQuery, useIsRestoring, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery, useIsRestoring, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useIsFocused, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronDown, GraduationCap, HeartHandshake, Search, X } from 'lucide-react-native';
@@ -51,7 +51,6 @@ export default function HomeScreen() {
   const [pendingFaculty, setPendingFaculty] = useState<string | null>(null);
   const [lastFaculty, setLastFaculty] = useState('');
   const [faculties, setFaculties] = useState<string[]>(ALL_FACULTIES);
-  const [openRequestCount, setOpenRequestCount] = useState<number | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Ana sayfadayken Ana sayfa ikonuna tekrar basmak listeyi en üste kaydırıyor
@@ -73,12 +72,32 @@ export default function HomeScreen() {
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    noteRequestAPI
-      .getAll({ page: 1, limit: 1, status: 'open' })
-      .then((res) => setOpenRequestCount(res.data?.total ?? null))
-      .catch(() => {});
-  }, []);
+  // Açık not isteği sayısı. Eskiden mount'ta TEK bir istekti ve hatası yutuluyordu:
+  // uygulama kapalıyken açılınca istek oturum/ağ hazır olmadan gidip düşüyor,
+  // bir daha denenmiyordu ("not istekleri sayısı çekilmiyor"). react-query
+  // hatada yeniden deniyor, çevrimdışıyken duraklayıp bağlantı gelince devam
+  // ediyor (bkz. useIsOffline.ts → onlineManager) ve ekrana dönüşte tazeliyor.
+  const {
+    data: openRequestCount = null,
+    refetch: refetchOpenRequests,
+    isStale: openRequestsStale,
+  } = useQuery({
+    queryKey: ['note-requests', 'open-count'],
+    queryFn: async () => {
+      const res = await noteRequestAPI.getAll({ page: 1, limit: 1, status: 'open' });
+      const total = Number(res.data?.total);
+      if (!Number.isFinite(total)) throw new Error('total yok');
+      return total;
+    },
+    retry: 3,
+    staleTime: 60_000,
+  });
+  useFocusEffect(
+    useCallback(() => {
+      // Yalnızca bayatsa (60 sn) — her sekme dönüşünde istek atmasın.
+      if (openRequestsStale) void refetchOpenRequests();
+    }, [openRequestsStale, refetchOpenRequests])
+  );
 
   useEffect(() => {
     postsAPI
