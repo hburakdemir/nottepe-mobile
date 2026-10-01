@@ -119,7 +119,7 @@ export default function SettingsScreen() {
         <Section title="Depolama">
           <Row
             icon={HardDrive}
-            label="İndirilen dosyalar"
+            label="Önbelleğe alınan dosyalar"
             value={cacheBytes > 0 ? formatBytes(cacheBytes) : 'Boş'}
             iconColor={iconColor}
             onPress={() => setSheet('storage')}

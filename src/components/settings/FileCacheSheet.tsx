@@ -39,7 +39,7 @@ export default function FileCacheSheet({ visible, onClose }: Props) {
   const total = entries.reduce((sum, e) => sum + e.size, 0);
 
   const confirmClear = () => {
-    Alert.alert('Tümünü temizle', 'İndirilen dosyalar silinecek. Tekrar açtığında internetten yeniden indirilir.', [
+    Alert.alert('Tümünü temizle', 'Önbelleğe alınan dosyalar silinecek. Tekrar açtığında internetten yeniden alınır.', [
       { text: 'Vazgeç', style: 'cancel' },
       {
         text: 'Temizle',
@@ -62,7 +62,7 @@ export default function FileCacheSheet({ visible, onClose }: Props) {
         >
           <View className="flex-row items-center justify-between mb-1">
             <Text className="text-ink text-base font-bold flex-1" numberOfLines={1}>
-              İndirilen dosyalar
+              Önbelleğe alınan dosyalar
             </Text>
             <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Kapat">
               <X size={20} color={colors.muted} />

@@ -157,7 +157,7 @@ export default function PdfSlide({ fileName, width, height, active, onOpenExtern
           progress={download.status === 'downloading' ? download.progress : null}
           bytesWritten={download.status === 'downloading' ? download.bytesWritten : undefined}
           totalBytes={download.status === 'downloading' ? download.totalBytes : undefined}
-          title={download.status === 'ready' ? 'Sayfalar hazırlanıyor…' : 'Dosya indiriliyor…'}
+          title={download.status === 'ready' ? 'Sayfalar hazırlanıyor…' : 'Dosya hazırlanıyor…'}
         />
       </View>
     );
