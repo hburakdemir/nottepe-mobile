@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Constants from 'expo-constants';
 import {
@@ -9,6 +9,7 @@ import {
   BellRing,
   ChevronRight,
   FileText,
+  HardDrive,
   Moon,
   ShieldCheck,
   Sun,
@@ -20,6 +21,8 @@ import { useTheme } from '../../context/ThemeContext';
 import type { RootStackParamList } from '../../navigation/types';
 import NotificationSettingsSheet from '../../components/notifications/NotificationSettingsSheet';
 import ThemePickerModal from '../../components/settings/ThemePickerModal';
+import FileCacheSheet, { formatBytes } from '../../components/settings/FileCacheSheet';
+import { listCachedFiles } from '../../lib/fileCache';
 import TermsModal from '../../components/auth/TermsModal';
 import DeleteAccountModal from '../../components/profile/DeleteAccountModal';
 import ProfileEditModal from '../../components/profile/ProfileEditModal';
@@ -72,9 +75,17 @@ export default function SettingsScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme, themePreference } = useTheme();
   const iconColor = theme === 'dark' ? '#DFD0B8' : '#374151';
-  const [sheet, setSheet] = useState<null | 'edit' | 'notifications' | 'theme' | 'terms' | 'delete'>(null);
+  const [sheet, setSheet] = useState<null | 'edit' | 'notifications' | 'theme' | 'terms' | 'delete' | 'storage'>(null);
   const { data: badges = NO_BADGES } = useMyBadges();
-  const close = () => setSheet(null);
+  const [cacheBytes, setCacheBytes] = useState(0);
+  const refreshCacheSize = useCallback(() => {
+    setCacheBytes(listCachedFiles().reduce((sum, e) => sum + e.size, 0));
+  }, []);
+  useFocusEffect(refreshCacheSize);
+  const close = () => {
+    if (sheet === 'storage') refreshCacheSize();
+    setSheet(null);
+  };
   const version = Constants.expoConfig?.version;
 
   return (
@@ -105,6 +116,16 @@ export default function SettingsScreen() {
           />
         </Section>
 
+        <Section title="Depolama">
+          <Row
+            icon={HardDrive}
+            label="İndirilen dosyalar"
+            value={cacheBytes > 0 ? formatBytes(cacheBytes) : 'Boş'}
+            iconColor={iconColor}
+            onPress={() => setSheet('storage')}
+          />
+        </Section>
+
         <Section title="Hakkında">
           <Row icon={FileText} label="Kullanım Koşulları" iconColor={iconColor} onPress={() => setSheet('terms')} />
           <Sep />
@@ -128,6 +149,7 @@ export default function SettingsScreen() {
       <NotificationSettingsSheet visible={sheet === 'notifications'} onClose={close} />
       <ThemePickerModal visible={sheet === 'theme'} onClose={close} />
       <TermsModal visible={sheet === 'terms'} onClose={close} />
+      <FileCacheSheet visible={sheet === 'storage'} onClose={close} />
       {/* Profil sekmesindekiyle aynı modal, burada da açılıyor — kullanıcıyı
           Profil'e götürmüyor (kullanıcı isteği). */}
       {sheet === 'edit' && (

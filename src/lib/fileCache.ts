@@ -232,3 +232,111 @@ export function trimFileCache(): void {
     // Yer açmak en iyi çabadır; başarısızlığı sessiz.
   }
 }
+
+// ── Ayarlar > Depolama ───────────────────────────────────────────────────────
+//
+// Diskteki ad sunucu adı (`files-1760…pdf`), kullanıcıya gösterilemez. Okunaklı
+// ad için gönderi başlığı görüntüleyici açılırken bu küçük dizine yazılıyor
+// (bkz. FileViewerScreen). Dizin `files-v2/`'nin DIŞINDA: içinde olsaydı
+// budama onu da bir ek gibi sayıp silebilirdi. Dizinde kaydı olmayan dosya
+// türünün adıyla ("PDF") gösteriliyor — bir şey bozulmuyor.
+const TITLES_FILE = 'files-titles.json';
+
+function titlesFile(): File {
+  return new File(Paths.cache, TITLES_FILE);
+}
+
+function readTitles(): Record<string, string> {
+  try {
+    const file = titlesFile();
+    if (!file.exists) return {};
+    const parsed = JSON.parse(file.textSync());
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeTitles(titles: Record<string, string>): void {
+  try {
+    const file = titlesFile();
+    if (!file.exists) file.create();
+    file.write(JSON.stringify(titles));
+  } catch {
+    // Yalnızca görüntü adı; yazılamazsa liste türün adını gösterir.
+  }
+}
+
+/** Görüntüleyici açılırken çağrılıyor; çok dosyalı gönderide sıra numarası ekleniyor. */
+export function rememberFileTitles(remoteNames: string[], postTitle?: string): void {
+  const title = postTitle?.trim();
+  if (!title) return;
+  const titles = readTitles();
+  remoteNames.forEach((name, i) => {
+    try {
+      titles[safeKey(name)] = remoteNames.length > 1 ? `${title} (${i + 1})` : title;
+    } catch {
+      // Geçersiz ad — atla.
+    }
+  });
+  writeTitles(titles);
+}
+
+export interface CachedFileEntry {
+  key: string;
+  title: string | null;
+  size: number;
+  /** ms; bilinmiyorsa 0 */
+  at: number;
+}
+
+/** Yeniden eskiye. */
+export function listCachedFiles(): CachedFileEntry[] {
+  try {
+    const dir = filesDir();
+    if (!dir.exists) return [];
+    const titles = readTitles();
+    return dir
+      .list()
+      .filter((entry): entry is File => entry instanceof File)
+      .map((file) => ({
+        key: file.name,
+        title: titles[file.name] ?? null,
+        size: file.size ?? 0,
+        at: file.modificationTime ?? 0,
+      }))
+      .sort((a, b) => b.at - a.at);
+  } catch {
+    return [];
+  }
+}
+
+export function deleteCachedFile(key: string): void {
+  try {
+    const file = new File(filesDir(), safeKey(key));
+    if (file.exists) file.delete();
+    const titles = readTitles();
+    if (key in titles) {
+      delete titles[key];
+      writeTitles(titles);
+    }
+  } catch {
+    // Liste yeniden okunduğunda gerçek durum görünür.
+  }
+}
+
+export function clearFileCache(): void {
+  for (const dir of [filesDir(), shareDir()]) {
+    try {
+      if (dir.exists) dir.delete();
+    } catch {
+      // En iyi çaba.
+    }
+  }
+  try {
+    const titles = titlesFile();
+    if (titles.exists) titles.delete();
+  } catch {
+    // En iyi çaba.
+  }
+}
