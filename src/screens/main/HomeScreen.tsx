@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { FlatList, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { keepPreviousData, useInfiniteQuery, useIsRestoring, useQueryClient } from '@tanstack/react-query';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronDown, GraduationCap, HeartHandshake, Search, X } from 'lucide-react-native';
 import { noteRequestAPI, postsAPI } from '../../lib/api';
@@ -20,6 +20,8 @@ import StateView from '../../components/StateView';
 import HomeSkeleton from '../../components/home/HomeSkeleton';
 import { diagMark } from '../../lib/diagnostics';
 import { onTabReselect } from '../../lib/tabReselect';
+import { useCoachTour } from '../../components/coach/CoachMarks';
+import { HOME_TOUR, HOME_TOUR_ID } from '../../components/coach/tours';
 
 const LAST_FACULTY_KEY = 'nottepe_last_faculty';
 
@@ -32,6 +34,7 @@ export default function HomeScreen() {
   // GEÇİCİ ölçüm sayacı — teşhis aracıyla silinecek (bkz. diagnostics.ts v7).
   diagMark('Home');
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  useCoachTour(HOME_TOUR_ID, HOME_TOUR, useIsFocused());
   const { user } = useAuth();
   const { colors } = useTheme();
   // Kartlar kalktı, satırlar tek zemin üstünde ince çizgiyle ayrılıyor

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Linking, ListRenderItem, Pressable, Text, View } from 'react-native';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import {
@@ -26,6 +26,8 @@ import UndoBar from '../../components/notifications/UndoBar';
 import { tap } from '../../lib/haptics';
 import { useNotificationPrefs } from '../../lib/notificationPrefs';
 import { setNotificationsScreenFocused } from '../../lib/push/pushState';
+import { useCoachTarget, useCoachTour } from '../../components/coach/CoachMarks';
+import { NOTIFICATIONS_TOUR, NOTIFICATIONS_TOUR_ID } from '../../components/coach/tours';
 import { useInvalidateUnreadNotifications, useMarkNotificationsRead } from '../../hooks/useUnreadNotifications';
 import { useInvalidateUnreadAnnouncements } from '../../hooks/useUnreadAnnouncements';
 import { useNotificationCategories } from '../../hooks/useNotificationCategories';
@@ -254,6 +256,9 @@ export default function NotificationsScreen() {
   const isDark = theme === 'dark';
   const [tab, setTab] = useState<'duyurular' | 'aktivite'>(route.params?.initialTab ?? 'duyurular');
   const [showSettings, setShowSettings] = useState(false);
+  // İlk girişte dişliyi gösteren ZORUNLU rehber adımı (Atla yok).
+  const settingsTarget = useCoachTarget('notification-settings');
+  useCoachTour(NOTIFICATIONS_TOUR_ID, NOTIFICATIONS_TOUR, useIsFocused());
 
   // Rozet çift sayımı kancası (plan 3.5/5): bu ekran Aktivite sekmesine girince
   // her şeyi okundu yapıyor. Ekran odaktayken bir push gelirse rozeti artırmak
@@ -550,6 +555,7 @@ export default function NotificationsScreen() {
             çakışırdı. */}
         <View className="flex-1" />
         <Pressable
+          ref={settingsTarget}
           className="items-center justify-center px-2"
           onPress={() => setShowSettings(true)}
           hitSlop={8}

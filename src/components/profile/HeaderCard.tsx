@@ -5,6 +5,7 @@ import BadgeChip, { type Badge } from '../BadgeChip';
 import DeerIcon from '../icons/DeerIcon';
 import AvatarDisplay, { type AvatarData } from '../avatar/AvatarDisplay';
 import { SHADOW_MD } from './profileCommon';
+import { useCoachTarget } from '../coach/CoachMarks';
 
 export interface ProfileIdentity {
   username?: string | null;
@@ -54,12 +55,15 @@ function HeaderCard({
 }) {
   // Eskiden aynı `filter` tek render'da ÜÇ kez çalışıyordu (biri sayım, ikisi
   // render dalları için).
+  // İlk kullanım rehberi — yalnızca kendi profilinde (ownerActions varken).
+  const avatarTarget = useCoachTarget('profile-avatar', !!ownerActions);
+  const editTarget = useCoachTarget('profile-edit', !!ownerActions);
   const visibleBadges = useMemo(() => badges.filter((b) => b.is_visible !== false), [badges]);
 
   return (
     <View className="bg-surface p-4 m-4 mb-5 rounded-lg" style={SHADOW_MD}>
       <View className="flex-row gap-3.5">
-        <View className="w-20 h-20">
+        <View ref={avatarTarget} className="w-20 h-20">
           <View className="w-20 h-20 rounded-[20px] bg-brand items-center justify-center overflow-hidden">
             {avatar ? <AvatarDisplay avatar={avatar} size={80} /> : <DeerIcon size={32} color="#fff" />}
           </View>
@@ -120,6 +124,7 @@ function HeaderCard({
 
       {!!ownerActions && (
         <Pressable
+          ref={editTarget}
           className="flex-row items-center justify-center gap-1.5 bg-brand rounded-[10px] py-2.5 mt-3.5"
           onPress={ownerActions.onOpenEdit}
         >

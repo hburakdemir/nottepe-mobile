@@ -2,7 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, Modal, ScrollView, View } from 'react-native';
 import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
-import { useFocusEffect, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused, useRoute } from '@react-navigation/native';
+import { useCoachTour } from '../../components/coach/CoachMarks';
+import { PROFILE_TOUR, PROFILE_TOUR_ID } from '../../components/coach/tours';
 import type { RouteProp } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
@@ -42,6 +44,7 @@ export default function ProfileScreen() {
   diagMark('Profile');
   const route = useRoute<RouteProp<MainTabParamList, 'Profile'>>();
   const { user } = useAuth();
+  useCoachTour(PROFILE_TOUR_ID, PROFILE_TOUR, useIsFocused());
   const isStaff = user?.role === 'admin' || user?.role === 'moderator';
   const { savedPosts } = useSavedPosts();
 
