@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import { Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WifiOff } from 'lucide-react-native';
 import { useTheme } from '../context/ThemeContext';
 import Ego130ScheduleScreen from '../screens/main/Ego130ScheduleScreen';
+import { recheckConnectivity } from '../hooks/useIsOffline';
 
 // Çevrimdışıyken (giriş yapılmış OLSUN ya da OLMASIN) gösterilen TEK ekran.
 // Uygulama ağacının YERİNE geçmiyor, ÜSTÜNE biniyor: `RootNavigator` bunu
@@ -17,6 +18,13 @@ import Ego130ScheduleScreen from '../screens/main/Ego130ScheduleScreen';
 // `RootNavigator` otomatik olarak normal ağaca döner.
 export default function OfflineEgoScreen() {
   const { colors } = useTheme();
+  // Aşağı çekince bağlantı elle yeniden deneniyor. Başarılıysa bu katman
+  // kendiliğinden kalkıyor; değilse kullanıcıya denendiği söyleniyor.
+  const [stillOffline, setStillOffline] = useState(false);
+  const retry = useCallback(async () => {
+    const ok = await recheckConnectivity();
+    setStillOffline(!ok);
+  }, []);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.ground }}>
@@ -36,12 +44,18 @@ export default function OfflineEgoScreen() {
           <View style={{ flex: 1 }}>
             <Text style={{ color: colors.ink, fontSize: 13, fontWeight: '700' }}>İnternet bağlantınız yok</Text>
             <Text style={{ color: colors.ink2, fontSize: 12, lineHeight: 17, marginTop: 2 }}>
-              Bağlantı gelene kadar çevrimdışı çalışan EGO 130 saatlerini görüntüleyebilirsin.
+              Bağlantı gelene kadar çevrimdışı çalışan EGO 130 saatlerini görüntüleyebilirsin. İnternet
+              geldiyse sayfayı aşağı çek.
             </Text>
+            {stillOffline && (
+              <Text style={{ color: colors.warn, fontSize: 12, fontWeight: '700', marginTop: 4 }}>
+                Hâlâ bağlantı yok, biraz sonra tekrar dene.
+              </Text>
+            )}
           </View>
         </View>
       </SafeAreaView>
-      <Ego130ScheduleScreen />
+      <Ego130ScheduleScreen onRefresh={retry} />
     </View>
   );
 }
