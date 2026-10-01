@@ -57,7 +57,8 @@ export type RootStackParamList = {
   BlockedUsers: undefined;
   // Web'de "/notifications" ve "/duyurular" aynı NotificationsPage'i farklı
   // initialTab ile açıyor (bkz. App.jsx) — mobilde de tek ekran, iki giriş noktası.
-  Notifications: { initialTab?: 'duyurular' | 'aktivite' } | undefined;
+  // 'sikayetler' yalnızca yönetici/moderatöre görünüyor; başkası için 'duyurular'a düşer.
+  Notifications: { initialTab?: 'duyurular' | 'aktivite' | 'sikayetler' } | undefined;
   // Dosya görüntüleyici LİSTEYİ taşıyor, gönderi id'sini değil.
   //
   // `{ postId, index }` alternatifi reddedildi: dosya adları zaten kartın

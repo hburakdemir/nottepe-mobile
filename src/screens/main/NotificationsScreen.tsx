@@ -9,6 +9,7 @@ import {
   Calendar,
   CheckCircle,
   ExternalLink,
+  Flag,
   Megaphone,
   MessageSquare,
   Settings,
@@ -23,6 +24,9 @@ import { useTheme } from '../../context/ThemeContext';
 import SwipeActions from '../../components/layout/SwipeActions';
 import NotificationSettingsSheet from '../../components/notifications/NotificationSettingsSheet';
 import UndoBar from '../../components/notifications/UndoBar';
+import FilterChip from '../../components/notifications/FilterChip';
+import ReportsList from '../../components/notifications/ReportsList';
+import { useAuth } from '../../context/AuthContext';
 import { tap } from '../../lib/haptics';
 import { useNotificationPrefs } from '../../lib/notificationPrefs';
 import { setNotificationsScreenFocused } from '../../lib/push/pushState';
@@ -168,27 +172,6 @@ function AnnouncementCard({ notif, unread }: { notif: Announcement; unread?: boo
   );
 }
 
-// Filtre çipi (Tümü + kategoriler). Ayrı bileşen olmasının iki sebebi var:
-// (1) dokunma alanı tek yerde büyütülüyor — çipin kendisi `py-1.5` ile 24-26px
-// yüksekliğinde, parmak payı olmadan gerçek cihazda ıskalanabiliyor;
-// (2) basılıyken sönükleşme (`active:opacity-60`) tüm çiplerde aynı.
-function FilterChip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected }}
-      accessibilityLabel={label}
-      hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
-      onPress={onPress}
-      className={`rounded-full px-3 py-1.5 border active:opacity-60 ${
-        selected ? 'bg-brand border-brand' : 'bg-surface border-line'
-      }`}
-    >
-      <Text className={`text-xs font-medium ${selected ? 'text-white' : 'text-muted'}`}>{label}</Text>
-    </Pressable>
-  );
-}
-
 // Bildirim/aktivite satırının iskeleti — `ActivityCard` ile aynı ölçüler
 // (34px ikon yuvası, 13.5px iki satır metin, 11px tarih). Eskiden burada tek
 // bir çark dönüyordu: liste gelince ekran boş ortadan dolu listeye zıplıyordu.
@@ -252,7 +235,13 @@ export default function NotificationsScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'Notifications'>>();
   const { theme, colors } = useTheme();
   const isDark = theme === 'dark';
-  const [tab, setTab] = useState<'duyurular' | 'aktivite'>(route.params?.initialTab ?? 'duyurular');
+  const { user } = useAuth();
+  // Şikâyetler sekmesi yalnızca yönetici/moderatöre; uç başkasına 403 döner.
+  const isStaff = user?.role === 'admin' || user?.role === 'moderator';
+  const initialTab = route.params?.initialTab;
+  const [tab, setTab] = useState<'duyurular' | 'aktivite' | 'sikayetler'>(
+    initialTab === 'sikayetler' && !isStaff ? 'duyurular' : initialTab ?? 'duyurular'
+  );
   const [showSettings, setShowSettings] = useState(false);
 
   // Rozet çift sayımı kancası (plan 3.5/5): bu ekran Aktivite sekmesine girince
@@ -543,6 +532,19 @@ export default function NotificationsScreen() {
           <Bell size={15} color={tab === 'aktivite' ? '#fff' : isDark ? '#5A9690' : '#2F5755'} />
           <Text className={`text-[13px] font-semibold ${tab === 'aktivite' ? 'text-white' : 'text-accent'}`}>Aktivite</Text>
         </Pressable>
+        {/* Yalnızca simge: üç etiketli sekme + dişli 360dp genişlikte satıra
+            sığmıyor. Seçilince listenin başındaki durum çipleri bağlamı veriyor. */}
+        {isStaff && (
+          <Pressable
+            className={`items-center justify-center border border-brand rounded-[10px] px-3 py-2 ${tab === 'sikayetler' ? 'bg-brand' : ''}`}
+            onPress={() => setTab('sikayetler')}
+            accessibilityRole="button"
+            accessibilityLabel="Şikâyetler"
+            accessibilityState={{ selected: tab === 'sikayetler' }}
+          >
+            <Flag size={15} color={tab === 'sikayetler' ? '#fff' : isDark ? '#5A9690' : '#2F5755'} />
+          </Pressable>
+        )}
 
         {/* Dişli bilerek sekme satırında, üst bardaki AppHeader'da değil:
             AppHeader her rotada ortak ve başlığı mutlak konumlu ortalanmış
@@ -559,7 +561,9 @@ export default function NotificationsScreen() {
         </Pressable>
       </View>
 
-      {tab === 'duyurular' ? (
+      {tab === 'sikayetler' ? (
+        <ReportsList loadingPlaceholder={<NotificationRowsSkeleton />} />
+      ) : tab === 'duyurular' ? (
         <FlatList
           showsVerticalScrollIndicator={false}
           contentContainerClassName="p-3 pb-[150px] flex-grow gap-2.5"

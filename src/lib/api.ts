@@ -240,7 +240,14 @@ export const moderationAPI = {
   myBlocks: () => api.get('/users/me/blocks'),
   // Yalnızca yönetici/moderatör: beni engelleyenlerin id'leri.
   blockedByIds: () => api.get('/users/me/blocked-by'),
+  // Yalnızca yönetici/moderatör: Bildirimler ekranındaki "Şikâyetler" sekmesi
+  // (web'de admin paneli ReportsTab). Aynı içeriğin açık şikâyetleri birlikte kapanıyor.
+  adminReports: ({ status, page, limit }: { status: ReportStatus; page: number; limit: number }) =>
+    api.get(`/reports/admin${toQueryString({ status, page, limit })}`),
+  setReportStatus: (id: string | number, status: ReportStatus) => api.patch(`/reports/admin/${id}`, { status }),
 };
+
+export type ReportStatus = 'open' | 'resolved' | 'dismissed';
 
 export const userAPI = {
   getProfile: (username: string) => api.get(`/users/${encodeURIComponent(username)}/profile`),
