@@ -1,12 +1,17 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { FileWarning } from 'lucide-react-native';
 import { VIEWER_ACCENT, VIEWER_INK, VIEWER_INK_DIM, VIEWER_LINE } from './viewerTokens';
+import DocLoader, { DownloadStats } from './DocLoader';
 
 interface Props {
   kind: 'loading' | 'error';
   /** 0-1 arası; null ise belirsiz gösterge (sunucu Content-Length vermemiş). */
   progress?: number | null;
+  /** Yükleme göstergesinin türü/rengi ve üstündeki uzantı için. */
+  fileName?: string;
+  bytesWritten?: number;
+  totalBytes?: number | null;
   title?: string;
   message?: string;
   onRetry?: () => void;
@@ -19,18 +24,24 @@ interface Props {
 // Buradaki yükleme/hata durumu için ortak `StateView` kullanılmıyor: indirme
 // ilerlemesini göstermesi gerekiyor, StateView'ın zemini de açık temada beyaz;
 // bu ekran koyu olduğu için görsel olarak uymuyor.
-export default function SlideStatus({ kind, progress, title, message, onRetry, onHandoff }: Props) {
+export default function SlideStatus({
+  kind,
+  progress,
+  fileName,
+  bytesWritten,
+  totalBytes,
+  title,
+  message,
+  onRetry,
+  onHandoff,
+}: Props) {
   return (
     <View style={styles.wrap}>
       {kind === 'loading' ? (
         <>
-          <ActivityIndicator size="large" color={VIEWER_ACCENT} />
+          <DocLoader fileName={fileName} progress={progress} />
           <Text style={styles.title}>{title ?? 'Dosya hazırlanıyor…'}</Text>
-          {progress != null && (
-            <View style={styles.track}>
-              <View style={[styles.fill, { width: `${Math.round(progress * 100)}%` }]} />
-            </View>
-          )}
+          <DownloadStats bytesWritten={bytesWritten} totalBytes={totalBytes} />
         </>
       ) : (
         <>
@@ -60,8 +71,6 @@ const styles = StyleSheet.create({
   wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 32 },
   title: { color: VIEWER_INK, fontSize: 16, fontWeight: '600', textAlign: 'center' },
   message: { color: VIEWER_INK_DIM, fontSize: 13, textAlign: 'center', lineHeight: 19 },
-  track: { width: 180, height: 3, borderRadius: 2, backgroundColor: VIEWER_LINE, overflow: 'hidden' },
-  fill: { height: 3, borderRadius: 2, backgroundColor: VIEWER_ACCENT },
   actions: { flexDirection: 'row', gap: 10, marginTop: 6 },
   primary: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, backgroundColor: VIEWER_ACCENT },
   primaryText: { color: '#FFFFFF', fontSize: 14, fontWeight: '600' },

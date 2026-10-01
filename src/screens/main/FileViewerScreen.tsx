@@ -161,6 +161,7 @@ export default function FileViewerScreen() {
                 active={i === active}
                 onZoomChange={setPagerLocked}
                 onShare={handleShare}
+                postTitle={postTitle}
                 sharing={sharing}
               />
             ))}

@@ -18,6 +18,8 @@ interface Props {
   onZoomChange: (zoomed: boolean) => void;
   onShare: (fileName: string, index: number) => void;
   sharing: boolean;
+  /** Gönderi başlığı — iPhone'da Quick Look ekranının başlığı. */
+  postTitle?: string;
 }
 
 // Tek slaytın beyni: türe göre hangi görüntüleyicinin çizileceğine burada karar
@@ -35,6 +37,7 @@ export default function FileSlide({
   onZoomChange,
   onShare,
   sharing,
+  postTitle,
 }: Props) {
   const kind = fileKind(fileName);
   // Cihaz resmi çözemediyse (Android'de HEIC'in sistem kod çözücüsü yok)
@@ -77,6 +80,7 @@ export default function FileSlide({
     return (
       <IosDocSlide
         fileName={fileName}
+        title={postTitle}
         width={width}
         height={height}
         active={active}
