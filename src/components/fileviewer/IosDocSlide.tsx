@@ -167,7 +167,7 @@ export default function IosDocSlide({ fileName, title, width, height, active, on
           progress={download.status === 'downloading' ? download.progress : null}
           bytesWritten={download.status === 'downloading' ? download.bytesWritten : undefined}
           totalBytes={download.status === 'downloading' ? download.totalBytes : undefined}
-          title="Dosya indiriliyor…"
+          title="Dosya hazırlanıyor…"
         />
       </View>
     );
@@ -181,7 +181,7 @@ export default function IosDocSlide({ fileName, title, width, height, active, on
         <Text style={styles.cardTitle} numberOfLines={2}>
           {title ?? fileKindLabel(fileName)}
         </Text>
-        <Text style={styles.cardHint}>Dosya telefonuna indi.</Text>
+        <Text style={styles.cardHint}>Dosya hazır.</Text>
         <Pressable style={styles.primary} onPress={openQuickLook} accessibilityRole="button">
           <Text style={styles.primaryText}>Tekrar aç</Text>
         </Pressable>

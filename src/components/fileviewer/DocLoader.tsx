@@ -134,7 +134,7 @@ export function DownloadStats({ bytesWritten, totalBytes }: { bytesWritten?: num
   const text =
     totalBytes && totalBytes > 0
       ? `${formatMegabytes(bytesWritten)} / ${formatMegabytes(totalBytes)} · %${Math.min(100, Math.floor((bytesWritten / totalBytes) * 100))}`
-      : `${formatMegabytes(bytesWritten)} indirildi`;
+      : `${formatMegabytes(bytesWritten)} hazır`;
   return <Text style={styles.stats}>{text}</Text>;
 }
 
