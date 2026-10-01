@@ -11,6 +11,7 @@ export default function DeleteAccountModal({ onClose }: { onClose: () => void })
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [reason, setReason] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -19,10 +20,14 @@ export default function DeleteAccountModal({ onClose }: { onClose: () => void })
       setError('Lütfen bir sebep belirt.');
       return;
     }
+    if (!password) {
+      setError('Hesabını silmek için şifreni girmelisin.');
+      return;
+    }
     setLoading(true);
     setError('');
     try {
-      await profileupdateAPI.deleteAccount(reason.trim());
+      await profileupdateAPI.deleteAccount(reason.trim(), password);
       await logout();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Hesap silinemedi.');
@@ -59,6 +64,23 @@ export default function DeleteAccountModal({ onClose }: { onClose: () => void })
               placeholder="Kısaca sebep belirt..."
               placeholderTextColor="#9ca3af"
               multiline
+            />
+
+            <Text className="text-ink" style={styles.label}>
+              Şifren
+            </Text>
+            <TextInput
+              className="text-ink border-line"
+              style={styles.input}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Onaylamak için şifreni gir"
+              placeholderTextColor="#9ca3af"
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              textContentType="password"
+              autoComplete="current-password"
             />
 
             {!!error && (
@@ -103,6 +125,7 @@ const styles = StyleSheet.create({
     minHeight: 70,
     textAlignVertical: 'top',
   },
+  input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13.5 },
   alertError: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, padding: 10, marginTop: 10 },
   alertErrorText: { fontSize: 12, flex: 1 },
   actionsRow: { flexDirection: 'row', gap: 10, marginTop: 18 },

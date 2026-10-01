@@ -270,7 +270,8 @@ export const passwordApi = {
 
 export const profileupdateAPI = {
   updateProfile: (data: Record<string, unknown>) => api.patch('/update/profile', data),
-  deleteAccount: (reason: string) => api.delete('/users/me', { data: { reason } }),
+  // Şifre sunucuda doğrulanıyor; yanlışsa 403 (401 değil — oturumu düşürmesin).
+  deleteAccount: (reason: string, password: string) => api.delete('/users/me', { data: { reason, password } }),
 };
 
 export const ratingAPI = {
