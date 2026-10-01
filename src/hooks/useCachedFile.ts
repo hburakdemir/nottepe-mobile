@@ -7,7 +7,7 @@ export type CachedFileState =
   // `progress` 0-1 arası; sunucu Content-Length göndermezse null (belirsiz
   // gösterge). nottepe.com statik dosyalarda başlığı veriyor ama eski
   // kayıtlar ya da bir proxy için bu dal gerekli.
-  | { status: 'downloading'; progress: number | null }
+  | { status: 'downloading'; progress: number | null; bytesWritten: number; totalBytes: number | null }
   | { status: 'ready'; file: File }
   | { status: 'error'; message: string };
 
@@ -39,18 +39,26 @@ export function useCachedFile(
     const controller = new AbortController();
     let alive = true;
     lastPercent.current = -1;
-    setState({ status: 'downloading', progress: null });
+    setState({ status: 'downloading', progress: null, bytesWritten: 0, totalBytes: null });
 
     ensureCachedFile(remoteName, {
       signal: controller.signal,
       onProgress: ({ bytesWritten, totalBytes }) => {
         if (!alive) return;
-        if (totalBytes <= 0) return; // Content-Length yok → belirsiz kalsın
+        // Content-Length yoksa yüzde belirsiz; inen MB yine gösteriliyor
+        // (64 KB'lık basamaklarla — her olayda render olmasın).
+        if (totalBytes <= 0) {
+          const step = Math.floor(bytesWritten / 65536);
+          if (step === lastPercent.current) return;
+          lastPercent.current = step;
+          setState({ status: 'downloading', progress: null, bytesWritten, totalBytes: null });
+          return;
+        }
         const ratio = bytesWritten / totalBytes;
         const percent = Math.floor(ratio * 100);
         if (percent === lastPercent.current) return;
         lastPercent.current = percent;
-        setState({ status: 'downloading', progress: ratio });
+        setState({ status: 'downloading', progress: ratio, bytesWritten, totalBytes });
       },
     })
       .then((file) => {

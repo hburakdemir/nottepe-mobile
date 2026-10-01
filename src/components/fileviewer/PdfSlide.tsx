@@ -153,7 +153,10 @@ export default function PdfSlide({ fileName, width, height, active, onOpenExtern
       <View style={[styles.slide, { width, height }]}>
         <SlideStatus
           kind="loading"
+          fileName={fileName}
           progress={download.status === 'downloading' ? download.progress : null}
+          bytesWritten={download.status === 'downloading' ? download.bytesWritten : undefined}
+          totalBytes={download.status === 'downloading' ? download.totalBytes : undefined}
           title={download.status === 'ready' ? 'Sayfalar hazırlanıyor…' : 'Dosya indiriliyor…'}
         />
       </View>
@@ -184,7 +187,7 @@ export default function PdfSlide({ fileName, width, height, active, onOpenExtern
       />
       {!ready && (
         <View style={[StyleSheet.absoluteFill, styles.slide]}>
-          <SlideStatus kind="loading" title="Sayfalar hazırlanıyor…" />
+          <SlideStatus kind="loading" fileName={fileName} title="Sayfalar hazırlanıyor…" />
         </View>
       )}
     </View>

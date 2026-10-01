@@ -176,7 +176,7 @@ export default function OfficeSlide({ fileName, url, width, height, active, onOp
       )}
       {loading && (
         <View style={[StyleSheet.absoluteFill, styles.slide]}>
-          <SlideStatus kind="loading" title="Dosya açılıyor…" />
+          <SlideStatus kind="loading" fileName={fileName} title="Dosya açılıyor…" />
         </View>
       )}
     </View>

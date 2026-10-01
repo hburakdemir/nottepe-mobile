@@ -32,8 +32,13 @@ import { getFileUrl } from './config';
 // tutulmuyor; her açılışta `exists` tek doğru kaynak.
 // `files` → `files-v2`: durum kodu kontrolünden önce indirilmiş ekler arasında
 // HTML gövdeli bozuk kopyalar olabilir; eski dizin trimFileCache'te siliniyor.
-const FILES_DIR = 'files-v2';
-const LEGACY_FILES_DIRS = ['files'];
+// `files-v2` → `files-v3`: 1.0.27'ye kadar yarıda kesilen indirmeler asıl ada
+// yazılıp önbellekte YARIM dosya bırakabiliyordu; temiz bir başlangıç.
+const FILES_DIR = 'files-v3';
+const LEGACY_FILES_DIRS = ['files', 'files-v2'];
+// Süren indirmelerin yarım hâli. `files-v3`'ün DIŞINDA: liste/budama onları
+// ek sanmasın.
+const PARTS_DIR = 'files-parts';
 const SHARE_DIR = 'share';
 
 // Budama eşikleri. Ders notu ekleri 10 MB ile sınırlı (bkz. AddPostScreen), yani
@@ -43,12 +48,20 @@ const MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 
 // Ağ asılı kalırsa kullanıcı sonsuza kadar spinner izlemesin. api.ts'teki
 // axios instance'ının 12 sn'lik timeout'u BURADA GEÇERLİ DEĞİL — bu indirme
-// axios'tan değil, expo-file-system'in kendi native yolundan gidiyor. 45 sn,
-// 10 MB'lık bir dosyanın yavaş bir mobil bağlantıda inebileceği süre.
-const DOWNLOAD_TIMEOUT_MS = 45_000;
+// axios'tan değil, expo-file-system'in kendi native yolundan gidiyor.
+//
+// TOPLAM süre değil, İLERLEMESİZ süre: eskiden sabit 45 sn'lik bir tavan vardı
+// ve yavaş bağlantıda büyük bir PowerPoint düzgün inerken bile yarıda
+// kesiliyordu. Bayt geldiği sürece indirme sürüyor; 20 sn hiç bayt gelmezse
+// bağlantı ölü sayılıyor.
+const DOWNLOAD_STALL_MS = 20_000;
 
 function filesDir(): Directory {
   return new Directory(Paths.cache, FILES_DIR);
+}
+
+function partsDir(): Directory {
+  return new Directory(Paths.cache, PARTS_DIR);
 }
 
 function shareDir(): Directory {
@@ -117,7 +130,22 @@ export async function ensureCachedFile(remoteName: string, options?: EnsureOptio
   const url = getFileUrl(remoteName);
   if (!url) throw new Error('Dosya adresi çözülemedi');
 
-  const task = createDownloadResumable(url, target.uri, {}, (data) => {
+  // İndirme önce `.part` dosyasına yapılıyor, ancak TAM inince asıl adına
+  // taşınıyor. Eskiden doğrudan asıl ada yazılıyordu: yarıda kesilen indirme
+  // diskte boyutu > 0 olan YARIM bir dosya bırakıyor, yukarıdaki
+  // `exists && size > 0` kontrolü onu "önbellekte var" sayıyor ve sonraki her
+  // açılışta yarım dosya gösteriliyordu ("PowerPoint yarım gösteriyor").
+  const partial = new File(ensureDir(partsDir()), `${safeKey(remoteName)}.part`);
+  if (partial.exists) partial.delete();
+
+  let stallTimer: ReturnType<typeof setTimeout> | null = null;
+  const armStall = () => {
+    if (stallTimer) clearTimeout(stallTimer);
+    stallTimer = setTimeout(cancel, DOWNLOAD_STALL_MS);
+  };
+
+  const task = createDownloadResumable(url, partial.uri, {}, (data) => {
+    armStall();
     // Legacy adlarından ortak şekle çeviriyoruz (bkz. DownloadProgress).
     options?.onProgress?.({
       bytesWritten: data.totalBytesWritten,
@@ -137,7 +165,7 @@ export async function ensureCachedFile(remoteName: string, options?: EnsureOptio
   };
 
   options?.signal?.addEventListener('abort', cancel);
-  const timeout = setTimeout(cancel, DOWNLOAD_TIMEOUT_MS);
+  armStall();
 
   try {
     const result = await task.downloadAsync();
@@ -156,13 +184,34 @@ export async function ensureCachedFile(remoteName: string, options?: EnsureOptio
       .find(([key]) => key.toLowerCase() === 'content-type')?.[1]
       ?.toLowerCase();
     if (result.status !== 200 || contentType?.startsWith('text/html')) {
-      const broken = cachedFile(remoteName);
-      if (broken.exists) broken.delete();
       throw new Error(`Sunucu dosyayı vermedi (HTTP ${result.status})`);
     }
+
+    // Sunucunun bildirdiği boyutla diskteki boyut tutmuyorsa bağlantı yolda
+    // kopmuştur — yarım dosyayı önbelleğe almıyoruz.
+    // Sıkıştırılmış yanıtta Content-Length sıkıştırılmış boyut — karşılaştırma
+    // anlamsız, atlanıyor (nottepe.com ekleri sıkıştırmadan veriyor; emniyet).
+    const header = (name: string) =>
+      Object.entries(result.headers ?? {}).find(([key]) => key.toLowerCase() === name)?.[1];
+    const expected = header('content-encoding') ? 0 : Number(header('content-length'));
+    const written = new File(partial.uri);
+    if (!written.exists || written.size === 0 || (expected > 0 && written.size !== expected)) {
+      throw new Error('Dosya eksik indi');
+    }
+
+    if (target.exists) target.delete();
+    written.move(target);
     return cachedFile(remoteName);
+  } catch (error) {
+    try {
+      const leftover = new File(partial.uri);
+      if (leftover.exists) leftover.delete();
+    } catch {
+      // Bir sonraki indirme zaten üzerine yazıyor.
+    }
+    throw error;
   } finally {
-    clearTimeout(timeout);
+    if (stallTimer) clearTimeout(stallTimer);
     options?.signal?.removeEventListener('abort', cancel);
   }
 }
@@ -237,7 +286,7 @@ export function trimFileCache(): void {
 //
 // Diskteki ad sunucu adı (`files-1760…pdf`), kullanıcıya gösterilemez. Okunaklı
 // ad için gönderi başlığı görüntüleyici açılırken bu küçük dizine yazılıyor
-// (bkz. FileViewerScreen). Dizin `files-v2/`'nin DIŞINDA: içinde olsaydı
+// (bkz. FileViewerScreen). Dizin ek klasörünün (`files-v3/`) DIŞINDA: içinde olsaydı
 // budama onu da bir ek gibi sayıp silebilirdi. Dizinde kaydı olmayan dosya
 // türünün adıyla ("PDF") gösteriliyor — bir şey bozulmuyor.
 const TITLES_FILE = 'files-titles.json';
@@ -326,7 +375,7 @@ export function deleteCachedFile(key: string): void {
 }
 
 export function clearFileCache(): void {
-  for (const dir of [filesDir(), shareDir()]) {
+  for (const dir of [filesDir(), shareDir(), partsDir()]) {
     try {
       if (dir.exists) dir.delete();
     } catch {
