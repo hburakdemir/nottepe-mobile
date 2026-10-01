@@ -13,6 +13,7 @@ import { TAB_ROUTE_NAMES, navigateApp } from '../../navigation/navigateApp';
 import { useMetrics } from '../../theme/metrics';
 import { emitTabReselect } from '../../lib/tabReselect';
 import { tap } from '../../lib/haptics';
+import { useCoachTarget } from '../coach/CoachMarks';
 
 // Onaylanan "E · Instagram tarzı buzlu cam" mockup'ının RN karşılığı — kenarlardan
 // boşluklu, yüzen tam bir buzlu-cam hap (bar'ın kendi blur+arka planı+border+
@@ -79,6 +80,8 @@ const TabSlot = React.memo(function TabSlot({
   avatar,
 }: TabSlotProps) {
   const Icon = ICONS[routeName];
+  // İlk kullanım rehberi profil sekmesini gösteriyor (bkz. HomeScreen).
+  const coachTarget = useCoachTarget('tab-profile', routeName === PROFILE_ROUTE);
 
   const handlePress = React.useCallback(() => {
     // Zaten açık sekmeye basmak gezinme değil: ekran kendisi karar veriyor
@@ -92,6 +95,7 @@ const TabSlot = React.memo(function TabSlot({
 
   return (
     <Pressable
+      ref={coachTarget}
       onPress={handlePress}
       accessibilityRole="button"
       accessibilityLabel={routeName}

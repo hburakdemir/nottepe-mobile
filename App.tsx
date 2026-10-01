@@ -32,6 +32,7 @@ import { persistOptions } from './src/lib/queryPersist';
 import { LIGHT_VARS, DARK_VARS } from './src/theme/palette';
 import { DIAGNOSTICS_ENABLED, recordNavigation, startDiagnostics } from './src/lib/diagnostics';
 import DiagnosticsBadge from './src/components/DiagnosticsBadge';
+import { CoachProvider } from './src/components/coach/CoachMarks';
 
 // 2026-09-13, İKİNCİ tur: KAPATILDI. Sebebi:
 //
@@ -178,6 +179,7 @@ export default function App() {
             <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
               <AuthProvider>
                 <SavedPostsProvider>
+                  <CoachProvider>
                   <ThemedNavigationContainer>
                     <RootNavigator />
                     <ThemedStatusBar />
@@ -189,6 +191,7 @@ export default function App() {
                         sonunda ki her şeyin üstünde kalsın. */}
                     {DIAGNOSTICS_ENABLED && <DiagnosticsBadge />}
                   </ThemedNavigationContainer>
+                  </CoachProvider>
                 </SavedPostsProvider>
               </AuthProvider>
             </PersistQueryClientProvider>

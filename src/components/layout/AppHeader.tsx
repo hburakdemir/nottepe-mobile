@@ -14,6 +14,7 @@ import { useUnreadAnnouncements } from '../../hooks/useUnreadAnnouncements';
 import AvatarDisplay from '../../components/avatar/AvatarDisplay';
 import DeerIcon from '../icons/DeerIcon';
 import type { RootStackParamList } from '../../navigation/types';
+import { useCoachTarget } from '../coach/CoachMarks';
 
 // Web'in Navbar.jsx'i `shadow-sm border-b border-gray-200` kullanıyor (satır
 // ~202) — NativeWind'in `shadow-sm` class'ı yerine (Android'de elevation'ı
@@ -47,6 +48,12 @@ function AppHeaderBase({
   showBack = false,
   brand = false,
 }: { title?: string; showBack?: boolean; brand?: boolean } = {}) {
+  // İlk kullanım rehberinin hedefleri — yalnızca MainTabs'teki kalıcı bar
+  // kaydediyor (`!showBack`). Push edilen her ekranın kendi barı var; onlar da
+  // kaydetseydi en son açılan ekranın (görünmeyen) zili hedef olurdu.
+  const menuTarget = useCoachTarget('menu', !showBack);
+  const bellTarget = useCoachTarget('bell', !showBack);
+  const addTarget = useCoachTarget('add', !showBack);
   const { theme } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const avatar = useMyAvatar();
@@ -144,6 +151,7 @@ function AppHeaderBase({
         ) : (
           <View style={{ opacity: isDrawerOpen ? 0 : 1 }} pointerEvents={isDrawerOpen ? 'none' : 'auto'}>
             <Pressable
+              ref={menuTarget}
               onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
               hitSlop={8}
               accessibilityLabel="Menü"
@@ -158,6 +166,7 @@ function AppHeaderBase({
 
         <View className="flex-row items-center gap-1">
           <Pressable
+            ref={bellTarget}
             onPress={() => navigation.navigate('Notifications', { initialTab: 'aktivite' })}
             hitSlop={8}
             // `w-9 h-9 items-center justify-center` (eskiden yalnız `p-2`):
@@ -193,7 +202,7 @@ function AppHeaderBase({
 
           {/* Ekleme artık tab bar'da değil (orası Yemek Listesi + profil avatarına
               ayrıldı, bkz. WaveTabBar.tsx) — zilin sağında. */}
-          <Pressable onPress={() => navigation.navigate('AddPost')} hitSlop={8} className="p-2 rounded-full" accessibilityLabel="Not ekle">
+          <Pressable ref={addTarget} onPress={() => navigation.navigate('AddPost')} hitSlop={8} className="p-2 rounded-full" accessibilityLabel="Not ekle">
             <Plus size={24} color={inkColor} />
           </Pressable>
         </View>
