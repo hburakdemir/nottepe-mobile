@@ -73,6 +73,11 @@ export function cachedFile(remoteName: string): File {
   return new File(filesDir(), safeKey(remoteName));
 }
 
+/** iOS WebView'ına verilen okuma izninin kapsamı (bkz. IosDocSlide). */
+export function cachedFilesDirUri(): string {
+  return filesDir().uri;
+}
+
 /**
  * İlerleme olayının şekli. Alan adları BİLEREK `bytesWritten` / `totalBytes` —
  * SDK 56+'daki sınıf API'sinin verdiği adlar bunlar. Legacy API farklı adlar
