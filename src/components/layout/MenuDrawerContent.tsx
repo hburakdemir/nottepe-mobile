@@ -320,29 +320,37 @@ export default function MenuDrawerContent({ navigation }: DrawerContentComponent
   // Üst bardaki zille AYNI kaynaktan (bkz. hooks/useUnreadNotifications.ts) —
   // eskiden burada ayrı bir fetch vardı, iki rozet birbirinden sapabiliyordu.
   const personalUnread = useUnreadNotifications();
-  const [myPostsCount, setMyPostsCount] = useState(0);
-  const [savedPostsCount, setSavedPostsCount] = useState(0);
-
-  // Drawer içeriği artık kalıcı mount'lu (her açılışta unmount/remount olmuyor)
-  // — bu yüzden bu fetch'ler `isOpen`'a bağlı: her açılışta tazeleniyor, eski
-  // (her seferinde taze mount olan) davranışla aynı garanti korunuyor.
+  // Notlarım / Kaydettiğim Notlarım sayıları — İLK GİRİŞTE yükleniyor, menü
+  // açılınca değil. Drawer içeriği kalıcı mount'lu, yani bu sorgu kullanıcı
+  // giriş yapar yapmaz çalışıyor ve menü ilk açıldığında sayılar hazır.
+  // Açılışta yalnızca ARKA PLANDA tazeleniyor (eski sayı görünmeye devam eder).
   //
   // Yalnızca SAYI lazım: `page` verilince sunucu ayrı bir COUNT sorgusuyla
   // `total` döndürüyor, `limit: 1` ile gövdede tek satır geliyor. Eskiden
-  // `page` verilmiyordu ve sunucu TÜM listeyi (rozetleriyle) gönderiyordu;
-  // menü her açıldığında yalnızca `.length` okumak için. Profil sekmesindeki
-  // sayaçlar da aynı `total`'den geliyor, yani iki yer artık aynı sayıyı gösterir.
+  // `page` verilmiyordu ve sunucu TÜM listeyi (rozetleriyle) gönderiyordu.
+  // Kendi profilindeki Notlar/Kaydedilenler sayacı da aynı `total`'den geliyor
+  // (onay bekleyenler dahil) — `profile-counts`'un `posts`'u yalnızca
+  // onaylıları saydığı için o uç burada BİLEREK kullanılmıyor.
+  const { data: drawerCounts, refetch: refetchDrawerCounts } = useQuery({
+    queryKey: ['drawer-counts', user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const [mine, saved] = await Promise.allSettled([
+        postsAPI.getMyPosts({ page: 1, limit: 1 }),
+        savedPostsAPI.getSavedPosts({ page: 1, limit: 1 }),
+      ]);
+      return {
+        mine: mine.status === 'fulfilled' ? Number(mine.value.data?.total) || 0 : 0,
+        saved: saved.status === 'fulfilled' ? Number(saved.value.data?.total) || 0 : 0,
+      };
+    },
+  });
+  const myPostsCount = drawerCounts?.mine ?? 0;
+  const savedPostsCount = drawerCounts?.saved ?? 0;
+
   useEffect(() => {
-    if (!isOpen) return;
-    postsAPI
-      .getMyPosts({ page: 1, limit: 1 })
-      .then((res) => setMyPostsCount(Number(res.data?.total) || 0))
-      .catch(() => setMyPostsCount(0));
-    savedPostsAPI
-      .getSavedPosts({ page: 1, limit: 1 })
-      .then((res) => setSavedPostsCount(Number(res.data?.total) || 0))
-      .catch(() => setSavedPostsCount(0));
-  }, [isOpen]);
+    if (isOpen && user) void refetchDrawerCounts();
+  }, [isOpen, user, refetchDrawerCounts]);
 
   const close = () => navigation.closeDrawer();
 
