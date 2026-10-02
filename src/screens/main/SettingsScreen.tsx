@@ -17,7 +17,8 @@ import {
   UserPen,
   type LucideIcon,
 } from 'lucide-react-native';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme, useThemeColors } from '../../context/ThemeContext';
+import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 import type { RootStackParamList } from '../../navigation/types';
 import NotificationSettingsSheet from '../../components/notifications/NotificationSettingsSheet';
 import ThemePickerModal from '../../components/settings/ThemePickerModal';
@@ -41,10 +42,13 @@ interface RowProps {
 }
 
 function Row({ icon: Icon, label, value, onPress, danger, iconColor }: RowProps) {
+  // Sabit `#dc2626` / `text-red-600` yerine temanın tehlike rengi: koyu temada
+  // açık bir kırmızıya dönüyor, koyu zeminde okunuyor.
+  const colors = useThemeColors();
   return (
     <Pressable onPress={onPress} className="flex-row items-center gap-3.5 px-4 py-3.5 active:bg-inset">
-      <Icon size={20} color={danger ? '#dc2626' : iconColor} />
-      <Text className={`flex-1 text-[15px] font-semibold ${danger ? 'text-red-600' : 'text-ink'}`}>{label}</Text>
+      <Icon size={20} color={danger ? colors.danger : iconColor} />
+      <Text className={`flex-1 text-[15px] font-semibold ${danger ? 'text-danger' : 'text-ink'}`}>{label}</Text>
       {!!value && <Text className="text-muted text-[14px]">{value}</Text>}
       {!danger && <ChevronRight size={18} color={iconColor} style={{ opacity: 0.5 }} />}
     </Pressable>
@@ -90,7 +94,10 @@ export default function SettingsScreen() {
 
   return (
     <View className="flex-1 bg-ground">
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+      {/* Alt pay sekme çubuğu kadar: AppShell'deki WaveTabBar içeriğin ÜSTÜNE
+          biniyor; 40 px'lik eski payda en alttaki "Tehlikeli bölge" ve sürüm
+          yazısı çubuğun altında kalıyordu. */}
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: TAB_BAR_SAFE_PADDING }}>
         <Section title="Hesap">
           <Row
             icon={UserPen}
