@@ -38,12 +38,11 @@ export function useCachedFile(
 
     const controller = new AbortController();
     let alive = true;
-    // %100 BEKÇİSİ. 1.0.28'de iPhone'da indirme göstergesinin %100'de kalıp
-    // dosyanın açılmadığı bildirildi; kodda buna yol açan bir yol bulunamadı
-    // (ölçülemedi). Tahmin yerine emniyet: son bayt geldikten sonra 6 sn
-    // içinde indirme sonuçlanmazsa diske bakılıyor — dosya yerindeyse açılıyor,
-    // değilse "tekrar dene" hatası. Kullanıcı hiçbir durumda %100'de asılı
-    // kalmıyor.
+    // %100 BEKÇİSİ. Son bayt geldikten sonra 6 sn içinde indirme
+    // sonuçlanmazsa diske bakılıyor — dosya yerindeyse açılıyor, değilse
+    // "tekrar dene" hatası. iPhone'daki %100 takılmasının asıl sebebi geç gelen
+    // ilerleme olayıydı (bkz. onProgress); bekçi beklenmedik başka bir askıya
+    // karşı emniyet olarak duruyor.
     let settled = false;
     let watchdog: ReturnType<typeof setTimeout> | null = null;
     const armWatchdog = () => {
@@ -70,7 +69,12 @@ export function useCachedFile(
     ensureCachedFile(remoteName, {
       signal: controller.signal,
       onProgress: ({ bytesWritten, totalBytes }) => {
-        if (!alive) return;
+        // `settled` şart: iPhone'da legacy indiricinin SON ilerleme olayı
+        // `downloadAsync` çözüldükten SONRA geliyor. Bu kontrol yokken o geç
+        // olay 'ready' durumunun üstüne 'downloading %100' yazıyor, ekran
+        // %100'de kalıyordu (1.0.28-1.0.30; 1.0.30'daki adım izinde "%100"
+        // satırı "hazır"dan sonra görüldü). Android'de sıra tersine.
+        if (!alive || settled) return;
         // Content-Length yoksa yüzde belirsiz; inen MB yine gösteriliyor
         // (64 KB'lık basamaklarla — her olayda render olmasın).
         if (totalBytes <= 0) {
