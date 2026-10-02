@@ -144,7 +144,13 @@ export async function ensureCachedFile(remoteName: string, options?: EnsureOptio
     stallTimer = setTimeout(cancel, DOWNLOAD_STALL_MS);
   };
 
+  // iPhone'da son ilerleme olayı `downloadAsync` çözüldükten SONRA gelebiliyor
+  // (bkz. useCachedFile). Bitişten sonraki olaylar yok sayılıyor: hem çağırana
+  // eski bir "%100" iletilmesin hem de `finally`'de temizlenen durma
+  // zamanlayıcısı yeniden kurulup bitmiş indirmeyi "iptal" etmesin.
+  let finished = false;
   const task = createDownloadResumable(url, partial.uri, {}, (data) => {
+    if (finished) return;
     armStall();
     // Legacy adlarından ortak şekle çeviriyoruz (bkz. DownloadProgress).
     options?.onProgress?.({
@@ -211,6 +217,7 @@ export async function ensureCachedFile(remoteName: string, options?: EnsureOptio
     }
     throw error;
   } finally {
+    finished = true;
     if (stallTimer) clearTimeout(stallTimer);
     options?.signal?.removeEventListener('abort', cancel);
   }
