@@ -27,6 +27,27 @@ if (typeof Promise.withResolvers !== 'function') {
   };
 }
 
+// `ArrayBuffer.prototype.transferToFixedLength` — Chrome 114 / Safari 17.4.
+// pdf.js 6'nın worker'ı sayfa çizerken (getOperatorList) kullanıyor ve legacy
+// derleme bunu da yamalamıyor. Olmayan WebView'da (emülatörde 113 görüldü)
+// her sayfa "buffer.transferToFixedLength is not a function" ile düşüyor,
+// pdf.js hatayı yutuyor ve sayfalar boş/siyah kalıyor. Gerçek `transfer`
+// kaynağı ayırıyor (detach); yama bunu yapamıyor ama pdf.js eski tamponu
+// sonradan kullanmadığı için kopya yeterli.
+type TransferableBuffer = ArrayBuffer & { transferToFixedLength?: (length?: number) => ArrayBuffer };
+const bufferProto = ArrayBuffer.prototype as TransferableBuffer;
+if (typeof bufferProto.transferToFixedLength !== 'function') {
+  Object.defineProperty(ArrayBuffer.prototype, 'transferToFixedLength', {
+    configurable: true,
+    writable: true,
+    value: function transferToFixedLength(this: ArrayBuffer, length?: number) {
+      const next = new ArrayBuffer(length ?? this.byteLength);
+      new Uint8Array(next).set(new Uint8Array(this, 0, Math.min(this.byteLength, next.byteLength)));
+      return next;
+    },
+  });
+}
+
 // `import.meta` babel'de `globalThis.__ExpoImportMetaRegistry`'ye çevriliyor
 // (bkz. babel.config.js). Expo o nesneyi `expo/src/winter/runtime.ts`'te
 // tanımlıyor ama DOM paketine o dosyanın girdiği garanti değil. Tanımsız
