@@ -51,3 +51,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Kampüs haritası: Overpass ham yanıt önbelleği (build.mjs --refresh ile yenilenir)
+scripts/campus-map/cache/
