@@ -19,6 +19,7 @@
 // (≤ 3 km) bozulma santimetre düzeyinde; ölçek çubuğu ve mesafeler doğrudan
 // birim okunuyor. Sokak modu (MapLibre) için `projection` ile geri çevrilir.
 
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -32,7 +33,8 @@ const WEB_CLIENT = process.env.NOTTEPE_WEB_CLIENT ?? path.resolve(REPO, '../fs/n
 const WEB_OUT = path.join(WEB_CLIENT, 'src/data/campusMap');
 const REFRESH = process.argv.includes('--refresh');
 
-const OVERPASS = 'https://overpass-api.de/api/interpreter';
+// Ana sunucu sık sık 504/429 veriyor; denemeler aynalar arasında dönüyor.
+const OVERPASS = ['https://overpass-api.de/api/interpreter', 'https://overpass.private.coffee/api/interpreter', 'https://maps.mail.ru/osm/tools/overpass/api/interpreter'];
 // Overpass User-Agent'sız isteği 406 ile reddediyor.
 const UA = 'nottepe-campus-map/1.0 (+https://nottepe.com)';
 
@@ -46,11 +48,14 @@ const CLIP_MARGIN = 120;
 // ————————————————————————————————————————————— Overpass
 
 async function overpass(name, query) {
-  const file = path.join(CACHE_DIR, `${name}.json`);
+  // Önbellek sorgu metnine bağlı: pois.source.mjs değişince eski yanıt okunmasın.
+  const hash = crypto.createHash('sha1').update(query).digest('hex').slice(0, 8);
+  const file = path.join(CACHE_DIR, `${name}-${hash}.json`);
   if (!REFRESH && fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, 'utf8'));
   fs.mkdirSync(CACHE_DIR, { recursive: true });
-  for (let attempt = 1; attempt <= 4; attempt++) {
-    const res = await fetch(OVERPASS, {
+  for (let attempt = 1; attempt <= 6; attempt++) {
+    const url = OVERPASS[(attempt - 1) % OVERPASS.length];
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'User-Agent': UA, 'Content-Type': 'application/x-www-form-urlencoded' },
       body: 'data=' + encodeURIComponent(query),
@@ -61,8 +66,8 @@ async function overpass(name, query) {
       console.log(`  ↓ ${name} (${(text.length / 1024).toFixed(0)} KB)`);
       return JSON.parse(text);
     }
-    console.warn(`  ! ${name}: HTTP ${res.status}, ${attempt}. deneme — bekleniyor`);
-    await new Promise((r) => setTimeout(r, 15000 * attempt));
+    console.warn(`  ! ${name}: ${new URL(url).host} HTTP ${res.status}, ${attempt}. deneme`);
+    await new Promise((r) => setTimeout(r, 5000 * attempt));
   }
   throw new Error(`Overpass isteği başarısız: ${name}`);
 }

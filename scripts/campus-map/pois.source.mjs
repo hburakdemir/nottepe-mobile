@@ -141,7 +141,10 @@ export const CAMPUSES = [
       { id: 'dis', name: 'Diş Hekimliği Fakültesi', cat: 'Fakülte', osm: 'way/421299560' },
       { id: 'shmyo', name: 'Sağlık Hizmetleri Meslek Yüksekokulu', cat: 'Fakülte', osm: 'way/875361615' },
       { id: 'asi', name: 'Aşı Enstitüsü', cat: 'Fakülte', osm: 'node/10579160401' },
-      { id: 'hastane', name: 'Hacettepe Üniversitesi Hastanesi', cat: 'Sağlık', osm: 'way/875361613' },
+      // way/875361613 ("Hacettepe Üniversitesi Hastanesi") bütün yerleşkenin
+      // sınırı (~257.000 m²) — seçince tüm alan boyanıyor, yürüme mesafesi de
+      // alanın kenarına ölçülüyordu. OSM'deki merkez noktası kullanılıyor.
+      { id: 'hastane', name: 'Hacettepe Üniversitesi Hastaneleri', cat: 'Sağlık', osm: 'node/8147891777' },
       { id: 'eriskin', name: 'Erişkin Hastanesi', cat: 'Sağlık', osm: 'way/875361611' },
       { id: 'cocuk', name: 'Çocuk Hastanesi', cat: 'Sağlık', osm: 'way/875361612' },
       { id: 'onkoloji', name: 'Onkoloji Hastanesi', cat: 'Sağlık', osm: 'way/421299572' },
