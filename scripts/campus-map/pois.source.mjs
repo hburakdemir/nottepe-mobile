@@ -2,8 +2,7 @@
 // koordinat/şekil çözüyor; buradaki her `osm` referansı OSM'de gerçekten var
 // olan bir öğe (2026-10-03'te Overpass'ta tek tek bakıldı).
 //
-// Neden hacettepe.biz'den almıyoruz: o reponun lisansı yok (LICENSE 404) —
-// metin/koordinat kopyalamak yerine yerleri OSM'den kendimiz çıkarıyoruz
+// Tek veri kaynağı OSM: başka sitelerden metin/koordinat alınmıyor
 // (ODbL; haritada "© OpenStreetMap katkıcıları" atfı ZORUNLU).
 //
 // Bilerek DIŞARIDA bırakılanlar:
