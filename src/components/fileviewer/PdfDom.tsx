@@ -19,6 +19,7 @@ import './pdfPolyfills'; // pdfjs'ten ÖNCE — gerekçesi o dosyada
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import * as pdfjsWorker from 'pdfjs-dist/legacy/build/pdf.worker.mjs';
 import { useEffect, useRef } from 'react';
+import type { PdfMessage, PdfRow } from './pdfMessages';
 
 // GERÇEK WEB WORKER KULLANILMIYOR — bilerek.
 //
@@ -48,19 +49,44 @@ export interface PdfDomProps {
    * küçükse PdfSlide bunu gönderiyor (bkz. PdfSlide `MAX_INLINE_BYTES`).
    */
   base64?: string;
-  /** Belge açıldı; sayfa sayısıyla birlikte. */
-  onReady: (pages: number) => Promise<void>;
-  /** Açılamadı. `code` native tarafta mesaj seçmek için. */
-  onFail: (code: string, message: string) => Promise<void>;
   /**
    * `'text'`: hiçbir şey ÇİZİLMİYOR; sayfaların metni satır satır ve soldan
-   * sağa sıralı olarak `onText`'e veriliyor (transkript aktarma, bkz.
-   * utils/transcript). Ayrı bir DOM bileşeni yerine bu dosyada bir mod, çünkü
-   * her "use dom" dosyası kendi web paketi — pdf.js APK'ya ikinci kez girerdi.
+   * sağa sıralı olarak `pdfdom:text` mesajıyla gönderiliyor (transkript
+   * aktarma, bkz. utils/transcript). Ayrı bir DOM bileşeni yerine bu dosyada
+   * bir mod, çünkü her "use dom" dosyası kendi web paketi — pdf.js APK'ya
+   * ikinci kez girerdi.
    */
   mode?: 'render' | 'text';
-  onText?: (rows: { page: number; items: { x: number; s: string }[] }[]) => Promise<void>;
   dom?: import('expo/dom').DOMProps;
+}
+
+// Sonuç native'e Expo'nun fonksiyon prop'larıyla DEĞİL, doğrudan
+// `ReactNativeWebView.postMessage` ile gidiyor (karşılayan: PdfHost.tsx).
+//
+// Expo'nun köprüsü (expo/src/dom/marshal.tsx) "WebView içinde miyim?"
+// sorusunu paket YÜKLENİRKEN bir kez soruyor: o an `window.ReactNativeWebView`
+// yoksa bütün native çağrılar sonsuza dek "Cannot invoke native actions
+// outside of a webview" ile düşüyor. Soğuk açılışta köprü paketten SONRA
+// hazır oluyor — emülatörde soğuk açılıştaki ilk PDF'te yakalandı: belge
+// açılmış, sayfalar çizilmiş ama `onReady` gidemediği için ekran sonsuza dek
+// "Sayfalar hazırlanıyor"da kalıyordu (1.0.31'de gerçek cihazda "bazı PDF'ler
+// hiç açılmıyor"). Burada köprü her gönderimde yeniden aranıyor ve hazır
+// olana kadar bekleniyor.
+const BRIDGE_WAIT_MS = 10_000;
+
+async function post(message: PdfMessage) {
+  const deadline = Date.now() + BRIDGE_WAIT_MS;
+  for (;;) {
+    const bridge = (window as unknown as { ReactNativeWebView?: { postMessage: (data: string) => void } })
+      .ReactNativeWebView;
+    if (bridge) {
+      bridge.postMessage(JSON.stringify(message));
+      return;
+    }
+    // Süre dolarsa vazgeçiliyor; PdfSlide'ın kendi emniyet sınırı devreye giriyor.
+    if (Date.now() > deadline) return;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
 }
 
 // Aynı satırdaki parçaların taban çizgisi birkaç birim oynayabiliyor
@@ -68,7 +94,7 @@ export interface PdfDomProps {
 const ROW_TOLERANCE = 2;
 
 async function extractRows(doc: pdfjsLib.PDFDocumentProxy) {
-  const out: { page: number; items: { x: number; s: string }[] }[] = [];
+  const out: PdfRow[] = [];
   for (let pageNumber = 1; pageNumber <= doc.numPages; pageNumber += 1) {
     const page = await doc.getPage(pageNumber);
     const content = await page.getTextContent();
@@ -135,9 +161,16 @@ function classifyError(error: unknown): { code: string; message: string } {
   return { code: 'unknown', message };
 }
 
-export default function PdfDom({ uri, base64, onReady, onFail, mode = 'render', onText }: PdfDomProps) {
+export default function PdfDom({ uri, base64, mode = 'render' }: PdfDomProps) {
   const hostRef = useRef<HTMLDivElement>(null);
 
+  // Efekt yalnızca BELGE değişince çalışıyor. Eskiden geri çağrılar da
+  // bağımlılıktaydı ve Expo onlara her native render'da yeni kimlik veriyor
+  // (marshal.tsx'teki Proxy her erişimde yeni fonksiyon döndürüyor): `onReady`
+  // → PdfSlide'da `setReady(true)` → yeni kimlik → efekt ikinci kez çalışıp ilk
+  // belgeyi çizimin ortasında `destroy` ediyordu. Ekranın üstünde yarım/boş
+  // sayfalar, altında ikinci bir kopya kalıyordu (24 sayfalık notta 48 sayfa
+  // kutusu ölçüldü; 1.0.31, Galaxy S23).
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
@@ -167,6 +200,7 @@ export default function PdfDom({ uri, base64, onReady, onFail, mode = 'render', 
         canvas.style.width = '100%';
         canvas.style.height = 'auto';
         holder.appendChild(canvas);
+        holder.style.aspectRatio = '';
 
         const context = canvas.getContext('2d');
         if (!context) return;
@@ -208,7 +242,7 @@ export default function PdfDom({ uri, base64, onReady, onFail, mode = 'render', 
 
         if (mode === 'text') {
           const rows = await extractRows(doc);
-          if (!cancelled) await onText?.(rows);
+          if (!cancelled) await post({ type: 'pdfdom:text', rows });
           return;
         }
 
@@ -231,28 +265,42 @@ export default function PdfDom({ uri, base64, onReady, onFail, mode = 'render', 
           { rootMargin: '600px 0px' }
         );
 
+        // Çizilmemiş tutucu 1. sayfanın oranında yer tutuyor. Eskiden 40 px'lik
+        // bir şeritti: 24 sayfalık bir notun tutucularının hepsi açılışta
+        // görünür alana (+600 px) sığıyor ve tembel çizim aslında bütün
+        // sayfaları AYNI ANDA çiziyordu — her sayfası bir resim olan notlarda
+        // tek iş parçacığında ağır bir yük. Oran çizimden sonra kaldırılıyor;
+        // farklı boyutlu sayfalar kendi canvas'larının boyunu alıyor.
+        const first = (await doc.getPage(1)).getViewport({ scale: 1 });
+        if (cancelled) return;
+        const placeholderRatio = `${first.width} / ${first.height}`;
+
         for (let i = 1; i <= doc.numPages; i += 1) {
           const holder = document.createElement('div');
           holder.dataset.page = String(i);
           holder.className = 'page';
+          holder.style.aspectRatio = placeholderRatio;
           host.appendChild(holder);
           observer.observe(holder);
         }
 
-        await onReady(doc.numPages);
+        await post({ type: 'pdfdom:ready', pages: doc.numPages });
       } catch (error) {
         if (cancelled) return;
         const { code, message } = classifyError(error);
-        await onFail(code, message);
+        await post({ type: 'pdfdom:fail', code, message });
       }
     })();
 
     return () => {
       cancelled = true;
       observer?.disconnect();
+      // Belge değişince (ör. base64 yedeğine geçiş) eski sayfaların kutuları
+      // da gitmeli; yoksa yenilerinin üstünde boş bloklar olarak kalıyorlar.
+      host.replaceChildren();
       void task?.destroy();
     };
-  }, [uri, base64, onReady, onFail, mode, onText]);
+  }, [uri, base64, mode]);
 
   return (
     <>
@@ -270,7 +318,13 @@ export default function PdfDom({ uri, base64, onReady, onFail, mode = 'render', 
           touch-action: pan-y pinch-zoom;
           -webkit-text-size-adjust: 100%;
         }
-        .pages { padding: 8px 0 24px; }
+        /* width: 100% ŞART. Expo'nun #root'u yatay bir flex kabı; genişlik
+           verilmezse .pages içeriği kadar daralıyor. Tutucular kabın %100'ü
+           olduğu için ilk sayfa ~0 px'te çiziliyor, onun canvas'ı kabı biraz
+           büyütüyor, sonraki biraz daha geniş çiziliyordu (56 → 224 → 448 →
+           824 px ölçüldü): ilk sayfalar bulanık ve küçücük tutucular yüzünden
+           tembel çizim bütün sayfaları birden başlatıyordu. */
+        .pages { width: 100%; padding: 8px 0 24px; }
         .page {
           position: relative;
           margin: 0 auto 10px;

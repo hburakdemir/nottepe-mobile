@@ -69,7 +69,11 @@ export default function SlideStatus({
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, paddingHorizontal: 32 },
-  title: { color: VIEWER_INK, fontSize: 16, fontWeight: '600', textAlign: 'center' },
+  // `alignSelf: 'stretch'`: genişlik yazının ölçülen boyundan değil kaptan
+  // geliyor. Samsung'da kalın yazı ölçülenden geniş çiziliyor; ölçüye göre
+  // daraltılmış kutuda "Sayfalar hazırlanıyor…" ikinci satıra kayıp kesiliyor,
+  // ekranda yalnızca "Sayfalar" kalıyordu (Galaxy S23).
+  title: { color: VIEWER_INK, fontSize: 16, fontWeight: '600', textAlign: 'center', alignSelf: 'stretch' },
   message: { color: VIEWER_INK_DIM, fontSize: 13, textAlign: 'center', lineHeight: 19 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 6 },
   primary: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, backgroundColor: VIEWER_ACCENT },
