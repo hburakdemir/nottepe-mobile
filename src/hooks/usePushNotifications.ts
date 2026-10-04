@@ -112,8 +112,20 @@ export function usePushNotifications(): void {
   }, [queryClient]);
 
   // --- Token rotasyonu ---
+  // Yalnızca token GERÇEKTEN DEĞİŞTİĞİNDE kayıt. expo-notifications bu olayı
+  // her token İSTENDİĞİNDE de yayıyor (Android: PushTokenModule.kt
+  // `getDevicePushTokenAsync` → `onNewToken`; iOS: her
+  // `registerForRemoteNotifications` → `didRegister`). `registerToken` da
+  // `getExpoPushTokenAsync` ile token istediği için koşulsuz kayıt sonsuz bir
+  // döngüydü: her turda exp.host'a bir POST, ~10.000 istekte JNI global
+  // referans tablosu dolup uygulama çöküyordu (Galaxy S23, temiz kurulum +
+  // bildirim izni verilince 2 dk içinde).
+  const lastDeviceToken = useRef<string | null>(null);
   useEffect(() => {
-    const sub = Notifications.addPushTokenListener(() => {
+    const sub = Notifications.addPushTokenListener(({ data }) => {
+      const token = String(data);
+      if (token === lastDeviceToken.current) return;
+      lastDeviceToken.current = token;
       registerToken(user?.id);
     });
     return () => sub.remove();
