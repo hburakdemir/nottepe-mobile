@@ -59,7 +59,7 @@ import {
 import { exportCoursesToExcel, parseCoursesFromExcel, type ImportedCourse, type ImportError, MAX_IMPORT_BYTES, formatBytes } from '../../utils/ganoExcel';
 import KeyboardAvoider, { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
-import PdfDom from '../../components/fileviewer/PdfDom';
+import PdfHost from '../../components/fileviewer/PdfHost';
 import {
   parseBilsisText,
   parseBilsisTranscript,
@@ -519,8 +519,6 @@ export default function AktsCalculatorScreen() {
     setImportParsing(false);
     Alert.alert('Hata', code === 'password' ? 'Bu PDF parola korumalı.' : 'PDF okunamadı. Dosyanın bozuk olmadığından emin ol.');
   }, []);
-
-  const noopReady = useCallback(async () => {}, []);
 
   const handleImportFile = async () => {
     const result = await DocumentPicker.getDocumentAsync({
@@ -1559,11 +1557,10 @@ export default function AktsCalculatorScreen() {
                 veriyor, hiçbir şey çizmiyor. Yalnızca okuma sürerken mount'lu. */}
             {transcriptUri && (
               <View style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} pointerEvents="none">
-                <PdfDom
+                <PdfHost
                   uri={transcriptUri}
                   mode="text"
                   onText={onTranscriptText}
-                  onReady={noopReady}
                   onFail={onTranscriptFail}
                   dom={{ style: { width: 1, height: 1 } }}
                 />

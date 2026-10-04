@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useCachedFile } from '../../hooks/useCachedFile';
 import HandoffSlide from './HandoffSlide';
-import PdfDom from './PdfDom';
+import PdfHost from './PdfHost';
 import SlideStatus from './SlideStatus';
 import { VIEWER_BG } from './viewerTokens';
 
@@ -33,6 +33,13 @@ const MAX_INLINE_BYTES = 8 * 1024 * 1024;
 // web istemcisinden ya da eski kayıtlardan gelebilecek aşırı büyük dosyalar
 // için emniyet supabı.
 const MAX_LOCAL_BYTES = 40 * 1024 * 1024;
+
+// Belge açılıp `pdfdom:ready` gelene kadar en fazla bu kadar bekleniyor.
+// Takılmanın bilinen sebebi giderildi (PdfDom `post`), bu bir emniyet: bir
+// daha olursa kullanıcı sonsuza dek "Sayfalar hazırlanıyor" izlemesin,
+// "Tekrar dene / Uygulamada aç" görsün. 10 MB'lık taranmış bir not yavaş bir
+// telefonda bile bunun çok altında açılıyor (9 MB, emülatörde ~4 sn).
+const READY_TIMEOUT_MS = 30_000;
 
 const MESSAGE_BY_CODE: Record<string, string> = {
   password: 'Bu PDF parola korumalı.',
@@ -90,14 +97,32 @@ export default function PdfSlide({ fileName, width, height, active, onOpenExtern
       .catch(() => setFailure({ code: 'unknown', message: 'Dosya okunamadı.' }));
   }, [download]);
 
-  const onReady = useCallback(async () => {
+  useEffect(() => {
+    if (!source || ready || failure) return;
+    const timer = setTimeout(
+      () => setFailure({ code: 'unknown', message: 'Sayfalar zamanında hazırlanamadı' }),
+      READY_TIMEOUT_MS
+    );
+    return () => clearTimeout(timer);
+  }, [source, ready, failure]);
+
+  // Hata ekranındaki "Tekrar dene". Eskiden doğrudan `download.retry`'dı:
+  // indirme yenileniyordu ama `failure` hiç temizlenmediği için ekran hata
+  // kartında kalıyordu. Kaynak da sıfırlanıyor ki WebView baştan kurulsun.
+  const retry = useCallback(() => {
+    setFailure(null);
+    setSource(null);
+    download.retry();
+  }, [download]);
+
+  const onReady = useCallback(() => {
     // Sayfa sayısı da geliyor ama şimdilik kullanılmıyor; imza köprüde duruyor
     // ki ileride "sayfa 3/12" göstergesi için buradan alınabilsin.
     setReady(true);
   }, []);
 
   const onFail = useCallback(
-    async (code: string, message: string) => {
+    (code: string, message: string) => {
       if (code === 'local-read') {
         fallBackToBase64();
         return;
@@ -127,7 +152,7 @@ export default function PdfSlide({ fileName, width, height, active, onOpenExtern
           kind="error"
           title="PDF açılamadı"
           message={MESSAGE_BY_CODE[failure.code] ?? MESSAGE_BY_CODE.unknown}
-          onRetry={failure.code === 'unknown' ? download.retry : undefined}
+          onRetry={failure.code === 'unknown' ? retry : undefined}
           onHandoff={onOpenExternally}
         />
       </View>
@@ -165,7 +190,7 @@ export default function PdfSlide({ fileName, width, height, active, onOpenExtern
 
   return (
     <View style={[styles.slide, { width, height }]}>
-      <PdfDom
+      <PdfHost
         {...source}
         onReady={onReady}
         onFail={onFail}
