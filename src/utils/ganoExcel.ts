@@ -68,6 +68,8 @@ export interface ImportedCourse {
   semester: number;
   akts: number;
   grade: string;
+  /** Yalnızca transkriptten: tekrar alınan ders. */
+  repeat?: boolean;
 }
 
 function parseRow(

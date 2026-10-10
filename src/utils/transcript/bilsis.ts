@@ -34,7 +34,10 @@ export interface TranscriptCourse {
   lessonName: string;
   semester: number;
   akts: number;
+  /** Boş = notu henüz girilmemiş tekrar dersi (bkz. finalize). */
   grade: string;
+  /** Ders Durumu "Tkr": tekrar alınan ders. */
+  repeat: boolean;
 }
 
 export interface TranscriptSkip {
@@ -87,6 +90,8 @@ const GRADE_ALIASES: Record<string, string> = { D: 'D1', F4: 'F3', F6: 'F3' };
 
 // "Kld" = kaldırılan ders: transkriptte görünüyor ama ortalamaya girmiyor.
 const REMOVED_STATUS = 'Kld';
+// "Tkr" = tekrar alınan ders.
+const REPEAT_STATUS = 'Tkr';
 
 function parseNumber(raw: string): number {
   return Number(raw.replace(',', '.'));
@@ -230,13 +235,23 @@ function extractPre(input: string): string {
 function finalize(raw: RawCourse[], terms: TermRegistry): TranscriptParseResult {
   const skipped: TranscriptSkip[] = [];
   // Notu olanları ayır, sonra tekrar edilen dersleri ele.
-  const graded: RawCourse[] = [];
+  const graded: (RawCourse & { repeat: boolean })[] = [];
   for (const c of raw) {
-    if (c.status.split(/\s+/).includes(REMOVED_STATUS)) {
+    const status = c.status.split(/\s+/);
+    const repeat = status.includes(REPEAT_STATUS);
+    if (status.includes(REMOVED_STATUS)) {
       skipped.push({ code: c.code, lessonName: c.name, reason: 'Kaldırılan ders' });
       continue;
     }
     if (c.grade === '--' || c.grade === '') {
+      // Tekrar dersi notsuz da aktarılıyor (kullanıcı isteği): listede "Tkr"
+      // rozetiyle duruyor, not seçilene kadar ortalamaya girmiyor ve eski
+      // denemeyi düşürmüyor (gano.ts `latestAttempts`). Yeni alınan notsuz
+      // dersler eskisi gibi atlanıyor.
+      if (repeat && Number.isFinite(c.akts) && c.akts > 0) {
+        graded.push({ ...c, grade: '', repeat });
+        continue;
+      }
       skipped.push({ code: c.code, lessonName: c.name, reason: 'Notu henüz girilmemiş' });
       continue;
     }
@@ -249,20 +264,22 @@ function finalize(raw: RawCourse[], terms: TermRegistry): TranscriptParseResult 
       skipped.push({ code: c.code, lessonName: c.name, reason: 'AKTS okunamadı' });
       continue;
     }
-    graded.push({ ...c, grade });
+    graded.push({ ...c, grade, repeat });
   }
 
   // Tekrar alınan dersin HER denemesi kendi döneminde aktarılıyor: belgedeki
   // dönem ortalamaları (ANO) eski F'leri de içeriyor. Genel ortalamada eski
   // denemeyi eleyen hesaplayıcının kendisi (gano.ts `latestAttempts`). Notu
-  // henüz girilmemiş tekrar ("--") yukarıda elendiği için eski not sayılmaya
-  // devam ediyor; bu da belgedeki AGNO ile tutarlı.
+  // henüz girilmemiş tekrar ("--") notsuz aktarılıyor; latestAttempts notsuz
+  // denemeyi saymadığı için eski not sayılmaya devam ediyor — belgedeki AGNO
+  // ile tutarlı.
   const courses: TranscriptCourse[] = graded.map((c) => ({
     code: c.code,
     lessonName: c.name,
     semester: c.term,
     akts: c.akts,
     grade: c.grade,
+    repeat: c.repeat,
   }));
 
   return { courses, skipped, termCount: terms.size };

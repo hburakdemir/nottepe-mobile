@@ -91,7 +91,10 @@ export interface Course {
   name: string;
   semester: number;
   akts: number | string;
+  /** Boş olabilir: transkriptten gelen, notu henüz girilmemiş tekrar dersi. */
   grade: string;
+  /** Transkriptte "Tkr" — tekrar alınan ders (listede rozet). */
+  repeat?: boolean;
 }
 
 function parseAkts(course: Course): number | null {
@@ -122,11 +125,15 @@ export function effectiveGrade(course: Course, overrides: Overrides = {}): strin
 // girilmiş iki ders adı tesadüfen aynı olabilir. Dönem ortalaması (ANO) bu
 // elemeyi YAPMIYOR: belge her dönemin altına o dönem alınan bütün derslerle
 // hesaplanmış ANO'yu yazıyor, eski F de dahil.
-export function latestAttempts(courses: Course[]): Course[] {
+//
+// NOTU OLMAYAN deneme (bu dönem tekrar alınan, notu henüz girilmemiş ders)
+// "en son" sayılmıyor: eski not, yeni not girilene kadar ortalamada kalıyor —
+// belgedeki AGNO da böyle. Senaryoda ona not verilirse (overrides) o an sayılıyor.
+export function latestAttempts(courses: Course[], overrides: Overrides = {}): Course[] {
   const latest = new Map<string, Course>();
   for (const course of courses) {
     const code = String(course.code ?? '').trim().toLocaleUpperCase('tr-TR');
-    if (!code) continue;
+    if (!code || !isValidGrade(effectiveGrade(course, overrides))) continue;
     const prev = latest.get(code);
     if (!prev || Number(course.semester) >= Number(prev.semester)) latest.set(code, course);
   }
@@ -139,7 +146,7 @@ export function latestAttempts(courses: Course[]): Course[] {
 // GANO = Σ(AKTS × katsayı) / Σ(kredili AKTS). Kredisiz dersler (G/K/H/M) orana girmez.
 // Tekrar edilen derslerin eski denemeleri sayılmaz (bkz. latestAttempts).
 export function computeTotals(courses: Course[], overrides: Overrides = {}): Totals {
-  return sumCourses(latestAttempts(courses), overrides);
+  return sumCourses(latestAttempts(courses, overrides), overrides);
 }
 
 function sumCourses(courses: Course[], overrides: Overrides): Totals {
@@ -232,7 +239,7 @@ export function computeStats(courses: Course[], overrides: Overrides = {}): Stat
 
   // Sayılar ve dağılım dersin güncel durumunu gösteriyor: sonradan geçilen
   // dersin eski F'si "başarısız" sayılmıyor.
-  for (const course of latestAttempts(courses)) {
+  for (const course of latestAttempts(courses, overrides)) {
     const grade = effectiveGrade(course, overrides);
     if (parseAkts(course) === null || !isValidGrade(grade)) continue;
     totalCourses += 1;
@@ -328,16 +335,22 @@ export function computeTargetPlan({
 }
 
 export interface AktsServerData {
-  semesters: { name: string; courses: { code?: string; name: string; akts: number; grade: string }[] }[];
+  semesters: { name: string; courses: { code?: string; name: string; akts: number; grade: string; repeat?: boolean }[] }[];
 }
 
 // Düz liste → sunucu formatı (dönem numarasına göre gruplanır) — /api/akts'nin beklediği şekil.
 export function coursesToServerData(courses: Course[]): AktsServerData {
-  const bySemester = new Map<number, { code?: string; name: string; akts: number; grade: string }[]>();
+  const bySemester = new Map<number, AktsServerData['semesters'][number]['courses']>();
   for (const course of courses) {
     const semester = Number(course.semester) > 0 ? Math.trunc(Number(course.semester)) : 1;
     if (!bySemester.has(semester)) bySemester.set(semester, []);
-    bySemester.get(semester)!.push({ code: course.code, name: course.name, akts: Number(course.akts), grade: course.grade });
+    bySemester.get(semester)!.push({
+      code: course.code,
+      name: course.name,
+      akts: Number(course.akts),
+      grade: course.grade,
+      ...(course.repeat ? { repeat: true } : {}),
+    });
   }
   return {
     semesters: [...bySemester.entries()]
@@ -371,8 +384,10 @@ export function serverDataToCourses(data: AktsServerData | null | undefined): { 
       const grade = String(raw?.grade ?? '')
         .trim()
         .toUpperCase();
-      if (name && Number.isFinite(akts) && akts > 0 && isValidGrade(grade)) {
-        courses.push({ id: makeCourseId(), code: code || undefined, name, semester: semesterNumber, akts, grade });
+      const repeat = raw?.repeat === true;
+      // Notsuz satır yalnızca tekrar dersiyse geçerli (bkz. Course.grade).
+      if (name && Number.isFinite(akts) && akts > 0 && (isValidGrade(grade) || (repeat && grade === ''))) {
+        courses.push({ id: makeCourseId(), code: code || undefined, name, semester: semesterNumber, akts, grade, ...(repeat ? { repeat } : {}) });
       } else if (name) {
         skipped += 1;
       }

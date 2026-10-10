@@ -599,6 +599,7 @@ export default function AktsCalculatorScreen() {
             semester: c.semester,
             akts: c.akts,
             grade: c.grade,
+            ...(c.repeat ? { repeat: true } : {}),
           }))
         );
         setShowImport(false);
@@ -984,7 +985,7 @@ export default function AktsCalculatorScreen() {
             availableScenarioCourses.map((c) => (
               <FilterChip
                 key={c.id}
-                label={`${c.name} (${c.grade})`}
+                label={`${c.name} (${c.grade || 'notsuz'})`}
                 active={scenarioCourseId === c.id}
                 onPress={() => setScenarioCourseId(c.id)}
               />
@@ -1019,7 +1020,7 @@ export default function AktsCalculatorScreen() {
                 <Text className="flex-1 text-sm font-semibold text-ink2" numberOfLines={1}>
                   {course.name}
                 </Text>
-                <Text className="text-[12.5px] text-muted">{course.grade}</Text>
+                <Text className="text-[12.5px] text-muted">{course.grade || '—'}</Text>
                 <Text className="text-muted2">→</Text>
                 <Text className="text-[12.5px] font-bold text-accent">{grade}</Text>
                 <Pressable onPress={() => removeScenarioOverride(course.id)} hitSlop={8}>
@@ -1475,8 +1476,8 @@ export default function AktsCalculatorScreen() {
                 ) : (
                   <Text className="text-sm text-muted mt-3">
                     BİLSİS'ten indirdiğin "Not Durum Belgesi (Transkript)" PDF'ini ya da metin çıktısını seç. Dosya yalnızca bu
-                    cihazda okunur; ad, numara ve kimlik bilgilerin alınmaz. Notu henüz girilmemiş dersler aktarılmaz, tekrar alınan
-                    derslerde en son not sayılır.
+                    cihazda okunur; ad, numara ve kimlik bilgilerin alınmaz. Notu henüz girilmemiş dersler aktarılmaz; tekrar alınanlar
+                    "Tkr" ile notsuz eklenir, not girene kadar ortalamada eski not sayılır.
                   </Text>
                 )}
                 <Pressable
@@ -1530,12 +1531,15 @@ export default function AktsCalculatorScreen() {
                       <View className="gap-1.5">
                         {importPreview.valid.slice(0, PREVIEW_ROW_LIMIT).map((c, i) => (
                           <View key={i} className="bg-inset rounded-lg px-3 py-2">
-                            <Text className="text-sm text-ink font-medium" numberOfLines={1}>
-                              {c.code ? `${c.code} · ` : ''}
-                              {c.lessonName}
-                            </Text>
+                            <View className="flex-row items-center gap-1.5">
+                              <Text className="flex-shrink text-sm text-ink font-medium" numberOfLines={1}>
+                                {c.code ? `${c.code} · ` : ''}
+                                {c.lessonName}
+                              </Text>
+                              {c.repeat && <RepeatTag />}
+                            </View>
                             <Text className="text-[11.5px] text-muted mt-0.5">
-                              {c.semester}. Dönem · {c.akts} AKTS · {c.grade}
+                              {c.semester}. Dönem · {c.akts} AKTS · {c.grade || 'Not girilmemiş'}
                             </Text>
                           </View>
                         ))}
@@ -1696,6 +1700,15 @@ function FilterChip({ label, active, onPress }: { label: string; active: boolean
   );
 }
 
+// Transkriptte "Tkr": tekrar alınan ders.
+function RepeatTag() {
+  return (
+    <View className="rounded px-1.5 py-px bg-inset border border-line">
+      <Text className="text-[10.5px] font-bold text-muted">Tkr</Text>
+    </View>
+  );
+}
+
 function CourseRow({
   course,
   onEdit,
@@ -1713,17 +1726,20 @@ function CourseRow({
   return (
     <View className="flex-row items-center bg-surface rounded-lg border border-line-soft px-3 py-2.5">
       <Pressable className="flex-1" onPress={() => onEdit(course)}>
-        <Text className="text-[13.5px] font-semibold text-ink">
-          {course.code ? <Text className="text-muted2 font-normal">{course.code} · </Text> : null}
-          {course.name}
-        </Text>
+        <View className="flex-row items-center gap-1.5">
+          <Text className="flex-shrink text-[13.5px] font-semibold text-ink">
+            {course.code ? <Text className="text-muted2 font-normal">{course.code} · </Text> : null}
+            {course.name}
+          </Text>
+          {course.repeat && <RepeatTag />}
+        </View>
         <Text className="text-[11px] text-muted2 mt-[3px]">
           {course.semester}. Dönem · {course.akts} AKTS · Katsayı {coefficient === null ? '—' : coefficient.toFixed(1)} · Kalite{' '}
           {qualityPoints === null ? '—' : qualityPoints.toLocaleString('tr-TR')} · 100'lük {gradeToScoreRange(course.grade) ?? '—'}
         </Text>
       </Pressable>
       <View className={`rounded-full px-2.5 py-1 ${failed ? 'bg-fail-soft' : credited ? 'bg-accent-soft' : 'bg-inset'}`}>
-        <Text className="text-xs font-bold text-ink2">{course.grade}</Text>
+        <Text className="text-xs font-bold text-ink2">{course.grade || '—'}</Text>
       </View>
       <Pressable onPress={() => onEdit(course)} hitSlop={8} className="ml-2.5">
         <Pencil size={16} color={colors.accent} />
