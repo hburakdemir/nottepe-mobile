@@ -42,6 +42,13 @@
         "releaseStatus": "draft",
         "changesNotSentForReview": false
       }
+    },
+    "playstore-production": {
+      "android": {
+        "track": "production",
+        "releaseStatus": "draft",
+        "changesNotSentForReview": false
+      }
     }
   }
 }
