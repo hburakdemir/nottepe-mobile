@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { G, Path, Rect, type GProps } from 'react-native-svg';
 import Animated, {
   Easing,
@@ -34,9 +34,9 @@ import {
 //
 // KAMERA UI THREAD'İNDE. SVG ekran boyutunda; dünya katmanlarının hepsi tek
 // bir <G> altında ve kamera o grubun `matrix`'i (Reanimated animatedProps).
-// Pinler, rozetler ve etiketler ayrı bir RN katmanında: kap kamerayla
-// ölçekleniyor, her pin `1/s` ile ters ölçekleniyor, yani ekranda sabit boyda
-// kalıyor (web'deki `--inv`). Jest ve uçuş sırasında React render'ı YOK —
+// Pinler, rozetler ve etiketler ayrı bir RN katmanında: her biri kendi ekran
+// konumuna öteleniyor, hiçbiri ölçeklenmiyor, yani ekranda sabit boyda ve
+// net kalıyor (web'deki `--inv` yerine). Jest ve uçuş sırasında React render'ı YOK —
 // yalnızca etiket kademesi (lod) değişince bir render. Bu uygulamada JS
 // thread'i zaten dolu (bkz. diagnostics.ts), kaydırmanın oradan geçmemesi şart.
 //
@@ -175,16 +175,25 @@ const Layers = memo(function Layers({ L, c }: { L: CampusData['layers']; c: MapP
   );
 });
 
-// Dünya katmanında sabit ekran boyunda duran nokta: kap `s` ile büyüyor,
-// bu `1/s` ile küçülüyor.
-function Anchor({ x, y, inv, z = 1, children }: { x: number; y: number; inv: SharedValue<number>; z?: number; children: React.ReactNode }) {
-  const st = useAnimatedStyle(() => ({ transform: [{ scale: inv.value }] }));
-  return <Animated.View style={[styles.anchor, { left: x, top: y, zIndex: z }, st]}>{children}</Animated.View>;
+// Kamera: ekran = dünya * s + t.
+interface CamSV {
+  s: SharedValue<number>;
+  tx: SharedValue<number>;
+  ty: SharedValue<number>;
 }
 
-const Pin = memo(function Pin({ poi, selected, label, c, inv }: { poi: CampusPoi; selected: boolean; label: string | null; c: MapPalette; inv: SharedValue<number> }) {
+// Sabit ekran boyunda duran nokta. Kap ölçeklenmiyor, nokta yalnızca ekran
+// konumuna öteleniyor: kabı `s` ile büyütüp noktayı `1/s` ile küçültmek
+// iOS'ta yazıları bulanıklaştırıyordu (katman ilk ölçekte rasterleşip
+// büyütülüyor).
+function Anchor({ x, y, cam, z = 1, children }: { x: number; y: number; cam: CamSV; z?: number; children: React.ReactNode }) {
+  const st = useAnimatedStyle(() => ({ transform: [{ translateX: cam.tx.value + x * cam.s.value }, { translateY: cam.ty.value + y * cam.s.value }] }));
+  return <Animated.View style={[styles.anchor, { zIndex: z }, st]}>{children}</Animated.View>;
+}
+
+const Pin = memo(function Pin({ poi, selected, label, c, cam }: { poi: CampusPoi; selected: boolean; label: string | null; c: MapPalette; cam: CamSV }) {
   return (
-    <Anchor x={poi.x} y={poi.y} inv={inv} z={selected ? 3 : 1}>
+    <Anchor x={poi.x} y={poi.y} cam={cam} z={selected ? 3 : 1}>
       <View style={[selected ? styles.dotSel : styles.dot, { backgroundColor: selected ? c.accent : c.pin, borderColor: c.halo }]} />
       {!!label && (
         <View style={[styles.labelBox, selected && styles.labelBoxSel]}>
@@ -206,11 +215,11 @@ function BusGlyph({ size, color }: { size: number; color: string }) {
   );
 }
 
-function Badge({ place, kind, c, label, inv }: { place: TransitPlace; kind: 'rail' | 'stop' | 'stop-sm'; c: MapPalette; label: string | null; inv: SharedValue<number> }) {
+function Badge({ place, kind, c, label, cam }: { place: TransitPlace; kind: 'rail' | 'stop' | 'stop-sm'; c: MapPalette; label: string | null; cam: CamSV }) {
   const rail = kind === 'rail';
   const small = kind === 'stop-sm';
   return (
-    <Anchor x={place.x} y={place.y} inv={inv} z={2}>
+    <Anchor x={place.x} y={place.y} cam={cam} z={2}>
       <View style={[small ? styles.badgeSm : styles.badge, { backgroundColor: rail ? c.label : c.accent, borderColor: c.halo }]}>
         {rail ? <Text style={[styles.badgeText, { color: c.halo }]}>M</Text> : <BusGlyph size={small ? 9 : 12} color={c.onAccent} />}
       </View>
@@ -226,11 +235,11 @@ function Badge({ place, kind, c, label, inv }: { place: TransitPlace; kind: 'rai
 }
 
 // Rota üzerinde ilerleyen nokta (otobüs / yürüyen).
-function Mover({ tracer, k, inv, color, halo, size }: { tracer: SharedValue<Tracer | null>; k: SharedValue<number>; inv: SharedValue<number>; color: string; halo: string; size: number }) {
+function Mover({ tracer, k, cam, color, halo, size }: { tracer: SharedValue<Tracer | null>; k: SharedValue<number>; cam: CamSV; color: string; halo: string; size: number }) {
   const st = useAnimatedStyle(() => {
     const t = tracer.value;
     const tip = t ? traceAt(t, k.value) : [0, 0];
-    return { transform: [{ translateX: tip[0] }, { translateY: tip[1] }, { scale: inv.value }] };
+    return { transform: [{ translateX: cam.tx.value + tip[0] * cam.s.value }, { translateY: cam.ty.value + tip[1] * cam.s.value }] };
   });
   return (
     <Animated.View style={[styles.anchor, { zIndex: 4 }, st]}>
@@ -301,7 +310,6 @@ export default function VectorCampusMap({
   const s = useSharedValue(1);
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
-  const inv = useDerivedValue(() => 1 / s.value);
   const sizeSV = useSharedValue({ w: 0, h: 0 });
   const minS = useSharedValue(0.05);
   const gestureStart = useSharedValue<Cam>({ s: 1, tx: 0, ty: 0 });
@@ -656,7 +664,7 @@ export default function VectorCampusMap({
     strokeWidth: 4.2 / s.value,
     strokeDasharray: [0.1, 9 / s.value],
   }));
-  const worldStyle = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: s.value }] }));
+  const cam = useMemo<CamSV>(() => ({ s, tx, ty }), [s, tx, ty]);
 
   const showBus = !!busLeg && (phase === 'bus' || phase === 'walk' || phase === 'done');
   const showWalk = phase === 'walk' || phase === 'done';
@@ -689,14 +697,14 @@ export default function VectorCampusMap({
             </Svg>
           )}
 
-          <Animated.View pointerEvents="none" style={[styles.world, worldStyle]}>
+          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
             {!route &&
               data.transit.stations.map((st) => (
-                <Badge key={`st-${st.name}`} place={st} kind="rail" c={c} inv={inv} label={labeled.has(`st:${st.name}`) ? placeLabel(st) : null} />
+                <Badge key={`st-${st.name}`} place={st} kind="rail" c={c} cam={cam} label={labeled.has(`st:${st.name}`) ? placeLabel(st) : null} />
               ))}
             {!route &&
               data.transit.stops.map((st) => (
-                <Badge key={`sp-${st.name}`} place={st} kind="stop-sm" c={c} inv={inv} label={labeled.has(`sp:${st.name}`) ? placeLabel(st) : null} />
+                <Badge key={`sp-${st.name}`} place={st} kind="stop-sm" c={c} cam={cam} label={labeled.has(`sp:${st.name}`) ? placeLabel(st) : null} />
               ))}
             {visiblePois.map((p) => (
               <Pin
@@ -705,18 +713,18 @@ export default function VectorCampusMap({
                 selected={p.id === selectedId}
                 label={labeled.has(p.id) ? (p.short ?? p.name) : null}
                 c={c}
-                inv={inv}
+                cam={cam}
               />
             ))}
             {route && origin && phase !== 'none' && (
               <>
-                <Badge place={origin} kind={origin.rail ? 'rail' : 'stop'} c={c} inv={inv} label={placeLabel(origin)} />
-                {busLeg && <Badge place={busLeg.to} kind="stop" c={c} inv={inv} label={placeLabel(busLeg.to)} />}
+                <Badge place={origin} kind={origin.rail ? 'rail' : 'stop'} c={c} cam={cam} label={placeLabel(origin)} />
+                {busLeg && <Badge place={busLeg.to} kind="stop" c={c} cam={cam} label={placeLabel(busLeg.to)} />}
               </>
             )}
-            {phase === 'bus' && <Mover tracer={busTr} k={busK} inv={inv} color={c.accent} halo={c.halo} size={14} />}
-            {phase === 'walk' && <Mover tracer={walkTr} k={walkK} inv={inv} color={c.walk} halo={c.halo} size={12} />}
-          </Animated.View>
+            {phase === 'bus' && <Mover tracer={busTr} k={busK} cam={cam} color={c.accent} halo={c.halo} size={14} />}
+            {phase === 'walk' && <Mover tracer={walkTr} k={walkK} cam={cam} color={c.walk} halo={c.halo} size={12} />}
+          </View>
         </View>
       </GestureDetector>
 
@@ -744,17 +752,12 @@ export default function VectorCampusMap({
         <Animated.View style={[{ height: 5, borderWidth: 1.5, borderTopWidth: 0, borderColor: c.label }, scaleBarStyle]} />
         <Text style={[styles.scaleText, { color: c.label }]}>{scaleText}</Text>
       </View>
-      {/* ODbL atfı zorunlu. */}
-      <Pressable style={[styles.attrib, { bottom: 8 + safeBottom }]} hitSlop={6} onPress={() => Linking.openURL('https://www.openstreetmap.org/copyright')}>
-        <Text style={[styles.attribText, { color: c.muted }]}>© OpenStreetMap katkıcıları</Text>
-      </Pressable>
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, overflow: 'hidden' },
-  world: { position: 'absolute', left: 0, top: 0, width: 0, height: 0 },
   anchor: { position: 'absolute', width: 0, height: 0 },
   // Web: 10 px nokta + 2 px hale (box-shadow); burada hale kenarlık.
   dot: { position: 'absolute', left: -7, top: -7, width: 14, height: 14, borderRadius: 7, borderWidth: 2 },
@@ -784,6 +787,4 @@ const styles = StyleSheet.create({
   mapBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   scale: { position: 'absolute', left: 12, bottom: 10, gap: 3 },
   scaleText: { fontSize: 10, letterSpacing: 0.4 },
-  attrib: { position: 'absolute', right: 10, bottom: 8 },
-  attribText: { fontSize: 10 },
 });

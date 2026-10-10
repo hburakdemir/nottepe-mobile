@@ -13,8 +13,8 @@ import { CAMPUSES, MAP_PALETTE, loadCampus, type CampusKey } from '../../compone
 // Kampüs haritası — web'deki /kampus-haritasi (CampusMapPage.jsx). Şimdilik
 // yalnızca Çizim modu; web'in Sokak modu MapLibre ile, mobilde yok.
 //
-// Düzen telefona göre: harita üstte sabit (kaydırılan sayfanın içinde olsa
-// harita jestleri dikey kaydırmayla çakışırdı), kart ve yer listesi altta.
+// Düzen telefona göre: harita, kart ve yer listesi tek kaydırılan sayfada.
+// Haritaya dokunulurken sayfa kaydırması kapanıyor (jestler çakışmasın).
 // Tam ekranda kabuğun üst barı ve sekme çubuğu gizleniyor, harita tüm ekranı
 // alıyor ve kart haritanın altında yüzüyor (web'in masaüstü düzeni gibi).
 // Ekran yeniden mount edilmediği için kamera ve seçim korunuyor.
@@ -35,6 +35,13 @@ export default function CampusMapScreen() {
   const [query, setQuery] = useState('');
   const [fullscreen, setFullscreen] = useState(false);
   const [overlayH, setOverlayH] = useState(0);
+  const [rootH, setRootH] = useState(0);
+  const [mapTouch, setMapTouch] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
+  // Liste kabının alt sarmalayıcıdaki y'si; sarmalayıcının kendi y'si eklenince
+  // kaydırma içeriğindeki konum oluyor.
+  const [listY, setListY] = useState(0);
+  const [bodyY, setBodyY] = useState(0);
   const setChromeHidden = useSetAppShellChromeHidden();
   const insets = useSafeAreaInsets();
 
@@ -78,6 +85,18 @@ export default function CampusMapScreen() {
     scrollRef.current?.scrollTo({ y: 0, animated: !reducedMotion });
   };
 
+  // Arama kutusuna basınca liste sayfanın başına geliyor, klavye sonuçları
+  // kapatmıyor. Klavye açılırken KeyboardAwareScroll da kaydırıyor; onunkinden
+  // sonra gelsin diye kısa bir gecikme.
+  const onSearchFocus = () => {
+    setSearchFocused(true);
+    setTimeout(() => scrollRef.current?.scrollTo({ y: bodyY + listY - 12, animated: !reducedMotion }), 250);
+  };
+  const toggleFullscreen = () => {
+    if (!fullscreen) scrollRef.current?.scrollTo({ y: 0, animated: false });
+    setFullscreen((v) => !v);
+  };
+
   const card = selected
     ? routeOn
       ? <RouteCard poi={selected} data={data} option={opt} onOption={setOption} onBack={() => setRouteOn(false)} />
@@ -88,61 +107,77 @@ export default function CampusMapScreen() {
   const hiddenInFullscreen = fullscreen ? { display: 'none' as const } : undefined;
 
   return (
-    <View className="flex-1 bg-ground">
-      <View className="px-4 pt-3 pb-3" style={hiddenInFullscreen}>
-        <Segmented options={CAMPUSES} value={campus} onChange={(id) => setCampus(id as CampusKey)} />
-      </View>
-      <View
-        className={fullscreen ? 'overflow-hidden' : 'mx-4 rounded-2xl overflow-hidden border border-line'}
-        style={fullscreen ? { flex: 1 } : { height: Math.round(height * 0.46) }}
-      >
-        <VectorCampusMap
-          key={campus}
-          data={data}
-          palette={MAP_PALETTE[isDark ? 'dark' : 'light']}
-          selectedId={selId}
-          onSelect={pick}
-          category={category}
-          route={route}
-          routeKey={routeKey}
-          reducedMotion={reducedMotion}
-          fullscreen={fullscreen}
-          onToggleFullscreen={() => setFullscreen((v) => !v)}
-          safeTop={fullscreen ? insets.top : 0}
-          safeBottom={fullscreen ? insets.bottom : 0}
-          bottomObstruction={fullscreen && card ? insets.bottom + 30 + overlayH : 0}
-        />
-        {fullscreen && !!card && (
-          // Altta atıf satırına yer bırakılıyor (ODbL atfı görünür kalmalı).
-          // "Nasıl giderim?" de burada açılıyor — tam ekrandan çıkılmıyor.
-          <View
-            onLayout={(e) => setOverlayH(Math.round(e.nativeEvent.layout.height))}
-            style={{ position: 'absolute', left: 12, right: 12, bottom: insets.bottom + 30, maxHeight: '50%' }}
-          >
-            <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
-              {card}
-            </ScrollView>
-          </View>
-        )}
-      </View>
+    <View className="flex-1 bg-ground" onLayout={(e) => setRootH(Math.round(e.nativeEvent.layout.height))}>
       <KeyboardAwareScroll
         ref={scrollRef}
         className="flex-1"
-        style={hiddenInFullscreen}
-        contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: TAB_BAR_SAFE_PADDING }}
+        // Harita sayfayla birlikte kayıyor; haritaya dokunulduğu sürece
+        // kaydırma kapalı, yoksa harita jestleri dikey kaydırmayla çakışıyor.
+        scrollEnabled={!fullscreen && !mapTouch}
+        contentContainerStyle={
+          fullscreen
+            ? undefined
+            : { paddingTop: 12, paddingBottom: searchFocused ? height : TAB_BAR_SAFE_PADDING }
+        }
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {!fullscreen && card}
-        <PoiList
-          data={data}
-          query={query}
-          onQuery={setQuery}
-          category={category}
-          onCategory={setCategory}
-          selectedId={selId}
-          onPick={pickFromList}
-        />
+        <View className="px-4 pb-3" style={hiddenInFullscreen}>
+          <Segmented options={CAMPUSES} value={campus} onChange={(id) => setCampus(id as CampusKey)} />
+        </View>
+        {/* Tam ekranda da aynı ağaçta kalıyor (yeniden mount = kamera ve
+            seçim kaybı); yalnızca boyu ekran boyu oluyor. */}
+        <View
+          className={fullscreen ? 'overflow-hidden' : 'mx-4 rounded-2xl overflow-hidden border border-line'}
+          style={{ height: fullscreen ? rootH : Math.round(height * 0.46) }}
+          onTouchStart={() => setMapTouch(true)}
+          onTouchEnd={() => setMapTouch(false)}
+          onTouchCancel={() => setMapTouch(false)}
+        >
+          <VectorCampusMap
+            key={campus}
+            data={data}
+            palette={MAP_PALETTE[isDark ? 'dark' : 'light']}
+            selectedId={selId}
+            onSelect={pick}
+            category={category}
+            route={route}
+            routeKey={routeKey}
+            reducedMotion={reducedMotion}
+            fullscreen={fullscreen}
+            onToggleFullscreen={toggleFullscreen}
+            safeTop={fullscreen ? insets.top : 0}
+            safeBottom={fullscreen ? insets.bottom : 0}
+            bottomObstruction={fullscreen && card ? insets.bottom + 12 + overlayH : 0}
+          />
+          {fullscreen && !!card && (
+            // "Nasıl giderim?" de burada açılıyor — tam ekrandan çıkılmıyor.
+            <View
+              onLayout={(e) => setOverlayH(Math.round(e.nativeEvent.layout.height))}
+              style={{ position: 'absolute', left: 12, right: 12, bottom: insets.bottom + 12, maxHeight: '50%' }}
+            >
+              <ScrollView bounces={false} showsVerticalScrollIndicator={false}>
+                {card}
+              </ScrollView>
+            </View>
+          )}
+        </View>
+        <View className="px-4 pt-4 gap-4" style={hiddenInFullscreen} onLayout={(e) => setBodyY(e.nativeEvent.layout.y)}>
+          {!fullscreen && card}
+          <View onLayout={(e) => setListY(e.nativeEvent.layout.y)}>
+            <PoiList
+              data={data}
+              query={query}
+              onQuery={setQuery}
+              category={category}
+              onCategory={setCategory}
+              selectedId={selId}
+              onPick={pickFromList}
+              onSearchFocus={onSearchFocus}
+              onSearchBlur={() => setSearchFocused(false)}
+            />
+          </View>
+        </View>
       </KeyboardAwareScroll>
     </View>
   );

@@ -218,6 +218,8 @@ export function PoiList({
   onCategory,
   selectedId,
   onPick,
+  onSearchFocus,
+  onSearchBlur,
 }: {
   data: CampusData;
   query: string;
@@ -226,6 +228,8 @@ export function PoiList({
   onCategory: (c: string) => void;
   selectedId: string | null;
   onPick: (id: string) => void;
+  onSearchFocus?: () => void;
+  onSearchBlur?: () => void;
 }) {
   const { theme } = useTheme();
   const colors = useThemeColors();
@@ -249,6 +253,8 @@ export function PoiList({
             style={{ paddingVertical: 0 }}
             returnKeyType="search"
             autoCorrect={false}
+            onFocus={onSearchFocus}
+            onBlur={onSearchBlur}
           />
           {!!query && (
             <Pressable accessibilityLabel="Aramayı temizle" onPress={() => onQuery('')} hitSlop={8}>
@@ -294,6 +300,10 @@ export function PoiList({
         })}
         {!items.length && <Text className="px-3 py-6 text-sm text-center text-muted">Bu aramayla eşleşen yer yok.</Text>}
       </View>
+      {/* ODbL atfı zorunlu; haritanın üstünde yer kaplamasın diye listenin sonunda. */}
+      <Pressable onPress={() => Linking.openURL('https://www.openstreetmap.org/copyright')} className="px-4 pb-3">
+        <Text className="text-[11px] text-muted">Harita verisi © OpenStreetMap katkıcıları</Text>
+      </Pressable>
     </View>
   );
 }
