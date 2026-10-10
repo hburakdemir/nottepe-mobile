@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { BlurView } from 'expo-blur';
 import Animated, { ZoomIn } from 'react-native-reanimated';
 import { Camera, Edit2, Palette } from 'lucide-react-native';
 import BadgeChip, { type Badge } from '../BadgeChip';
@@ -8,6 +9,7 @@ import AvatarDisplay, { type AvatarData } from '../avatar/AvatarDisplay';
 import { SHADOW_MD } from './profileCommon';
 import { useCoachTarget } from '../coach/CoachMarks';
 import { impact } from '../../lib/haptics';
+import { useTheme } from '../../context/ThemeContext';
 
 export interface ProfileIdentity {
   username?: string | null;
@@ -65,6 +67,8 @@ function HeaderCard({
   const [zoomed, setZoomed] = useState(false);
   const { width } = useWindowDimensions();
   const zoomSize = Math.min(width - 64, 320);
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
 
   return (
     // Kart listenin ÜSTÜNDE ayrı bir katman (bkz. ProfileScreen); düğme
@@ -85,8 +89,13 @@ function HeaderCard({
           >
             {/* İç kısım dokunuş almıyor: AvatarDisplay'in kendi "fotoğraf/avatar"
                 geçişi büyütülmüş görünümde çalışıyor. */}
-            <View pointerEvents="none" className="w-20 h-20 rounded-[20px] bg-brand items-center justify-center overflow-hidden">
-              {avatar ? <AvatarDisplay avatar={avatar} size={80} /> : <DeerIcon size={32} color="#fff" />}
+            {/* Avatarın kendi arka plan karesi gizli (kullanıcı isteği): yalnızca
+                karakter. Avatar yoksa geyik ikonu marka zemininde. */}
+            <View
+              pointerEvents="none"
+              className={`w-20 h-20 rounded-[20px] items-center justify-center overflow-hidden ${avatar ? '' : 'bg-brand'}`}
+            >
+              {avatar ? <AvatarDisplay avatar={avatar} size={80} showBg={false} /> : <DeerIcon size={32} color="#fff" />}
             </View>
           </Pressable>
           {!!ownerActions && (
@@ -157,20 +166,20 @@ function HeaderCard({
 
       {!!avatar && (
         <Modal visible={zoomed} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setZoomed(false)}>
-          <Pressable
-            className="flex-1 items-center justify-center"
-            style={{ backgroundColor: 'rgba(0,0,0,0.82)' }}
-            onPress={() => setZoomed(false)}
-            accessibilityLabel="Kapat"
-          >
+          <Pressable className="flex-1 items-center justify-center" onPress={() => setZoomed(false)} accessibilityLabel="Kapat">
+            {/* Buzlu, temaya uyan zemin: düz siyah perdede avatarın koyu saçı
+                kayboluyordu. Android'de bulanıklık yok, yarı saydam renk kalıyor. */}
+            <BlurView intensity={40} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+            <View
+              pointerEvents="none"
+              style={[StyleSheet.absoluteFill, { backgroundColor: isDark ? 'rgba(34,40,49,0.96)' : 'rgba(244,245,247,0.96)' }]}
+            />
             <Animated.View entering={ZoomIn.duration(220)} className="items-center">
-              <View
-                className="bg-brand items-center justify-center overflow-hidden"
-                style={{ width: zoomSize, height: zoomSize, borderRadius: zoomSize / 4 }}
-              >
-                <AvatarDisplay avatar={avatar} size={zoomSize} />
+              {/* Zemin yok: karakter doğrudan karartılmış arka planın üstünde. */}
+              <View className="items-center justify-center" style={{ width: zoomSize, height: zoomSize }}>
+                <AvatarDisplay avatar={avatar} size={zoomSize} showBg={false} />
               </View>
-              {!!identity?.username && <Text className="text-white text-lg font-bold mt-4">{identity.username}</Text>}
+              {!!identity?.username && <Text className="text-ink text-lg font-bold mt-4">{identity.username}</Text>}
             </Animated.View>
           </Pressable>
         </Modal>
