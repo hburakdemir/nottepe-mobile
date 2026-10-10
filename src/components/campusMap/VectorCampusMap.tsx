@@ -15,7 +15,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { Minus, Plus } from 'lucide-react-native';
+import { Maximize2, Minimize2, Minus, Plus } from 'lucide-react-native';
 import {
   boundsOf,
   legPoints,
@@ -264,9 +264,32 @@ interface Props {
   route: CampusRoute | null;
   routeKey: string;
   reducedMotion: boolean;
+  /** Verilirse kontrol grubunun sonunda tam ekran düğmesi çıkar. */
+  fullscreen?: boolean;
+  onToggleFullscreen?: () => void;
+  /** Tam ekranda sistem çubuklarının payı — kontroller, ölçek ve atıf onların içinde dursun. */
+  safeTop?: number;
+  safeBottom?: number;
+  /** Haritanın altını kaplayan yüzen kartın alttan yüksekliği (tam ekran). Uçuş
+   * ve rota kadrajı kartın üstünde kalan alana göre yapılıyor. */
+  bottomObstruction?: number;
 }
 
-export default function VectorCampusMap({ data, palette: c, selectedId, onSelect, category, route, routeKey, reducedMotion }: Props) {
+export default function VectorCampusMap({
+  data,
+  palette: c,
+  selectedId,
+  onSelect,
+  category,
+  route,
+  routeKey,
+  reducedMotion,
+  fullscreen = false,
+  onToggleFullscreen,
+  safeTop = 0,
+  safeBottom = 0,
+  bottomObstruction = 0,
+}: Props) {
   const W = data.size.w;
   const H = data.size.h;
   const [size, setSize] = useState({ w: 0, h: 0 });
@@ -294,6 +317,13 @@ export default function VectorCampusMap({ data, palette: c, selectedId, onSelect
   const follow = useSharedValue<0 | 1 | 2>(0); // 0 yok, 1 otobüs, 2 yürüme
   const rideScale = useSharedValue(START_SCALE);
   const walkScale = useSharedValue(WALK_FOLLOW_SCALE);
+  // Kadrajın üst/alt payı: tam ekranda sistem çubukları ve yüzen kart.
+  const padTop = useSharedValue(INSETS.top);
+  const padBottom = useSharedValue(INSETS.bottom);
+  useEffect(() => {
+    padTop.value = INSETS.top + safeTop;
+    padBottom.value = Math.max(INSETS.bottom + safeBottom, bottomObstruction + 16);
+  }, [safeTop, safeBottom, bottomObstruction, padTop, padBottom]);
 
   // Kameranın kaçabileceği alan: kampüs kutusu + metroya kadar uzanan
   // güzergâh ve istasyonlar (rota uçuşu kutunun dışına çıkıyor).
@@ -346,10 +376,10 @@ export default function VectorCampusMap({ data, palette: c, selectedId, onSelect
       'worklet';
       const { w, h } = sizeSV.value;
       const cx = INSETS.left + (w - INSETS.left - INSETS.right) / 2;
-      const cy = INSETS.top + (h - INSETS.top - INSETS.bottom) / 2;
+      const cy = padTop.value + (h - padTop.value - padBottom.value) / 2;
       applyW({ s: scale, tx: cx - p[0] * scale, ty: cy - p[1] * scale }, ms);
     },
-    [applyW, sizeSV]
+    [applyW, sizeSV, padTop, padBottom]
   );
 
   const fitPoints = useCallback(
@@ -359,14 +389,14 @@ export default function VectorCampusMap({ data, palette: c, selectedId, onSelect
       const bw = Math.max(b.x1 - b.x0, 40);
       const bh = Math.max(b.y1 - b.y0, 40);
       const aw = Math.max(w - INSETS.left - INSETS.right, 80);
-      const ah = Math.max(h - INSETS.top - INSETS.bottom, 80);
+      const ah = Math.max(h - padTop.value - padBottom.value, 80);
       const sc = clampN(Math.min(aw / bw, ah / bh), minS.value, maxScale);
       applyW(
-        { s: sc, tx: INSETS.left + aw / 2 - ((b.x0 + b.x1) / 2) * sc, ty: INSETS.top + ah / 2 - ((b.y0 + b.y1) / 2) * sc },
+        { s: sc, tx: INSETS.left + aw / 2 - ((b.x0 + b.x1) / 2) * sc, ty: padTop.value + ah / 2 - ((b.y0 + b.y1) / 2) * sc },
         reducedMotion ? 0 : ms
       );
     },
-    [applyW, sizeSV, minS, reducedMotion]
+    [applyW, sizeSV, minS, reducedMotion, padTop, padBottom]
   );
 
   const fitCampus = useCallback(
@@ -490,12 +520,14 @@ export default function VectorCampusMap({ data, palette: c, selectedId, onSelect
     return Gesture.Simultaneous(pinch, pan, Gesture.Exclusive(doubleTap, singleTap));
   }, [applyW, zoomAtW, handleTap, s, tx, ty, minS, gestureStart, focalStart, userMoved]);
 
-  // — Seçime uçuş (rota yokken)
+  // — Seçime uçuş (rota yokken). Tam ekranda kart seçimle birlikte açılıyor ve
+  // yüksekliği bir kare sonra ölçülüyor; o gelince pin kartın üstüne yeniden
+  // ortalanıyor (yoksa kartın arkasında kalıyordu).
   useEffect(() => {
     if (!selected || route || !sizeSV.value.w) return;
     centerOnW([selected.x, selected.y], clampN(Math.max(s.value, SELECT_SCALE), minS.value, MAX_SCALE), reducedMotion ? 0 : 750);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId, route]);
+  }, [selectedId, route, bottomObstruction]);
 
   // — Rota sahnesi: başlangıca yönel → otobüsü takip et → durakta in, yürü
   const busLeg = route?.legs.find((l) => l.kind === 'bus') ?? null;
@@ -689,7 +721,7 @@ export default function VectorCampusMap({ data, palette: c, selectedId, onSelect
       </GestureDetector>
 
       {/* — Arayüz katmanı (dünya dışında, ölçeklenmez) — */}
-      <View style={[styles.controls, { backgroundColor: c.halo, borderColor: c.bldLine }]}>
+      <View style={[styles.controls, { top: 12 + safeTop, backgroundColor: c.halo, borderColor: c.bldLine }]}>
         <MapButton label="Yakınlaştır" c={c} onPress={() => zoomAtW(size.w / 2, size.h / 2, 1.8, 300)}>
           <Plus size={18} color={c.label} />
         </MapButton>
@@ -701,13 +733,19 @@ export default function VectorCampusMap({ data, palette: c, selectedId, onSelect
             <Path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
           </Svg>
         </MapButton>
+        {/* Çapraz oklar: "tüm kampüs"ün köşe ikonuyla karışmasın. */}
+        {onToggleFullscreen && (
+          <MapButton label={fullscreen ? 'Tam ekrandan çık' : 'Tam ekran'} c={c} divider onPress={onToggleFullscreen}>
+            {fullscreen ? <Minimize2 size={17} color={c.label} /> : <Maximize2 size={17} color={c.label} />}
+          </MapButton>
+        )}
       </View>
-      <View pointerEvents="none" style={styles.scale}>
+      <View pointerEvents="none" style={[styles.scale, { bottom: 10 + safeBottom }]}>
         <Animated.View style={[{ height: 5, borderWidth: 1.5, borderTopWidth: 0, borderColor: c.label }, scaleBarStyle]} />
         <Text style={[styles.scaleText, { color: c.label }]}>{scaleText}</Text>
       </View>
       {/* ODbL atfı zorunlu. */}
-      <Pressable style={styles.attrib} hitSlop={6} onPress={() => Linking.openURL('https://www.openstreetmap.org/copyright')}>
+      <Pressable style={[styles.attrib, { bottom: 8 + safeBottom }]} hitSlop={6} onPress={() => Linking.openURL('https://www.openstreetmap.org/copyright')}>
         <Text style={[styles.attribText, { color: c.muted }]}>© OpenStreetMap katkıcıları</Text>
       </Pressable>
     </Animated.View>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppHeader from './AppHeader';
@@ -13,19 +13,28 @@ import { useDrawerSwipeEnabled } from '../../navigation/drawerConstants';
 // WaveTabBar Tab.Navigator'ın DIŞINDA durduğu için sekme geçişinde hiç
 // kıpırdamıyorlar.)
 //
+// Ekranın üst barı ve sekme çubuğunu geçici olarak gizlemesi için (kampüs
+// haritasının tam ekranı). Ekran yeniden mount edilmiyor, yalnızca kabuk
+// parçaları kalkıyor — haritanın kamerası ve seçimi korunuyor. Ekran unmount
+// olurken `false`a döndürmek ekranın işi.
+const ChromeHiddenContext = createContext<((hidden: boolean) => void) | null>(null);
+export const useSetAppShellChromeHidden = () => useContext(ChromeHiddenContext);
+
 export default function AppShell({ children }: { children: React.ReactNode }) {
   // AppShell tanım gereği YALNIZCA push edilmiş ekranları sarmalıyor (sekmelerin
   // kabuğu MainTabsScreen'de). Dolayısıyla burada çekmece kaydırması her zaman
   // kapalı: sol kenar tamamen iOS'un native geri jestine bırakılıyor. Ayrım
   // rota adı listesiyle değil mimariden geliyor — bkz. drawerConstants.ts.
   useDrawerSwipeEnabled(false);
+  const [chromeHidden, setChromeHidden] = useState(false);
 
   const shell = (
     <View style={{ flex: 1 }}>
       {/* Status bar'ın altındaki güvenli alan şeridi AppHeader'ın kendi arka
           planıyla birebir aynı renk olmalı, yoksa üstte farklı renkte bir
           şerit/dikiş görünür. */}
-      <SafeAreaView edges={['top']} className="bg-surface">
+      {/* `display: none`: gizliyken de mount'lu kalsın, açılınca yeniden kurulmasın. */}
+      <SafeAreaView edges={['top']} className="bg-surface" style={chromeHidden ? { display: 'none' } : undefined}>
         <AppHeader showBack />
       </SafeAreaView>
 
@@ -36,12 +45,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             genişlik); tablette/iPad'de içeriği ortalayıp yatayda sınırlıyor —
             bkz. o dosya. */}
         <KeyboardAvoider>
-          <ContentContainer>{children}</ContentContainer>
+          <ContentContainer>
+            <ChromeHiddenContext.Provider value={setChromeHidden}>{children}</ChromeHiddenContext.Provider>
+          </ContentContainer>
         </KeyboardAvoider>
         {/* Bar kendi içinde mutlak konumlu (bkz. WaveTabBar.tsx): içerik tam
             ekran kaplıyor, kaydırıldığında bar'ın buzlu-cam bölgesinin
             arkasından görünüyor. */}
-        <WaveTabBar />
+        {!chromeHidden && <WaveTabBar />}
       </View>
     </View>
   );
