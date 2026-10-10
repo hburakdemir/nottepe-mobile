@@ -10,6 +10,7 @@ import {
   HelpCircle,
   Lightbulb,
   ListChecks,
+  Map as MapIcon,
   MessageCircleQuestion,
   Trophy,
   UtensilsCrossed,
@@ -68,6 +69,12 @@ const TOOLS = [
     icon: ListChecks,
     title: 'Checklistler',
     desc: 'Kayıt dönemi, mezuniyet ve daha fazlası için hazırlanmış checklistler. İşaretlediklerin hesabında saklanır.',
+  },
+  {
+    key: 'CampusMap' as const,
+    icon: MapIcon,
+    title: 'Kampüs Haritası',
+    desc: "Beytepe ve Sıhhiye'de fakülte, yurt ve yemekhaneler nerede; metrodan 130 ile ya da duraktan yürüyerek nasıl gidilir.",
   },
   {
     key: 'NoteRequests' as const,

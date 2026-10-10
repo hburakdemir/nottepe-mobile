@@ -26,6 +26,7 @@ const ROOT_ROUTE_NAMES = [
   'Suggestions',
   'SuggestionDetail',
   'Ego130Schedule',
+  'CampusMap',
   'Leaderboard',
   'Help',
   'Settings',

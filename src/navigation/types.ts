@@ -51,6 +51,7 @@ export type RootStackParamList = {
   Suggestions: undefined;
   SuggestionDetail: { id: number };
   Ego130Schedule: undefined;
+  CampusMap: undefined;
   Leaderboard: undefined;
   Help: undefined;
   Settings: undefined;

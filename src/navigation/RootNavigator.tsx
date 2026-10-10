@@ -27,6 +27,7 @@ import FaqDetailScreen from '../screens/main/FaqDetailScreen';
 import SuggestionsScreen from '../screens/main/SuggestionsScreen';
 import SuggestionDetailScreen from '../screens/main/SuggestionDetailScreen';
 import Ego130ScheduleScreen from '../screens/main/Ego130ScheduleScreen';
+import CampusMapScreen from '../screens/main/CampusMapScreen';
 import FileViewerScreen from '../screens/main/FileViewerScreen';
 import LeaderboardScreen from '../screens/main/LeaderboardScreen';
 import HelpScreen from '../screens/main/HelpScreen';
@@ -83,6 +84,7 @@ const AktsCalculator = withAppShell(AktsCalculatorScreen);
 const Schedule = withAppShell(ScheduleScreenSuspended);
 const NoteRequests = withAppShell(NoteRequestsScreen);
 const Ego130Schedule = withAppShell(Ego130ScheduleScreen);
+const CampusMap = withAppShell(CampusMapScreen);
 const Faq = withAppShell(FaqScreen);
 const FaqDetail = withAppShell(FaqDetailScreen);
 const Suggestions = withAppShell(SuggestionsScreen);
@@ -150,6 +152,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Schedule" component={Schedule} />
         <Stack.Screen name="NoteRequests" component={NoteRequests} />
         <Stack.Screen name="Ego130Schedule" component={Ego130Schedule} />
+        <Stack.Screen name="CampusMap" component={CampusMap} />
         <Stack.Screen name="Faq" component={Faq} />
         <Stack.Screen name="FaqDetail" component={FaqDetail} />
         <Stack.Screen name="Suggestions" component={Suggestions} />

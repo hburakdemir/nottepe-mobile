@@ -21,6 +21,7 @@ export const ROUTE_TITLES: Record<string, string> = {
   Suggestions: 'Öneriler',
   SuggestionDetail: 'Öneri',
   Ego130Schedule: '130 Ring Saatleri',
+  CampusMap: 'Kampüs Haritası',
   Leaderboard: 'Liderlik Tablosu',
   Help: 'Yardım',
   Settings: 'Ayarlar',

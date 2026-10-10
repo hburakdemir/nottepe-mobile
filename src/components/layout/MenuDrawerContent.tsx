@@ -20,6 +20,7 @@ import {
   Lightbulb,
   ListChecks,
   LogOut,
+  Map as MapIcon,
   Megaphone,
   Settings,
   Trophy,
@@ -220,6 +221,7 @@ const TOOLS_EXTRA = [
   // ToolsScreen'de vardı ama menüdeki listede eksikti (kullanıcı bildirdi).
   { key: 'Ego130Schedule' as const, icon: Bus, label: '130 Ring Saatleri' },
   { key: 'Leaderboard' as const, icon: Trophy, label: 'Liderlik Tablosu' },
+  { key: 'CampusMap' as const, icon: MapIcon, label: 'Kampüs Haritası' },
 ];
 
 // Not İstekleri/SSS/Öneriler/Yardım zaten üstte ayrı link olarak var — burada
