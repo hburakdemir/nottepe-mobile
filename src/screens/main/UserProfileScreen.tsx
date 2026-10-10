@@ -467,6 +467,7 @@ export default function UserProfileScreen() {
             setCardHeight(h);
             cardHeightShared.value = h;
           }}
+          pointerEvents="box-none"
           style={cardAnimStyle}
         >
           {headerCard}

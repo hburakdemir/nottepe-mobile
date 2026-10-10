@@ -86,7 +86,7 @@ const TOOLS = [
   {
     key: 'Faq' as const,
     icon: HelpCircle,
-    title: 'Sizin Sorularınız',
+    title: 'Tartışmalar',
     desc: 'Merak edilenler ve kullanıcı tartışmaları.',
   },
   {

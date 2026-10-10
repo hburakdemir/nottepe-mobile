@@ -26,8 +26,8 @@ const STATUS_TABS: { key: ReportStatus; label: string }[] = [
 const TYPE_LABELS: Record<ReportTargetType, string> = {
   post: 'Gönderi',
   comment: 'Yorum',
-  faq: 'SSS sorusu',
-  faq_comment: 'SSS yorumu',
+  faq: 'Tartışma',
+  faq_comment: 'Tartışma yorumu',
   suggestion: 'Öneri',
   suggestion_comment: 'Öneri yorumu',
   note_request: 'Not isteği',

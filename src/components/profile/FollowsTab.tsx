@@ -48,7 +48,7 @@ const FollowRow = React.memo(function FollowRow({
 });
 
 // Profil > Takip sekmesi.
-function FollowsTab({ owner, width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
+function FollowsTab({ owner, width, headerHeight, scrollY, onRememberOffset, onRefreshHeader }: ProfileTabProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const { theme } = useTheme();
@@ -91,7 +91,7 @@ function FollowsTab({ owner, width, headerHeight, scrollY, onRememberOffset }: P
 
   return (
     <PagerPage
-      onRefresh={refetch}
+      onRefresh={() => Promise.all([refetch(), onRefreshHeader?.()])}
       tabKey="follows"
       width={width}
       headerHeight={headerHeight}

@@ -61,10 +61,14 @@ function HeaderCard({
   const visibleBadges = useMemo(() => badges.filter((b) => b.is_visible !== false), [badges]);
 
   return (
-    <View className="bg-surface p-4 m-4 mb-5 rounded-lg" style={SHADOW_MD}>
-      <View className="flex-row gap-3.5">
-        <View ref={avatarTarget} className="w-20 h-20">
-          <View className="w-20 h-20 rounded-[20px] bg-brand items-center justify-center overflow-hidden">
+    // Kart listenin ÜSTÜNDE ayrı bir katman (bkz. ProfileScreen); düğme
+    // olmayan her yer `box-none` / `none` ki kart üzerinden çekince dokunuş
+    // alttaki listeye geçsin — aşağı çekerek yenileme ve kaydırma kartın
+    // üstünden de çalışsın (kullanıcı isteği).
+    <View pointerEvents="box-none" className="bg-surface p-4 m-4 mb-5 rounded-lg" style={SHADOW_MD}>
+      <View pointerEvents="box-none" className="flex-row gap-3.5">
+        <View ref={avatarTarget} pointerEvents="box-none" className="w-20 h-20">
+          <View pointerEvents="none" className="w-20 h-20 rounded-[20px] bg-brand items-center justify-center overflow-hidden">
             {avatar ? <AvatarDisplay avatar={avatar} size={80} /> : <DeerIcon size={32} color="#fff" />}
           </View>
           {!!ownerActions && (
@@ -89,31 +93,31 @@ function HeaderCard({
             </>
           )}
         </View>
-        <View className="flex-1">
-          <View className="flex-row items-center gap-2">
-            <Text className="text-[19px] font-extrabold text-ink flex-shrink" numberOfLines={1}>
+        <View pointerEvents="box-none" className="flex-1">
+          <View pointerEvents="box-none" className="flex-row items-center gap-2">
+            <Text pointerEvents="none" className="text-[19px] font-extrabold text-ink flex-shrink" numberOfLines={1}>
               {identity?.username}
             </Text>
             {nameAccessory}
           </View>
-          {!!identity?.full_name && <Text className="text-[13px] text-ink2 mt-0.5">{identity.full_name}</Text>}
+          {!!identity?.full_name && <Text pointerEvents="none" className="text-[13px] text-ink2 mt-0.5">{identity.full_name}</Text>}
           {belowName}
-          {!!identity?.email && <Text className="text-[12.5px] text-muted mt-px">{identity.email}</Text>}
-          {!!identity?.phone && <Text className="text-xs text-muted2 mt-0.5">{identity.phone}</Text>}
+          {!!identity?.email && <Text pointerEvents="none" className="text-[12.5px] text-muted mt-px">{identity.email}</Text>}
+          {!!identity?.phone && <Text pointerEvents="none" className="text-xs text-muted2 mt-0.5">{identity.phone}</Text>}
           {!!identity?.department && (
-            <Text className="text-xs text-muted2 mt-0.5">
+            <Text pointerEvents="none" className="text-xs text-muted2 mt-0.5">
               {identity.department}
               {identity.faculty ? ` · ${identity.faculty}` : ''}
             </Text>
           )}
-          {!!identity?.bio && <Text className="text-[12.5px] text-ink2 mt-1.5 leading-[17px]">{identity.bio}</Text>}
+          {!!identity?.bio && <Text pointerEvents="none" className="text-[12.5px] text-ink2 mt-1.5 leading-[17px]">{identity.bio}</Text>}
         </View>
       </View>
 
       {showBadges && (
-        <View className="flex-row flex-wrap gap-2 mt-3.5">
+        <View pointerEvents="box-none" className="flex-row flex-wrap gap-2 mt-3.5">
           {visibleBadges.length === 0 ? (
-            <Text className="text-[11.5px] text-muted2">
+            <Text pointerEvents="none" className="text-[11.5px] text-muted2">
               {ownerActions ? 'Henüz rozet yok — not paylaşarak rozet kazanabilirsin!' : 'Henüz rozet yok.'}
             </Text>
           ) : (

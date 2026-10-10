@@ -460,7 +460,7 @@ export default function MenuDrawerContent({ navigation }: DrawerContentComponent
           />
           <MenuLink
             icon={HelpCircle}
-            label="Sizin Sorularınız"
+            label="Tartışmalar"
             color={iconColor}
             onPress={() => go(() => stackNavigation.navigate('Faq'))}
           />

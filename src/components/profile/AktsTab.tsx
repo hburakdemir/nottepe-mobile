@@ -55,7 +55,7 @@ const AktsRow = React.memo(function AktsRow({
 });
 
 // Profil > AKTS sekmesi.
-function AktsTab({ owner, width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
+function AktsTab({ owner, width, headerHeight, scrollY, onRememberOffset, onRefreshHeader }: ProfileTabProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const isOwn = owner.kind === 'me';
@@ -93,7 +93,7 @@ function AktsTab({ owner, width, headerHeight, scrollY, onRememberOffset }: Prof
 
   return (
     <PagerPage
-      onRefresh={refetch}
+      onRefresh={() => Promise.all([refetch(), onRefreshHeader?.()])}
       tabKey="akts"
       width={width}
       headerHeight={headerHeight}

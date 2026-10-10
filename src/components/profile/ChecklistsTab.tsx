@@ -21,7 +21,7 @@ import { EmptyState, TabLoading } from './profileCommon';
 // 1632 satırlık ağacın tamamını yeniden render ediyordu. Artık state burada ve
 // bileşen `React.memo` — dışarıdan gelen alakasız güncellemeler bu ağaca
 // girmiyor.
-function ChecklistsTab({ owner, width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
+function ChecklistsTab({ owner, width, headerHeight, scrollY, onRememberOffset, onRefreshHeader }: ProfileTabProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const isOwn = owner.kind === 'me';
@@ -71,7 +71,7 @@ function ChecklistsTab({ owner, width, headerHeight, scrollY, onRememberOffset }
 
   return (
     <PagerPage
-      onRefresh={refetch}
+      onRefresh={() => Promise.all([refetch(), onRefreshHeader?.()])}
       tabKey="lists"
       width={width}
       headerHeight={headerHeight}

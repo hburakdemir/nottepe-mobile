@@ -36,7 +36,7 @@ const ForumRow = React.memo(function ForumRow({
 });
 
 // Profil > Forumlar sekmesi — SSS yorumları ve öneri etkinliği tek listede.
-function ForumsTab({ owner, width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
+function ForumsTab({ owner, width, headerHeight, scrollY, onRememberOffset, onRefreshHeader }: ProfileTabProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user } = useAuth();
   const { theme } = useTheme();
@@ -59,7 +59,7 @@ function ForumsTab({ owner, width, headerHeight, scrollY, onRememberOffset }: Pr
 
   return (
     <PagerPage
-      onRefresh={refetch}
+      onRefresh={() => Promise.all([refetch(), onRefreshHeader?.()])}
       tabKey="forums"
       width={width}
       headerHeight={headerHeight}

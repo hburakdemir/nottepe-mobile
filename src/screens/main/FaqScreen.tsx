@@ -93,7 +93,7 @@ export default function FaqScreen() {
 
   const header = (
     <View className="mb-3.5">
-      {/* Ekran içi "Sizin Sorularınız" başlığı ve alt yazısı kaldırıldı — üst
+      {/* Ekran içi "Sizin Sorularınız" (artık "Tartışmalar") başlığı ve alt yazısı kaldırıldı — üst
           bar zaten sayfa adını yazıyor. Kapsayıcı "Soru Sor" butonu için kaldı. */}
       <Pressable
         className="flex-row items-center justify-center gap-2 bg-brand rounded-[10px] py-3"

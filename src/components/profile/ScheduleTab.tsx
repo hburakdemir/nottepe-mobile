@@ -37,7 +37,7 @@ const DayCard = React.memo(function DayCard({ day, courses }: { day: number; cou
 });
 
 // Profil > Program sekmesi.
-function ScheduleTab({ owner, width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
+function ScheduleTab({ owner, width, headerHeight, scrollY, onRememberOffset, onRefreshHeader }: ProfileTabProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const isOwn = owner.kind === 'me';
   const { data: schedule, isPending, refetch } = useProfileSchedule(owner);
@@ -48,7 +48,7 @@ function ScheduleTab({ owner, width, headerHeight, scrollY, onRememberOffset }: 
 
   return (
     <PagerPage
-      onRefresh={refetch}
+      onRefresh={() => Promise.all([refetch(), onRefreshHeader?.()])}
       tabKey="schedule"
       width={width}
       headerHeight={headerHeight}

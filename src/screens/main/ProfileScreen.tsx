@@ -9,7 +9,8 @@ import type { RouteProp } from '@react-navigation/native';
 import { useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { avatarAPI } from '../../lib/api';
+import { avatarAPI, userAPI } from '../../lib/api';
+import type { User } from '../../types/user';
 import { useAuth } from '../../context/AuthContext';
 import { useSavedPosts } from '../../context/SavedPostContext';
 import { type Badge } from '../../components/BadgeChip';
@@ -31,7 +32,7 @@ import AktsTab from '../../components/profile/AktsTab';
 import ScheduleTab from '../../components/profile/ScheduleTab';
 import FollowsTab from '../../components/profile/FollowsTab';
 import ForumsTab from '../../components/profile/ForumsTab';
-import { ME_OWNER, useMyBadges } from '../../hooks/profile/useProfileLists';
+import { ME_OWNER, MY_BADGES_KEY, useMyBadges } from '../../hooks/profile/useProfileLists';
 import { usePostsPagination } from '../../hooks/profile/usePostsPagination';
 import { diagMark } from '../../lib/diagnostics';
 
@@ -43,7 +44,7 @@ export default function ProfileScreen() {
   // GEÇİCİ ölçüm sayacı — teşhis aracıyla silinecek (bkz. diagnostics.ts v7).
   diagMark('Profile');
   const route = useRoute<RouteProp<MainTabParamList, 'Profile'>>();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   useCoachTour(PROFILE_TOUR_ID, PROFILE_TOUR, useIsFocused());
   const isStaff = user?.role === 'admin' || user?.role === 'moderator';
   const { savedPosts } = useSavedPosts();
@@ -129,6 +130,38 @@ export default function ProfileScreen() {
       if (activeTab === 'saved') return refreshSavedPosts();
     }, [activeTab, refreshMyPosts, refreshSavedPosts])
   );
+
+  // Aşağı çekince üstteki kart da tazeleniyor: rozetler, avatar ve ad /
+  // biyografi / bölüm (başka cihazdan — web'den — düzenlenmiş olabilir).
+  // Oturumdaki kullanıcı kaydında `/me` ucu yok; herkese açık profil ucu
+  // aynı alanları döndürüyor, e-posta ve telefon kayıttaki gibi kalıyor.
+  const username = user?.username;
+  const refreshHeader = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: MY_BADGES_KEY }),
+      queryClient.invalidateQueries({ queryKey: MY_AVATAR_KEY }),
+      username
+        ? userAPI
+            .getProfile(username)
+            .then((res) => {
+              const p = res.data?.profile;
+              if (!p) return;
+              // Yalnızca yanıtta GELEN alanlar: eksik alan kayıttakini silmesin.
+              const patch: Partial<User> = {};
+              if (typeof p.full_name === 'string') patch.full_name = p.full_name;
+              if ('faculty' in p) patch.faculty = p.faculty;
+              if ('department' in p) patch.department = p.department;
+              if ('bio' in p) patch.bio = p.bio;
+              updateUser(patch);
+            })
+            .catch(() => {})
+        : null,
+    ]);
+  }, [queryClient, username, updateUser]);
+  const myPostsPull = myPosts.pullRefresh;
+  const savedPull = savedPostsState.pullRefresh;
+  const pullMyPosts = useCallback(() => Promise.all([myPostsPull(), refreshHeader()]), [myPostsPull, refreshHeader]);
+  const pullSaved = useCallback(() => Promise.all([savedPull(), refreshHeader()]), [savedPull, refreshHeader]);
 
   // ⚠️ SÜRÜKLEME SIRASINDA SAYFA ARTIK DEĞİŞMİYOR — `onScroll` dinleyicisi
   // tamamen kaldırıldı. Bir daha "şerit parmağı takip etsin" diye geri ekleme.
@@ -339,6 +372,7 @@ export default function ProfileScreen() {
     headerHeight: headerTotalHeight,
     scrollY,
     onRememberOffset: rememberPageOffset,
+    onRefreshHeader: refreshHeader,
   };
 
   return (
@@ -367,7 +401,7 @@ export default function ProfileScreen() {
           loadingMore={myPosts.loadingMore}
           loadMore={myPosts.loadMore}
           onDelete={myPosts.handleDelete}
-          onRefresh={myPosts.pullRefresh}
+          onRefresh={pullMyPosts}
           emptyText="Henüz not paylaşmadınız."
         />
 
@@ -380,7 +414,7 @@ export default function ProfileScreen() {
           loadingMore={savedPostsState.loadingMore}
           loadMore={savedPostsState.loadMore}
           onDelete={savedPostsState.handleDelete}
-          onRefresh={savedPostsState.pullRefresh}
+          onRefresh={pullSaved}
           emptyText="Henüz not kaydetmediniz."
         />
 
@@ -440,6 +474,7 @@ export default function ProfileScreen() {
             setCardHeight(h);
             cardHeightShared.value = h;
           }}
+          pointerEvents="box-none"
           style={cardAnimStyle}
         >
           <HeaderCard identity={user} avatar={avatar} badges={badges} ownerActions={ownerActions} />

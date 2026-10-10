@@ -38,6 +38,8 @@ export type ProfileTabProps = {
   headerHeight: number;
   scrollY: SharedValue<number>;
   onRememberOffset: (key: TabKey, y: number) => void;
+  /** Kendi profilinde aşağı çekince üstteki kart da tazelensin (bkz. ProfileScreen). */
+  onRefreshHeader?: () => Promise<unknown>;
 };
 
 export default function PagerPage({
