@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
@@ -73,6 +73,7 @@ import { usePullRefresh } from '../../hooks/usePullRefresh';
 
 // Kayıtlı hesaplama açılırken iskeletin en kısa görünme süresi.
 const LOAD_SKELETON_MIN_MS = 500;
+const TRANSCRIPT_TIMEOUT_MS = 25_000;
 
 interface SavedCalc {
   id: string;
@@ -168,11 +169,18 @@ export default function AktsCalculatorScreen() {
   const [importPreview, setImportPreview] = useState<{ valid: ImportedCourse[]; errors: ImportError[] } | null>(null);
   const [importParsing, setImportParsing] = useState(false);
   // Transkript aktarma: PDF görünmez bir pdf.js WebView'ında okunuyor
-  // (`transcriptUri` doluyken mount'lu, bkz. modalın sonu). Excel'den farkı:
+  // (`transcriptSource` doluyken mount'lu, bkz. modalın sonu). Excel'den farkı:
   // mevcut derslerin ÜSTÜNE eklenmiyor, onların YERİNE geçiyor — aynı
   // transkripti iki kez aktarmak her dersi ikiye katlayıp GANO'yu bozardı.
   const [importSource, setImportSource] = useState<'excel' | 'bilsis'>('excel');
-  const [transcriptUri, setTranscriptUri] = useState<string | null>(null);
+  // Önce dosya yolu: WebView PDF'i diskten kendisi okuyor. Okuyamazsa (iOS'ta
+  // WKWebView uygulamanın önbellek klasörüne erişemiyor; geliştirmede sayfa
+  // Metro'dan geldiği için hiçbir yerde erişemiyor) base64'e geçiliyor — dosya
+  // görüntüleyicideki yedeğin aynısı (bkz. PdfSlide). Bu yedek yokken PDF'ler
+  // "PDF okunamadı" uyarısına düşüyordu.
+  const [transcriptSource, setTranscriptSource] = useState<{ uri: string } | { base64: string } | null>(null);
+  const transcriptSourceRef = useRef(transcriptSource);
+  transcriptSourceRef.current = transcriptSource;
   const [transcriptSkipped, setTranscriptSkipped] = useState<TranscriptSkip[]>([]);
   // BİLSİS'in "metin olarak göster" sayfasından kopyalanan tablo.
   const [pasteOpen, setPasteOpen] = useState(false);
@@ -481,7 +489,7 @@ export default function AktsCalculatorScreen() {
     const isPdf = asset.mimeType === 'application/pdf' || /\.pdf$/i.test(asset.name);
     if (isPdf) {
       setImportParsing(true);
-      setTranscriptUri(asset.uri);
+      setTranscriptSource({ uri: asset.uri });
       return;
     }
     if (typeof asset.size === 'number' && asset.size > MAX_IMPORT_BYTES) {
@@ -509,7 +517,7 @@ export default function AktsCalculatorScreen() {
 
   const onTranscriptText = useCallback(
     async (rows: TextRow[]) => {
-      setTranscriptUri(null);
+      setTranscriptSource(null);
       setImportParsing(false);
       showTranscriptResult(parseBilsisTranscript(rows));
     },
@@ -523,10 +531,29 @@ export default function AktsCalculatorScreen() {
   };
 
   const onTranscriptFail = useCallback(async (code: string) => {
-    setTranscriptUri(null);
+    const src = transcriptSourceRef.current;
+    if (code === 'local-read' && src && 'uri' in src) {
+      try {
+        setTranscriptSource({ base64: await new FsFile(src.uri).base64() });
+        return;
+      } catch {
+        // Aşağıdaki genel uyarıya düş.
+      }
+    }
+    setTranscriptSource(null);
     setImportParsing(false);
     Alert.alert('Hata', code === 'password' ? 'Bu PDF parola korumalı.' : 'PDF okunamadı. Dosyanın bozuk olmadığından emin ol.');
   }, []);
+
+  // Okuyucudan hiç mesaj gelmezse (WebView yüklenmedi, köprü koptu) ekran
+  // "Okunuyor…"da sonsuza dek kalmasın: dosya yoluyla okunuyorsa base64'e
+  // geç, o da cevapsızsa uyarı ver. Geliştirmede okuyucunun paketi ilk açılışta
+  // ~10 sn derlendiği için süre cömert.
+  useEffect(() => {
+    if (!transcriptSource) return undefined;
+    const timer = setTimeout(() => onTranscriptFail('uri' in transcriptSource ? 'local-read' : 'timeout'), TRANSCRIPT_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [transcriptSource, onTranscriptFail]);
 
   const handleImportFile = async () => {
     const result = await DocumentPicker.getDocumentAsync({
@@ -1569,10 +1596,11 @@ export default function AktsCalculatorScreen() {
             </View>
             {/* Görünmez okuyucu: pdf.js metni çıkarıp `onTranscriptText`'e
                 veriyor, hiçbir şey çizmiyor. Yalnızca okuma sürerken mount'lu. */}
-            {transcriptUri && (
+            {transcriptSource && (
               <View style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} pointerEvents="none">
                 <PdfHost
-                  uri={transcriptUri}
+                  uri={'uri' in transcriptSource ? transcriptSource.uri : undefined}
+                  base64={'base64' in transcriptSource ? transcriptSource.base64 : undefined}
                   mode="text"
                   onText={onTranscriptText}
                   onFail={onTranscriptFail}
