@@ -34,7 +34,7 @@ export interface TranscriptCourse {
   lessonName: string;
   semester: number;
   akts: number;
-  /** Boş = notu henüz girilmemiş tekrar dersi (bkz. finalize). */
+  /** Boş = notu henüz girilmemiş ders (bkz. finalize). */
   grade: string;
   /** Ders Durumu "Tkr": tekrar alınan ders. */
   repeat: boolean;
@@ -244,15 +244,15 @@ function finalize(raw: RawCourse[], terms: TermRegistry): TranscriptParseResult 
       continue;
     }
     if (c.grade === '--' || c.grade === '') {
-      // Tekrar dersi notsuz da aktarılıyor (kullanıcı isteği): listede "Tkr"
-      // rozetiyle duruyor, not seçilene kadar ortalamaya girmiyor ve eski
-      // denemeyi düşürmüyor (gano.ts `latestAttempts`). Yeni alınan notsuz
-      // dersler eskisi gibi atlanıyor.
-      if (repeat && Number.isFinite(c.akts) && c.akts > 0) {
+      // Notu henüz girilmemiş ders de notsuz aktarılıyor (kullanıcı isteği:
+      // belgedeki her ders listede olsun). Not seçilene kadar ortalamaya
+      // girmiyor; tekrar dersiyse eski denemeyi de düşürmüyor (gano.ts
+      // `latestAttempts`).
+      if (Number.isFinite(c.akts) && c.akts > 0) {
         graded.push({ ...c, grade: '', repeat });
         continue;
       }
-      skipped.push({ code: c.code, lessonName: c.name, reason: 'Notu henüz girilmemiş' });
+      skipped.push({ code: c.code, lessonName: c.name, reason: 'AKTS okunamadı' });
       continue;
     }
     const grade = GRADE_ALIASES[c.grade] ?? c.grade;

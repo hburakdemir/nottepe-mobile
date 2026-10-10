@@ -91,7 +91,7 @@ export interface Course {
   name: string;
   semester: number;
   akts: number | string;
-  /** Boş olabilir: transkriptten gelen, notu henüz girilmemiş tekrar dersi. */
+  /** Boş olabilir: transkriptten gelen, notu henüz girilmemiş ders. */
   grade: string;
   /** Transkriptte "Tkr" — tekrar alınan ders (listede rozet). */
   repeat?: boolean;
@@ -126,7 +126,7 @@ export function effectiveGrade(course: Course, overrides: Overrides = {}): strin
 // elemeyi YAPMIYOR: belge her dönemin altına o dönem alınan bütün derslerle
 // hesaplanmış ANO'yu yazıyor, eski F de dahil.
 //
-// NOTU OLMAYAN deneme (bu dönem tekrar alınan, notu henüz girilmemiş ders)
+// NOTU OLMAYAN deneme (bu dönem alınan, notu henüz girilmemiş ders)
 // "en son" sayılmıyor: eski not, yeni not girilene kadar ortalamada kalıyor —
 // belgedeki AGNO da böyle. Senaryoda ona not verilirse (overrides) o an sayılıyor.
 export function latestAttempts(courses: Course[], overrides: Overrides = {}): Course[] {
@@ -385,8 +385,8 @@ export function serverDataToCourses(data: AktsServerData | null | undefined): { 
         .trim()
         .toUpperCase();
       const repeat = raw?.repeat === true;
-      // Notsuz satır yalnızca tekrar dersiyse geçerli (bkz. Course.grade).
-      if (name && Number.isFinite(akts) && akts > 0 && (isValidGrade(grade) || (repeat && grade === ''))) {
+      // Boş not = notu henüz girilmemiş ders (bkz. Course.grade); ortalamaya girmiyor.
+      if (name && Number.isFinite(akts) && akts > 0 && (isValidGrade(grade) || grade === '')) {
         courses.push({ id: makeCourseId(), code: code || undefined, name, semester: semesterNumber, akts, grade, ...(repeat ? { repeat } : {}) });
       } else if (name) {
         skipped += 1;

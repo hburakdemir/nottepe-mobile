@@ -1476,8 +1476,8 @@ export default function AktsCalculatorScreen() {
                 ) : (
                   <Text className="text-sm text-muted mt-3">
                     BİLSİS'ten indirdiğin "Not Durum Belgesi (Transkript)" PDF'ini ya da metin çıktısını seç. Dosya yalnızca bu
-                    cihazda okunur; ad, numara ve kimlik bilgilerin alınmaz. Notu henüz girilmemiş dersler aktarılmaz; tekrar alınanlar
-                    "Tkr" ile notsuz eklenir, not girene kadar ortalamada eski not sayılır.
+                    cihazda okunur; ad, numara ve kimlik bilgilerin alınmaz. Notu henüz girilmemiş dersler notsuz eklenir ve not girene
+                    kadar ortalamaya girmez; tekrar alınanlarda ("Tkr") o zamana kadar eski not sayılır.
                   </Text>
                 )}
                 <Pressable
