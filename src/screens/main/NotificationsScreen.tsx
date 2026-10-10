@@ -32,8 +32,8 @@ import { useNotificationPrefs } from '../../lib/notificationPrefs';
 import { setNotificationsScreenFocused } from '../../lib/push/pushState';
 import { useCoachTarget, useCoachTour } from '../../components/coach/CoachMarks';
 import { NOTIFICATIONS_TOUR, NOTIFICATIONS_TOUR_ID } from '../../components/coach/tours';
-import { useInvalidateUnreadNotifications, useMarkNotificationsRead } from '../../hooks/useUnreadNotifications';
-import { useInvalidateUnreadAnnouncements } from '../../hooks/useUnreadAnnouncements';
+import { useInvalidateUnreadNotifications, useMarkNotificationsRead, useUnreadNotifications } from '../../hooks/useUnreadNotifications';
+import { useInvalidateUnreadAnnouncements, useUnreadAnnouncements } from '../../hooks/useUnreadAnnouncements';
 import { useNotificationCategories } from '../../hooks/useNotificationCategories';
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
 
@@ -204,6 +204,16 @@ function NotificationRowsSkeleton() {
   );
 }
 
+// Sekme başlığındaki okunmamış sayısı (zil rozetiyle aynı kırmızı).
+function TabCount({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <View className="bg-red-500 rounded-full min-w-[18px] h-[18px] px-1 items-center justify-center">
+      <Text className="text-white text-[10px] font-bold">{count > 99 ? '99+' : count}</Text>
+    </View>
+  );
+}
+
 function ActivityCard({ notif, unread }: { notif: any; unread: boolean }) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme } = useTheme();
@@ -241,9 +251,15 @@ export default function NotificationsScreen() {
   // Şikâyetler sekmesi yalnızca yönetici/moderatöre; uç başkasına 403 döner.
   const isStaff = user?.role === 'admin' || user?.role === 'moderator';
   const initialTab = route.params?.initialTab;
-  const [tab, setTab] = useState<'duyurular' | 'aktivite' | 'sikayetler'>(
-    initialTab === 'sikayetler' && !isStaff ? 'duyurular' : initialTab ?? 'duyurular'
-  );
+  // Sekme başlıklarındaki sayılar — zil rozetindeki toplamın hangi sekmede
+  // olduğu görünsün (kullanıcı isteği: "1 yanıyor, hangisinde belli değil").
+  const activityUnread = useUnreadNotifications();
+  const announcementsUnread = useUnreadAnnouncements();
+  const [tab, setTab] = useState<'duyurular' | 'aktivite' | 'sikayetler'>(() => {
+    if (initialTab) return initialTab === 'sikayetler' && !isStaff ? 'duyurular' : initialTab;
+    // Okunmamışlar yalnızca Aktivite'deyse doğrudan oradan aç.
+    return activityUnread > 0 && announcementsUnread === 0 ? 'aktivite' : 'duyurular';
+  });
   const [showSettings, setShowSettings] = useState(false);
   // İlk girişte dişliyi gösteren ZORUNLU rehber adımı (Atla yok).
   const settingsTarget = useCoachTarget('notification-settings');
@@ -403,6 +419,27 @@ export default function NotificationsScreen() {
     fetchActivity(1, true);
   }, [tab, activityLoaded, fetchActivity]);
 
+  // Kullanıcı isteği: ekrana girip çıkınca hepsi okundu sayılıyor — açılmayan
+  // sekmedekiler de. (Açılan sekme zaten girince okundu yapılıyor, yukarıda.)
+  // Ref'ler: temizleyici odak kaybında çalışıyor, o anki değerleri okumalı.
+  const leaveRef = useRef({ activityUnread, announcements, markAnnouncementViewed, markNotificationsRead });
+  leaveRef.current = { activityUnread, announcements, markAnnouncementViewed, markNotificationsRead };
+  useFocusEffect(
+    useCallback(
+      () => () => {
+        const r = leaveRef.current;
+        r.announcements.filter((a) => !a.is_viewed).forEach((a) => r.markAnnouncementViewed(a.id));
+        if (r.activityUnread > 0) {
+          userNotificationAPI
+            .markAllRead()
+            .catch(() => {})
+            .finally(() => r.markNotificationsRead());
+        }
+      },
+      []
+    )
+  );
+
   const handleActivityEndReached = useCallback(() => {
     // Liste boşken (ilk render / hata sonrası) ve son sayfa geldiğinde istek yok.
     if (!activityHasMore || activityLoading || activityLoadingMore) return;
@@ -529,6 +566,7 @@ export default function NotificationsScreen() {
         >
           <Megaphone size={15} color={tab === 'duyurular' ? '#fff' : isDark ? '#5A9690' : '#2F5755'} />
           <Text className={`text-[13px] font-semibold ${tab === 'duyurular' ? 'text-white' : 'text-accent'}`}>Duyurular</Text>
+          <TabCount count={announcementsUnread} />
         </Pressable>
         <Pressable
           className={`flex-row items-center gap-1.5 border border-brand rounded-[10px] px-3.5 py-2 ${tab === 'aktivite' ? 'bg-brand' : ''}`}
@@ -536,6 +574,7 @@ export default function NotificationsScreen() {
         >
           <Bell size={15} color={tab === 'aktivite' ? '#fff' : isDark ? '#5A9690' : '#2F5755'} />
           <Text className={`text-[13px] font-semibold ${tab === 'aktivite' ? 'text-white' : 'text-accent'}`}>Aktivite</Text>
+          <TabCount count={activityUnread} />
         </Pressable>
         {/* Yalnızca simge: üç etiketli sekme + dişli 360dp genişlikte satıra
             sığmıyor. Seçilince listenin başındaki durum çipleri bağlamı veriyor. */}
