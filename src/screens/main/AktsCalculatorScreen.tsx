@@ -29,6 +29,7 @@ import {
   XCircle,
 } from 'lucide-react-native';
 import { aktsAPI } from '../../lib/api';
+import { useAppShellHeaderAdd } from '../../components/layout/AppShell';
 import { useThemeColors } from '../../context/ThemeContext';
 import type { RootStackParamList } from '../../navigation/types';
 import {
@@ -455,6 +456,9 @@ export default function AktsCalculatorScreen() {
     setImportPreview(null);
     setTranscriptSkipped([]);
   };
+
+  // Üst bardaki "+" bu ekranda not eklemek yerine "Dosyadan Aktar"ı açıyor.
+  useAppShellHeaderAdd('Dosyadan aktar', FileUp, openImportPicker);
 
   const selectImportSource = (source: 'excel' | 'bilsis') => {
     setImportSource(source);

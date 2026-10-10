@@ -15,6 +15,7 @@ import AvatarDisplay from '../../components/avatar/AvatarDisplay';
 import DeerIcon from '../icons/DeerIcon';
 import type { RootStackParamList } from '../../navigation/types';
 import { useCoachTarget } from '../coach/CoachMarks';
+import type { HeaderAddAction } from './AppShell';
 
 // Web'in Navbar.jsx'i `shadow-sm border-b border-gray-200` kullanıyor (satır
 // ~202) — NativeWind'in `shadow-sm` class'ı yerine (Android'de elevation'ı
@@ -47,7 +48,8 @@ function AppHeaderBase({
   title: titleOverride,
   showBack = false,
   brand = false,
-}: { title?: string; showBack?: boolean; brand?: boolean } = {}) {
+  addAction = null,
+}: { title?: string; showBack?: boolean; brand?: boolean; addAction?: HeaderAddAction | null } = {}) {
   // İlk kullanım rehberinin hedefleri — yalnızca MainTabs'teki kalıcı bar
   // kaydediyor (`!showBack`). Push edilen her ekranın kendi barı var; onlar da
   // kaydetseydi en son açılan ekranın (görünmeyen) zili hedef olurdu.
@@ -207,8 +209,15 @@ function AppHeaderBase({
 
           {/* Ekleme artık tab bar'da değil (orası Yemek Listesi + profil avatarına
               ayrıldı, bkz. WaveTabBar.tsx) — zilin sağında. */}
-          <Pressable ref={addTarget} onPress={() => navigation.navigate('AddPost')} hitSlop={8} className="p-2 rounded-full" accessibilityLabel="Not ekle">
-            <Plus size={24} color={inkColor} />
+          {/* Ekran "+"yı devraldıysa onun eylemi (bkz. AppShell useAppShellHeaderAdd). */}
+          <Pressable
+            ref={addTarget}
+            onPress={addAction ? addAction.onPress : () => navigation.navigate('AddPost')}
+            hitSlop={8}
+            className="p-2 rounded-full"
+            accessibilityLabel={addAction?.label ?? 'Not ekle'}
+          >
+            {addAction ? <addAction.icon size={22} color={inkColor} /> : <Plus size={24} color={inkColor} />}
           </Pressable>
         </View>
       </View>
