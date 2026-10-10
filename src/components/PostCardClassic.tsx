@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Calendar, FileText, MessageSquare, Star, Trash2, User, VenetianMask } from 'lucide-react-native';
+import { Calendar, FileText, MessageSquare, Star, Trash2, User, HatGlasses } from 'lucide-react-native';
 import type { Post } from '../types/post';
 import { postsAPI, ratingAPI } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
@@ -171,7 +171,7 @@ function PostCardClassicInner({ post, showStatus = false, showRating = true, onD
         // Anonim not: profile gidilmiyor, rozet yok, avatar yerine maske.
         <View style={styles.ownerRow}>
           <View className="bg-inset" style={styles.avatarFallback}>
-            <VenetianMask size={16} color={isDark ? '#DFD0B8' : '#6b7280'} />
+            <HatGlasses size={16} color={isDark ? '#DFD0B8' : '#6b7280'} />
           </View>
           <Text className="text-ink2" style={styles.username}>
             {isOwner ? 'Anonim (sen)' : 'Anonim'}

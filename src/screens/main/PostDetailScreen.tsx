@@ -3,7 +3,7 @@ import { Alert, Linking, Pressable, RefreshControl, StyleSheet, Text, View } fro
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Bookmark, FileText, Link2, MessageSquare, Star, Trash2, User, VenetianMask } from 'lucide-react-native';
+import { Bookmark, FileText, Link2, MessageSquare, Star, Trash2, User, HatGlasses } from 'lucide-react-native';
 import { commentAPI, postsAPI } from '../../lib/api';
 
 // Bir notun içeriği (başlık, açıklama, dosyalar) neredeyse hiç değişmiyor;
@@ -287,7 +287,7 @@ export default function PostDetailScreen() {
           >
             <View style={[styles.avatar, { backgroundColor: t.inset }]}>
               {isAnonymous ? (
-                <VenetianMask size={19} color={t.ink3} />
+                <HatGlasses size={19} color={t.ink3} />
               ) : authorAvatar ? (
                 <AvatarDisplay avatar={authorAvatar} size={36} showBg={false} />
               ) : (

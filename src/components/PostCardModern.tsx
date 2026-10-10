@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Link2, MessageSquare, Star, Trash2, User, VenetianMask } from 'lucide-react-native';
+import { Link2, MessageSquare, Star, Trash2, User, HatGlasses } from 'lucide-react-native';
 import type { Post } from '../types/post';
 import { postsAPI, ratingAPI } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
@@ -187,7 +187,7 @@ function PostCardModernInner({ post, showStatus = false, showRating = true, onDe
           // Anonim not: profile gidilmiyor, avatar yerine maske.
           <View style={styles.who}>
             <View style={[styles.avatar, { backgroundColor: t.inset }]}>
-              <VenetianMask size={14} color={t.ink3} />
+              <HatGlasses size={14} color={t.ink3} />
             </View>
             <Text style={[styles.whoName, { color: t.ink2 }]} numberOfLines={1}>
               {isOwner ? 'Anonim (sen)' : 'Anonim'}

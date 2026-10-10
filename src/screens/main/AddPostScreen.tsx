@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, Switch, Text, TextInput, View
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as DocumentPicker from 'expo-document-picker';
-import { AlertCircle, CheckCircle, FileText, HeartHandshake, Upload, VenetianMask, X } from 'lucide-react-native';
+import { AlertCircle, CheckCircle, FileText, HeartHandshake, Upload, HatGlasses, X } from 'lucide-react-native';
 import { postsAPI } from '../../lib/api';
 import { faculties, departments } from '../../data/departments';
 import { useTheme } from '../../context/ThemeContext';
@@ -262,7 +262,7 @@ export default function AddPostScreen() {
         {/* Anonimlik not bazlı; paylaştıktan sonra notun ⋯ → Düzenle menüsünden
             iki yönlü değiştirilebiliyor (bkz. components/posts/EditPostSheet). */}
         <View className="flex-row items-start gap-3 mb-6">
-          <VenetianMask size={20} color={isDark ? '#DFD0B8' : '#4b5563'} style={{ marginTop: 1 }} />
+          <HatGlasses size={20} color={isDark ? '#DFD0B8' : '#4b5563'} style={{ marginTop: 1 }} />
           <View className="flex-1">
             <Text className="text-sm font-medium text-ink2">Anonim paylaş</Text>
             <Text className="text-xs text-muted mt-1 leading-4">

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Modal, Pressable, Switch, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { VenetianMask, X } from 'lucide-react-native';
+import { HatGlasses, X } from 'lucide-react-native';
 import { useThemeColors } from '../../context/ThemeContext';
 import { postsAPI } from '../../lib/api';
 import { tap } from '../../lib/haptics';
@@ -69,7 +69,7 @@ export default function EditPostSheet({ visible, postId, isAnonymous, onClose, o
           </View>
 
           <View className="flex-row items-start gap-2.5 py-1">
-            <VenetianMask size={18} color={colors.ink2} style={{ marginTop: 1 }} />
+            <HatGlasses size={18} color={colors.ink2} style={{ marginTop: 1 }} />
             <View className="flex-1">
               <Text className="text-ink2 text-[13px] font-semibold">Anonim olarak göster</Text>
               <Text className="text-muted text-[11px] leading-[15px] mt-1">
