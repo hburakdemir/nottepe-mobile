@@ -65,21 +65,34 @@ const HOLE_PADDING = 6;
 const BUBBLE_GAP = 12;
 const SIDE_GUTTER = 16;
 
-function measure(node: RNView): Promise<Rect | null> {
+function measureRaw(node: RNView): Promise<Rect | null> {
   return new Promise((resolve) => {
     try {
       node.measureInWindow((x, y, width, height) => {
-        // Android: `measureInWindow` durum çubuğunun ALTINDAN ölçüyor, ama
-        // katman `statusBarTranslucent` bir Modal — onun sıfırı ekranın en
-        // üstü. Fark eklenmezse çerçeve bir durum çubuğu kadar yukarıda
-        // çiziliyor (emülatörde görüldü).
-        const offset = Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0;
-        resolve(width > 0 && height > 0 ? { x, y: y + offset, width, height } : null);
+        resolve(width > 0 && height > 0 ? { x, y, width, height } : null);
       });
     } catch {
       resolve(null);
     }
   });
+}
+
+// Hedefin konumu, ekranın sol üst köşesindeki referans noktasına (`origin`)
+// GÖRE. Katman `statusBarTranslucent` bir Modal, sıfırı ekranın en üstü;
+// uygulama da edge-to-edge, yani referans da ekranın en üstünde.
+//
+// Android'de `measureInWindow`'un sıfırı ekranın üstü DEĞİL ve sabit de değil.
+// Eskiden buraya `StatusBar.currentHeight` ekleniyordu; Pixel 7 / API 35'te
+// (2026-10-10) çubuk 51.8 dp iken ölçümün sıfırı ekranın 28.2 dp altındaydı,
+// yani çerçeve 23.6 dp AŞAĞI kayıyordu. Tur KVKK kapısı açıkken ölçüldüğünde
+// ise doğru çıkıyordu — sıfır, üstte başka pencere olup olmamasına göre de
+// değişiyor. Referans aynı yoldan ölçüldüğü için fark her durumda doğru.
+async function measure(node: RNView, origin: Rect | null): Promise<Rect | null> {
+  const rect = await measureRaw(node);
+  if (!rect) return null;
+  const dy = origin ? origin.y : Platform.OS === 'android' ? -(StatusBar.currentHeight ?? 0) : 0;
+  const dx = origin ? origin.x : 0;
+  return { x: rect.x - dx, y: rect.y - dy, width: rect.width, height: rect.height };
 }
 
 async function markSeen(id: string) {
@@ -102,6 +115,7 @@ async function wasSeen(id: string): Promise<boolean> {
 export function CoachProvider({ children }: { children: React.ReactNode }) {
   const { needsOnboardingGate: paused } = useAuth();
   const targets = useRef(new Map<string, RNView>());
+  const originRef = useRef<RNView>(null);
   const [tour, setTour] = useState<ActiveTour | null>(null);
   const [index, setIndex] = useState(0);
   const running = useRef(false);
@@ -114,10 +128,11 @@ export function CoachProvider({ children }: { children: React.ReactNode }) {
   const start = useCallback(async (id: string, steps: CoachStep[]) => {
     if (running.current) return;
     running.current = true;
+    const origin = originRef.current ? await measureRaw(originRef.current) : null;
     const measured: ActiveTour['steps'] = [];
     for (const step of steps) {
       const node = targets.current.get(step.target);
-      const rect = node ? await measure(node) : null;
+      const rect = node ? await measure(node, origin) : null;
       if (rect) measured.push({ ...step, rect });
     }
     if (measured.length === 0) {
@@ -158,6 +173,14 @@ export function CoachProvider({ children }: { children: React.ReactNode }) {
   return (
     <CoachContext.Provider value={value}>
       {children}
+      {/* Ölçüm referansı (bkz. `measure`). Boyutu 0 olursa `measureRaw` onu
+          yok sayar, `collapsable={false}` Android'in onu ağaçtan atmaması için. */}
+      <View
+        ref={originRef}
+        collapsable={false}
+        pointerEvents="none"
+        style={{ position: 'absolute', top: 0, left: 0, width: 1, height: 1 }}
+      />
       {tour && step && (
         <CoachOverlay
           step={step}
