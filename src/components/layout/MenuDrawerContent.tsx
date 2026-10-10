@@ -214,14 +214,14 @@ function FollowedDepartmentsSection({
 }
 
 const TOOLS_EXTRA = [
-  { key: 'AktsCalculator' as const, icon: Calculator, label: 'AKTS / GANO Hesaplama' },
-  { key: 'CafeteriaMenu' as const, icon: UtensilsCrossed, label: 'Yemek Listesi' },
-  { key: 'Checklists' as const, icon: ListChecks, label: 'Checklistler' },
-  { key: 'Schedule' as const, icon: CalendarDays, label: 'Ders Programı' },
-  // ToolsScreen'de vardı ama menüdeki listede eksikti (kullanıcı bildirdi).
+  // Sıra Araçlar ekranıyla aynı (bkz. ToolsScreen.tsx TOOLS) — kullanıcı isteği.
   { key: 'Ego130Schedule' as const, icon: Bus, label: '130 Ring Saatleri' },
-  { key: 'Leaderboard' as const, icon: Trophy, label: 'Liderlik Tablosu' },
+  { key: 'CafeteriaMenu' as const, icon: UtensilsCrossed, label: 'Yemek Listesi' },
   { key: 'CampusMap' as const, icon: MapIcon, label: 'Kampüs Haritası' },
+  { key: 'AktsCalculator' as const, icon: Calculator, label: 'AKTS / GANO Hesaplama' },
+  { key: 'Schedule' as const, icon: CalendarDays, label: 'Ders Programı' },
+  { key: 'Leaderboard' as const, icon: Trophy, label: 'Liderlik Tablosu' },
+  { key: 'Checklists' as const, icon: ListChecks, label: 'Checklistler' },
 ];
 
 // Not İstekleri/SSS/Öneriler/Yardım zaten üstte ayrı link olarak var — burada

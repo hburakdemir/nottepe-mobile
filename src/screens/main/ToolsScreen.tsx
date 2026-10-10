@@ -47,6 +47,18 @@ const TOOLS = [
     desc: 'Hacettepe yemekhanesinin günlük ve haftalık menüsü — kaloriler ve alerjen bilgileriyle birlikte.',
   },
   {
+    key: 'CampusMap' as const,
+    icon: MapIcon,
+    title: 'Kampüs Haritası',
+    desc: "Beytepe ve Sıhhiye'de fakülte, yurt ve yemekhaneler nerede; metrodan 130 ile ya da duraktan yürüyerek nasıl gidilir.",
+  },
+  {
+    key: 'AktsCalculator' as const,
+    icon: Calculator,
+    title: 'AKTS / GANO Hesaplama',
+    desc: "Derslerini gir veya Excel'den aktar; GANO'nu, dönem ortalamalarını, not senaryolarını ve hedef GANO planını hesapla.",
+  },
+  {
     key: 'Schedule' as const,
     icon: CalendarDays,
     title: 'Ders Programım',
@@ -59,22 +71,10 @@ const TOOLS = [
     desc: 'En yüksek seriye, en çok onaylı nota ve en çok rozete sahip öğrenciler kimler — sıralamada yerini gör.',
   },
   {
-    key: 'AktsCalculator' as const,
-    icon: Calculator,
-    title: 'AKTS / GANO Hesaplama',
-    desc: "Derslerini gir veya Excel'den aktar; GANO'nu, dönem ortalamalarını, not senaryolarını ve hedef GANO planını hesapla.",
-  },
-  {
     key: 'Checklists' as const,
     icon: ListChecks,
     title: 'Checklistler',
     desc: 'Kayıt dönemi, mezuniyet ve daha fazlası için hazırlanmış checklistler. İşaretlediklerin hesabında saklanır.',
-  },
-  {
-    key: 'CampusMap' as const,
-    icon: MapIcon,
-    title: 'Kampüs Haritası',
-    desc: "Beytepe ve Sıhhiye'de fakülte, yurt ve yemekhaneler nerede; metrodan 130 ile ya da duraktan yürüyerek nasıl gidilir.",
   },
   {
     key: 'NoteRequests' as const,
@@ -82,7 +82,6 @@ const TOOLS = [
     title: 'Not İstekleri',
     desc: 'Aradığın notu bulamadın mı? İstek aç — elinde olan karşılasın. İsteği karşılayanlar rozet kazanır.',
   },
-  
   {
     key: 'Faq' as const,
     icon: HelpCircle,
