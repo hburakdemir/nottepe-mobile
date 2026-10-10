@@ -103,7 +103,7 @@ export const CAMPUSES = [
       { id: 'kafeterya', name: 'Öğrenci Kafeteryası', cat: 'Yemek', osm: 'node/5256854939' },
       { id: 'yemekhane', name: 'Öğrenci Yemekhanesi', cat: 'Yemek', osm: 'node/5256854941' },
       // — Spor —
-      { id: 'pist', name: 'Beytepe Pisti', cat: 'Spor', osm: 'relation/6286364' },
+      { id: 'pist', name: 'Beytepe Stadı', cat: 'Spor', osm: 'relation/6286364' },
       { id: 'spor-salonu', name: 'Spor Fakültesi Spor Salonu', cat: 'Spor', osm: 'node/11795527519' },
       { id: 'basket-tenis', name: 'Kapalı Basketbol ve Tenis Kortu', cat: 'Spor', osm: 'way/422817411' },
       { id: 'basket', name: 'Basketbol Sahası', cat: 'Spor', osm: 'way/1064566672' },
