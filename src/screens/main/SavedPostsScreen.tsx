@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { FlatList, Text, View } from 'react-native';
+import { FlatList, RefreshControl, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Bookmark } from 'lucide-react-native';
 import { savedPostsAPI, postsAPI } from '../../lib/api';
@@ -10,6 +10,7 @@ import { SkeletonGroup } from '../../components/Skeleton';
 import PostCardSkeleton from '../../components/PostCardSkeleton';
 import type { Post } from '../../types/post';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
 
 // Kaydedilenler kullanıcının KENDİ eylemiyle değişiyor, arkasından biri
 // eklemiyor: kısa bir tazelik yeterli. Kaydet/çıkar anında listeyi geçersiz
@@ -20,7 +21,7 @@ const SAVED_POSTS_STALE_MS = 60 * 1000;
 export default function SavedPostsScreen() {
   const { fetchSavedPosts } = useSavedPosts();
   const t = useFeedTokens();
-  const { data: posts = EMPTY_POSTS, isLoading } = useQuery({
+  const { data: posts = EMPTY_POSTS, isLoading, refetch } = useQuery({
     queryKey: SAVED_POSTS_KEY,
     queryFn: async () => {
       // İki uç birlikte tazeleniyor: SavedPostContext'in id listesi (bookmark
@@ -58,6 +59,7 @@ export default function SavedPostsScreen() {
     },
     staleTime: SAVED_POSTS_STALE_MS,
   });
+  const pull = usePullRefresh(() => refetch());
 
   const renderPost = useCallback(({ item }: { item: Post }) => <PostCard post={item} />, []);
 
@@ -78,6 +80,7 @@ export default function SavedPostsScreen() {
 
   return (
     <FlatList
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
       showsVerticalScrollIndicator={false}
       className="flex-1"
       style={{ backgroundColor: t.ground }}

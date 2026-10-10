@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, HeartHandshake, Inbox, Plus, Upload, User } from 'lucide-react-native';
 import { noteRequestAPI } from '../../lib/api';
@@ -10,6 +10,7 @@ import CreateRequestModal from '../../components/requests/CreateRequestModal';
 import FulfillModal from '../../components/requests/FulfillModal';
 import { useTheme } from '../../context/ThemeContext';
 import OptionSheet from '../../components/layout/OptionSheet';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
 
 const PAGE_LIMIT = 10;
 
@@ -76,6 +77,7 @@ export default function NoteRequestsScreen() {
     enabled: view === 'mine',
     staleTime: NOTE_REQUESTS_STALE_MS,
   });
+  const pull = usePullRefresh(() => view === 'mine' ? mine.refetch() : board.refetch());
 
   const boardRequests = useMemo(() => board.data?.pages.flatMap((p) => p.requests) ?? EMPTY_REQUESTS, [board.data]);
   const requests = view === 'mine' ? mine.data ?? EMPTY_REQUESTS : boardRequests;
@@ -295,6 +297,7 @@ export default function NoteRequestsScreen() {
         </SkeletonGroup>
       ) : (
         <FlatList
+          refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
           showsVerticalScrollIndicator={false}
           contentContainerClassName="p-4 pb-[150px]"
           data={requests}

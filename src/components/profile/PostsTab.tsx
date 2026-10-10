@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useRef } from 'react';
+import { RefreshControl } from 'react-native';
 import Animated, { runOnJS, useAnimatedScrollHandler, type SharedValue } from 'react-native-reanimated';
 import { FileText } from 'lucide-react-native';
 import PostCard from '../PostCard';
@@ -7,6 +8,9 @@ import { postKey, type PostsKind } from '../../hooks/profile/usePostsPagination'
 import type { Post } from '../../types/post';
 import { EmptyState } from './profileCommon';
 import { PostListSkeleton } from '../PostCardSkeleton';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
+
+const noop = () => {};
 
 // Profil'in "Postlar" ve "Kayıtlı" sekmeleri — ikisi de aynı bileşen, tek fark
 // `kind`.
@@ -32,6 +36,7 @@ function PostsTab({
   loadingMore,
   loadMore,
   onDelete,
+  onRefresh,
   emptyText,
 }: {
   /** Kendi profili mi — onay durumu rozeti ve silme yalnızca sahibine. */
@@ -48,8 +53,11 @@ function PostsTab({
   loadingMore: boolean;
   loadMore: () => void;
   onDelete?: (id: string | number) => void;
+  /** Aşağı çekerek yenileme; verilmezse kapalı. Referansı stabil olmalı (memo). */
+  onRefresh?: () => unknown;
   emptyText: string;
 }) {
+  const pull = usePullRefresh(onRefresh ?? noop);
   // Worklet'in closure'ına `active` GİRMİYOR: girseydi her sekme değişiminde
   // worklet yeniden kurulurdu. Kontrol JS tarafında, ref üzerinden.
   const activeRef = useRef(active);
@@ -99,6 +107,14 @@ function PostsTab({
       contentContainerStyle={contentStyle}
       onScroll={scrollHandler}
       scrollEventThrottle={16}
+      // Başlık katmanı listenin üstüne biniyor. iOS'ta çekince başlık da
+      // aşağı iniyor (translateY = -scrollY), gösterge üstte açılan boşlukta;
+      // Android'de gösterge başlığın altından çıksın diye kaydırılıyor.
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} progressViewOffset={headerHeight} />
+        ) : undefined
+      }
       // Pasif sekmede de DOLU: yan sekmeye kaydırırken kartlar görünsün
       // (kullanıcı isteği). Eskiden `active ? posts : NO_POSTS` idi ve her
       // sekme değişiminde liste söküp baştan kuruluyordu (bkz. ProfileScreen

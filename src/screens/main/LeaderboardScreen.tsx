@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Award, Flame, FileText, User } from 'lucide-react-native';
 import { leaderboardAPI } from '../../lib/api';
@@ -9,6 +9,7 @@ import { useGoToUserProfile } from '../../hooks/useGoToUserProfile';
 import AvatarDisplay from '../../components/avatar/AvatarDisplay';
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
 import BadgeChip, { type Badge } from '../../components/BadgeChip';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
 
 interface LeaderboardEntry {
   id: number;
@@ -101,7 +102,7 @@ export default function LeaderboardScreen() {
   // Liderlik tablosu saniye saniye değişen bir şey değil ama "canlı" hissi
   // önemli: 2 dakika, sekmeler arası gidip gelmeyi bedavaya getirirken
   // kullanıcının kendi hamlesinin karşılığını görmesini de geciktirmiyor.
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, refetch } = useQuery({
     queryKey: ['leaderboard', sort],
     queryFn: async () => {
       const res = await leaderboardAPI.get(sort);
@@ -112,6 +113,7 @@ export default function LeaderboardScreen() {
     },
     staleTime: LEADERBOARD_STALE_MS,
   });
+  const pull = usePullRefresh(() => refetch());
 
   // Yükleme hatası artık Alert değil: tablo boş kalıyor ve altındaki boş-durum
   // metni görünüyor. Arka planda tazelenen bir sorgu için uyarı kutusu açmak,
@@ -195,6 +197,7 @@ export default function LeaderboardScreen() {
 
   return (
     <FlatList
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
       showsVerticalScrollIndicator={false}
       className="flex-1 bg-ground"
       contentContainerClassName="p-4 pb-[150px]"

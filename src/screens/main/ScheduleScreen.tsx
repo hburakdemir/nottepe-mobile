@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertTriangle,
@@ -33,6 +33,7 @@ import {
   toMinutes,
   type ScheduleCourse,
 } from '../../utils/schedule';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
 
 const DAYS = [1, 2, 3, 4, 5, 6];
 const SHARE_BASE = 'https://nottepe.com';
@@ -101,7 +102,7 @@ export default function ScheduleScreen() {
   //
   // Kullanıcıya görünen kazanç: Araçlar → Program → geri → Program artık hiç
   // yükleme göstermiyor, ekran anında çiziliyor.
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: SCHEDULE_KEY,
     queryFn: async () => {
       const res = await scheduleAPI.getMine();
@@ -114,6 +115,7 @@ export default function ScheduleScreen() {
     },
     staleTime: Infinity,
   });
+  const pull = usePullRefresh(() => refetch());
 
   const courses = data?.courses ?? EMPTY_COURSES;
   const shareId = data?.shareId ?? null;
@@ -321,7 +323,7 @@ export default function ScheduleScreen() {
     // koyu temada açık tema renkleri öylece kalıyordu. Artık her renk token'dan
     // geliyor; `dark:` bu dosyada da hiç kullanılmıyor.
     <View className="flex-1 bg-ground">
-      <ScrollView contentContainerClassName="px-4 pt-6 pb-[150px]">
+      <ScrollView contentContainerClassName="px-4 pt-6 pb-[150px]" refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}>
         {/* Ekran içi "Ders Programı" başlığı ve alt yazısı kaldırıldı — üst bar
             zaten sayfa adını yazıyor. */}
         <View className="flex-row flex-wrap gap-2 mb-3">

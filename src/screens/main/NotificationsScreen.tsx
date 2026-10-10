@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Linking, ListRenderItem, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Linking, ListRenderItem, Pressable, RefreshControl, Text, View } from 'react-native';
 import { useFocusEffect, useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
@@ -34,6 +34,7 @@ import { useCoachTarget, useCoachTour } from '../../components/coach/CoachMarks'
 import { NOTIFICATIONS_TOUR, NOTIFICATIONS_TOUR_ID } from '../../components/coach/tours';
 import { useInvalidateUnreadNotifications, useMarkNotificationsRead, useUnreadNotifications } from '../../hooks/useUnreadNotifications';
 import { useInvalidateUnreadAnnouncements, useUnreadAnnouncements } from '../../hooks/useUnreadAnnouncements';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
 import { useNotificationCategories } from '../../hooks/useNotificationCategories';
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
 
@@ -440,6 +441,12 @@ export default function NotificationsScreen() {
     )
   );
 
+  // Aşağı çekince yalnızca açık sekmenin listesi tazeleniyor.
+  const pullAnnouncements = usePullRefresh(() =>
+    notificationAPI.getAll(activeCategory).then((res) => setAnnouncements(res.data || []))
+  );
+  const pullActivity = usePullRefresh(() => fetchActivity(1, true));
+
   const handleActivityEndReached = useCallback(() => {
     // Liste boşken (ilk render / hata sonrası) ve son sayfa geldiğinde istek yok.
     if (!activityHasMore || activityLoading || activityLoadingMore) return;
@@ -611,6 +618,7 @@ export default function NotificationsScreen() {
       ) : tab === 'duyurular' ? (
         <FlatList
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={pullAnnouncements.refreshing} onRefresh={pullAnnouncements.onRefresh} />}
           contentContainerClassName="p-3 pb-[150px] flex-grow gap-2.5"
           data={visibleAnnouncements}
           keyExtractor={(item) => String(item.id)}
@@ -669,6 +677,7 @@ export default function NotificationsScreen() {
       ) : (
         <FlatList
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={pullActivity.refreshing} onRefresh={pullActivity.onRefresh} />}
           contentContainerClassName="p-3 pb-[150px] flex-grow gap-2.5"
           data={visibleActivity}
           keyExtractor={(item) => String(item.id)}

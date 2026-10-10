@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ban } from 'lucide-react-native';
@@ -8,6 +8,7 @@ import { moderationAPI } from '../../lib/api';
 import { emitBlockChanged } from '../../lib/moderationEvents';
 import { useThemeColors } from '../../context/ThemeContext';
 import type { RootStackParamList } from '../../navigation/types';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
 
 interface BlockedUser {
   id: number;
@@ -38,6 +39,12 @@ export default function BlockedUsersScreen() {
         alive = false;
       };
     }, [])
+  );
+
+  const pull = usePullRefresh(() =>
+    moderationAPI
+      .myBlocks()
+      .then((res) => setUsers(res.data?.users ?? []))
   );
 
   const unblock = (u: BlockedUser) => {
@@ -79,6 +86,7 @@ export default function BlockedUsersScreen() {
 
   return (
     <FlatList
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
       className="flex-1 bg-ground"
       contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
       data={users}

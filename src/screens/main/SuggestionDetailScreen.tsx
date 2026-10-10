@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Alert, Pressable, RefreshControl, Text, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Lightbulb } from 'lucide-react-native';
@@ -16,6 +16,7 @@ import ModerationMenu from '../../components/moderation/ModerationMenu';
 import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 import BlockedContentGate from '../../components/moderation/BlockedContentGate';
 import BlockedMeTag from '../../components/moderation/BlockedMeTag';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
 
 const SUGGESTION_DETAIL_STALE_MS = 5 * 60 * 1000;
 
@@ -66,6 +67,7 @@ export default function SuggestionDetailScreen() {
     },
     staleTime: SUGGESTION_DETAIL_STALE_MS,
   });
+  const pull = usePullRefresh(() => refetch());
   const showLoading = isLoading;
 
   const suggestion = data?.suggestion ?? null;
@@ -157,6 +159,7 @@ export default function SuggestionDetailScreen() {
   return (
     // KeyboardAwareScroll: en alttaki yorum kutusu klavyenin altında kalmasın.
     <KeyboardAwareScroll
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
       showsVerticalScrollIndicator={false}
       className="flex-1 bg-ground"
       contentContainerClassName="p-4 pb-[150px]"

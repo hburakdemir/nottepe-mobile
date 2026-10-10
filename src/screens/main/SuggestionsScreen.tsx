@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -10,6 +10,7 @@ import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
 import type { RootStackParamList } from '../../navigation/types';
 import BlockedContentGate from '../../components/moderation/BlockedContentGate';
 import { success } from '../../lib/haptics';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
 
 const PAGE_LIMIT = 20;
 
@@ -54,6 +55,7 @@ export default function SuggestionsScreen() {
     },
     staleTime: SUGGESTIONS_STALE_MS,
   });
+  const pull = usePullRefresh(() => refetch());
 
   // Liste ekranı yığında altta takılı kalıyor (detaydan geri dönüşte yeniden
   // mount olmuyor), o yüzden react-query'nin mount tazelemesi burada işlemiyor:
@@ -172,6 +174,7 @@ export default function SuggestionsScreen() {
         </SkeletonGroup>
       ) : (
         <FlatList
+          refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
           showsVerticalScrollIndicator={false}
           contentContainerClassName="p-4 pb-[150px]"
           data={suggestions}

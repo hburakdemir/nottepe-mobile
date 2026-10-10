@@ -121,6 +121,8 @@ export interface PostsPagination {
   loadMore: () => void;
   /** STABİL. Odak tazelemesi; iptal fonksiyonu döndürüyor. */
   refreshFirstPage: () => () => void;
+  /** STABİL. Aşağı çekerek yenileme; ilk sayfa gelince çözülüyor. */
+  pullRefresh: () => Promise<void>;
   /** STABİL. `PostCard` memo'lu, bu prop referans eşitliğini korumak zorunda. */
   handleDelete: (deletedId: string | number) => void;
 }
@@ -265,28 +267,29 @@ export function usePostsPagination(kind: PostsKind, isActive: boolean): PostsPag
   // kalıyordu (kullanıcı bildirdi). Aktif sekmenin 1. sayfası sessizce çekilip
   // id eşleşmesiyle eldeki listeye işleniyor — sayfalama/scroll konumu
   // bozulmuyor.
+  const refreshAsync = useCallback(async (isCancelled: () => boolean) => {
+    try {
+      const res = await fetchPage(kind, 1);
+      const { posts: fresh, total: t } = extractPostsPage(res.data);
+      const merged = isSaved ? await enrichMissingCommentCounts(fresh) : fresh;
+      if (isCancelled()) return;
+      // `total` ESKİDEN ATILIYORDU: sayaç yalnızca mount'taki ilk çekimden
+      // geliyordu, yani not paylaşıldıktan sonra bayat kalıyordu — hiç
+      // gönderisi olmayan biri için kalıcı olarak "0". (`null` ise
+      // dokunmuyoruz: eski backend şeklinde zarf yok, bilgiyi kaybetmeyelim.)
+      setRows((prev) => (prev === null ? prev : mergeFreshPage(prev, merged)));
+      if (t !== null) setTotal(t);
+    } catch {
+      /* sessiz geç: kullanıcı zaten mevcut (bayat da olsa) veriyi görüyor */
+    }
+  }, [kind, isSaved]);
   const refreshImpl = useCallback(() => {
     let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetchPage(kind, 1);
-        const { posts: fresh, total: t } = extractPostsPage(res.data);
-        const merged = isSaved ? await enrichMissingCommentCounts(fresh) : fresh;
-        if (cancelled) return;
-        // `total` ESKİDEN ATILIYORDU: sayaç yalnızca mount'taki ilk çekimden
-        // geliyordu, yani not paylaşıldıktan sonra bayat kalıyordu — hiç
-        // gönderisi olmayan biri için kalıcı olarak "0". (`null` ise
-        // dokunmuyoruz: eski backend şeklinde zarf yok, bilgiyi kaybetmeyelim.)
-        setRows((prev) => (prev === null ? prev : mergeFreshPage(prev, merged)));
-        if (t !== null) setTotal(t);
-      } catch {
-        /* sessiz geç: kullanıcı zaten mevcut (bayat da olsa) veriyi görüyor */
-      }
-    })();
+    refreshAsync(() => cancelled);
     return () => {
       cancelled = true;
     };
-  }, [kind, isSaved]);
+  }, [refreshAsync]);
 
   const deleteImpl = useCallback(
     (deletedId: string | number) => {
@@ -306,6 +309,8 @@ export function usePostsPagination(kind: PostsKind, isActive: boolean): PostsPag
   loadMoreRef.current = loadMoreImpl;
   const refreshRef = useRef(refreshImpl);
   refreshRef.current = refreshImpl;
+  const refreshAsyncRef = useRef(refreshAsync);
+  refreshAsyncRef.current = refreshAsync;
   const deleteRef = useRef(deleteImpl);
   deleteRef.current = deleteImpl;
 
@@ -313,6 +318,7 @@ export function usePostsPagination(kind: PostsKind, isActive: boolean): PostsPag
     loadMoreRef.current();
   }, []);
   const refreshFirstPage = useCallback(() => refreshRef.current(), []);
+  const pullRefresh = useCallback(() => refreshAsyncRef.current(() => false), []);
   const handleDelete = useCallback((deletedId: string | number) => {
     deleteRef.current(deletedId);
   }, []);
@@ -325,6 +331,7 @@ export function usePostsPagination(kind: PostsKind, isActive: boolean): PostsPag
     firstLoading,
     loadMore,
     refreshFirstPage,
+    pullRefresh,
     handleDelete,
   };
 }

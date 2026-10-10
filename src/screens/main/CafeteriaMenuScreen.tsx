@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
+import { Linking, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
 import {
   CalendarDays,
   CalendarX,
@@ -161,6 +162,8 @@ export default function CafeteriaMenuScreen() {
   // Bugünün menüsü ve haftalık liste tek sorguda birleşiyor: ikisi ayrı
   // anahtarda olsaydı ekran iki ayrı yükleme durumu yönetmek zorunda kalırdı,
   // oysa kullanıcı için tek bir şey var — "bu haftanın listesi".
+  const queryClient = useQueryClient();
+  const pull = usePullRefresh(() => queryClient.invalidateQueries({ queryKey: ['menu'] }));
   const { data: days = EMPTY_DAYS, isLoading: isLoadingRaw } = useQuery({
     queryKey: ['menu', 'week'],
     queryFn: async () => {
@@ -266,7 +269,12 @@ export default function CafeteriaMenuScreen() {
   }
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="p-4 pb-[150px]">
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      className="flex-1 bg-ground"
+      contentContainerClassName="p-4 pb-[150px]"
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
+    >
       {/* Ekran içi "Yemek Listesi" başlığı ve kaynak alt yazısı kaldırıldı —
           üst bar zaten sayfa adını yazıyor. */}
       <View className="flex-row gap-2 mb-3.5">

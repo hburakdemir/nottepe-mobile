@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -33,6 +33,7 @@ import StateView from '../../components/StateView';
 import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
 import BlockedContentGate from '../../components/moderation/BlockedContentGate';
 import BlockedMeTag from '../../components/moderation/BlockedMeTag';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('tr-TR', {
@@ -103,6 +104,7 @@ export default function PostDetailScreen() {
     staleTime: 30_000,
     retry: false,
   });
+  const pull = usePullRefresh(() => Promise.all([refetch(), queryClient.invalidateQueries({ queryKey: ['post', 'comments', String(postId)] })]));
   const showLoading = isLoading;
   // Yorum kartlarının zemini `inset`; içindeki iskelet çubukları o tonda
   // kaybolduğu için bir kademe koyu (`line`) çiziliyor.
@@ -270,7 +272,7 @@ export default function PostDetailScreen() {
           çağrılıyordu — hangi input'a odaklanıldığına bakmadan listenin en
           sonuna zıplayan, gecikmesi tahminle seçilmiş bir geçici çözümdü.
           Artık gerek yok (bkz. components/layout/KeyboardAvoider.tsx). */}
-      <KeyboardAwareScroll showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }}>
+      <KeyboardAwareScroll showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: TAB_BAR_SAFE_PADDING }} refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}>
         <View style={[styles.head, cardSurface]}>
         {/* Profil en üstte: avatar + kullanıcı adı + rozetler + tarih, sağda
             kaydet/sil. Fakülte ve bölüm künyesi en alta indi. */}

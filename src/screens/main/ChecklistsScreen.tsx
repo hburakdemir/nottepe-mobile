@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, FlatList, ListRenderItem, Modal, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, ListRenderItem, Modal, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRoute } from '@react-navigation/native';
 import { BarChart2, ChevronDown, ListChecks, Pencil, Plus, Trash2, X } from 'lucide-react-native';
@@ -15,6 +15,7 @@ import { Skeleton, SkeletonGroup } from '../../components/Skeleton';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 import KeyboardAvoider from '../../components/layout/KeyboardAvoider';
 import { success } from '../../lib/haptics';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
 
 const CHECKLISTS_STALE_MS = 5 * 60 * 1000;
 
@@ -52,6 +53,7 @@ export default function ChecklistsScreen() {
     },
     staleTime: CHECKLISTS_STALE_MS,
   });
+  const pull = usePullRefresh(() => refetch());
 
   // Derin bağlantıyla (slug) gelindiğinde ilgili listeyi aç. Eskiden bu, veri
   // çekme fonksiyonunun İÇİNDEYDİ — yani liste her tazelendiğinde kullanıcının
@@ -222,6 +224,7 @@ export default function ChecklistsScreen() {
   return (
     <View className="flex-1 bg-ground">
       <FlatList
+        refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: TAB_BAR_SAFE_PADDING, flexGrow: 1 }}
         data={checklists}

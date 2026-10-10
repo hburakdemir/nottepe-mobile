@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { Alert, RefreshControl, Text, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Clock, HelpCircle, ThumbsDown, ThumbsUp } from 'lucide-react-native';
@@ -17,6 +17,7 @@ import ModerationMenu from '../../components/moderation/ModerationMenu';
 import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 import BlockedContentGate from '../../components/moderation/BlockedContentGate';
 import BlockedMeTag from '../../components/moderation/BlockedMeTag';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
 
 // Soru ve cevabı moderasyondan geçiyor, sık değişmiyor; ama yorumlar ve oylar
 // canlı. Bu yüzden liste ekranının 24 saati yerine daha kısa bir tazelik:
@@ -78,6 +79,7 @@ export default function FaqDetailScreen() {
     },
     staleTime: FAQ_DETAIL_STALE_MS,
   });
+  const pull = usePullRefresh(() => refetch());
   const showLoading = isLoading;
 
   const entry = data?.entry ?? null;
@@ -181,6 +183,7 @@ export default function FaqDetailScreen() {
   return (
     // KeyboardAwareScroll: en alttaki yorum kutusu klavyenin altında kalmasın.
     <KeyboardAwareScroll
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
       showsVerticalScrollIndicator={false}
       className="flex-1 bg-ground"
       contentContainerClassName="p-4 pb-[150px]"

@@ -222,6 +222,12 @@ export default function UserProfileScreen() {
     canViewContent && sectionVisibility.saved_posts && isTabMounted('saved')
   );
 
+  const refreshPosts = useCallback(
+    () => queryClient.refetchQueries({ queryKey: ['user-profile', username, 'posts'] }),
+    [queryClient, username]
+  );
+  const refetchSaved = saved.refetch;
+
   // Sekme bileşenleri `React.memo`'lu — `owner` referansı stabil kalmalı.
   const profileId = profile?.id;
   const profileUsername = profile?.username;
@@ -399,6 +405,7 @@ export default function UserProfileScreen() {
             rows={posts.rows}
             loadingMore={posts.loadingMore}
             loadMore={posts.loadMore}
+            onRefresh={refreshPosts}
             emptyText="Henüz onaylı not paylaşılmamış."
           />
         );
@@ -414,6 +421,7 @@ export default function UserProfileScreen() {
             rows={saved.data ?? null}
             loadingMore={false}
             loadMore={noop}
+            onRefresh={refetchSaved}
             emptyText="Henüz not kaydetmemiş."
           />
         );

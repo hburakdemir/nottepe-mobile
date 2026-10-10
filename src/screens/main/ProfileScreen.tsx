@@ -367,6 +367,7 @@ export default function ProfileScreen() {
           loadingMore={myPosts.loadingMore}
           loadMore={myPosts.loadMore}
           onDelete={myPosts.handleDelete}
+          onRefresh={myPosts.pullRefresh}
           emptyText="Henüz not paylaşmadınız."
         />
 
@@ -379,6 +380,7 @@ export default function ProfileScreen() {
           loadingMore={savedPostsState.loadingMore}
           loadMore={savedPostsState.loadMore}
           onDelete={savedPostsState.handleDelete}
+          onRefresh={savedPostsState.pullRefresh}
           emptyText="Henüz not kaydetmediniz."
         />
 

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -16,6 +16,7 @@ import type { Post } from '../../types/post';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
 import StateView from '../../components/StateView';
 import { impact } from '../../lib/haptics';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
 
 interface PostsPage {
   posts: Post[];
@@ -77,6 +78,7 @@ export default function DepartmentDetailScreen() {
       return loaded < lastPage.total ? allPages.length + 1 : undefined;
     },
   });
+  const pull = usePullRefresh(() => refetch());
   // bkz. HomeScreen.tsx — aynı gecikmeli yükleme kuralı: bağlantı hızlıysa
   // spinner hiç görünmüyor.
   const showLoading = isLoading;
@@ -130,6 +132,7 @@ export default function DepartmentDetailScreen() {
 
   return (
     <FlatList
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
       showsVerticalScrollIndicator={false}
       className="flex-1"
       style={{ backgroundColor: t.ground }}
