@@ -3,7 +3,7 @@ import { Alert, Linking, Pressable, RefreshControl, StyleSheet, Text, View } fro
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Bookmark, FileText, Link2, MessageSquare, Star, Trash2, User, HatGlasses } from 'lucide-react-native';
+import { Bookmark, FileText, Link2, MessageSquare, Star, User, HatGlasses } from 'lucide-react-native';
 import { commentAPI, postsAPI } from '../../lib/api';
 
 // Bir notun içeriği (başlık, açıklama, dosyalar) neredeyse hiç değişmiyor;
@@ -318,10 +318,7 @@ export default function PostDetailScreen() {
 
           {isOwner && (
             <View style={styles.actions}>
-              <Pressable onPress={handleDeletePost} hitSlop={8}>
-                <Trash2 size={18} color={t.danger} strokeWidth={2} />
-              </Pressable>
-              <OwnerPostMenu postId={postId} isAnonymous={isAnonymous} size={20} />
+              <OwnerPostMenu postId={postId} isAnonymous={isAnonymous} onDelete={handleDeletePost} size={20} />
             </View>
           )}
           {isAuthenticated && !isOwner && (

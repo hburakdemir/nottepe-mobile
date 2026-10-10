@@ -13,16 +13,20 @@ interface Props {
   isAnonymous: boolean;
   /** Kartın yerel state'i — önbellekte olmayan listeler (profil "Postlar") için. Detay ekranı önbellekten okuduğu için vermiyor. */
   onAnonymousChange?: (isAnonymous: boolean) => void;
+  /** "Sil" öğesi — onayı (Alert) çağıranın silme işleyicisi soruyor. */
+  onDelete?: () => void;
   size?: number;
   style?: StyleProp<ViewStyle>;
 }
 
 const ACTION_EDIT = 'edit';
+const ACTION_DELETE = 'delete';
 
 // Notun sahibine özel "…" menüsü. ModerationMenu (Bildir/Engelle) kendi
 // içeriğinde hiç çizilmiyor; sahibi burayı görüyor. Web karşılığı
-// OwnerPostMenu.jsx. Şimdilik tek öğe: Düzenle → EditPostSheet (anonimlik).
-export default function OwnerPostMenu({ postId, isAnonymous, onAnonymousChange, size = 18, style }: Props) {
+// OwnerPostMenu.jsx. Öğeler: Düzenle → EditPostSheet (anonimlik), Sil (kullanıcı
+// isteği: silme ayrı çöp kutusu ikonu yerine bu menüde).
+export default function OwnerPostMenu({ postId, isAnonymous, onAnonymousChange, onDelete, size = 18, style }: Props) {
   const colors = useThemeColors();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -47,7 +51,7 @@ export default function OwnerPostMenu({ postId, isAnonymous, onAnonymousChange, 
         hitSlop={10}
         style={style}
         accessibilityRole="button"
-        accessibilityLabel="Diğer seçenekler: düzenle"
+        accessibilityLabel={onDelete ? 'Diğer seçenekler: düzenle, sil' : 'Diğer seçenekler: düzenle'}
       >
         <MoreHorizontal size={size} color={colors.muted} />
       </Pressable>
@@ -56,7 +60,7 @@ export default function OwnerPostMenu({ postId, isAnonymous, onAnonymousChange, 
         <OptionSheet
           visible={menuOpen}
           title="Seçenekler"
-          options={[{ value: ACTION_EDIT, label: 'Düzenle' }]}
+          options={[{ value: ACTION_EDIT, label: 'Düzenle' }, ...(onDelete ? [{ value: ACTION_DELETE, label: 'Sil' }] : [])]}
           searchable={false}
           onClose={() => setMenuOpen(false)}
           onSelect={(value) => {
@@ -65,6 +69,7 @@ export default function OwnerPostMenu({ postId, isAnonymous, onAnonymousChange, 
             // yutuluyor (bkz. ModerationMenu, CoachMarks) — kapanış bitince aç.
             setTimeout(() => {
               if (value === ACTION_EDIT) setEditOpen(true);
+              else if (value === ACTION_DELETE) onDelete?.();
             }, 350);
           }}
         />

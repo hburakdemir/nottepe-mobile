@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Link2, MessageSquare, Star, Trash2, User, HatGlasses } from 'lucide-react-native';
+import { Link2, MessageSquare, Star, User, HatGlasses } from 'lucide-react-native';
 import type { Post } from '../types/post';
 import { postsAPI, ratingAPI } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
@@ -218,12 +218,7 @@ function PostCardModernInner({ post, showStatus = false, showRating = true, onDe
             <Text style={[styles.statText, { color: t.ink2 }]}>{post.comment_count ?? 0}</Text>
           </Pressable>
           {isOwner && (
-            <Pressable onPress={handleDelete} hitSlop={8}>
-              <Trash2 size={16} color={t.ink3} strokeWidth={2} />
-            </Pressable>
-          )}
-          {isOwner && (
-            <OwnerPostMenu postId={postId} isAnonymous={isAnonymous} onAnonymousChange={setIsAnonymous} size={17} />
+            <OwnerPostMenu postId={postId} isAnonymous={isAnonymous} onAnonymousChange={setIsAnonymous} onDelete={handleDelete} size={17} />
           )}
           {isAuthenticated && !isOwner && (
             <ModerationMenu

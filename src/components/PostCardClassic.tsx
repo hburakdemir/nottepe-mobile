@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Calendar, FileText, MessageSquare, Star, Trash2, User, HatGlasses } from 'lucide-react-native';
+import { Calendar, FileText, MessageSquare, Star, User, HatGlasses } from 'lucide-react-native';
 import type { Post } from '../types/post';
 import { postsAPI, ratingAPI } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
@@ -53,7 +53,6 @@ function PostCardClassicInner({ post, showStatus = false, showRating = true, onD
   // Web'in PostCard.jsx'indeki dark: token'larıyla birebir eşleşiyor —
   // lucide ikonları className değil renk prop'u alıyor (bkz. MenuDrawerContent
   // iconColor deseni), o yüzden burada da tema koşullu hex kullanılıyor.
-  const trashColor = isDark ? '#DFD0B8' : '#6b7280';
   const fileIconColor = isDark ? '#C5D3E8' : '#1e3a8a';
   const { isAuthenticated, user } = useAuth();
   const isOwner = !!user && String(user.id) === String(post.user_id);
@@ -124,11 +123,8 @@ function PostCardClassicInner({ post, showStatus = false, showRating = true, onD
           {post.title}
         </Text>
         {isOwner && (
-          <Pressable onPress={handleDelete} hitSlop={8}>
-            <Trash2 size={18} color={trashColor} />
-          </Pressable>
+          <OwnerPostMenu postId={postId} isAnonymous={isAnonymous} onAnonymousChange={setIsAnonymous} onDelete={handleDelete} size={18} />
         )}
-        {isOwner && <OwnerPostMenu postId={postId} isAnonymous={isAnonymous} onAnonymousChange={setIsAnonymous} size={18} />}
         {isAuthenticated && (
           <SaveButton
             saved={isSaved}
