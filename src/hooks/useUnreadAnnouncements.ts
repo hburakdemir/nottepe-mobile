@@ -12,12 +12,11 @@ import { hasLocalOverride, readNotificationPrefsSnapshot } from '../lib/notifica
 // `hidden` — kullanıcının bu CİHAZDA elle sildiği duyuru id'leri — sunucuya
 // gönderilip sayaçtan düşülüyor (bkz. lib/notificationPrefs.ts).
 //
-// Not: `unread` (elle "okunmadı" yapma) burada hesaba katılmıyor çünkü zaten
-// katılmıyordu — `getActive` yanıtında `is_viewed` alanı hiç yoktu, yani eski
-// koddaki `!r.is_viewed` her zaman `true`'ydu ve `unread` override'ı bu
-// sayaç için hiçbir zaman etkili olmamıştı (yalnızca NotificationsScreen'in
-// kendi listesinde, `getAll`'ın döndürdüğü gerçek `is_viewed` üzerinden işe
-// yarıyor).
+// `unread` — elle "okunmadı" yapılan duyurular — sunucu sayısının üstüne
+// ekleniyor (useUnreadNotifications'taki Aktivite hesabıyla aynı). Güvenli,
+// çünkü "Okunmadı" yalnızca sunucuda zaten görülmüş satırlarda çıkıyor; yani
+// bu id'ler sunucu sayısında yok. Eskiden hiç eklenmiyordu: duyuruyu
+// "okunmadı" yapınca rozet artmıyordu.
 export const UNREAD_ANNOUNCEMENTS_KEY = ['notifications', 'announcements-unread-count'] as const;
 
 export function useUnreadAnnouncements() {
@@ -30,7 +29,11 @@ export function useUnreadAnnouncements() {
         .map((key) => key.slice('announcement:'.length));
       try {
         const res = await notificationAPI.getActiveUnreadCount('', hiddenIds);
-        return (res.data?.count as number | undefined) ?? 0;
+        let localExtra = 0;
+        unread.forEach((key) => {
+          if (key.startsWith('announcement:') && !hidden.has(key)) localExtra += 1;
+        });
+        return ((res.data?.count as number | undefined) ?? 0) + localExtra;
       } catch (error) {
         // YEDEK YOL — uç sunucuda henüz yoksa (404) eski hesaba dön.
         //

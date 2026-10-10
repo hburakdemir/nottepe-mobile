@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import {
@@ -68,6 +68,7 @@ import {
   type TranscriptSkip,
 } from '../../utils/transcript/bilsis';
 import { File as FsFile } from 'expo-file-system';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
 
 // Kayıtlı hesaplama açılırken iskeletin en kısa görünme süresi.
 const LOAD_SKELETON_MIN_MS = 500;
@@ -188,6 +189,9 @@ export default function AktsCalculatorScreen() {
       setLoadingSaved(false);
     }
   };
+  // Çekince kayıtlı hesaplamalar listesi tazeleniyor; düzenlenen hesap
+  // (kaydedilmemiş değişiklik olabilir) bilerek yerinde kalıyor.
+  const pull = usePullRefresh(() => fetchSaved());
 
   useEffect(() => {
     fetchSaved();
@@ -644,7 +648,13 @@ export default function AktsCalculatorScreen() {
   if (loadingCalc) return <AktsLoadingSkeleton />;
 
   return (
-    <KeyboardAwareScroll showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="px-4 pt-6 pb-[150px] gap-4" keyboardShouldPersistTaps="handled">
+    <KeyboardAwareScroll
+      showsVerticalScrollIndicator={false}
+      className="flex-1 bg-ground"
+      contentContainerClassName="px-4 pt-6 pb-[150px] gap-4"
+      keyboardShouldPersistTaps="handled"
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
+    >
       {/* Başlık */}
       <View className="gap-1">
         <View className="flex-row items-center gap-2.5">

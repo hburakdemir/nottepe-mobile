@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -18,6 +18,7 @@ import {
 import { useTheme } from '../../context/ThemeContext';
 import { navigateApp } from '../../navigation/navigateApp';
 import type { RootStackParamList } from '../../navigation/types';
+import { useShellRefresh } from '../../hooks/usePullRefresh';
 
 const SHADOW_MD = {
   shadowColor: '#000',
@@ -103,12 +104,18 @@ const TOOLS = [
 ];
 
 export default function ToolsScreen() {
+  const pull = useShellRefresh();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
   return (
-    <ScrollView showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="px-4 pt-6 pb-[150px]">
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      className="flex-1 bg-ground"
+      contentContainerClassName="px-4 pt-6 pb-[150px]"
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
+    >
       {/* Ekran içi "Araçlar" başlığı (ve yanındaki dekoratif anahtar ikonu ile
           alt yazısı) kaldırıldı — üst bar zaten sayfa adını yazıyor. */}
       <View className="gap-6">

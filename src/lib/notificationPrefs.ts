@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Bildirim satırlarındaki "sil" ve "okunmadı" aksiyonları CİHAZDA saklanıyor.
@@ -42,7 +42,11 @@ async function writeIds(key: string, ids: IdSet): Promise<void> {
   // Liste sonsuza kadar büyümesin: en son 500 kayıt yeter, daha eskisi zaten
   // sunucudan da gelmiyor.
   const arr = [...ids].slice(-500);
-  AsyncStorage.setItem(key, JSON.stringify(arr)).catch(() => {});
+  try {
+    await AsyncStorage.setItem(key, JSON.stringify(arr));
+  } catch {
+    /* yazılamadıysa tercih yalnızca bu oturumda geçerli kalır */
+  }
 }
 
 // `useNotificationPrefs` her çağrıldığı yerde KENDİ React state'ini tutuyor
@@ -70,11 +74,13 @@ export interface NotificationPrefs {
   hidden: IdSet;
   /** Kullanıcının elle "okunmadı" yaptığı bildirim id'leri (önekli: "kind:id"). */
   unread: IdSet;
-  hide: (kind: NotificationKind, id: string | number) => void;
+  // Dönen söz diske yazılınca çözülüyor: rozet sorgusu (readNotificationPrefsSnapshot)
+  // ancak ondan sonra tazelenmeli, yoksa eski değeri okuyor.
+  hide: (kind: NotificationKind, id: string | number) => Promise<void>;
   /** Silmeyi geri alır — "Geri al" şeridi bunu çağırıyor. */
-  unhide: (kind: NotificationKind, id: string | number) => void;
-  markUnread: (kind: NotificationKind, id: string | number) => void;
-  markRead: (kind: NotificationKind, id: string | number) => void;
+  unhide: (kind: NotificationKind, id: string | number) => Promise<void>;
+  markUnread: (kind: NotificationKind, id: string | number) => Promise<void>;
+  markRead: (kind: NotificationKind, id: string | number) => Promise<void>;
   isHidden: (kind: NotificationKind, id: string | number) => boolean;
   isUnread: (kind: NotificationKind, id: string | number) => boolean;
 }
@@ -97,47 +103,51 @@ export function useNotificationPrefs(): NotificationPrefs {
     };
   }, []);
 
-  const hide = useCallback((kind: NotificationKind, id: string | number) => {
-    setHidden((prev) => {
-      const next = new Set(prev);
-      next.add(keyFor(kind, id));
-      writeIds(HIDDEN_KEY, next);
-      return next;
-    });
+  // Yazma setState güncelleyicisinin İÇİNDE değil: React güncelleyiciyi bir
+  // sonraki render'a kadar ertelediği için yazma, hemen ardından tazelenen
+  // rozet sorgusundan SONRA oluyordu ("okunmadı yaptım, rozet artmadı").
+  // Güncel küme ref'te tutuluyor ki ardışık çağrılar birbirini ezmesin.
+  const hiddenRef = useRef(hidden);
+  hiddenRef.current = hidden;
+  const unreadRef = useRef(unread);
+  unreadRef.current = unread;
+
+  const updateHidden = useCallback((fn: (next: IdSet) => void) => {
+    const next = new Set(hiddenRef.current);
+    fn(next);
+    hiddenRef.current = next;
+    setHidden(next);
+    return writeIds(HIDDEN_KEY, next);
+  }, []);
+  const updateUnread = useCallback((fn: (next: IdSet) => void) => {
+    const next = new Set(unreadRef.current);
+    fn(next);
+    unreadRef.current = next;
+    setUnread(next);
+    return writeIds(UNREAD_KEY, next);
   }, []);
 
+  const hide = useCallback(
+    (kind: NotificationKind, id: string | number) => updateHidden((next) => next.add(keyFor(kind, id))),
+    [updateHidden]
+  );
   // `hide`'ın simetriği: aynı anahtarı aynı şekilde yazıyor, yani geri alma da
   // kalıcı (uygulama kapanıp açılsa da satır geri gelmiş kalıyor).
-  const unhide = useCallback((kind: NotificationKind, id: string | number) => {
-    setHidden((prev) => {
-      const key = keyFor(kind, id);
-      if (!prev.has(key)) return prev;
-      const next = new Set(prev);
-      next.delete(key);
-      writeIds(HIDDEN_KEY, next);
-      return next;
-    });
-  }, []);
-
-  const markUnread = useCallback((kind: NotificationKind, id: string | number) => {
-    setUnread((prev) => {
-      const next = new Set(prev);
-      next.add(keyFor(kind, id));
-      writeIds(UNREAD_KEY, next);
-      return next;
-    });
-  }, []);
-
-  const markRead = useCallback((kind: NotificationKind, id: string | number) => {
-    setUnread((prev) => {
-      const key = keyFor(kind, id);
-      if (!prev.has(key)) return prev;
-      const next = new Set(prev);
-      next.delete(key);
-      writeIds(UNREAD_KEY, next);
-      return next;
-    });
-  }, []);
+  const unhide = useCallback(
+    (kind: NotificationKind, id: string | number) => updateHidden((next) => next.delete(keyFor(kind, id))),
+    [updateHidden]
+  );
+  const markUnread = useCallback(
+    (kind: NotificationKind, id: string | number) => updateUnread((next) => next.add(keyFor(kind, id))),
+    [updateUnread]
+  );
+  const markRead = useCallback(
+    (kind: NotificationKind, id: string | number) => {
+      if (!unreadRef.current.has(keyFor(kind, id))) return Promise.resolve();
+      return updateUnread((next) => next.delete(keyFor(kind, id)));
+    },
+    [updateUnread]
+  );
 
   const isHidden = useCallback((kind: NotificationKind, id: string | number) => hidden.has(keyFor(kind, id)), [hidden]);
   const isUnread = useCallback((kind: NotificationKind, id: string | number) => unread.has(keyFor(kind, id)), [unread]);

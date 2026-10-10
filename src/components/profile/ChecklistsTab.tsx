@@ -25,7 +25,7 @@ function ChecklistsTab({ owner, width, headerHeight, scrollY, onRememberOffset }
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const isOwn = owner.kind === 'me';
-  const { data: checklists, isPending } = useProfileChecklists(owner);
+  const { data: checklists, isPending, refetch } = useProfileChecklists(owner);
   // Gösterge yükleme başlar başlamaz geliyor, veri gelince anında gidiyor —
   // arada yapay bir eşik YOK (kullanıcı kararı: "süre belirtme, en akıcı
   // nasıl olacaksa öyle olsun").
@@ -71,6 +71,7 @@ function ChecklistsTab({ owner, width, headerHeight, scrollY, onRememberOffset }
 
   return (
     <PagerPage
+      onRefresh={refetch}
       tabKey="lists"
       width={width}
       headerHeight={headerHeight}

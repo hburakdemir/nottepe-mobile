@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { Linking, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Constants from 'expo-constants';
@@ -29,6 +29,7 @@ import DeleteAccountModal from '../../components/profile/DeleteAccountModal';
 import ProfileEditModal from '../../components/profile/ProfileEditModal';
 import { useMyBadges } from '../../hooks/profile/useProfileLists';
 import type { Badge } from '../../components/BadgeChip';
+import { useShellRefresh } from '../../hooks/usePullRefresh';
 
 const THEME_LABELS = { system: 'Sistem', light: 'Açık', dark: 'Koyu' } as const;
 
@@ -76,6 +77,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 const NO_BADGES: Badge[] = [];
 
 export default function SettingsScreen() {
+  const pull = useShellRefresh();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { theme, themePreference } = useTheme();
   const iconColor = theme === 'dark' ? '#DFD0B8' : '#374151';
@@ -97,7 +99,7 @@ export default function SettingsScreen() {
       {/* Alt pay sekme çubuğu kadar: AppShell'deki WaveTabBar içeriğin ÜSTÜNE
           biniyor; 40 px'lik eski payda en alttaki "Tehlikeli bölge" ve sürüm
           yazısı çubuğun altında kalıyordu. */}
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: TAB_BAR_SAFE_PADDING }}>
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: TAB_BAR_SAFE_PADDING }} refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}>
         <Section title="Hesap">
           <Row
             icon={UserPen}

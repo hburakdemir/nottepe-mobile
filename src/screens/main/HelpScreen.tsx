@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
 import { ChevronRight, ExternalLink, HelpCircle, Mail, Send, Target } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -8,6 +8,7 @@ import { feedbackAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
+import { useShellRefresh } from '../../hooks/usePullRefresh';
 
 function FeedbackForm() {
   const { user } = useAuth();
@@ -75,12 +76,19 @@ function FeedbackForm() {
 }
 
 export default function HelpScreen() {
+  const pull = useShellRefresh();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   return (
-    <KeyboardAwareScroll showsVerticalScrollIndicator={false} className="flex-1 bg-ground" contentContainerClassName="p-4 pb-[150px]" keyboardShouldPersistTaps="handled">
+    <KeyboardAwareScroll
+      showsVerticalScrollIndicator={false}
+      className="flex-1 bg-ground"
+      contentContainerClassName="p-4 pb-[150px]"
+      keyboardShouldPersistTaps="handled"
+      refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
+    >
       <Text className="text-2xl font-extrabold text-ink mb-4 text-center">Biz Kimiz</Text>
 
       <View className="bg-surface rounded-[18px] p-4 mb-3.5 border border-line-soft">

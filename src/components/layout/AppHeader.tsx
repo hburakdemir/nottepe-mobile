@@ -167,7 +167,12 @@ function AppHeaderBase({
         <View className="flex-row items-center gap-1">
           <Pressable
             ref={bellTarget}
-            onPress={() => navigation.navigate('Notifications', { initialTab: 'aktivite' })}
+            // Okunmamışlar yalnızca Duyurular'daysa oradan aç; yoksa Aktivite.
+            onPress={() =>
+              navigation.navigate('Notifications', {
+                initialTab: announcementsUnread > 0 && activityUnread === 0 ? 'duyurular' : 'aktivite',
+              })
+            }
             hitSlop={8}
             // `w-9 h-9 items-center justify-center` (eskiden yalnız `p-2`):
             // Pressable padding'e göre SIKI sarıyordu, yani zil ikonu kutunun

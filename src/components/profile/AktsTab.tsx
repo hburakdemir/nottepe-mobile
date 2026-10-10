@@ -59,7 +59,7 @@ function AktsTab({ owner, width, headerHeight, scrollY, onRememberOffset }: Prof
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const queryClient = useQueryClient();
   const isOwn = owner.kind === 'me';
-  const { data: calcs, isPending } = useProfileAktsCalcs(owner);
+  const { data: calcs, isPending, refetch } = useProfileAktsCalcs(owner);
   // bkz. ChecklistsTab.tsx — aynı gecikmeli yükleme kuralı.
   const showLoading = isPending;
 
@@ -93,6 +93,7 @@ function AktsTab({ owner, width, headerHeight, scrollY, onRememberOffset }: Prof
 
   return (
     <PagerPage
+      onRefresh={refetch}
       tabKey="akts"
       width={width}
       headerHeight={headerHeight}

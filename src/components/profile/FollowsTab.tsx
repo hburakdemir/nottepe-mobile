@@ -53,7 +53,7 @@ function FollowsTab({ owner, width, headerHeight, scrollY, onRememberOffset }: P
   const queryClient = useQueryClient();
   const { theme } = useTheme();
   const isOwn = owner.kind === 'me';
-  const { data: follows, isPending } = useProfileFollows(owner);
+  const { data: follows, isPending, refetch } = useProfileFollows(owner);
   // bkz. ChecklistsTab.tsx — aynı gecikmeli yükleme kuralı.
   const showLoading = isPending;
 
@@ -91,6 +91,7 @@ function FollowsTab({ owner, width, headerHeight, scrollY, onRememberOffset }: P
 
   return (
     <PagerPage
+      onRefresh={refetch}
       tabKey="follows"
       width={width}
       headerHeight={headerHeight}

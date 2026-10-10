@@ -1,9 +1,12 @@
 import React, { useMemo } from 'react';
-import { View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 import Animated, { runOnJS, useAnimatedScrollHandler, type SharedValue } from 'react-native-reanimated';
 import { TAB_BAR_SAFE_PADDING } from '../layout/tabBarMetrics';
 import type { ProfileOwner } from '../../hooks/profile/useProfileLists';
 import type { TabKey } from './profileCommon';
+import { usePullRefresh } from '../../hooks/usePullRefresh';
+
+const noop = () => {};
 
 // Profil pager'ındaki "basit" sekmelerin (checklist / AKTS / program / takip /
 // forum) ortak kabuğu: bir `Animated.ScrollView` + kayan başlığı besleyen
@@ -43,6 +46,7 @@ export default function PagerPage({
   headerHeight,
   scrollY,
   onRememberOffset,
+  onRefresh,
   children,
 }: {
   tabKey: TabKey;
@@ -52,8 +56,11 @@ export default function PagerPage({
   /** Her sekme KENDİ dikey konumunu hatırlıyor — sekme değişince başlık o
    *  konuma senkronlanıyor, önceki sekmede kaldığı yerde donuk kalmıyor. */
   onRememberOffset: (key: TabKey, y: number) => void;
+  /** Aşağı çekerek yenileme (bkz. PostsTab — gösterge başlığın altından çıkıyor). */
+  onRefresh?: () => unknown;
   children?: React.ReactNode;
 }) {
+  const pull = usePullRefresh(onRefresh ?? noop);
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollY.value = event.contentOffset.y;
@@ -75,6 +82,11 @@ export default function PagerPage({
       contentContainerStyle={contentStyle}
       onScroll={scrollHandler}
       scrollEventThrottle={32}
+      refreshControl={
+        onRefresh ? (
+          <RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} progressViewOffset={headerHeight} />
+        ) : undefined
+      }
     >
       {children}
     </Animated.ScrollView>

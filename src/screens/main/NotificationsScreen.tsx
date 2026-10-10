@@ -352,8 +352,7 @@ export default function NotificationsScreen() {
       );
       // Kullanıcı elle "okunmadı" demişse o tercih baskın kalsın istemiyoruz:
       // "okundu" artık gerçek (sunucu) bir aksiyon, yerel geçersiz kılmayı temizliyor.
-      prefs.markRead('announcement', id);
-      invalidateAnnouncementsUnread();
+      prefs.markRead('announcement', id).then(invalidateAnnouncementsUnread);
     },
     [prefs.markRead, invalidateAnnouncementsUnread]
   );
@@ -465,7 +464,8 @@ export default function NotificationsScreen() {
   // geri alınmayan satır zaten listeden düşmüş oluyor.
   const handleDelete = useCallback(
     (id: string | number, kind: 'announcement' | 'activity') => {
-      prefs.hide(kind, id);
+      // Okunmamış bir satır silinirse rozet de düşsün.
+      prefs.hide(kind, id).then(kind === 'announcement' ? invalidateAnnouncementsUnread : invalidateActivityUnread);
       if (undoTimer.current) clearTimeout(undoTimer.current);
       setUndoTarget({ id: String(id), kind, at: Date.now() });
       undoTimer.current = setTimeout(() => {
@@ -473,7 +473,7 @@ export default function NotificationsScreen() {
         undoTimer.current = null;
       }, UNDO_TIMEOUT_MS);
     },
-    [prefs.hide]
+    [prefs.hide, invalidateAnnouncementsUnread, invalidateActivityUnread]
   );
 
   const handleUndo = useCallback(() => {
@@ -483,9 +483,11 @@ export default function NotificationsScreen() {
       undoTimer.current = null;
     }
     tap();
-    prefs.unhide(undoTarget.kind, undoTarget.id);
+    prefs
+      .unhide(undoTarget.kind, undoTarget.id)
+      .then(undoTarget.kind === 'announcement' ? invalidateAnnouncementsUnread : invalidateActivityUnread);
     setUndoTarget(null);
-  }, [undoTarget, prefs.unhide]);
+  }, [undoTarget, prefs.unhide, invalidateAnnouncementsUnread, invalidateActivityUnread]);
 
   // Ekran kapanırken sayaç kalmasın: yoksa unmount sonrası setState olur.
   useEffect(
@@ -512,19 +514,17 @@ export default function NotificationsScreen() {
       color: colors.accent,
       onPress: () => {
         if (!isUnread) {
-          prefs.markUnread(kind, id);
+          const written = prefs.markUnread(kind, id);
           // `prefs` bu ekrana özel bir React state kopyası (bkz.
           // notificationPrefs.ts) — rozeti hesaplayan hook'lar (useUnreadAnnouncements /
           // useUnreadNotifications) ayrı birer örnek, bu yazmayı kendiliğinden
           // görmüyor. Türüne göre ilgili rozet sorgusunu elle tazeliyoruz ki
           // "okunmadı" yapınca sayı da artsın.
-          if (kind === 'announcement') invalidateAnnouncementsUnread();
-          else invalidateActivityUnread();
+          written.then(kind === 'announcement' ? invalidateAnnouncementsUnread : invalidateActivityUnread);
           return;
         }
         if (kind === 'announcement') return markAnnouncementViewed(id);
-        prefs.markRead('activity', id);
-        invalidateActivityUnread();
+        prefs.markRead('activity', id).then(invalidateActivityUnread);
       },
     },
     rightAction: {

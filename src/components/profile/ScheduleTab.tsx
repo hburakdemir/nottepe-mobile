@@ -40,7 +40,7 @@ const DayCard = React.memo(function DayCard({ day, courses }: { day: number; cou
 function ScheduleTab({ owner, width, headerHeight, scrollY, onRememberOffset }: ProfileTabProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const isOwn = owner.kind === 'me';
-  const { data: schedule, isPending } = useProfileSchedule(owner);
+  const { data: schedule, isPending, refetch } = useProfileSchedule(owner);
   // bkz. ChecklistsTab.tsx — aynı gecikmeli yükleme kuralı.
   const showLoading = isPending;
 
@@ -48,6 +48,7 @@ function ScheduleTab({ owner, width, headerHeight, scrollY, onRememberOffset }: 
 
   return (
     <PagerPage
+      onRefresh={refetch}
       tabKey="schedule"
       width={width}
       headerHeight={headerHeight}

@@ -45,7 +45,7 @@ function ForumsTab({ owner, width, headerHeight, scrollY, onRememberOffset }: Pr
 
   // Sorgu yalnızca sekme mount'lu iken çalışıyor (forum etkinliği İKİ ağ
   // isteği: SSS + öneriler). Şeritteki sayaç sayım ucundan geliyor.
-  const { data: items, isPending } = useProfileForumActivity(owner, user?.id);
+  const { data: items, isPending, refetch } = useProfileForumActivity(owner, user?.id);
   // bkz. ChecklistsTab.tsx — aynı gecikmeli yükleme kuralı.
   const showLoading = isPending;
 
@@ -59,6 +59,7 @@ function ForumsTab({ owner, width, headerHeight, scrollY, onRememberOffset }: Pr
 
   return (
     <PagerPage
+      onRefresh={refetch}
       tabKey="forums"
       width={width}
       headerHeight={headerHeight}

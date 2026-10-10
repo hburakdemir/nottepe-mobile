@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, ListRenderItem, Pressable, Text, TextInput, View } from 'react-native';
+import { FlatList, ListRenderItem, Pressable, RefreshControl, Text, TextInput, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronRight, Library, Search } from 'lucide-react-native';
@@ -7,6 +7,7 @@ import { faculties, departments } from '../../data/departments';
 import { useTheme } from '../../context/ThemeContext';
 import type { RootStackParamList } from '../../navigation/types';
 import { TAB_BAR_SAFE_PADDING } from '../../components/layout/tabBarMetrics';
+import { useShellRefresh } from '../../hooks/usePullRefresh';
 
 const SHADOW_MD = {
   shadowColor: '#000',
@@ -101,6 +102,7 @@ export default function DepartmentsScreen() {
   const [searchInput, setSearchInput] = useState('');
   const [term, setTerm] = useState('');
   const [expandedFaculty, setExpandedFaculty] = useState<string | null>(null);
+  const pull = useShellRefresh();
 
   useEffect(() => {
     const id = setTimeout(() => setTerm(searchInput.trim().toLowerCase()), SEARCH_DEBOUNCE_MS);
@@ -171,6 +173,7 @@ export default function DepartmentsScreen() {
 
       <FlatList
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} />}
         className="flex-1"
         contentContainerStyle={{ padding: 16, paddingBottom: TAB_BAR_SAFE_PADDING, gap: 10 }}
         data={filteredFaculties}
