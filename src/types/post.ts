@@ -8,9 +8,13 @@ export interface Post {
   link?: string | null;
   faculty: string;
   department: string;
-  username: string;
-  full_name?: string;
-  user_id: number;
+  // Anonim notta sahibi OLMAYANA ikisi de null geliyor (admin/mod dahil).
+  // Sahibine `user_id` dolu, `username` null — `isOwner` kontrolü çalışıyor.
+  username: string | null;
+  full_name?: string | null;
+  user_id: number | null;
+  /** Not bazlı anonimlik; sahibi notun ⋯ → Düzenle menüsünden değiştiriyor. */
+  is_anonymous?: boolean;
   /** Gönderi detayında: izleyen bu gönderinin sahibini engellemiş mi (sunucu). */
   is_blocked_by_me?: boolean;
   created_at: string;

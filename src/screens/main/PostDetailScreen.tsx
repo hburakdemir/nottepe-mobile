@@ -3,7 +3,7 @@ import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Bookmark, FileText, Link2, MessageSquare, Star, Trash2, User } from 'lucide-react-native';
+import { Bookmark, FileText, Link2, MessageSquare, Star, Trash2, User, VenetianMask } from 'lucide-react-native';
 import { commentAPI, postsAPI } from '../../lib/api';
 
 // Bir notun içeriği (başlık, açıklama, dosyalar) neredeyse hiç değişmiyor;
@@ -22,6 +22,7 @@ import FileTiles from '../../components/FileTiles';
 import BadgeChip from '../../components/BadgeChip';
 import SaveButton from '../../components/SaveButton';
 import ModerationMenu from '../../components/moderation/ModerationMenu';
+import OwnerPostMenu from '../../components/posts/OwnerPostMenu';
 import { moderationAPI } from '../../lib/api';
 import CommentSection, { type CommentsFirstPage } from '../../components/CommentSection';
 import type { RootStackParamList } from '../../navigation/types';
@@ -256,6 +257,7 @@ export default function PostDetailScreen() {
   }
 
   const isOwner = user && String(user.id) === String(post.user_id);
+  const isAnonymous = !!post.is_anonymous;
   const avgRating = Number(post.avg_rating) || 0;
   const ratingCount = post.rating_count || 0;
   const files = post.file_urls ?? [];
@@ -273,16 +275,33 @@ export default function PostDetailScreen() {
         {/* Profil en üstte: avatar + kullanıcı adı + rozetler + tarih, sağda
             kaydet/sil. Fakülte ve bölüm künyesi en alta indi. */}
         <View style={[styles.authorRow, isAuthenticated && styles.authorRowWithSave]}>
-          <Pressable style={styles.who} onPress={() => goToUserProfile(post.username)} hitSlop={6}>
+          {/* Anonim not: basılamaz (profile gidilmiyor), avatar yerine maske,
+              rozet ve "seni engelledi" etiketi yok. */}
+          <Pressable
+            style={styles.who}
+            onPress={isAnonymous ? undefined : () => goToUserProfile(post.username)}
+            disabled={isAnonymous}
+            hitSlop={6}
+          >
             <View style={[styles.avatar, { backgroundColor: t.inset }]}>
-              {authorAvatar ? <AvatarDisplay avatar={authorAvatar} size={36} showBg={false} /> : <User size={18} color={t.ink3} />}
+              {isAnonymous ? (
+                <VenetianMask size={19} color={t.ink3} />
+              ) : authorAvatar ? (
+                <AvatarDisplay avatar={authorAvatar} size={36} showBg={false} />
+              ) : (
+                <User size={18} color={t.ink3} />
+              )}
             </View>
             <View style={{ minWidth: 0, flexShrink: 1 }}>
               <View style={styles.nameLine}>
                 <Text style={[styles.whoName, { color: t.ink }]} numberOfLines={1}>
-                  {post.username || 'Anonim'}
+                  {isAnonymous
+                    ? isOwner
+                      ? 'Anonim (sen)'
+                      : 'Anonim'
+                    : post.username || (isOwner ? user?.username : null) || 'Anonim'}
                 </Text>
-                {!!post.badges?.length && (
+                {!isAnonymous && !!post.badges?.length && (
                   <View style={styles.badgeRow}>
                     {post.badges.map((badge) => (
                       <BadgeChip key={badge.id} badge={badge} compact />
@@ -291,7 +310,7 @@ export default function PostDetailScreen() {
                 )}
               </View>
               <Text style={[styles.date, { color: t.ink3 }]}>{formatDate(post.created_at)}</Text>
-              <BlockedMeTag userId={post.user_id} style={{ marginTop: 4 }} />
+              {!isAnonymous && <BlockedMeTag userId={post.user_id} style={{ marginTop: 4 }} />}
             </View>
           </Pressable>
 
@@ -300,6 +319,7 @@ export default function PostDetailScreen() {
               <Pressable onPress={handleDeletePost} hitSlop={8}>
                 <Trash2 size={18} color={t.danger} strokeWidth={2} />
               </Pressable>
+              <OwnerPostMenu postId={postId} isAnonymous={isAnonymous} size={20} />
             </View>
           )}
           {isAuthenticated && !isOwner && (
@@ -324,6 +344,7 @@ export default function PostDetailScreen() {
             <Pressable
               hitSlop={8}
               onPress={async () => {
+                if (post.user_id == null) return;
                 try {
                   await moderationAPI.unblock(post.user_id);
                   queryClient.invalidateQueries();

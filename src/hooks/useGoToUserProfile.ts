@@ -8,7 +8,7 @@ export function useGoToUserProfile() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user } = useAuth();
 
-  return (username?: string) => {
+  return (username?: string | null) => {
     if (!username) return;
     if (user && user.username === username) {
       goToTab(navigation, 'Profile');

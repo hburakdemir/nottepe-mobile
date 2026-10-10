@@ -330,7 +330,8 @@ export default function MenuDrawerContent({ navigation }: DrawerContentComponent
   // `page` verilmiyordu ve sunucu TÜM listeyi (rozetleriyle) gönderiyordu.
   // Kendi profilindeki Notlar/Kaydedilenler sayacı da aynı `total`'den geliyor
   // (onay bekleyenler dahil) — `profile-counts`'un `posts`'u yalnızca
-  // onaylıları saydığı için o uç burada BİLEREK kullanılmıyor.
+  // onaylıları saydığı için o uç burada BİLEREK kullanılmıyor. Anonim notlar
+  // da dahil: `/posts/my-posts` sahibine hepsini döndürüyor.
   const { data: drawerCounts, refetch: refetchDrawerCounts } = useQuery({
     queryKey: ['drawer-counts', user?.id],
     enabled: !!user,

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Calendar, FileText, MessageSquare, Star, Trash2, User } from 'lucide-react-native';
+import { Calendar, FileText, MessageSquare, Star, Trash2, User, VenetianMask } from 'lucide-react-native';
 import type { Post } from '../types/post';
 import { postsAPI, ratingAPI } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
@@ -17,6 +17,7 @@ import BadgeChip from './BadgeChip';
 import SaveButton from './SaveButton';
 import BlockedContentGate from './moderation/BlockedContentGate';
 import BlockedMeTag from './moderation/BlockedMeTag';
+import OwnerPostMenu from './posts/OwnerPostMenu';
 import { tap } from '../lib/haptics';
 
 const MAX_LENGTH = 200;
@@ -68,6 +69,9 @@ function PostCardClassicInner({ post, showStatus = false, showRating = true, onD
   const [rating, setRating] = useState(false);
   const postId = post.id ?? post.post_id!;
   const authorAvatar = buildPostAuthorAvatar(post);
+  // Yerel kopya — bkz. PostCardModern.
+  const [isAnonymous, setIsAnonymous] = useState(!!post.is_anonymous);
+  React.useEffect(() => setIsAnonymous(!!post.is_anonymous), [post.is_anonymous]);
   const isSaved = savedPosts.includes(String(postId));
 
   const handleRate = async (star: number) => {
@@ -124,6 +128,7 @@ function PostCardClassicInner({ post, showStatus = false, showRating = true, onD
             <Trash2 size={18} color={trashColor} />
           </Pressable>
         )}
+        {isOwner && <OwnerPostMenu postId={postId} isAnonymous={isAnonymous} onAnonymousChange={setIsAnonymous} size={18} />}
         {isAuthenticated && (
           <SaveButton
             saved={isSaved}
@@ -162,6 +167,17 @@ function PostCardClassicInner({ post, showStatus = false, showRating = true, onD
         </View>
       </View>
 
+      {isAnonymous ? (
+        // Anonim not: profile gidilmiyor, rozet yok, avatar yerine maske.
+        <View style={styles.ownerRow}>
+          <View className="bg-inset" style={styles.avatarFallback}>
+            <VenetianMask size={16} color={isDark ? '#DFD0B8' : '#6b7280'} />
+          </View>
+          <Text className="text-ink2" style={styles.username}>
+            {isOwner ? 'Anonim (sen)' : 'Anonim'}
+          </Text>
+        </View>
+      ) : (
       <Pressable style={styles.ownerRow} onPress={() => goToUserProfile(post.username)}>
         <View className="bg-inset" style={styles.avatarFallback}>
           {authorAvatar ? (
@@ -171,7 +187,7 @@ function PostCardClassicInner({ post, showStatus = false, showRating = true, onD
           )}
         </View>
         <Text className="text-ink2" style={styles.username}>
-          {post.username || 'Anonim'}
+          {post.username || (isOwner ? user?.username : null) || 'Anonim'}
         </Text>
         <BlockedMeTag userId={post.user_id} style={{ marginLeft: 6, alignSelf: 'center' }} />
         {!!post.badges?.length && (
@@ -182,6 +198,7 @@ function PostCardClassicInner({ post, showStatus = false, showRating = true, onD
           </View>
         )}
       </Pressable>
+      )}
 
       {post.file_urls && post.file_urls.length > 0 && (
         <View style={{ marginTop: 8, gap: 6 }}>

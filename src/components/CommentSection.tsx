@@ -73,7 +73,7 @@ interface RatingStats {
 
 interface CommentCardProps {
   comment: Comment;
-  postOwnerId: number;
+  postOwnerId: number | null;
   isAdmin: boolean;
   onDelete: (id: number, reason: string) => void;
   onRestore: (id: number) => void;
@@ -318,7 +318,7 @@ export interface CommentsFirstPage {
 
 interface Props {
   postId: string | number;
-  postOwnerId: number;
+  postOwnerId: number | null;
   isAdmin?: boolean;
   defaultCollapsed?: boolean;
   onRatingChange: (stats: RatingStats) => void;

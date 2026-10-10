@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Link2, MessageSquare, Star, Trash2, User } from 'lucide-react-native';
+import { Link2, MessageSquare, Star, Trash2, User, VenetianMask } from 'lucide-react-native';
 import type { Post } from '../types/post';
 import { postsAPI, ratingAPI } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
@@ -15,6 +15,7 @@ import AvatarDisplay from './avatar/AvatarDisplay';
 import FileTiles from './FileTiles';
 import SaveButton from './SaveButton';
 import ModerationMenu from './moderation/ModerationMenu';
+import OwnerPostMenu from './posts/OwnerPostMenu';
 import BlockedContentGate from './moderation/BlockedContentGate';
 import BlockedMeTag from './moderation/BlockedMeTag';
 import { tap } from '../lib/haptics';
@@ -90,6 +91,10 @@ function PostCardModernInner({ post, showStatus = false, showRating = true, onDe
   const authorAvatar = React.useMemo(() => buildPostAuthorAvatar(post), [post]);
   const files = post.file_urls ?? [];
   const fileCount = files.length;
+  // Yerel kopya: sahibi ⋯ → Düzenle'den değiştirince kart anında güncellensin
+  // (profil "Postlar" listesi react-query'de değil, prop'tan yeni değer gelmez).
+  const [isAnonymous, setIsAnonymous] = useState(!!post.is_anonymous);
+  React.useEffect(() => setIsAnonymous(!!post.is_anonymous), [post.is_anonymous]);
 
   const handleRate = async (star: number) => {
     if (!isAuthenticated) {
@@ -175,17 +180,29 @@ function PostCardModernInner({ post, showStatus = false, showRating = true, onDe
         </Pressable>
       ) : null}
 
-      <BlockedMeTag userId={post.user_id} style={{ marginBottom: 6 }} />
+      {!isAnonymous && <BlockedMeTag userId={post.user_id} style={{ marginBottom: 6 }} />}
       {/* Alt satır sabit hizada: kimlik solda, sayaçlar + kaydet sağda. */}
       <View style={styles.foot}>
-        <Pressable style={styles.who} onPress={() => goToUserProfile(post.username)} hitSlop={6}>
-          <View style={[styles.avatar, { backgroundColor: t.inset }]}>
-            {authorAvatar ? <AvatarDisplay avatar={authorAvatar} size={24} showBg={false} /> : <User size={13} color={t.ink3} />}
+        {isAnonymous ? (
+          // Anonim not: profile gidilmiyor, avatar yerine maske.
+          <View style={styles.who}>
+            <View style={[styles.avatar, { backgroundColor: t.inset }]}>
+              <VenetianMask size={14} color={t.ink3} />
+            </View>
+            <Text style={[styles.whoName, { color: t.ink2 }]} numberOfLines={1}>
+              {isOwner ? 'Anonim (sen)' : 'Anonim'}
+            </Text>
           </View>
-          <Text style={[styles.whoName, { color: t.ink2 }]} numberOfLines={1}>
-            {post.username || 'Anonim'}
-          </Text>
-        </Pressable>
+        ) : (
+          <Pressable style={styles.who} onPress={() => goToUserProfile(post.username)} hitSlop={6}>
+            <View style={[styles.avatar, { backgroundColor: t.inset }]}>
+              {authorAvatar ? <AvatarDisplay avatar={authorAvatar} size={24} showBg={false} /> : <User size={13} color={t.ink3} />}
+            </View>
+            <Text style={[styles.whoName, { color: t.ink2 }]} numberOfLines={1}>
+              {post.username || (isOwner ? user?.username : null) || 'Anonim'}
+            </Text>
+          </Pressable>
+        )}
 
         <Text style={[styles.date, { color: t.ink3 }]}>{formatShortDate(post.created_at)}</Text>
 
@@ -204,6 +221,9 @@ function PostCardModernInner({ post, showStatus = false, showRating = true, onDe
             <Pressable onPress={handleDelete} hitSlop={8}>
               <Trash2 size={16} color={t.ink3} strokeWidth={2} />
             </Pressable>
+          )}
+          {isOwner && (
+            <OwnerPostMenu postId={postId} isAnonymous={isAnonymous} onAnonymousChange={setIsAnonymous} size={17} />
           )}
           {isAuthenticated && !isOwner && (
             <ModerationMenu

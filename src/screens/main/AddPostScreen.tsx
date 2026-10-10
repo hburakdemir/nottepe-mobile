@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as DocumentPicker from 'expo-document-picker';
-import { AlertCircle, CheckCircle, FileText, HeartHandshake, Upload, X } from 'lucide-react-native';
+import { AlertCircle, CheckCircle, FileText, HeartHandshake, Upload, VenetianMask, X } from 'lucide-react-native';
 import { postsAPI } from '../../lib/api';
 import { faculties, departments } from '../../data/departments';
 import { useTheme } from '../../context/ThemeContext';
@@ -11,7 +11,7 @@ import { goToTab } from '../../navigation/navigateApp';
 import OptionSheet from '../../components/layout/OptionSheet';
 import type { RootStackParamList } from '../../navigation/types';
 import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
-import { success as hapticSuccess } from '../../lib/haptics';
+import { success as hapticSuccess, tap } from '../../lib/haptics';
 
 const MAX_FILES = 5;
 const MAX_SIZE = 10 * 1024 * 1024;
@@ -52,6 +52,7 @@ export default function AddPostScreen() {
   const [faculty, setFaculty] = useState(noteRequest?.faculty || '');
   const [department, setDepartment] = useState(noteRequest?.department || '');
   const [files, setFiles] = useState<PickedFile[]>([]);
+  const [isAnonymous, setIsAnonymous] = useState(false);
 
   const [facultyModalOpen, setFacultyModalOpen] = useState(false);
   const [departmentModalOpen, setDepartmentModalOpen] = useState(false);
@@ -112,6 +113,7 @@ export default function AddPostScreen() {
       formData.append('link', link.trim());
       formData.append('faculty', faculty);
       formData.append('department', department);
+      formData.append('is_anonymous', String(isAnonymous));
       if (noteRequest?.id) {
         formData.append('note_request_id', String(noteRequest.id));
       }
@@ -132,6 +134,7 @@ export default function AddPostScreen() {
       setFaculty('');
       setDepartment('');
       setFiles([]);
+      setIsAnonymous(false);
       setTimeout(() => {
         setSuccess(false);
         goToTab(navigation, 'Profile');
@@ -254,6 +257,28 @@ export default function AddPostScreen() {
               <Text className="text-xs text-muted text-center mt-1">{files.length} dosya seçildi</Text>
             </View>
           )}
+        </View>
+
+        {/* Anonimlik not bazlı; paylaştıktan sonra notun ⋯ → Düzenle menüsünden
+            iki yönlü değiştirilebiliyor (bkz. components/posts/EditPostSheet). */}
+        <View className="flex-row items-start gap-3 mb-6">
+          <VenetianMask size={20} color={isDark ? '#DFD0B8' : '#4b5563'} style={{ marginTop: 1 }} />
+          <View className="flex-1">
+            <Text className="text-sm font-medium text-ink2">Anonim paylaş</Text>
+            <Text className="text-xs text-muted mt-1 leading-4">
+              Notta adın, avatarın ve rozetlerin görünmez; profilinde ve liderlik tablosunda listelenmez. Moderatörler
+              sahibini görebilir. Notun ⋯ menüsünden istediğin zaman değiştirebilirsin.
+            </Text>
+          </View>
+          <Switch
+            value={isAnonymous}
+            onValueChange={(v) => {
+              tap();
+              setIsAnonymous(v);
+            }}
+            trackColor={{ true: '#2F5755' }}
+            accessibilityLabel="Anonim paylaş"
+          />
         </View>
 
         <View className="flex-row justify-end gap-4 mt-2">

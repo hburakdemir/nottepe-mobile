@@ -175,6 +175,9 @@ export const postsAPI = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
   deletePost: (postId: string | number) => api.delete(`/posts/deletepost/${postId}`),
+  // Yalnızca notun sahibi; başkasının notunda 404. Cevap: `{ post: { post_id, is_anonymous } }`.
+  setAnonymous: (postId: string | number, isAnonymous: boolean) =>
+    api.patch(`/posts/${postId}/anonymous`, { is_anonymous: isAnonymous }),
 };
 
 // Saved Posts API
