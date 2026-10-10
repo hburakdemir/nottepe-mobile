@@ -3,6 +3,7 @@ import { Modal, Platform, Pressable, StatusBar, Text, View, useWindowDimensions 
 import type { View as RNView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useThemeColors } from '../../context/ThemeContext';
+import { useAuth } from '../../context/AuthContext';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // İLK KULLANIM REHBERİ — ekranı karartıp bir öğeyi vurgulayan, altında/üstünde
@@ -18,6 +19,13 @@ import { useThemeColors } from '../../context/ThemeContext';
 //     YALNIZCA tur bitince ya da atlanınca yazılıyor — yarıda kapanan uygulama
 //     bir sonraki açılışta turu baştan gösterir.
 //   • `mandatory` adım "Atla" düğmesi göstermiyor; yalnızca "Anladım" ile geçiliyor.
+//   • KVKK/bölüm kapısı (`needsOnboardingGate`) açıkken HİÇBİR tur başlamıyor.
+//     Kapı da tur da RN `Modal`. Android ikisini üst üste çiziyordu (tur,
+//     doldurulmamış kapının üstünde). iOS'ta ise tur, kapıyı sunmakta olan kök
+//     view controller'dan sunulmaya çalışılıyor; UIKit bunu reddediyor ama
+//     RCTModalHostViewComponentView `_isPresented`'ı yine de YES yapıyor, yani
+//     tur kapı kapandıktan sonra da hiç görünmüyordu; iPhone'da kapıyı
+//     onaylayınca ekranın dokunuşa yanıt vermediği de bildirildi (2026-10-10).
 //
 // Ölçülemeyen (ekranda olmayan, boyutu 0) hedefin adımı sessizce atlanıyor.
 // ═══════════════════════════════════════════════════════════════════════════
@@ -46,6 +54,8 @@ interface CoachContextValue {
   register: (id: string, node: RNView | null) => void;
   start: (id: string, steps: CoachStep[]) => void;
   isRunning: () => boolean;
+  /** Kapı açıkken true — tur başlatılmıyor (bkz. dosya başı). */
+  paused: boolean;
 }
 
 const CoachContext = createContext<CoachContextValue | null>(null);
@@ -90,6 +100,7 @@ async function wasSeen(id: string): Promise<boolean> {
 }
 
 export function CoachProvider({ children }: { children: React.ReactNode }) {
+  const { needsOnboardingGate: paused } = useAuth();
   const targets = useRef(new Map<string, RNView>());
   const [tour, setTour] = useState<ActiveTour | null>(null);
   const [index, setIndex] = useState(0);
@@ -138,8 +149,8 @@ export function CoachProvider({ children }: { children: React.ReactNode }) {
   }, [tour, index, finish]);
 
   const value = useMemo<CoachContextValue>(
-    () => ({ register, start, isRunning: () => running.current }),
-    [register, start]
+    () => ({ register, start, isRunning: () => running.current, paused }),
+    [register, start, paused]
   );
 
   const step = tour?.steps[index];
@@ -287,15 +298,18 @@ export function useCoachTarget(id: string, enabled = true) {
 /**
  * `active` true olduğunda (tipik olarak ekran odakta) tur daha önce
  * görülmemişse kısa bir gecikmeyle başlıyor. Gecikme, ekranın geçiş
- * animasyonunun bitmesi ve hedeflerin yerine oturması için.
+ * animasyonunun bitmesi ve hedeflerin yerine oturması için. Kapı kapandığında
+ * da aynı gecikme işliyor: kapının iOS'taki fade kapanışı (~0.3 sn) bitmeden
+ * turun Modal'ı sunulursa UIKit onu da reddeder.
  */
 export function useCoachTour(tourId: string, steps: CoachStep[], active: boolean) {
   const ctx = useContext(CoachContext);
+  const paused = ctx?.paused ?? false;
   const stepsRef = useRef(steps);
   stepsRef.current = steps;
 
   useEffect(() => {
-    if (!ctx || !active) return;
+    if (!ctx || !active || paused) return;
     let cancelled = false;
     const timer = setTimeout(async () => {
       if (cancelled || ctx.isRunning()) return;
@@ -306,5 +320,5 @@ export function useCoachTour(tourId: string, steps: CoachStep[], active: boolean
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [ctx, active, tourId]);
+  }, [ctx, active, paused, tourId]);
 }

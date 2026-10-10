@@ -20,7 +20,9 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
-  login: (credentials: { username: string; password: string }) => Promise<LoginResult>;
+  /** KVKK onayı ya da fakülte/bölüm eksik → RootNavigator `KvkkGateModal`'ı gösteriyor. */
+  needsOnboardingGate: boolean;
+  login:(credentials: { username: string; password: string }) => Promise<LoginResult>;
   logout: () => Promise<void>;
   updateUser: (patch: Partial<User>) => void;
 }
@@ -130,6 +132,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       user,
       loading,
       isAuthenticated: !!user,
+      needsOnboardingGate: !!user && (!user.kvkkConsentAt || !user.faculty || !user.department),
       login,
       logout,
       updateUser,

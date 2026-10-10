@@ -94,7 +94,7 @@ const BlockedUsers = withAppShell(BlockedUsersScreen);
 const Notifications = withAppShell(NotificationsScreen);
 
 export default function RootNavigator() {
-  const { isAuthenticated, loading, user } = useAuth();
+  const { isAuthenticated, loading, needsOnboardingGate } = useAuth();
   const { colors, theme } = useTheme();
   const isOffline = useIsOffline();
   const drawerWidth = useDrawerWidth();
@@ -219,8 +219,6 @@ export default function RootNavigator() {
   if (!isAuthenticated) {
     return withOfflineOverlay(<AuthNavigator />);
   }
-
-  const needsOnboardingGate = !!user && (!user.kvkkConsentAt || !user.faculty || !user.department);
 
   // İTİLEN SAYFANIN ARKASINDA KALAN HER ŞEY MENÜNÜN ZEMİNİYLE AYNI RENK.
   //
