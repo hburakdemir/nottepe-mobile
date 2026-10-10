@@ -1,11 +1,13 @@
-import React, { useMemo } from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { ActivityIndicator, Modal, Pressable, Text, View, useWindowDimensions } from 'react-native';
+import Animated, { ZoomIn } from 'react-native-reanimated';
 import { Camera, Edit2, Palette } from 'lucide-react-native';
 import BadgeChip, { type Badge } from '../BadgeChip';
 import DeerIcon from '../icons/DeerIcon';
 import AvatarDisplay, { type AvatarData } from '../avatar/AvatarDisplay';
 import { SHADOW_MD } from './profileCommon';
 import { useCoachTarget } from '../coach/CoachMarks';
+import { impact } from '../../lib/haptics';
 
 export interface ProfileIdentity {
   username?: string | null;
@@ -59,6 +61,10 @@ function HeaderCard({
   const avatarTarget = useCoachTarget('profile-avatar', !!ownerActions);
   const editTarget = useCoachTarget('profile-edit', !!ownerActions);
   const visibleBadges = useMemo(() => badges.filter((b) => b.is_visible !== false), [badges]);
+  // Avatara dokununca büyütülmüş hâli (kullanıcı isteği), hafif titreşimle.
+  const [zoomed, setZoomed] = useState(false);
+  const { width } = useWindowDimensions();
+  const zoomSize = Math.min(width - 64, 320);
 
   return (
     // Kart listenin ÜSTÜNDE ayrı bir katman (bkz. ProfileScreen); düğme
@@ -68,9 +74,21 @@ function HeaderCard({
     <View pointerEvents="box-none" className="bg-surface p-4 m-4 mb-5 rounded-lg" style={SHADOW_MD}>
       <View pointerEvents="box-none" className="flex-row gap-3.5">
         <View ref={avatarTarget} pointerEvents="box-none" className="w-20 h-20">
-          <View pointerEvents="none" className="w-20 h-20 rounded-[20px] bg-brand items-center justify-center overflow-hidden">
-            {avatar ? <AvatarDisplay avatar={avatar} size={80} /> : <DeerIcon size={32} color="#fff" />}
-          </View>
+          <Pressable
+            disabled={!avatar}
+            onPress={() => {
+              impact();
+              setZoomed(true);
+            }}
+            accessibilityRole="imagebutton"
+            accessibilityLabel="Avatarı büyüt"
+          >
+            {/* İç kısım dokunuş almıyor: AvatarDisplay'in kendi "fotoğraf/avatar"
+                geçişi büyütülmüş görünümde çalışıyor. */}
+            <View pointerEvents="none" className="w-20 h-20 rounded-[20px] bg-brand items-center justify-center overflow-hidden">
+              {avatar ? <AvatarDisplay avatar={avatar} size={80} /> : <DeerIcon size={32} color="#fff" />}
+            </View>
+          </Pressable>
           {!!ownerActions && (
             <>
               <Pressable
@@ -135,6 +153,27 @@ function HeaderCard({
           <Edit2 size={15} color="#fff" />
           <Text className="text-white text-[13px] font-bold">Düzenle</Text>
         </Pressable>
+      )}
+
+      {!!avatar && (
+        <Modal visible={zoomed} transparent animationType="fade" statusBarTranslucent onRequestClose={() => setZoomed(false)}>
+          <Pressable
+            className="flex-1 items-center justify-center"
+            style={{ backgroundColor: 'rgba(0,0,0,0.82)' }}
+            onPress={() => setZoomed(false)}
+            accessibilityLabel="Kapat"
+          >
+            <Animated.View entering={ZoomIn.duration(220)} className="items-center">
+              <View
+                className="bg-brand items-center justify-center overflow-hidden"
+                style={{ width: zoomSize, height: zoomSize, borderRadius: zoomSize / 4 }}
+              >
+                <AvatarDisplay avatar={avatar} size={zoomSize} />
+              </View>
+              {!!identity?.username && <Text className="text-white text-lg font-bold mt-4">{identity.username}</Text>}
+            </Animated.View>
+          </Pressable>
+        </Modal>
       )}
     </View>
   );
