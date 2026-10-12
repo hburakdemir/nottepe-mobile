@@ -46,6 +46,8 @@ export type RootStackParamList = {
   AktsCalculator: { loadId?: string } | undefined;
   Schedule: undefined;
   NoteRequests: undefined;
+  // Bildirimden gelince `itemId` detayı doğrudan açar.
+  LostItems: { itemId?: number } | undefined;
   Faq: undefined;
   FaqDetail: { id: number };
   Suggestions: undefined;

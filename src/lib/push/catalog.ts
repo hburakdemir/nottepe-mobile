@@ -1,4 +1,4 @@
-import { Bell, BookOpen, CheckCircle, HeartHandshake, Megaphone, MessageSquare, UtensilsCrossed, type LucideIcon } from 'lucide-react-native';
+import { Bell, BookOpen, CheckCircle, HeartHandshake, Megaphone, MessageSquare, PackageSearch, UtensilsCrossed, type LucideIcon } from 'lucide-react-native';
 import type { PushTypeDescriptor } from '../api';
 
 // Bu dosya bir FİLTRE DEĞİL, bir CİLA TABLOSU.
@@ -58,6 +58,13 @@ export const PUSH_TYPE_CATALOG: PushTypeCatalogEntry[] = [
     label: 'Not isteğim karşılandığında',
     description: 'Açtığın bir not isteğine biri not paylaşırsa bildirim al.',
     icon: HeartHandshake,
+    group: 'activity',
+  },
+  {
+    key: 'lost_item',
+    label: 'Kayıp eşya ilanlarım',
+    description: 'İlanına "Bu benim" / "Ben buldum" başvurusu geldiğinde ya da başvurun yanıtlandığında bildirim al.',
+    icon: PackageSearch,
     group: 'activity',
   },
   {

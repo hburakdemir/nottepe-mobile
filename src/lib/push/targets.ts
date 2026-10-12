@@ -21,6 +21,7 @@ const ROOT_ROUTE_NAMES = [
   'AktsCalculator',
   'Schedule',
   'NoteRequests',
+  'LostItems',
   'Faq',
   'FaqDetail',
   'Suggestions',

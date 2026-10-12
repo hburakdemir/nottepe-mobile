@@ -16,6 +16,7 @@ export const ROUTE_TITLES: Record<string, string> = {
   AktsCalculator: 'AKTS / GANO',
   Schedule: 'Ders Programı',
   NoteRequests: 'Not İstekleri',
+  LostItems: 'Kayıp Eşya',
   Faq: 'Sizin Sorularınız',
   FaqDetail: 'Soru',
   Suggestions: 'Öneriler',

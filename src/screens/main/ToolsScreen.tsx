@@ -11,6 +11,7 @@ import {
   Lightbulb,
   ListChecks,
   MessageCircleQuestion,
+  PackageSearch,
   Trophy,
   UtensilsCrossed,
 } from 'lucide-react-native';
@@ -74,6 +75,12 @@ const TOOLS = [
     icon: HeartHandshake,
     title: 'Not İstekleri',
     desc: 'Aradığın notu bulamadın mı? İstek aç — elinde olan karşılasın. İsteği karşılayanlar rozet kazanır.',
+  },
+  {
+    key: 'LostItems' as const,
+    icon: PackageSearch,
+    title: 'Kayıp Eşya',
+    desc: 'Kampüste kaybettiğini ilan et, bulduğunu sahibine ulaştır. Doğrulama sorusuyla eşya doğru kişiye gider.',
   },
   
   {
