@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>3 — Bento</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  /* 3 — BENTO: modüler kutucuk ızgarası; her kutucuk bir özellik, uygulamadaki gerçek veriyle */
+  .canvas {
+    --teal: #2F5755; --red: #A3121B; --ink: #111827; --muted: #6B7280;
+    background: #E4EAE9; color: var(--ink);
+    --dev-shadow: 0 30px 60px rgba(17,24,39,.22), 0 8px 18px rgba(17,24,39,.12);
+  }
+  .t { position: absolute; border-radius: 40px; overflow: hidden; padding: 36px; }
+  .ico {
+    width: 58px; height: 58px; border-radius: 16px; display: grid; place-items: center; flex: none;
+    background: rgba(47,87,85,.1); color: var(--teal);
+  }
+  .ico svg { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .row { display: flex; align-items: center; gap: 16px; }
+  .tt { font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
+  .ts { font-size: 20px; font-weight: 500; color: var(--muted); line-height: 1.35; }
+
+  /* A — kahraman kutucuk */
+  .A { left: 44px; top: 44px; width: 992px; height: 392px; background: var(--teal); color: #fff; padding: 46px 48px; }
+  .A .mark { color: #fff; opacity: .085; width: 470px; right: -50px; top: -30px; }
+  .A .brand { display: flex; align-items: center; gap: 16px; font-size: 36px; font-weight: 800; letter-spacing: -.02em; }
+  .A .brand img { width: 68px; height: 68px; border-radius: 16px; box-shadow: 0 0 0 3px rgba(255,255,255,.9); }
+  .A .live {
+    position: absolute; right: 48px; top: 58px; display: flex; align-items: center; gap: 10px;
+    padding: 10px 18px; border-radius: 999px; background: rgba(255,255,255,.14); border: 1.5px solid rgba(255,255,255,.3);
+    font-size: 18px; font-weight: 700; letter-spacing: .14em;
+  }
+  .A .live i { width: 10px; height: 10px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 4px rgba(74,222,128,.25); }
+  .A h1 { position: absolute; left: 48px; bottom: 42px; font-size: 92px; font-weight: 900; line-height: .98; letter-spacing: -.04em; }
+  .A h1 em { font-style: normal; color: #A8E6DA; }
+
+  /* B — telefon kutucuğu */
+  .B { left: 44px; top: 454px; width: 487px; height: 600px; background: #fff; }
+  .B .ts { margin-top: 10px; }
+  .B #ph { --dw: 330px; left: 78px; top: 196px; }
+
+  /* C — ring */
+  .C { left: 549px; top: 454px; width: 487px; height: 291px; background: var(--red); color: #fff; }
+  .C .ico { background: rgba(255,255,255,.16); color: #fff; }
+  .C .chip { margin-left: auto; padding: 8px 14px; border-radius: 999px; background: rgba(255,255,255,.16); font-size: 16px; font-weight: 700; }
+  .C .lab { position: absolute; left: 36px; bottom: 116px; font-size: 19px; font-weight: 600; opacity: .8; letter-spacing: .04em; }
+  .C .time { position: absolute; left: 32px; bottom: 24px; font-size: 94px; font-weight: 800; letter-spacing: -.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .C .in { position: absolute; right: 36px; bottom: 40px; font-size: 22px; font-weight: 700; opacity: .9; }
+
+  /* D — yemek */
+  .D { left: 549px; top: 763px; width: 487px; height: 291px; background: #fff; }
+  .D .kcal { margin-left: auto; display: flex; align-items: center; gap: 6px; color: #EA580C; font-size: 19px; font-weight: 700; }
+  .D .kcal svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .D .menu { margin-top: 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px 18px; }
+  .D .menu small { display: block; font-size: 13px; font-weight: 600; letter-spacing: .12em; color: #9CA3AF; }
+  .D .menu b { display: block; margin-top: 3px; font-size: 22px; font-weight: 700; letter-spacing: -.01em; }
+
+  .D .foot { display: none; position: absolute; left: 36px; right: 36px; bottom: 30px; padding-top: 18px; border-top: 1px solid #F3F4F6; font-size: 19px; font-weight: 500; color: var(--muted); }
+  [data-f="story"] .D .foot { display: block; }
+
+  /* E — indir */
+  .E { left: 44px; top: 1072px; width: 992px; height: 234px; background: #111; color: #fff; padding: 44px 48px; display: flex; align-items: center; justify-content: space-between; }
+  .E .mark { color: #fff; opacity: .06; width: 300px; left: 330px; top: -40px; }
+  .E .k { display: block; font-size: 19px; font-weight: 600; letter-spacing: .14em; color: rgba(255,255,255,.6); }
+  .E .s { display: block; margin-top: 10px; font-size: 40px; font-weight: 800; letter-spacing: -.02em; line-height: 1.08; }
+  .E .badges { --bh: 74px; position: relative; flex-direction: column; gap: 12px; }
+
+  /* F, G — yalnız hikâyede */
+  .F, .G { display: none; }
+
+  /* ——— Hikâye ——— */
+  [data-f="story"] .A { top: 200px; height: 380px; }
+  [data-f="story"] .B { top: 598px; height: 700px; }
+  [data-f="story"] .B #ph { --dw: 370px; left: 58px; top: 196px; }
+  [data-f="story"] .C { top: 598px; height: 341px; }
+  [data-f="story"] .C .lab { bottom: 128px; }
+  [data-f="story"] .C .time { bottom: 30px; font-size: 104px; }
+  [data-f="story"] .C .in { bottom: 48px; }
+  [data-f="story"] .D { top: 957px; height: 341px; }
+  [data-f="story"] .D .menu { margin-top: 30px; gap: 22px 18px; }
+  [data-f="story"] .F, [data-f="story"] .G { display: block; top: 1316px; width: 487px; height: 220px; }
+  [data-f="story"] .F { left: 44px; background: #fff; }
+  [data-f="story"] .G { left: 549px; background: #CFE2DE; }
+  [data-f="story"] .G .ico { background: rgba(47,87,85,.16); }
+  [data-f="story"] .F .ts, [data-f="story"] .G .ts { margin-top: 18px; }
+  [data-f="story"] .E { top: 1554px; height: 220px; }
+</style>
+</head>
+<body>
+<div class="canvas">
+
+  <div class="t A">
+    <div class="mark"></div>
+    <div class="brand"><img src="../../../assets/icon.png" alt="">Nottepe</div>
+    <div class="live"><i></i>YAYINDA</div>
+    <h1>Nottepe artık<br><em>cebinde!</em></h1>
+  </div>
+
+  <div class="t B">
+    <div class="row">
+      <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg></div>
+      <div class="tt">Ders notları</div>
+    </div>
+    <div class="ts">Fakülte ve bölümüne göre notlar, çıkmış sorular ve not istekleri.</div>
+    <div id="ph" data-iphone="iphone_ana_sayfa.png"></div>
+  </div>
+
+  <div class="t C">
+    <div class="row">
+      <div class="ico"><svg viewBox="0 0 24 24"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/></svg></div>
+      <div class="tt">130 Ring</div>
+      <div class="chip">İnternetsiz de</div>
+    </div>
+    <div class="lab">SIRADAKİ SEFER</div>
+    <div class="time">13:10</div>
+    <div class="in">7 dk sonra</div>
+  </div>
+
+  <div class="t D">
+    <div class="row">
+      <div class="ico"><svg viewBox="0 0 24 24"><path d="m16 2-2.3 2.3a3 3 0 0 0 0 4.2l1.8 1.8a3 3 0 0 0 4.2 0L22 8"/><path d="M15 15 3.3 3.3a4.2 4.2 0 0 0 0 6l7.3 7.3c.7.7 2 .7 2.8 0L15 15Zm0 0 7 7"/><path d="m2.1 21.8 6.4-6.3"/><path d="m19 5-7 7"/></svg></div>
+      <div class="tt">Bugün öğle</div>
+      <div class="kcal"><svg viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>1095 kcal</div>
+    </div>
+    <div class="menu">
+      <div><small>ÇORBA</small><b>Toyga Çorbası</b></div>
+      <div><small>ANAYEMEK</small><b>Etli Türlü</b></div>
+      <div><small>MAKARNA</small><b>Cevizli Erişte</b></div>
+      <div><small>SALATA</small><b>Çoban Salatası</b></div>
+    </div>
+    <div class="foot">Günlük ve haftalık menü, kalori ve alerjen bilgisiyle.</div>
+  </div>
+
+  <div class="t F">
+    <div class="row">
+      <div class="ico"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg></div>
+      <div class="tt">Ders programım</div>
+    </div>
+    <div class="ts">Haftalık programını oluştur; çakışmaları anında gör.</div>
+  </div>
+
+  <div class="t G">
+    <div class="row">
+      <div class="ico"><svg viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></div>
+      <div class="tt">Liderlik tablosu</div>
+    </div>
+    <div class="ts">Seriye, onaylı nota ve rozete göre sıralamada yerini gör.</div>
+  </div>
+
+  <div class="t E">
+    <div class="mark"></div>
+    <div><small class="k">HEMEN İNDİR</small><strong class="s">App Store ve<br>Google Play'de</strong></div>
+    <div data-badges class="light"></div>
+  </div>
+</div>
+<script src="common.js"></script>
+</body>
+</html>

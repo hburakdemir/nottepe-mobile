@@ -1,0 +1,74 @@
+/* Beş tasarımın ortak parçaları: tuval, logo işareti, iPhone/iPad çerçeveleri, mağaza düğmeleri. */
+@import url(fonts/fonts.css);
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #000; }
+body { font-family: 'Inter Display', sans-serif; -webkit-font-smoothing: antialiased; }
+
+.canvas { position: relative; overflow: hidden; width: 1080px; height: 1350px; }
+[data-f="story"] .canvas { height: 1920px; }
+
+/* Uygulama ikonundaki N + geyik; rengi `color` ile verilir (maske). */
+.mark {
+  position: absolute; aspect-ratio: 1606 / 1684;
+  background: currentColor;
+  -webkit-mask: url(mark.png) center / contain no-repeat;
+          mask: url(mark.png) center / contain no-repeat;
+}
+
+/* ——— Cihazlar (ölçüler --dw cihaz genişliğine oranla) ——— */
+.dev { position: absolute; width: var(--dw); }
+.screen { position: relative; overflow: hidden; background: #fff; }
+.screen > img { display: block; width: 100%; }
+.screen > svg.sb { position: absolute; left: 0; top: 0; width: 100%; height: auto; display: block; }
+
+.iphone {
+  padding: calc(var(--dw) * .034);
+  border-radius: calc(var(--dw) * .17);
+  background: #050505;
+  box-shadow:
+    0 0 0 calc(var(--dw) * .012) #4a4b50,
+    0 0 0 calc(var(--dw) * .016) #2a2b2f,
+    var(--dev-shadow, 0 40px 80px rgba(0,0,0,.35));
+}
+.iphone .screen { border-radius: calc(var(--dw) * .137); }
+.iphone .island {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  top: calc(var(--dw) * .058); width: calc(var(--dw) * .30); height: calc(var(--dw) * .088);
+  border-radius: 999px; background: #000;
+}
+.iphone .btn { position: absolute; width: calc(var(--dw) * .014); background: #3a3b40; border-radius: 3px; }
+.iphone .btn.l { left: calc(var(--dw) * -.029); }
+.iphone .btn.r { right: calc(var(--dw) * -.029); }
+
+.ipad {
+  padding: calc(var(--dw) * .026);
+  border-radius: calc(var(--dw) * .042);
+  background: #050505;
+  box-shadow:
+    0 0 0 calc(var(--dw) * .005) #b9bcc2,
+    0 0 0 calc(var(--dw) * .007) #8a8d93,
+    var(--dev-shadow, 0 40px 80px rgba(0,0,0,.35));
+}
+.ipad .screen { border-radius: calc(var(--dw) * .017); }
+.ipad .cam {
+  position: absolute; left: 50%; top: calc(var(--dw) * .011); transform: translateX(-50%);
+  width: calc(var(--dw) * .007); height: calc(var(--dw) * .007); border-radius: 50%;
+  background: #1c2230; box-shadow: 0 0 0 1px #111;
+}
+
+/* ——— Mağaza düğmeleri ——— */
+.badges { display: flex; gap: calc(var(--bh, 80px) * .22); }
+.badge {
+  display: flex; align-items: center; gap: calc(var(--bh, 80px) * .16);
+  height: var(--bh, 80px);
+  padding: 0 calc(var(--bh, 80px) * .34) 0 calc(var(--bh, 80px) * .26);
+  background: #000; color: #fff; border: 2px solid #a6a6a6;
+  border-radius: calc(var(--bh, 80px) * .2);
+  text-align: left; white-space: nowrap;
+}
+.badge svg { width: calc(var(--bh, 80px) * .5); height: calc(var(--bh, 80px) * .5); flex: none; }
+.badge svg .apple { fill: currentColor; }
+.badge small { display: block; font-size: calc(var(--bh, 80px) * .19); font-weight: 500; line-height: 1.1; opacity: .92; }
+.badge b { display: block; font-size: calc(var(--bh, 80px) * .34); font-weight: 700; line-height: 1.05; letter-spacing: -.01em; }
+.badges.light .badge { background: #fff; color: #000; border-color: #fff; }

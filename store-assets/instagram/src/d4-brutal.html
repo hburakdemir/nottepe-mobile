@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>4 — Neo-brutal</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  /* 4 — NEO-BRUTAL POP: krem zemin + logo deseni, kalın siyah kontur, sert ofset gölgeler, çıkartmalar */
+  .canvas {
+    --ink: #111; --red: #E0252E; --teal: #2F5755; --yellow: #FFC93C; --cream: #FFF1DC;
+    background: var(--cream); color: var(--ink);
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .pattern {
+    position: absolute; inset: -400px; transform: rotate(-14deg);
+    background: var(--ink); opacity: .055;
+    -webkit-mask: url(mark_tile.png) 0 0 / 220px 220px repeat;
+            mask: url(mark_tile.png) 0 0 / 220px 220px repeat;
+  }
+  .box { border: 5px solid var(--ink); box-shadow: 9px 9px 0 var(--ink); }
+  .abs { position: absolute; }
+
+  .logo { left: 60px; top: 56px; display: flex; align-items: center; gap: 22px; }
+  .logo img { width: 96px; height: 96px; border-radius: 22px; border: 5px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); transform: rotate(-5deg); }
+  .logo span { font: 400 54px/1 'Archivo Black', sans-serif; letter-spacing: .01em; }
+
+  .star { right: 52px; top: 26px; width: 214px; height: 214px; transform: rotate(12deg); }
+  .star svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .star b {
+    position: absolute; inset: 0; display: grid; place-items: center; text-align: center;
+    font: 400 27px/1.02 'Archivo Black', sans-serif;
+  }
+
+  .tape {
+    left: 60px; top: 196px; padding: 10px 20px; background: var(--teal); color: #fff;
+    font-weight: 700; font-size: 24px; letter-spacing: .12em; transform: rotate(-2deg);
+    box-shadow: 6px 6px 0 var(--ink);
+  }
+  .h1a { left: 56px; top: 252px; font: 400 156px/1 'Archivo Black', sans-serif; letter-spacing: -.01em; }
+  .h1b {
+    left: 52px; top: 418px; padding: 6px 26px 14px; background: var(--red); color: #fff;
+    font: 400 140px/1 'Archivo Black', sans-serif; transform: rotate(-2.5deg);
+    border-width: 6px; box-shadow: 12px 12px 0 var(--ink);
+  }
+
+  .sub {
+    left: 60px; top: 676px; width: 500px; padding: 24px 28px; background: #fff;
+    font-weight: 700; font-size: 30px; line-height: 1.25; letter-spacing: -.01em;
+  }
+  .sub mark { background: var(--yellow); padding: 0 6px; }
+
+  .dl { left: 60px; top: 920px; }
+  .dl .badges { --bh: 92px; flex-direction: column; gap: 22px; align-items: flex-start; }
+  .dl .badge {
+    background: #fff; color: var(--ink); border: 5px solid var(--ink); border-radius: 18px;
+    box-shadow: 7px 7px 0 var(--ink); font-family: 'Space Grotesk', sans-serif;
+  }
+  .dl .badge b { font-weight: 700; }
+  .url { left: 60px; top: 1170px; font: 400 30px/1 'Archivo Black', sans-serif; }
+  .url i { font-style: normal; color: var(--red); }
+
+  #ph {
+    --dw: 330px; left: 640px; top: 640px; transform: rotate(5deg);
+    box-shadow: 0 0 0 6px var(--ink), 18px 18px 0 6px var(--ink);
+  }
+  #ph .btn { display: none; }
+  .tag {
+    left: 590px; top: 1150px; padding: 12px 20px; background: var(--yellow);
+    font-weight: 700; font-size: 22px; letter-spacing: .06em; transform: rotate(-6deg);
+  }
+
+  /* ——— Hikâye ——— */
+  [data-f="story"] .logo { top: 236px; }
+  [data-f="story"] .star { top: 200px; }
+  [data-f="story"] .tape { top: 400px; font-size: 26px; }
+  [data-f="story"] .h1a { top: 462px; font-size: 172px; }
+  [data-f="story"] .h1b { top: 646px; font-size: 152px; }
+  [data-f="story"] .sub { top: 930px; width: 520px; font-size: 32px; }
+  [data-f="story"] .dl { top: 1220px; }
+  [data-f="story"] .dl .badges { --bh: 100px; }
+  [data-f="story"] .url { top: 1500px; font-size: 32px; }
+  [data-f="story"] #ph { --dw: 370px; left: 640px; top: 930px; }
+  [data-f="story"] .tag { left: 600px; top: 1660px; font-size: 24px; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="pattern"></div>
+
+  <div class="abs logo"><img src="../../../assets/icon.png" alt=""><span>NOTTEPE</span></div>
+
+  <div class="abs star">
+    <svg viewBox="0 0 200 200" aria-hidden="true">
+      <polygon transform="translate(7 7)" fill="#111" points="100.0,4.0 117.8,22.0 141.7,13.5 149.9,37.5 175.1,40.1 172.1,65.3 193.6,78.6 180.0,100.0 193.6,121.4 172.1,134.7 175.1,159.9 149.9,162.5 141.7,186.5 117.8,178.0 100.0,196.0 82.2,178.0 58.3,186.5 50.1,162.5 24.9,159.9 27.9,134.7 6.4,121.4 20.0,100.0 6.4,78.6 27.9,65.3 24.9,40.1 50.1,37.5 58.3,13.5 82.2,22.0"/>
+      <polygon fill="#FFC93C" stroke="#111" stroke-width="5" stroke-linejoin="round" points="100.0,4.0 117.8,22.0 141.7,13.5 149.9,37.5 175.1,40.1 172.1,65.3 193.6,78.6 180.0,100.0 193.6,121.4 172.1,134.7 175.1,159.9 149.9,162.5 141.7,186.5 117.8,178.0 100.0,196.0 82.2,178.0 58.3,186.5 50.1,162.5 24.9,159.9 27.9,134.7 6.4,121.4 20.0,100.0 6.4,78.6 27.9,65.3 24.9,40.1 50.1,37.5 58.3,13.5 82.2,22.0"/>
+    </svg>
+    <b>ŞİMDİ<br>YAYINDA!</b>
+  </div>
+
+  <div class="abs box tape">MOBİL UYGULAMA</div>
+  <div class="abs h1a">ARTIK</div>
+  <div class="abs box h1b">CEBİNDE!</div>
+
+  <div class="abs box sub">Ders notları, <mark>ring saatleri</mark>, yemek listesi — hepsi tek uygulamada.</div>
+
+  <div class="abs dl"><div data-badges="Hemen indir"></div></div>
+  <div class="abs url"><i>→</i> nottepe.com</div>
+
+  <div id="ph" data-iphone="iphone_araclar.png"></div>
+  <div class="abs box tag">130 RİNG İNTERNETSİZ DE ✦</div>
+</div>
+<script src="common.js"></script>
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>5 — Aurora</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  /* 5 — AURORA: koyu zemin, kırmızı + teal ışıma, ince ızgara, cam kartlar, 3B açılı cihazlar */
+  .canvas {
+    background: #05080A; color: #fff; font-family: 'Sora', sans-serif;
+    perspective: 2300px; perspective-origin: 50% 55%;
+    --dev-shadow: 0 60px 120px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.04);
+  }
+  .blob { position: absolute; border-radius: 50%; filter: blur(130px); }
+  .b1 { width: 720px; height: 720px; left: -260px; top: 420px; background: #D3121E; opacity: .55; }
+  .b2 { width: 760px; height: 760px; right: -280px; top: 120px; background: #1BA085; opacity: .42; }
+  .b3 { width: 1000px; height: 600px; left: 40px; bottom: -340px; background: #2F5755; opacity: .9; }
+  .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.055) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.055) 1px, transparent 1px);
+    background-size: 60px 60px; background-position: -1px -1px;
+    -webkit-mask: radial-gradient(70% 55% at 50% 40%, #000 20%, transparent 80%);
+            mask: radial-gradient(70% 55% at 50% 40%, #000 20%, transparent 80%);
+  }
+  .canvas > .mark {
+    background: linear-gradient(180deg, rgba(255,255,255,.11) 0%, rgba(255,255,255,.05) 45%, rgba(255,255,255,0) 72%);
+    width: 900px; left: 90px; top: 30px;
+  }
+
+  .head { position: absolute; left: 0; right: 0; top: 62px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .brand { display: flex; align-items: center; gap: 14px; font-size: 34px; font-weight: 700; letter-spacing: -.02em; }
+  .brand img { width: 62px; height: 62px; border-radius: 15px; box-shadow: 0 0 0 1.5px rgba(255,255,255,.35), 0 0 40px rgba(211,18,30,.6); }
+  .glass {
+    background: rgba(255,255,255,.08); border: 1.5px solid rgba(255,255,255,.18);
+    -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.12);
+  }
+  .pill { margin-top: 30px; display: inline-flex; align-items: center; gap: 12px; padding: 11px 22px; border-radius: 999px; font-size: 19px; font-weight: 600; }
+  .pill i { width: 10px; height: 10px; border-radius: 50%; background: #34D399; box-shadow: 0 0 14px #34D399; }
+  h1 {
+    margin-top: 24px; font-size: 90px; font-weight: 800; line-height: 1.04; letter-spacing: -.045em;
+    background: linear-gradient(180deg, #fff 35%, #9EDBCF 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    padding-bottom: 6px;
+  }
+  .sub { margin-top: 14px; font-size: 25px; font-weight: 400; line-height: 1.4; color: rgba(255,255,255,.68); max-width: 760px; text-wrap: balance; }
+  .head .badges { margin-top: 30px; --bh: 76px; }
+  .head .badge {
+    background: rgba(255,255,255,.08); border: 1.5px solid rgba(255,255,255,.22);
+    -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+    font-family: 'Sora', sans-serif;
+  }
+  .head .badge b { font-weight: 600; letter-spacing: -.02em; }
+  .url { display: none; }
+
+  .floor {
+    position: absolute; left: 90px; right: 90px; height: 260px; top: 1180px; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(45,190,160,.35), transparent);
+    filter: blur(20px);
+  }
+  #ipad { --dw: 760px; left: 160px; top: 650px; transform: rotateX(16deg); transform-origin: 50% 100%; }
+  #phL  { --dw: 270px; left: 70px;  top: 780px; transform: rotateY(24deg) translateZ(60px); }
+  #phR  { --dw: 270px; left: 740px; top: 780px; transform: rotateY(-24deg) translateZ(60px); }
+
+  .chip {
+    position: absolute; display: flex; align-items: center; gap: 14px;
+    padding: 14px 20px 14px 14px; border-radius: 22px; transform: translateZ(140px);
+    font-size: 19px; font-weight: 600; white-space: nowrap;
+    background: rgba(8,12,14,.78); border-color: rgba(255,255,255,.16);
+    box-shadow: 0 20px 40px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.1);
+  }
+  .chip .ic { width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; }
+  .chip .ic svg { width: 24px; height: 24px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .chip small { display: block; font-size: 14px; font-weight: 400; color: rgba(255,255,255,.65); margin-top: 2px; }
+  .c1 { left: 250px; top: 1000px; } .c1 .ic { background: #D3121E; }
+  .c2 { right: 240px; top: 1130px; } .c2 .ic { background: #1F8F78; }
+
+  /* ——— Hikâye ——— */
+  [data-f="story"] .b1 { top: 700px; } [data-f="story"] .b2 { top: 300px; }
+  [data-f="story"] .canvas > .mark { width: 1000px; left: 40px; top: 200px; }
+  [data-f="story"] .head { top: 250px; }
+  [data-f="story"] .brand { font-size: 40px; }
+  [data-f="story"] .brand img { width: 74px; height: 74px; }
+  [data-f="story"] .pill { margin-top: 38px; font-size: 22px; }
+  [data-f="story"] h1 { margin-top: 30px; font-size: 108px; }
+  [data-f="story"] .sub { margin-top: 18px; font-size: 30px; max-width: 840px; }
+  [data-f="story"] .head .badges { margin-top: 40px; --bh: 90px; }
+  [data-f="story"] .url { display: block; margin-top: 26px; font-size: 24px; font-weight: 600; letter-spacing: .06em; color: rgba(255,255,255,.55); }
+  [data-f="story"] .floor { top: 1700px; }
+  [data-f="story"] #ipad { --dw: 820px; left: 130px; top: 1110px; }
+  [data-f="story"] #phL  { --dw: 290px; left: 50px;  top: 1250px; }
+  [data-f="story"] #phR  { --dw: 290px; left: 740px; top: 1250px; }
+  [data-f="story"] .c1 { left: 240px; top: 1490px; }
+  [data-f="story"] .c2 { right: 230px; top: 1630px; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+  <div class="grid"></div>
+  <div class="mark"></div>
+  <div class="floor"></div>
+
+  <div id="ipad" data-ipad="ipad_yemek.jpg"></div>
+  <div id="phL" data-iphone="iphone_ana_sayfa.png"></div>
+  <div id="phR" data-iphone="iphone_araclar.png"></div>
+
+  <div class="chip glass c1">
+    <div class="ic"><svg viewBox="0 0 24 24"><path d="M8 6v6"/><path d="M15 6v6"/><path d="M2 12h19.6"/><path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3"/><circle cx="7" cy="18" r="2"/><path d="M9 18h5"/><circle cx="16" cy="18" r="2"/></svg></div>
+    <div>Sıradaki ring 13:10<small>7 dk sonra · internetsiz de</small></div>
+  </div>
+  <div class="chip glass c2">
+    <div class="ic"><svg viewBox="0 0 24 24"><path d="m16 2-2.3 2.3a3 3 0 0 0 0 4.2l1.8 1.8a3 3 0 0 0 4.2 0L22 8"/><path d="M15 15 3.3 3.3a4.2 4.2 0 0 0 0 6l7.3 7.3c.7.7 2 .7 2.8 0L15 15Zm0 0 7 7"/><path d="m2.1 21.8 6.4-6.3"/><path d="m19 5-7 7"/></svg></div>
+    <div>Bugün öğle · 1095 kcal<small>Toyga Çorbası, Etli Türlü…</small></div>
+  </div>
+
+  <div class="head">
+    <div class="brand"><img src="../../../assets/icon.png" alt="">Nottepe</div>
+    <div class="pill glass"><i></i>Mobil uygulama yayında</div>
+    <h1>Nottepe artık<br>cebinde.</h1>
+    <p class="sub">Hacettepe öğrencileri için notlar, ring saatleri ve yemek listesi.</p>
+    <div data-badges></div>
+    <div class="url">nottepe.com</div>
+  </div>
+</div>
+<script src="common.js"></script>
+</body>
+</html>

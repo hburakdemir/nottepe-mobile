@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>1 — Filigran</title>
+<link rel="stylesheet" href="common.css">
+<style>
+  /* 1 — FİLİGRAN: marka kırmızısı, arkada dev ve soluk N + geyik, klasik lansman düzeni */
+  .canvas {
+    background: radial-gradient(120% 75% at 50% 12%, #B8151F 0%, #98111A 45%, #5E090E 100%);
+    color: #fff; --dev-shadow: 0 50px 90px rgba(40,0,0,.5), 0 12px 28px rgba(0,0,0,.3);
+  }
+  .canvas .mark { color: #fff; opacity: .085; width: 1040px; left: 20px; top: 175px; }
+  [data-f="story"] .canvas .mark { width: 1240px; left: -80px; top: 420px; }
+  .ring {
+    position: absolute; border-radius: 50%; border: 2px solid rgba(255,255,255,.08);
+    width: 1500px; height: 1500px; left: -210px; top: 330px;
+  }
+  [data-f="story"] .ring { width: 1900px; height: 1900px; left: -410px; top: 560px; }
+
+  .head {
+    position: absolute; left: 0; right: 0; top: 58px;
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+  }
+  .brand { display: flex; align-items: center; gap: 16px; }
+  .brand img { width: 74px; height: 74px; border-radius: 23%; box-shadow: 0 0 0 3px #fff, 0 10px 26px rgba(0,0,0,.3); }
+  .brand span { font-size: 40px; font-weight: 800; letter-spacing: -.02em; }
+  .kicker {
+    margin-top: 26px; display: inline-flex; align-items: center; gap: 12px;
+    padding: 10px 22px; border-radius: 999px;
+    background: rgba(255,255,255,.13); border: 1.5px solid rgba(255,255,255,.3);
+    font-size: 19px; font-weight: 700; letter-spacing: .12em;
+  }
+  .kicker i { width: 11px; height: 11px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 5px rgba(74,222,128,.25); }
+  h1 { margin-top: 20px; font-size: 90px; font-weight: 900; line-height: 1; letter-spacing: -.035em; }
+  .sub { margin-top: 18px; font-size: 28px; font-weight: 500; color: rgba(255,255,255,.86); }
+  .head .badges { margin-top: 28px; --bh: 76px; }
+  .url { display: none; }
+
+  [data-f="story"] .head { top: 250px; }
+  [data-f="story"] .brand img { width: 92px; height: 92px; }
+  [data-f="story"] .brand span { font-size: 50px; }
+  [data-f="story"] .kicker { margin-top: 36px; font-size: 23px; }
+  [data-f="story"] h1 { margin-top: 26px; font-size: 108px; }
+  [data-f="story"] .sub { margin-top: 24px; font-size: 34px; max-width: 800px; text-wrap: balance; }
+  [data-f="story"] .head .badges { margin-top: 40px; --bh: 92px; }
+  [data-f="story"] .url { display: block; margin-top: 28px; font-size: 27px; font-weight: 600; letter-spacing: .04em; color: rgba(255,255,255,.75); }
+
+  #ipad { --dw: 780px; left: 150px; top: 615px; }
+  #phL  { --dw: 270px; left: 40px;  top: 752px; }
+  #phR  { --dw: 270px; left: 770px; top: 752px; }
+  [data-f="story"] #ipad { --dw: 820px; left: 130px; top: 1040px; }
+  [data-f="story"] #phL  { --dw: 280px; left: 14px;  top: 1235px; }
+  [data-f="story"] #phR  { --dw: 280px; left: 786px; top: 1235px; }
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="ring"></div>
+  <div class="mark"></div>
+
+  <div id="ipad" data-ipad="ipad_yemek.jpg"></div>
+  <div id="phL" data-iphone="iphone_ana_sayfa.png"></div>
+  <div id="phR" data-iphone="iphone_araclar.png"></div>
+
+  <div class="head">
+    <div class="brand"><img src="../../../assets/icon.png" alt=""><span>Nottepe</span></div>
+    <div class="kicker"><i></i>MOBİL UYGULAMA YAYINDA</div>
+    <h1>Nottepe artık<br>cebinde!</h1>
+    <p class="sub">Ders notları, ring saatleri ve yemek listesi tek uygulamada.</p>
+    <div data-badges></div>
+    <div class="url">nottepe.com</div>
+  </div>
+</div>
+<script src="common.js"></script>
+</body>
+</html>
