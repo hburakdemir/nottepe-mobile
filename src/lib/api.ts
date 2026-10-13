@@ -230,6 +230,7 @@ export type ReportTargetType =
   | 'suggestion'
   | 'suggestion_comment'
   | 'note_request'
+  | 'lost_item'
   | 'user';
 
 export const moderationAPI = {
@@ -498,6 +499,25 @@ export const noteRequestAPI = {
   reopen: (id: string | number) => api.post(`/note-requests/${id}/reopen`),
   close: (id: string | number) => api.patch(`/note-requests/${id}/close`),
   delete: (id: string | number) => api.delete(`/note-requests/${id}`),
+};
+
+// Kayıp Eşya — create multipart; görseller sunucuda WebP'ye çevrilir.
+export const lostItemAPI = {
+  getAll: ({ page = 1, limit = 12, type = '', category = '', campus = '', status = 'open', q = '' } = {}) =>
+    api.get(`/lost-items${toQueryString({ page, limit, type, category, campus, status, q })}`),
+  getMine: () => api.get('/lost-items/mine'),
+  getById: (id: number) => api.get(`/lost-items/${id}`),
+  create: (formData: FormData) =>
+    api.post('/lost-items', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  setHandover: (id: number, place: string, at?: string) => api.patch(`/lost-items/${id}/handover`, { place, at }),
+  resolve: (id: number) => api.patch(`/lost-items/${id}/resolve`),
+  reopen: (id: number) => api.patch(`/lost-items/${id}/reopen`),
+  delete: (id: number) => api.delete(`/lost-items/${id}`),
+  claim: (id: number, body: { answer_text?: string; answer_index?: number }) => api.post(`/lost-items/${id}/claim`, body),
+  getClaims: (id: number) => api.get(`/lost-items/${id}/claims`),
+  getMyClaims: () => api.get('/lost-items/claims/mine'),
+  decideClaim: (claimId: number, action: 'accept' | 'reject', note?: string) =>
+    api.patch(`/lost-items/claims/${claimId}`, { action, note }),
 };
 
 export const scheduleAPI = {

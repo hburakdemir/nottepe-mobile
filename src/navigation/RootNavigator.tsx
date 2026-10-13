@@ -22,6 +22,7 @@ import UserProfileScreen from '../screens/main/UserProfileScreen';
 import ChecklistsScreen from '../screens/main/ChecklistsScreen';
 import AktsCalculatorScreen from '../screens/main/AktsCalculatorScreen';
 import NoteRequestsScreen from '../screens/main/NoteRequestsScreen';
+import LostItemsScreen from '../screens/main/LostItemsScreen';
 import FaqScreen from '../screens/main/FaqScreen';
 import FaqDetailScreen from '../screens/main/FaqDetailScreen';
 import SuggestionsScreen from '../screens/main/SuggestionsScreen';
@@ -83,6 +84,7 @@ const Checklists = withAppShell(ChecklistsScreen);
 const AktsCalculator = withAppShell(AktsCalculatorScreen);
 const Schedule = withAppShell(ScheduleScreenSuspended);
 const NoteRequests = withAppShell(NoteRequestsScreen);
+const LostItems = withAppShell(LostItemsScreen);
 const Ego130Schedule = withAppShell(Ego130ScheduleScreen);
 const CampusMap = withAppShell(CampusMapScreen);
 const Faq = withAppShell(FaqScreen);
@@ -151,6 +153,7 @@ export default function RootNavigator() {
         <Stack.Screen name="AktsCalculator" component={AktsCalculator} />
         <Stack.Screen name="Schedule" component={Schedule} />
         <Stack.Screen name="NoteRequests" component={NoteRequests} />
+        <Stack.Screen name="LostItems" component={LostItems} />
         <Stack.Screen name="Ego130Schedule" component={Ego130Schedule} />
         <Stack.Screen name="CampusMap" component={CampusMap} />
         <Stack.Screen name="Faq" component={Faq} />

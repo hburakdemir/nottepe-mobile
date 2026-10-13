@@ -31,6 +31,7 @@ const TYPE_LABELS: Record<ReportTargetType, string> = {
   suggestion: 'Öneri',
   suggestion_comment: 'Öneri yorumu',
   note_request: 'Not isteği',
+  lost_item: 'Kayıp eşya ilanı',
   user: 'Kullanıcı',
 };
 
@@ -84,6 +85,8 @@ function openTarget(navigation: Nav, r: Report): (() => void) | null {
       return r.parent_id ? () => navigation.navigate('SuggestionDetail', { id: r.parent_id! }) : null;
     case 'note_request':
       return () => navigation.navigate('NoteRequests');
+    case 'lost_item':
+      return () => navigation.navigate('LostItems', { itemId: r.target_id });
     case 'user':
       return r.target_username ? () => navigation.navigate('UserProfile', { username: r.target_username! }) : null;
     default:

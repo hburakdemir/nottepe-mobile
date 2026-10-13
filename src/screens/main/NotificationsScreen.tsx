@@ -12,6 +12,7 @@ import {
   Flag,
   Megaphone,
   MessageSquare,
+  PackageSearch,
   Settings,
   Tag,
   User,
@@ -115,6 +116,19 @@ const ACTIVITY_TYPE_META: Record<string, { icon: any; label: (n: any) => string 
       `${n.actor_full_name || n.actor_username || 'Bir kullanıcı'} yorumuna yanıt verdi${
         n.faq_question ? `: ${n.faq_question}` : n.suggestion_content ? ' (öneri)' : ''
       }`,
+  },
+  lost_item_claim: {
+    icon: PackageSearch,
+    label: (n) => `Kayıp eşya ilanına yeni başvuru: ${n.lost_item_title || 'ilanın'}`,
+  },
+  lost_item_claim_accepted: {
+    icon: PackageSearch,
+    label: (n) =>
+      `${n.actor_full_name || n.actor_username || 'İlan sahibi'} kayıp eşya başvurunu onayladı: ${n.lost_item_title || 'ilan'}`,
+  },
+  lost_item_claim_rejected: {
+    icon: PackageSearch,
+    label: (n) => `Kayıp eşya başvurun onaylanmadı: ${n.lost_item_title || 'ilan'}`,
   },
 };
 
@@ -222,12 +236,13 @@ function ActivityCard({ notif, unread }: { notif: any; unread: boolean }) {
   const meta = ACTIVITY_TYPE_META[notif.type];
   const Icon = meta?.icon || Bell;
   const label = meta ? meta.label(notif) : 'Yeni aktivite bildirimi';
-  const canNavigate = !!notif.post_id || !!notif.faq_entry_id || !!notif.suggestion_id;
+  const canNavigate = !!notif.post_id || !!notif.faq_entry_id || !!notif.suggestion_id || !!notif.lost_item_id;
 
   const handlePress = () => {
     if (notif.post_id) navigation.navigate('PostDetail', { postId: notif.post_id });
     else if (notif.faq_entry_id) navigation.navigate('FaqDetail', { id: notif.faq_entry_id });
     else if (notif.suggestion_id) navigation.navigate('SuggestionDetail', { id: notif.suggestion_id });
+    else if (notif.lost_item_id) navigation.navigate('LostItems', { itemId: notif.lost_item_id });
   };
 
   return (
