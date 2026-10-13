@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Nottepe Instagram</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #7a0c12; }
+  body { font-family: 'Inter Display', 'Inter', sans-serif; -webkit-font-smoothing: antialiased; }
+
+  .canvas {
+    position: relative; overflow: hidden;
+    width: var(--w); height: var(--h);
+    background:
+      radial-gradient(120% 70% at 50% 18%, #b8161f 0%, #98111a 45%, #6e0a10 100%);
+    color: #fff;
+  }
+  .glow {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    top: var(--glow-t); width: 1100px; height: 900px; border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(255,120,120,.28), rgba(255,120,120,0));
+  }
+
+  .head {
+    position: absolute; left: 0; right: 0; top: var(--head-t);
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    padding: 0 70px;
+  }
+  .brand { display: flex; align-items: center; gap: 18px; }
+  .brand img {
+    width: var(--icon); height: var(--icon); border-radius: 23%;
+    box-shadow: 0 0 0 3px rgba(255,255,255,.9), 0 12px 30px rgba(0,0,0,.35);
+  }
+  .brand span { font-size: var(--brand-fs); font-weight: 800; letter-spacing: -.02em; }
+
+  .kicker {
+    margin-top: var(--kicker-mt);
+    display: inline-flex; align-items: center; gap: 12px;
+    padding: 11px 24px; border-radius: 999px;
+    background: rgba(255,255,255,.14); border: 1.5px solid rgba(255,255,255,.3);
+    font-size: var(--kicker-fs); font-weight: 700; letter-spacing: .12em;
+  }
+  .kicker i {
+    width: 12px; height: 12px; border-radius: 50%; background: #4ade80;
+    box-shadow: 0 0 0 5px rgba(74,222,128,.25);
+  }
+
+  h1 {
+    margin-top: var(--h1-mt);
+    font-size: var(--h1-fs); font-weight: 900; line-height: 1.0; letter-spacing: -.035em;
+    text-shadow: 0 6px 30px rgba(0,0,0,.18);
+  }
+  .sub {
+    margin-top: var(--sub-mt); max-width: var(--sub-w);
+    font-size: var(--sub-fs); font-weight: 500; line-height: 1.3;
+    color: rgba(255,255,255,.88); text-wrap: balance;
+  }
+
+  .badges { margin-top: var(--badges-mt); display: flex; gap: 20px; }
+  .badge {
+    display: flex; align-items: center; gap: calc(var(--badge-h) * .16);
+    height: var(--badge-h); padding: 0 calc(var(--badge-h) * .34) 0 calc(var(--badge-h) * .26);
+    background: #000; border: 2px solid #a6a6a6; border-radius: calc(var(--badge-h) * .2);
+    box-shadow: 0 14px 30px rgba(0,0,0,.35);
+    text-align: left;
+  }
+  .badge svg { width: calc(var(--badge-h) * .5); height: calc(var(--badge-h) * .5); flex: none; }
+  .badge small { display: block; font-size: calc(var(--badge-h) * .19); font-weight: 500; line-height: 1.1; opacity: .92; }
+  .badge b { display: block; font-size: calc(var(--badge-h) * .34); font-weight: 700; line-height: 1.05; letter-spacing: -.01em; }
+
+  .url {
+    margin-top: var(--url-mt); font-size: var(--url-fs); font-weight: 600;
+    letter-spacing: .04em; color: rgba(255,255,255,.75);
+  }
+
+  .phone { position: absolute; }
+  .phone img {
+    display: block; width: 100%;
+    /* Çerçeveli ekran görüntüsünün dış köşelerindeki siyah zemini kırp (dış yarıçap ≈136/1204) */
+    border-radius: 11.3% / 5.65%;
+    box-shadow: 0 50px 90px rgba(0,0,0,.45), 0 10px 25px rgba(0,0,0,.3);
+  }
+  .phone.side img { filter: brightness(.94); }
+</style>
+</head>
+<body>
+<div class="canvas" id="canvas">
+  <div class="glow"></div>
+
+  <div class="phone side" id="pl"><img src="../../screenshot_4_ring.png" alt=""></div>
+  <div class="phone side" id="pr"><img src="../../screenshot_5_yemekhane.png" alt=""></div>
+  <div class="phone" id="pc"><img src="../../screenshot_1_ana_sayfa.png" alt=""></div>
+
+  <div class="head">
+    <div class="brand">
+      <img src="../../../assets/icon.png" alt="">
+      <span>Nottepe</span>
+    </div>
+    <div class="kicker"><i></i>MOBİL UYGULAMA YAYINDA</div>
+    <h1>Nottepe artık<br>cebinde!</h1>
+    <p class="sub">Ders notları, ring saatleri ve yemek listesi tek uygulamada.</p>
+    <div class="badges">
+      <div class="badge">
+        <svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>
+        <div><small>Hemen indir</small><b>App Store</b></div>
+      </div>
+      <div class="badge">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="#4285F4" d="M1.337.924a1.486 1.486 0 0 0-.112.568v21.017c0 .217.045.419.124.6l11.155-11.087L1.337.924z"/>
+          <path fill="#34A853" d="M13.544 10.989l3.258-3.238L3.45.195a1.466 1.466 0 0 0-.946-.179l11.04 10.973z"/>
+          <path fill="#EA4335" d="M13.544 13.056l-11 10.933c.298.036.612-.016.906-.183l13.324-7.54-3.23-3.21z"/>
+          <path fill="#FBBC04" d="M22.018 13.298l-3.919 2.218-3.515-3.493 3.543-3.521 3.891 2.202a1.49 1.49 0 0 1 0 2.594z"/>
+        </svg>
+        <div><small>Hemen indir</small><b>Google Play</b></div>
+      </div>
+    </div>
+    <div class="url" id="url">nottepe.com</div>
+  </div>
+</div>
+
+<script>
+  // Biçim: ?f=post (1080×1350, 4:5) | ?f=story (1080×1920, 9:16)
+  const FORMATS = {
+    post: {
+      vars: {
+        '--w': '1080px', '--h': '1350px',
+        '--head-t': '64px', '--icon': '84px', '--brand-fs': '46px',
+        '--kicker-mt': '34px', '--kicker-fs': '21px',
+        '--h1-mt': '24px', '--h1-fs': '96px',
+        '--sub-mt': '22px', '--sub-fs': '31px', '--sub-w': '760px',
+        '--badges-mt': '34px', '--badge-h': '84px',
+        '--url-mt': '0px', '--url-fs': '0px',
+        '--glow-t': '560px',
+      },
+      showUrl: false,
+      // [genişlik, sol kenar, üst, açı]
+      pc: [430, 325, 710, 0],
+      pl: [360, 30, 800, -8],
+      pr: [360, 690, 800, 8],
+    },
+    story: {
+      vars: {
+        '--w': '1080px', '--h': '1920px',
+        '--head-t': '250px', '--icon': '100px', '--brand-fs': '54px',
+        '--kicker-mt': '44px', '--kicker-fs': '24px',
+        '--h1-mt': '30px', '--h1-fs': '112px',
+        '--sub-mt': '28px', '--sub-fs': '36px', '--sub-w': '820px',
+        '--badges-mt': '44px', '--badge-h': '96px',
+        '--url-mt': '30px', '--url-fs': '28px',
+        '--glow-t': '1000px',
+      },
+      showUrl: true,
+      pc: [500, 290, 1120, 0],
+      pl: [410, 0, 1220, -8],
+      pr: [410, 670, 1220, 8],
+    },
+  };
+  const f = FORMATS[new URLSearchParams(location.search).get('f') || 'post'];
+  const c = document.getElementById('canvas');
+  for (const [k, v] of Object.entries(f.vars)) c.style.setProperty(k, v);
+  if (!f.showUrl) document.getElementById('url').remove();
+  for (const id of ['pc', 'pl', 'pr']) {
+    const [w, x, y, r] = f[id];
+    Object.assign(document.getElementById(id).style, {
+      width: w + 'px', left: x + 'px', top: y + 'px',
+      transform: `rotate(${r}deg)`, transformOrigin: '50% 0',
+    });
+  }
+</script>
+</body>
+</html>
