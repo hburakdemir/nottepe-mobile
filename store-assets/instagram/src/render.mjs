@@ -12,10 +12,11 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const outDir = path.resolve(here, '..');
 const template = pathToFileURL(path.join(here, 'template.html')).href;
 
-const JOBS = [
-  { f: 'post', w: 1080, h: 1350, out: 'nottepe_yayinda_post_1080x1350.png' },
-  { f: 'story', w: 1080, h: 1920, out: 'nottepe_yayinda_story_1080x1920.png' },
-];
+const SIZES = { post: [1080, 1350], story: [1080, 1920] };
+const THEMES = ['yesil', 'acik'];
+const JOBS = Object.entries(SIZES).flatMap(([f, [w, h]]) =>
+  THEMES.map((t) => ({ f, t, w, h, out: `nottepe_yayinda_${f}_${t}_${w}x${h}.png` })),
+);
 
 const browser = await chromium.launch(
   process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {},
@@ -26,7 +27,7 @@ try {
       viewport: { width: job.w, height: job.h },
       deviceScaleFactor: 1,
     });
-    await page.goto(`${template}?f=${job.f}`);
+    await page.goto(`${template}?f=${job.f}&t=${job.t}`);
     await page.evaluate(async () => {
       await document.fonts.ready;
       await Promise.all(
