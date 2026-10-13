@@ -4,7 +4,7 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { Ban, ChevronDown, Inbox, MessageSquare, PackageSearch, Plus, Search, ShieldCheck } from 'lucide-react-native';
+import { Ban, ChevronDown, Inbox, MessageSquare, PackageSearch, Phone, Plus, Search, ShieldCheck } from 'lucide-react-native';
 import { lostItemAPI } from '../../lib/api';
 import { useTheme } from '../../context/ThemeContext';
 import { usePullRefresh } from '../../hooks/usePullRefresh';
@@ -13,10 +13,7 @@ import LostItemCard from '../../components/lostItems/LostItemCard';
 import CreateLostItemModal from '../../components/lostItems/CreateLostItemModal';
 import LostItemDetailModal from '../../components/lostItems/LostItemDetailModal';
 import {
-  CATEGORY_LABELS,
   CLAIM_STATUS_META,
-  LOST_ITEM_CAMPUSES,
-  LOST_ITEM_CATEGORIES,
   TYPE_META,
   formatDateTime,
   lostItemImageUrl,
@@ -28,13 +25,18 @@ import type { RootStackParamList } from '../../navigation/types';
 const PAGE_LIMIT = 12;
 const STALE_MS = 60 * 1000;
 
-type Tab = 'lost' | 'found' | 'resolved' | 'mine' | 'claims';
+type Tab = 'lost' | 'found' | 'mine' | 'claims';
 const TABS: { value: Tab; label: string }[] = [
   { value: 'lost', label: 'Kayıplar' },
   { value: 'found', label: 'Bulunanlar' },
-  { value: 'resolved', label: 'Çözülenler' },
   { value: 'mine', label: 'İlanlarım' },
   { value: 'claims', label: 'Başvurularım' },
+];
+
+type BoardStatus = 'open' | 'resolved';
+const STATUS_OPTIONS = [
+  { value: 'open', label: 'Açık ilanlar' },
+  { value: 'resolved', label: 'Çözülenler' },
 ];
 
 interface BoardPage {
@@ -79,6 +81,14 @@ function MyClaimRow({ claim, onOpen }: { claim: MyClaim; onOpen: (id: number) =>
         <Text className="text-muted2 text-xs">
           İlan sahibi: {claim.owner_username} · {formatDateTime(claim.created_at)}
         </Text>
+        {claim.status === 'accepted' && !!claim.item_contact && (
+          <View className="flex-row items-center gap-1 mt-1">
+            <Phone size={13} color="#166534" />
+            <Text style={{ color: '#166534', fontSize: 13, flexShrink: 1 }} selectable>
+              {claim.item_contact}
+            </Text>
+          </View>
+        )}
         {claim.status === 'accepted' && !!claim.owner_note && (
           <View className="flex-row gap-1.5 mt-2 rounded-lg p-2" style={{ backgroundColor: '#dcfce7' }}>
             <MessageSquare size={14} color="#166534" style={{ marginTop: 2 }} />
@@ -107,12 +117,10 @@ export default function LostItemsScreen() {
   const queryClient = useQueryClient();
 
   const [tab, setTab] = useState<Tab>('lost');
-  const [category, setCategory] = useState('');
-  const [campus, setCampus] = useState('');
+  const [status, setStatus] = useState<BoardStatus>('open');
   const [qInput, setQInput] = useState('');
   const [q, setQ] = useState('');
-  const [showCategory, setShowCategory] = useState(false);
-  const [showCampus, setShowCampus] = useState(false);
+  const [showStatus, setShowStatus] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [openItem, setOpenItem] = useState<{ id: number; initial?: LostItem } | null>(null);
 
@@ -132,19 +140,17 @@ export default function LostItemsScreen() {
     return () => clearTimeout(t);
   }, [qInput]);
 
-  const isBoard = tab === 'lost' || tab === 'found' || tab === 'resolved';
+  const isBoard = tab === 'lost' || tab === 'found';
 
-  const boardKey = useMemo(() => ['lostItems', 'board', { tab, category, campus, q }] as const, [tab, category, campus, q]);
+  const boardKey = useMemo(() => ['lostItems', 'board', { tab, status, q }] as const, [tab, status, q]);
   const board = useInfiniteQuery({
     queryKey: boardKey,
     queryFn: async ({ pageParam }) => {
       const res = await lostItemAPI.getAll({
         page: pageParam,
         limit: PAGE_LIMIT,
-        type: tab === 'resolved' ? '' : tab,
-        status: tab === 'resolved' ? 'resolved' : 'open',
-        category,
-        campus,
+        type: tab,
+        status,
         q,
       });
       return res.data as BoardPage;
@@ -204,8 +210,7 @@ export default function LostItemsScreen() {
       <View className="flex-row gap-1.5 mt-3">
         <Ban size={13} color="#ef4444" style={{ marginTop: 2 }} />
         <Text className="text-muted2 text-xs flex-1 leading-4">
-          Pano ticari amaçla kullanılamaz; satış, ücret/ödül talebi ve reklam ilanları kaldırılır. İletişim bilgisi
-          paylaşma — başvurular ve bildirimler üzerinden haberleşilir.
+          Pano ticari amaçla kullanılamaz; satış, ücret/ödül talebi ve reklam ilanları kaldırılır.
         </Text>
       </View>
 
@@ -239,26 +244,15 @@ export default function LostItemsScreen() {
               returnKeyType="search"
             />
           </View>
-          <View className="flex-row gap-3">
-            <Pressable
-              className="flex-1 flex-row items-center justify-between bg-inset border border-line rounded-lg px-4 py-2.5"
-              onPress={() => setShowCategory(true)}
-            >
-              <Text className={`text-sm flex-shrink ${category ? 'text-ink' : 'text-muted2'}`} numberOfLines={1}>
-                {category ? CATEGORY_LABELS[category] : 'Tüm Kategoriler'}
-              </Text>
-              <ChevronDown size={16} color={muted} />
-            </Pressable>
-            <Pressable
-              className="flex-1 flex-row items-center justify-between bg-inset border border-line rounded-lg px-4 py-2.5"
-              onPress={() => setShowCampus(true)}
-            >
-              <Text className={`text-sm flex-shrink ${campus ? 'text-ink' : 'text-muted2'}`} numberOfLines={1}>
-                {campus || 'Tüm Kampüsler'}
-              </Text>
-              <ChevronDown size={16} color={muted} />
-            </Pressable>
-          </View>
+          <Pressable
+            className="flex-row items-center justify-between bg-inset border border-line rounded-lg px-4 py-2.5"
+            onPress={() => setShowStatus(true)}
+          >
+            <Text className="text-sm text-ink flex-shrink" numberOfLines={1}>
+              {status === 'resolved' ? 'Çözülenler' : 'Açık ilanlar'}
+            </Text>
+            <ChevronDown size={16} color={muted} />
+          </Pressable>
         </View>
       )}
     </View>
@@ -269,11 +263,11 @@ export default function LostItemsScreen() {
       ? 'Henüz ilan vermedin.'
       : tab === 'claims'
         ? 'Henüz bir ilana başvurmadın.'
-        : tab === 'found'
-          ? 'Bu filtrede bulunan eşya ilanı yok.'
-          : tab === 'resolved'
-            ? 'Henüz çözülen ilan yok.'
-            : 'Bu filtrede kayıp ilanı yok.';
+        : status === 'resolved'
+          ? 'Henüz çözülen ilan yok.'
+          : tab === 'found'
+            ? 'Açık bulunan eşya ilanı yok.'
+            : 'Açık kayıp ilanı yok.';
 
   const empty = loading ? (
     <ActivityIndicator color="#2F5755" style={{ marginTop: 32 }} />
@@ -353,22 +347,13 @@ export default function LostItemsScreen() {
       )}
 
       <OptionSheet
-        visible={showCategory}
-        title="Kategori"
-        options={LOST_ITEM_CATEGORIES}
-        value={category}
-        allLabel="Tüm Kategoriler"
-        onSelect={setCategory}
-        onClose={() => setShowCategory(false)}
-      />
-      <OptionSheet
-        visible={showCampus}
-        title="Kampüs"
-        options={LOST_ITEM_CAMPUSES}
-        value={campus}
-        allLabel="Tüm Kampüsler"
-        onSelect={setCampus}
-        onClose={() => setShowCampus(false)}
+        visible={showStatus}
+        title="İlanlar"
+        options={STATUS_OPTIONS}
+        value={status}
+        searchable={false}
+        onSelect={(v) => setStatus(v as BoardStatus)}
+        onClose={() => setShowStatus(false)}
       />
     </View>
   );

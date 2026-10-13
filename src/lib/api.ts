@@ -503,8 +503,8 @@ export const noteRequestAPI = {
 
 // Kayıp Eşya — create multipart; görseller sunucuda WebP'ye çevrilir.
 export const lostItemAPI = {
-  getAll: ({ page = 1, limit = 12, type = '', category = '', campus = '', status = 'open', q = '' } = {}) =>
-    api.get(`/lost-items${toQueryString({ page, limit, type, category, campus, status, q })}`),
+  getAll: ({ page = 1, limit = 12, type = '', status = 'open', q = '' } = {}) =>
+    api.get(`/lost-items${toQueryString({ page, limit, type, status, q })}`),
   getMine: () => api.get('/lost-items/mine'),
   getById: (id: number) => api.get(`/lost-items/${id}`),
   create: (formData: FormData) =>
@@ -513,7 +513,8 @@ export const lostItemAPI = {
   resolve: (id: number) => api.patch(`/lost-items/${id}/resolve`),
   reopen: (id: number) => api.patch(`/lost-items/${id}/reopen`),
   delete: (id: number) => api.delete(`/lost-items/${id}`),
-  claim: (id: number, body: { answer_text?: string; answer_index?: number }) => api.post(`/lost-items/${id}/claim`, body),
+  claim: (id: number, body: { answer_text?: string; answer_index?: number; contact: string }) =>
+    api.post(`/lost-items/${id}/claim`, body),
   getClaims: (id: number) => api.get(`/lost-items/${id}/claims`),
   getMyClaims: () => api.get('/lost-items/claims/mine'),
   decideClaim: (claimId: number, action: 'accept' | 'reject', note?: string) =>

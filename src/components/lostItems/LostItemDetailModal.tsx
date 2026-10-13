@@ -21,9 +21,9 @@ import {
   Hand,
   HelpCircle,
   MapPin,
+  Phone,
   RotateCcw,
   ShieldCheck,
-  Trash2,
   User,
   X,
   XCircle,
@@ -32,16 +32,18 @@ import { lostItemAPI } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import KeyboardAvoider from '../layout/KeyboardAvoider';
-import ModerationMenu from '../moderation/ModerationMenu';
 import { success } from '../../lib/haptics';
+import DayTimeFields from './DayTimeFields';
+import LostItemMenu from './LostItemMenu';
 import {
-  CATEGORY_LABELS,
   CLAIM_STATUS_META,
-  DAY_CHOICES,
   HANDOVER_PLACE_SUGGESTIONS,
   TYPE_META,
+  currentTimeString,
+  dayTimeToIso,
   formatDateTime,
   formatDay,
+  itemWhen,
   lostItemImageUrl,
   type LostItem,
   type LostItemClaim,
@@ -65,6 +67,7 @@ function ClaimForm({ item, onDone }: { item: LostItem; onDone: () => void }) {
   const [open, setOpen] = useState(false);
   const [answerText, setAnswerText] = useState('');
   const [answerIndex, setAnswerIndex] = useState<number | null>(null);
+  const [contact, setContact] = useState('');
   const [sending, setSending] = useState(false);
   const hasOptions = Array.isArray(item.verify_options) && item.verify_options.length > 0;
   const cta = item.type === 'found' ? 'Bu benim' : 'Ben buldum';
@@ -72,11 +75,13 @@ function ClaimForm({ item, onDone }: { item: LostItem; onDone: () => void }) {
   const submit = async () => {
     if (hasOptions && answerIndex === null) return Alert.alert('Eksik', 'Bir şık seç');
     if (!hasOptions && item.verify_question && !answerText.trim()) return Alert.alert('Eksik', 'Soruyu cevapla');
+    if (!contact.trim()) return Alert.alert('Eksik', 'İletişim bilgini yaz');
     setSending(true);
     try {
       await lostItemAPI.claim(item.id, {
         answer_text: answerText.trim() || undefined,
         answer_index: hasOptions ? answerIndex ?? undefined : undefined,
+        contact: contact.trim(),
       });
       success();
       onDone();
@@ -147,8 +152,20 @@ function ClaimForm({ item, onDone }: { item: LostItem; onDone: () => void }) {
         />
       )}
 
+      <Text className="text-ink" style={styles.label}>
+        İletişim bilgin *
+      </Text>
+      <TextInput
+        className="text-ink border-line"
+        style={styles.input}
+        value={contact}
+        onChangeText={setContact}
+        maxLength={150}
+        placeholder="Telefon, Instagram, e-posta..."
+        placeholderTextColor="#9ca3af"
+      />
       <Text className="text-muted2" style={styles.hint}>
-        Telefon, e-posta gibi iletişim bilgisi paylaşma — ilan sahibi onaylarsa sana bildirimle ulaşır.
+        Yalnız ilan sahibi görür.
       </Text>
       <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
         <Pressable style={[styles.primaryBtn, { flex: 1 }, sending && { opacity: 0.6 }]} onPress={submit} disabled={sending}>
@@ -241,6 +258,14 @@ function ClaimsList({
                 "{c.answer_text}"
               </Text>
             )}
+            {!!c.contact && (
+              <View style={[styles.metaRow, { marginTop: 4 }]}>
+                <Phone size={13} color={BRAND} />
+                <Text className="text-ink" style={{ fontSize: 13, flexShrink: 1 }} selectable>
+                  {c.contact}
+                </Text>
+              </View>
+            )}
             <Text className="text-muted2" style={{ fontSize: 11, marginTop: 4 }}>
               {formatDateTime(c.created_at)}
             </Text>
@@ -304,27 +329,20 @@ function ClaimsList({
 }
 
 // ─── "Bir yere teslim ettim" (ilan sahibi, Buldum + açık) ──────────────
-// Tarih seçici için native paket yok: gün çipleri + "SS:DD" saat kutusu.
 function HandoverForm({ item, onSaved }: { item: LostItem; onSaved: () => void }) {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
   const [open, setOpen] = useState(false);
   const [place, setPlace] = useState(item.handed_over_place || '');
-  const [daysAgo, setDaysAgo] = useState(0);
-  const [time, setTime] = useState(`${pad(now.getHours())}:${pad(now.getMinutes())}`);
+  const [daysAgo, setDaysAgo] = useState<number | null>(0);
+  const [time, setTime] = useState(currentTimeString);
   const [saving, setSaving] = useState(false);
 
   const save = async (clear: boolean) => {
     let at: string | undefined;
     if (!clear) {
       if (!place.trim()) return Alert.alert('Eksik', 'Teslim yerini yaz');
-      const m = /^(\d{1,2})[:.](\d{2})$/.exec(time.trim());
-      if (!m || +m[1] > 23 || +m[2] > 59) return Alert.alert('Saat', 'Saati SS:DD biçiminde yaz (örn. 14:30)');
-      const d = new Date();
-      d.setDate(d.getDate() - daysAgo);
-      d.setHours(+m[1], +m[2], 0, 0);
-      if (d.getTime() > Date.now() + 60 * 1000) return Alert.alert('Saat', 'Teslim zamanı gelecekte olamaz');
-      at = d.toISOString();
+      const iso = dayTimeToIso(daysAgo ?? 0, time);
+      if (!iso) return Alert.alert('Saat', 'Saati SS:DD biçiminde yaz (örn. 14:30); gelecekte olamaz');
+      at = iso;
     }
     setSaving(true);
     try {
@@ -377,33 +395,7 @@ function HandoverForm({ item, onSaved }: { item: LostItem; onSaved: () => void }
       <Text className="text-ink" style={styles.label}>
         Teslim günü ve saati
       </Text>
-      <View style={styles.chipWrap}>
-        {DAY_CHOICES.map((c) => {
-          const active = daysAgo === c.daysAgo;
-          return (
-            <Pressable
-              key={c.label}
-              className={active ? 'bg-brand' : 'bg-inset'}
-              style={styles.chip}
-              onPress={() => setDaysAgo(c.daysAgo)}
-            >
-              <Text className={active ? '' : 'text-muted'} style={[styles.chipText, active && { color: '#fff' }]}>
-                {c.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-      <TextInput
-        className="text-ink border-line"
-        style={[styles.input, { marginTop: 8, width: 110 }]}
-        value={time}
-        onChangeText={setTime}
-        maxLength={5}
-        keyboardType="numbers-and-punctuation"
-        placeholder="SS:DD"
-        placeholderTextColor="#9ca3af"
-      />
+      <DayTimeFields daysAgo={daysAgo} onDaysAgo={setDaysAgo} time={time} onTime={setTime} />
 
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
         <Pressable style={[styles.primaryBtn, { flex: 1 }, saving && { opacity: 0.6 }]} onPress={() => save(false)} disabled={saving}>
@@ -472,25 +464,6 @@ export default function LostItemDetailModal({ itemId, initialItem, onClose, onCh
       ]
     );
 
-  const confirmDelete = () =>
-    Alert.alert('İlanı sil', 'İlan ve fotoğrafları kalıcı olarak silinsin mi?', [
-      { text: 'Vazgeç', style: 'cancel' },
-      {
-        text: 'Sil',
-        style: 'destructive',
-        onPress: async () => {
-          if (!item) return;
-          try {
-            await lostItemAPI.delete(item.id);
-            onChanged();
-            onClose();
-          } catch (err: any) {
-            Alert.alert('Hata', errMsg(err, 'Silinemedi'));
-          }
-        },
-      },
-    ]);
-
   const isOwner = !!item && user?.id === item.user_id;
   const type = item ? TYPE_META[item.type] ?? TYPE_META.lost : null;
 
@@ -502,13 +475,11 @@ export default function LostItemDetailModal({ itemId, initialItem, onClose, onCh
             <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Kapat">
               <X size={22} color={muted} />
             </Pressable>
-            {item && !isOwner && (
-              <ModerationMenu
-                targetType="lost_item"
-                targetId={item.id}
-                ownerId={item.user_id}
-                ownerUsername={item.owner_username}
-                onBlocked={() => {
+            {item && item.status !== 'removed' && (
+              <LostItemMenu
+                item={item}
+                size={22}
+                onGone={() => {
                   onChanged();
                   onClose();
                 }}
@@ -553,12 +524,6 @@ export default function LostItemDetailModal({ itemId, initialItem, onClose, onCh
                     <View style={[styles.pill, { backgroundColor: type.bg }]}>
                       <Text style={[styles.pillText, { color: type.text }]}>{type.label}</Text>
                     </View>
-                    <View style={[styles.pill, { backgroundColor: BRAND }]}>
-                      <Text style={[styles.pillText, { color: '#fff' }]}>{CATEGORY_LABELS[item.category] ?? item.category}</Text>
-                    </View>
-                    <View style={[styles.pill, { backgroundColor: '#5A9690' }]}>
-                      <Text style={[styles.pillText, { color: '#fff' }]}>{item.campus}</Text>
-                    </View>
                     {item.status === 'resolved' && (
                       <View style={[styles.pill, { backgroundColor: '#e5e7eb' }]}>
                         <Text style={[styles.pillText, { color: '#374151' }]}>Çözüldü</Text>
@@ -579,11 +544,11 @@ export default function LostItemDetailModal({ itemId, initialItem, onClose, onCh
                       </Text>
                     </View>
                   )}
-                  {!!item.item_date && (
+                  {!!itemWhen(item) && (
                     <View style={styles.metaRow}>
                       <CalendarDays size={15} color={muted} />
                       <Text className="text-muted" style={styles.metaText}>
-                        {item.type === 'found' ? 'Bulunma' : 'Kaybolma'} tarihi: {formatDay(item.item_date)}
+                        {item.type === 'found' ? 'Bulunma' : 'Kaybolma'} zamanı: {itemWhen(item)}
                       </Text>
                     </View>
                   )}
@@ -604,6 +569,29 @@ export default function LostItemDetailModal({ itemId, initialItem, onClose, onCh
                   <Text className="text-ink" style={{ fontSize: 14, lineHeight: 20 }}>
                     {item.description}
                   </Text>
+                )}
+
+                {!!item.contact && (
+                  <View className="bg-surface border-line" style={[styles.box, { flexDirection: 'row', gap: 10 }]}>
+                    <Phone size={18} color={BRAND} style={{ marginTop: 1 }} />
+                    <View style={{ flex: 1 }}>
+                      <Text className="text-muted2" style={{ fontSize: 12 }}>
+                        İletişim
+                      </Text>
+                      <Text className="text-ink" style={{ fontSize: 15, fontWeight: '600', marginTop: 2 }} selectable>
+                        {item.contact}
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                {item.type === 'found' && item.status === 'open' && !item.handed_over_place && (
+                  <View className="bg-inset" style={[styles.box, { borderWidth: 0, flexDirection: 'row', gap: 8 }]}>
+                    <Hand size={16} color={muted} style={{ marginTop: 1 }} />
+                    <Text className="text-ink" style={{ fontSize: 13, flex: 1 }}>
+                      Eşya şu an bulan kişide.
+                    </Text>
+                  </View>
                 )}
 
                 {!!item.handed_over_place && !!item.handed_over_at && (
@@ -664,10 +652,6 @@ export default function LostItemDetailModal({ itemId, initialItem, onClose, onCh
                           </Text>
                         </Pressable>
                       )}
-                      <Pressable style={[styles.outlineBtn, { borderColor: '#fca5a5' }]} onPress={confirmDelete}>
-                        <Trash2 size={15} color="#ef4444" />
-                        <Text style={[styles.outlineBtnText, { color: '#ef4444' }]}>Sil</Text>
-                      </Pressable>
                     </View>
                   </>
                 )}

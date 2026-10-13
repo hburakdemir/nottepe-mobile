@@ -13,10 +13,12 @@ export interface LostItem {
   type: LostItemType;
   title: string;
   description: string;
-  category: string;
-  campus: string;
   location: string;
+  /** Olayın günü ve saati. Saat eklenmeden önceki ilanlarda yalnız item_date var. */
+  item_at: string | null;
   item_date: string | null;
+  /** İlanı verenin iletişim bilgisi (telefon, Instagram vb.) — herkese açık. */
+  contact: string;
   images: string[];
   verify_question: string | null;
   // Doğru şıkkın indeksi sunucudan hiç gelmez.
@@ -40,6 +42,8 @@ export interface LostItemClaim {
   answer_text: string | null;
   answer_index: number | null;
   is_correct: boolean | null;
+  /** Başvuranın iletişim bilgisi — yalnız ilan sahibi görüyor. */
+  contact: string | null;
   status: ClaimStatus;
   created_at: string;
 }
@@ -56,25 +60,8 @@ export interface MyClaim {
   handed_over_place: string | null;
   handed_over_at: string | null;
   owner_username: string;
+  item_contact: string | null;
 }
-
-export const LOST_ITEM_CATEGORIES = [
-  { value: 'elektronik', label: 'Elektronik' },
-  { value: 'kimlik_kart', label: 'Kimlik / Kart' },
-  { value: 'cuzdan', label: 'Cüzdan' },
-  { value: 'anahtar', label: 'Anahtar' },
-  { value: 'canta', label: 'Çanta' },
-  { value: 'giyim', label: 'Giyim' },
-  { value: 'kitap_kirtasiye', label: 'Kitap / Kırtasiye' },
-  { value: 'aksesuar', label: 'Aksesuar' },
-  { value: 'diger', label: 'Diğer' },
-] as const;
-
-export const CATEGORY_LABELS: Record<string, string> = Object.fromEntries(
-  LOST_ITEM_CATEGORIES.map((c) => [c.value, c.label])
-);
-
-export const LOST_ITEM_CAMPUSES = ['Beytepe', 'Sıhhiye', 'Diğer'] as const;
 
 // "Bir yere teslim ettim" için öneriler — serbest metin de yazılabilir.
 export const HANDOVER_PLACE_SUGGESTIONS = [
@@ -104,13 +91,30 @@ export const formatDay = (d: string) =>
 export const formatDateTime = (d: string) =>
   new Date(d).toLocaleString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-// Yerel tarih → 'YYYY-MM-DD' (sunucu item_date formatı). Tarih seçici için
-// yeni native paket eklemiyoruz; ekranlar "Bugün / Dün / ..." çipleri sunuyor.
-export function localDateString(daysAgo = 0): string {
+// İlanın "ne zaman"ı: saat varsa gün + saat, yoksa (eski ilanlar) yalnız gün.
+export function itemWhen(item: Pick<LostItem, 'item_at' | 'item_date'>): string | null {
+  if (item.item_at) return formatDateTime(item.item_at);
+  if (item.item_date) return formatDay(item.item_date);
+  return null;
+}
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+export function currentTimeString(): string {
+  const now = new Date();
+  return `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+// Tarih seçici için yeni native paket eklemiyoruz; ekranlar "Bugün / Dün / ..."
+// çipleri + "SS:DD" saat kutusu sunuyor. Geçersiz saatte ya da gelecekte null.
+export function dayTimeToIso(daysAgo: number, time: string): string | null {
+  const m = /^(\d{1,2})[:.](\d{2})$/.exec(time.trim());
+  if (!m || +m[1] > 23 || +m[2] > 59) return null;
   const d = new Date();
   d.setDate(d.getDate() - daysAgo);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  d.setHours(+m[1], +m[2], 0, 0);
+  if (d.getTime() > Date.now() + 60 * 1000) return null;
+  return d.toISOString();
 }
 
 export const DAY_CHOICES = [

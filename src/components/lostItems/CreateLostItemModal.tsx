@@ -6,14 +6,12 @@ import { Ban, Check, ImagePlus, PackageSearch, Plus, Trash2, X } from 'lucide-re
 import { lostItemAPI } from '../../lib/api';
 import { useTheme } from '../../context/ThemeContext';
 import KeyboardAvoider from '../layout/KeyboardAvoider';
-import OptionSheet from '../layout/OptionSheet';
 import { success } from '../../lib/haptics';
+import DayTimeFields from './DayTimeFields';
 import {
-  CATEGORY_LABELS,
-  DAY_CHOICES,
-  LOST_ITEM_CAMPUSES,
-  LOST_ITEM_CATEGORIES,
-  localDateString,
+  HANDOVER_PLACE_SUGGESTIONS,
+  currentTimeString,
+  dayTimeToIso,
   type LostItemType,
 } from './lostItemMeta';
 
@@ -21,6 +19,7 @@ const MAX_IMAGES = 3;
 const MAX_OPTIONS = 5;
 
 type QuestionMode = 'none' | 'text' | 'choice';
+type FoundState = 'with_me' | 'handed_over';
 
 interface Props {
   initialType: LostItemType;
@@ -28,9 +27,9 @@ interface Props {
   onCreated: () => void;
 }
 
-// Yeni ilan. İletişim bilgisi alanı bilerek yok — iletişim başvuru + bildirim
-// üzerinden yürür. "Buldum" ilanına opsiyonel doğrulama sorusu eklenebilir.
-// Görseller ham gider; WebP dönüşümü sunucuda (sharp).
+// Yeni ilan. İletişim bilgisi zorunlu ve ilanda herkese görünür. "Buldum"
+// ilanında eşyanın durumu (hâlâ bende / teslim ettim) zorunlu seçim; opsiyonel
+// doğrulama sorusu eklenebilir. Görseller ham gider; WebP dönüşümü sunucuda (sharp).
 export default function CreateLostItemModal({ initialType, onClose, onCreated }: Props) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -40,10 +39,14 @@ export default function CreateLostItemModal({ initialType, onClose, onCreated }:
   const [type, setType] = useState<LostItemType>(initialType);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('');
-  const [campus, setCampus] = useState<string>('Beytepe');
   const [location, setLocation] = useState('');
   const [daysAgo, setDaysAgo] = useState<number | null>(0);
+  const [time, setTime] = useState(currentTimeString);
+  const [contact, setContact] = useState('');
+  const [foundState, setFoundState] = useState<FoundState | null>(null);
+  const [handoverPlace, setHandoverPlace] = useState('');
+  const [handoverDaysAgo, setHandoverDaysAgo] = useState<number | null>(0);
+  const [handoverTime, setHandoverTime] = useState(currentTimeString);
   const [images, setImages] = useState<ImagePicker.ImagePickerAsset[]>([]);
 
   const [questionMode, setQuestionMode] = useState<QuestionMode>('none');
@@ -53,8 +56,6 @@ export default function CreateLostItemModal({ initialType, onClose, onCreated }:
 
   const [ack, setAck] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [showCategory, setShowCategory] = useState(false);
-  const [showCampus, setShowCampus] = useState(false);
 
   const pickImages = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -80,9 +81,40 @@ export default function CreateLostItemModal({ initialType, onClose, onCreated }:
   };
 
   const handleSubmit = async () => {
-    if (!title.trim() || !category) {
-      Alert.alert('Eksik bilgi', 'Başlık ve kategori zorunlu');
+    const itemLabel = type === 'found' ? 'Bulunan eşya' : 'Kaybolan eşya';
+    if (!title.trim()) {
+      Alert.alert('Eksik bilgi', `${itemLabel} alanını doldur`);
       return;
+    }
+    let itemAt: string | null = null;
+    if (daysAgo !== null) {
+      itemAt = dayTimeToIso(daysAgo, time);
+      if (!itemAt) {
+        Alert.alert('Saat', 'Saati SS:DD biçiminde yaz (örn. 14:30); gelecekte olamaz');
+        return;
+      }
+    }
+    if (!contact.trim()) {
+      Alert.alert('Eksik bilgi', 'İletişim bilgisini yaz');
+      return;
+    }
+    let handoverAt: string | null = null;
+    if (type === 'found') {
+      if (!foundState) {
+        Alert.alert('Eksik bilgi', "Eşya hâlâ sende mi, yoksa bir yere teslim ettin mi?");
+        return;
+      }
+      if (foundState === 'handed_over') {
+        if (!handoverPlace.trim()) {
+          Alert.alert('Eksik bilgi', 'Teslim yerini yaz');
+          return;
+        }
+        handoverAt = dayTimeToIso(handoverDaysAgo ?? 0, handoverTime);
+        if (!handoverAt) {
+          Alert.alert('Saat', 'Teslim saatini SS:DD biçiminde yaz (örn. 14:30); gelecekte olamaz');
+          return;
+        }
+      }
     }
     const withQuestion = type === 'found' && questionMode !== 'none';
     if (withQuestion && !question.trim()) {
@@ -108,10 +140,13 @@ export default function CreateLostItemModal({ initialType, onClose, onCreated }:
     fd.append('type', type);
     fd.append('title', title.trim());
     fd.append('description', description.trim());
-    fd.append('category', category);
-    fd.append('campus', campus);
     fd.append('location', location.trim());
-    if (daysAgo !== null) fd.append('item_date', localDateString(daysAgo));
+    if (itemAt) fd.append('item_at', itemAt);
+    fd.append('contact', contact.trim());
+    if (handoverAt) {
+      fd.append('handed_over_place', handoverPlace.trim());
+      fd.append('handed_over_at', handoverAt);
+    }
     fd.append('non_commercial_ack', 'true');
     if (withQuestion) {
       fd.append('verify_question', question.trim());
@@ -170,7 +205,7 @@ export default function CreateLostItemModal({ initialType, onClose, onCreated }:
               </View>
 
               <Text className="text-ink" style={styles.label}>
-                Başlık *
+                {type === 'found' ? 'Bulunan eşya *' : 'Kaybolan eşya *'}
               </Text>
               <TextInput
                 className="text-ink border-line"
@@ -181,29 +216,6 @@ export default function CreateLostItemModal({ initialType, onClose, onCreated }:
                 placeholder={type === 'found' ? 'Örn: Siyah kablosuz kulaklık' : 'Örn: Mavi öğrenci kartı kılıfı'}
                 placeholderTextColor="#9ca3af"
               />
-
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                <View style={{ flex: 1 }}>
-                  <Text className="text-ink" style={styles.label}>
-                    Kategori *
-                  </Text>
-                  <Pressable className="border-line" style={styles.selectBox} onPress={() => setShowCategory(true)}>
-                    <Text className={category ? 'text-ink' : 'text-muted'} style={styles.selectText} numberOfLines={1}>
-                      {category ? CATEGORY_LABELS[category] : 'Seç'}
-                    </Text>
-                  </Pressable>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text className="text-ink" style={styles.label}>
-                    Kampüs *
-                  </Text>
-                  <Pressable className="border-line" style={styles.selectBox} onPress={() => setShowCampus(true)}>
-                    <Text className="text-ink" style={styles.selectText}>
-                      {campus}
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
 
               <Text className="text-ink" style={styles.label}>
                 {type === 'found' ? 'Bulunduğu yer' : 'Kaybolduğu yer'}
@@ -221,23 +233,87 @@ export default function CreateLostItemModal({ initialType, onClose, onCreated }:
               <Text className="text-ink" style={styles.label}>
                 Ne zaman?
               </Text>
-              <View style={styles.chipWrap}>
-                {[...DAY_CHOICES, { daysAgo: null, label: 'Hatırlamıyorum' }].map((c) => {
-                  const active = daysAgo === c.daysAgo;
-                  return (
-                    <Pressable
-                      key={c.label}
-                      className={active ? 'bg-brand' : 'bg-inset'}
-                      style={styles.dayChip}
-                      onPress={() => setDaysAgo(c.daysAgo)}
-                    >
-                      <Text className={active ? '' : 'text-muted'} style={[styles.dayChipText, active && { color: '#fff' }]}>
-                        {c.label}
+              <DayTimeFields daysAgo={daysAgo} onDaysAgo={setDaysAgo} time={time} onTime={setTime} allowUnknown />
+
+              {type === 'found' && (
+                <>
+                  <Text className="text-ink" style={styles.label}>
+                    Eşya şu an nerede? *
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    {(
+                      [
+                        { value: 'with_me', label: 'Eşya hâlâ bende' },
+                        { value: 'handed_over', label: 'Teslim ettim' },
+                      ] as const
+                    ).map((o) => (
+                      <Pressable
+                        key={o.value}
+                        className="border-line"
+                        style={segment(foundState === o.value)}
+                        onPress={() => setFoundState(o.value)}
+                      >
+                        <Text
+                          className={foundState === o.value ? '' : 'text-muted'}
+                          style={[styles.segmentText, foundState === o.value && { color: '#fff' }]}
+                        >
+                          {o.label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  {foundState === 'handed_over' && (
+                    <View className="border-line" style={styles.questionBox}>
+                      <Text className="text-ink" style={[styles.label, { marginTop: 0 }]}>
+                        Teslim yeri *
                       </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+                      <TextInput
+                        className="text-ink border-line"
+                        style={styles.input}
+                        value={handoverPlace}
+                        onChangeText={setHandoverPlace}
+                        maxLength={150}
+                        placeholder="Örn: Beytepe Güvenlik Amirliği"
+                        placeholderTextColor="#9ca3af"
+                      />
+                      <View style={[styles.chipWrap, { marginTop: 8 }]}>
+                        {HANDOVER_PLACE_SUGGESTIONS.map((p) => (
+                          <Pressable key={p} className="bg-inset" style={styles.dayChip} onPress={() => setHandoverPlace(p)}>
+                            <Text className="text-muted" style={{ fontSize: 12, fontWeight: '600' }}>
+                              {p}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                      <Text className="text-ink" style={styles.label}>
+                        Teslim günü ve saati
+                      </Text>
+                      <DayTimeFields
+                        daysAgo={handoverDaysAgo}
+                        onDaysAgo={setHandoverDaysAgo}
+                        time={handoverTime}
+                        onTime={setHandoverTime}
+                      />
+                    </View>
+                  )}
+                </>
+              )}
+
+              <Text className="text-ink" style={styles.label}>
+                İletişim bilgisi *
+              </Text>
+              <TextInput
+                className="text-ink border-line"
+                style={styles.input}
+                value={contact}
+                onChangeText={setContact}
+                maxLength={150}
+                placeholder="Telefon, Instagram, e-posta..."
+                placeholderTextColor="#9ca3af"
+              />
+              <Text className="text-muted2" style={styles.hint}>
+                İlanda herkese görünür.
+              </Text>
 
               <Text className="text-ink" style={styles.label}>
                 Açıklama
@@ -403,22 +479,6 @@ export default function CreateLostItemModal({ initialType, onClose, onCreated }:
           </View>
         </View>
 
-        <OptionSheet
-          visible={showCategory}
-          title="Kategori"
-          options={LOST_ITEM_CATEGORIES}
-          value={category}
-          onSelect={setCategory}
-          onClose={() => setShowCategory(false)}
-        />
-        <OptionSheet
-          visible={showCampus}
-          title="Kampüs"
-          options={LOST_ITEM_CAMPUSES}
-          value={campus}
-          onSelect={setCampus}
-          onClose={() => setShowCampus(false)}
-        />
       </KeyboardAvoider>
     </Modal>
   );
@@ -432,8 +492,6 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, fontWeight: '500', marginBottom: 4, marginTop: 14 },
   input: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 9, fontSize: 14 },
   textArea: { minHeight: 80, textAlignVertical: 'top' },
-  selectBox: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 11 },
-  selectText: { fontSize: 14 },
   segment: { flex: 1, borderWidth: 1, borderRadius: 8, alignItems: 'center', paddingVertical: 10 },
   segmentText: { fontSize: 14, fontWeight: '600' },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

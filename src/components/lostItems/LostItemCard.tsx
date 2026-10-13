@@ -1,17 +1,18 @@
 import React, { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { CalendarDays, Clock, Inbox, MapPin, PackageSearch, ShieldCheck, User } from 'lucide-react-native';
+import { CalendarDays, Clock, Hand, Inbox, MapPin, PackageSearch, ShieldCheck, User } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import BlockedContentGate from '../moderation/BlockedContentGate';
 import BlockedMeTag from '../moderation/BlockedMeTag';
+import LostItemMenu from './LostItemMenu';
 import {
-  CATEGORY_LABELS,
   CLAIM_STATUS_META,
   TYPE_META,
   formatDateTime,
   formatDay,
+  itemWhen,
   lostItemImageUrl,
   type LostItem,
 } from './lostItemMeta';
@@ -30,6 +31,7 @@ function LostItemCardInner({ item, onOpen }: Props) {
   const isOwner = user?.id === item.user_id;
   const type = TYPE_META[item.type] ?? TYPE_META.lost;
   const cover = item.images?.[0];
+  const when = itemWhen(item);
 
   return (
     <Pressable className="bg-surface" style={styles.card} onPress={() => onOpen(item)}>
@@ -50,18 +52,12 @@ function LostItemCardInner({ item, onOpen }: Props) {
       </View>
 
       <View style={styles.body}>
-        <View style={styles.chipRow}>
-          <View style={[styles.chip, { backgroundColor: '#2F5755' }]}>
-            <Text style={styles.chipText}>{CATEGORY_LABELS[item.category] ?? item.category}</Text>
-          </View>
-          <View style={[styles.chip, { backgroundColor: '#5A9690' }]}>
-            <Text style={styles.chipText}>{item.campus}</Text>
-          </View>
+        <View style={styles.titleRow}>
+          <Text className="text-ink" style={styles.title} numberOfLines={2}>
+            {item.title}
+          </Text>
+          <LostItemMenu item={item} size={18} style={{ marginTop: 2 }} />
         </View>
-
-        <Text className="text-ink" style={styles.title} numberOfLines={2}>
-          {item.title}
-        </Text>
 
         {!!item.location && (
           <View style={styles.metaRow}>
@@ -71,11 +67,19 @@ function LostItemCardInner({ item, onOpen }: Props) {
             </Text>
           </View>
         )}
-        {!!item.item_date && (
+        {!!when && (
           <View style={styles.metaRow}>
             <CalendarDays size={12} color={metaColor} />
             <Text className="text-muted" style={styles.metaText}>
-              {formatDay(item.item_date)}
+              {when}
+            </Text>
+          </View>
+        )}
+        {item.type === 'found' && item.status === 'open' && !item.handed_over_place && (
+          <View style={styles.metaRow}>
+            <Hand size={12} color={metaColor} />
+            <Text className="text-muted" style={styles.metaText}>
+              Eşya bulan kişide
             </Text>
           </View>
         )}
@@ -137,10 +141,8 @@ const styles = StyleSheet.create({
   badgeTopRight: { right: 8 },
   badgeText: { fontSize: 11, fontWeight: '700' },
   body: { padding: 14 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
-  chip: { borderRadius: 100, paddingHorizontal: 10, paddingVertical: 3 },
-  chipText: { color: '#fff', fontSize: 10.5, fontWeight: '600' },
-  title: { fontSize: 16, fontWeight: '600', marginBottom: 6 },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 6 },
+  title: { flex: 1, fontSize: 16, fontWeight: '600' },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 3 },
   metaText: { fontSize: 12, flexShrink: 1 },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
