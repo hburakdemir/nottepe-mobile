@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, RefreshControl, ScrollView, Text, TextInput, View } from 'react-native';
-import { ChevronRight, ExternalLink, HelpCircle, Mail, Send, Target } from 'lucide-react-native';
+import { Image } from 'expo-image';
+import { ChevronRight, HelpCircle, Mail, Send, Target, Users } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/types';
@@ -9,6 +10,18 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { KeyboardAwareScroll } from '../../components/layout/KeyboardAvoider';
 import { useShellRefresh } from '../../hooks/usePullRefresh';
+import { useGoToUserProfile } from '../../hooks/useGoToUserProfile';
+import InstagramIcon from '../../components/icons/InstagramIcon';
+import LinkedinIcon from '../../components/icons/LinkedinIcon';
+
+// Web'deki Help.jsx'in kişi kartları; fotoğraflar oradaki /images/{burak,bora}.jpg'den
+// yüze göre kırpılıp küçültüldü. Dokununca uygulama içi profile gider.
+const TEAM = [
+  { name: 'Burak', role: 'Developer & Designer', username: 'ryder', photo: require('../../../assets/images/team/burak.jpg') },
+  { name: 'Bilal Bora Sağlam', role: 'Fikir & Reklam', username: 'Borasu', photo: require('../../../assets/images/team/bora.jpg') },
+];
+
+const CONTACT_EMAIL = 'nottepeinfo@gmail.com';
 
 function FeedbackForm() {
   const { user } = useAuth();
@@ -80,6 +93,7 @@ export default function HelpScreen() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const goToUserProfile = useGoToUserProfile();
 
   return (
     <KeyboardAwareScroll
@@ -102,6 +116,23 @@ export default function HelpScreen() {
         </Text>
       </View>
 
+      <View className="bg-surface rounded-[18px] p-4 mb-3.5 border border-line-soft">
+        <View className="flex-row items-center gap-2 mb-3">
+          <Users size={20} color={isDark ? '#5A9690' : '#2F5755'} />
+          <Text className="text-base font-semibold text-ink">Ekibimiz</Text>
+        </View>
+        <View className="flex-row">
+          {TEAM.map((m) => (
+            <Pressable key={m.username} className="flex-1 items-center" onPress={() => goToUserProfile(m.username)}>
+              <Image source={m.photo} style={{ width: 84, height: 84, borderRadius: 42 }} contentFit="cover" />
+              <Text className="text-sm font-semibold text-ink mt-2 text-center">{m.name}</Text>
+              <Text className="text-xs text-brand mt-0.5">@{m.username}</Text>
+              <Text className="text-[11px] text-muted mt-0.5 text-center">{m.role}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
       {/* SSS artık veritabanında (SSS ekranı); buradaki sabit liste kaldırıldı. */}
       <Pressable
         className="flex-row items-center gap-3 bg-surface rounded-[18px] p-4 mb-3.5 border border-line-soft"
@@ -119,24 +150,24 @@ export default function HelpScreen() {
         <Text className="text-base font-semibold text-ink mb-1.5">İletişim</Text>
         <Pressable
           className="flex-row items-center gap-2.5 bg-brand rounded-full px-4 py-3 mt-2"
-          onPress={() => Linking.openURL('mailto:burakd279@gmail.com')}
+          onPress={() => Linking.openURL(`mailto:${CONTACT_EMAIL}`)}
         >
           <Mail size={16} color="#fff" />
-          <Text className="text-white text-[13px] font-semibold">burakd279@gmail.com</Text>
+          <Text className="text-white text-[13px] font-semibold">{CONTACT_EMAIL}</Text>
         </Pressable>
         <Pressable
           className="flex-row items-center gap-2.5 bg-brand rounded-full px-4 py-3 mt-2"
-          onPress={() => Linking.openURL('https://www.linkedin.com/in/hburakdmr')}
+          onPress={() => Linking.openURL('https://www.instagram.com/nottepe1967/')}
         >
-          <ExternalLink size={16} color="#fff" />
-          <Text className="text-white text-[13px] font-semibold">LinkedIn — Hakan Burak Demir</Text>
+          <InstagramIcon size={16} color="#fff" />
+          <Text className="text-white text-[13px] font-semibold">Instagram — @nottepe1967</Text>
         </Pressable>
         <Pressable
           className="flex-row items-center gap-2.5 bg-brand rounded-full px-4 py-3 mt-2"
-          onPress={() => Linking.openURL('http://www.instagram.com/hacettepecumhuriyet')}
+          onPress={() => Linking.openURL('https://www.linkedin.com/company/nottepe/')}
         >
-          <ExternalLink size={16} color="#fff" />
-          <Text className="text-white text-[13px] font-semibold">Instagram — Hacettepe Cumhuriyet</Text>
+          <LinkedinIcon size={16} color="#fff" />
+          <Text className="text-white text-[13px] font-semibold">LinkedIn — Nottepe</Text>
         </Pressable>
       </View>
 
