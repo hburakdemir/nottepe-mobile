@@ -32,6 +32,20 @@ export interface LostItem {
   /** Yalnız ilan sahibine dolu. */
   pending_claim_count: number | null;
   my_claim_status: ClaimStatus | null;
+  /** İzleyenin bu ilana başvurusu — mesajlaşma için. */
+  my_claim_id?: number | null;
+}
+
+/** Başvuran ↔ ilan sahibi özel mesajı (sunucu: lost_item_messages). */
+export interface LostItemMessage {
+  id: number;
+  claim_id: number;
+  sender_id: number;
+  body: string;
+  read_at: string | null;
+  created_at: string;
+  sender_username?: string;
+  sender_full_name?: string | null;
 }
 
 export interface LostItemClaim {
@@ -46,6 +60,8 @@ export interface LostItemClaim {
   contact: string | null;
   status: ClaimStatus;
   created_at: string;
+  message_count?: number;
+  unread_message_count?: number;
 }
 
 export interface MyClaim {
@@ -61,6 +77,8 @@ export interface MyClaim {
   handed_over_at: string | null;
   owner_username: string;
   item_contact: string | null;
+  message_count?: number;
+  unread_message_count?: number;
 }
 
 // "Bir yere teslim ettim" için öneriler — serbest metin de yazılabilir.

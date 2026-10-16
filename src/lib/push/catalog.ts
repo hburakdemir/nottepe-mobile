@@ -63,7 +63,7 @@ export const PUSH_TYPE_CATALOG: PushTypeCatalogEntry[] = [
   {
     key: 'lost_item',
     label: 'Kayıp eşya ilanlarım',
-    description: 'İlanına "Bu benim" / "Ben buldum" başvurusu geldiğinde ya da başvurun yanıtlandığında bildirim al.',
+    description: 'İlanına "Bu benim" / "Ben buldum" başvurusu geldiğinde, başvurun yanıtlandığında ya da yeni mesaj aldığında bildirim al.',
     icon: PackageSearch,
     group: 'activity',
   },

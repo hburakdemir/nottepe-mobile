@@ -35,6 +35,7 @@ import KeyboardAvoider from '../layout/KeyboardAvoider';
 import { success } from '../../lib/haptics';
 import DayTimeFields from './DayTimeFields';
 import LostItemMenu from './LostItemMenu';
+import ClaimThread from './ClaimThread';
 import {
   CLAIM_STATUS_META,
   HANDOVER_PLACE_SUGGESTIONS,
@@ -321,6 +322,14 @@ function ClaimsList({
                   </Pressable>
                 </View>
               ))}
+
+            <ClaimThread
+              claimId={c.id}
+              itemId={item.id}
+              messageCount={c.message_count}
+              unreadCount={c.unread_message_count}
+              otherLabel={c.claimant_full_name || c.claimant_username}
+            />
           </View>
         );
       })}
@@ -624,6 +633,17 @@ export default function LostItemDetailModal({ itemId, initialItem, onClose, onCh
                     <Text style={{ color: '#166534', fontSize: 13 }}>
                       Başvurun onaylandı. İlan sahibinin notu için "Başvurularım" sekmesine bak.
                     </Text>
+                  </View>
+                )}
+
+                {!isOwner && !!item.my_claim_id && item.status !== 'removed' && (
+                  <View className="bg-surface border-line" style={[styles.box, { paddingTop: 2 }]}>
+                    <ClaimThread
+                      claimId={item.my_claim_id}
+                      itemId={item.id}
+                      otherLabel={item.owner_full_name || item.owner_username}
+                      defaultOpen
+                    />
                   </View>
                 )}
 

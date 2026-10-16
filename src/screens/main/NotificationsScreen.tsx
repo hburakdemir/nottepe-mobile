@@ -12,6 +12,7 @@ import {
   Flag,
   Megaphone,
   MessageSquare,
+  MessagesSquare,
   PackageSearch,
   Settings,
   Tag,
@@ -129,6 +130,11 @@ const ACTIVITY_TYPE_META: Record<string, { icon: any; label: (n: any) => string 
   lost_item_claim_rejected: {
     icon: PackageSearch,
     label: (n) => `Kayıp eşya başvurun onaylanmadı: ${n.lost_item_title || 'ilan'}`,
+  },
+  lost_item_message: {
+    icon: MessagesSquare,
+    label: (n) =>
+      `${n.actor_full_name || n.actor_username || 'Bir kullanıcı'} sana mesaj gönderdi: ${n.lost_item_title || 'kayıp eşya ilanı'}`,
   },
 };
 

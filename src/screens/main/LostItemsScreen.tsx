@@ -4,7 +4,7 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
-import { Ban, ChevronDown, Inbox, MessageSquare, PackageSearch, Phone, Plus, Search, ShieldCheck } from 'lucide-react-native';
+import { Ban, ChevronDown, Hand, MessageSquare, MessagesSquare, PackagePlus, PackageSearch, Phone, Plus, Search, SearchX, ShieldCheck } from 'lucide-react-native';
 import { lostItemAPI } from '../../lib/api';
 import { useTheme } from '../../context/ThemeContext';
 import { usePullRefresh } from '../../hooks/usePullRefresh';
@@ -81,6 +81,14 @@ function MyClaimRow({ claim, onOpen }: { claim: MyClaim; onOpen: (id: number) =>
         <Text className="text-muted2 text-xs">
           İlan sahibi: {claim.owner_username} · {formatDateTime(claim.created_at)}
         </Text>
+        {(claim.unread_message_count ?? 0) > 0 && (
+          <View className="flex-row items-center gap-1 mt-1">
+            <MessagesSquare size={13} color="#ef4444" />
+            <Text style={{ color: '#ef4444', fontSize: 12, fontWeight: '700' }}>
+              {claim.unread_message_count} yeni mesaj
+            </Text>
+          </View>
+        )}
         {claim.status === 'accepted' && !!claim.item_contact && (
           <View className="flex-row items-center gap-1 mt-1">
             <Phone size={13} color="#166534" />
@@ -219,9 +227,11 @@ export default function LostItemsScreen() {
           {TABS.map((t) => {
             const active = tab === t.value;
             return (
+              // Seçili olmayan sekme de kart gibi kutulu (kullanıcı isteği):
+              // zeminin üstünde yüzey rengi + ince kenar.
               <Pressable
                 key={t.value}
-                className={`rounded-lg px-4 py-2 mr-2 ${active ? 'bg-brand' : 'bg-inset'}`}
+                className={`rounded-lg px-4 py-2 mr-2 border ${active ? 'bg-brand border-brand' : 'bg-surface border-line'}`}
                 onPress={() => setTab(t.value)}
               >
                 <Text className={`text-sm font-semibold ${active ? 'text-white' : 'text-muted'}`}>{t.label}</Text>
@@ -269,12 +279,17 @@ export default function LostItemsScreen() {
             ? 'Açık bulunan eşya ilanı yok.'
             : 'Açık kayıp ilanı yok.';
 
+  // Boş durum ikonu sekmeye göre: aramada sonuç yok / ilan yok / henüz ilan
+  // vermedin / henüz başvurmadın.
+  const EmptyIcon = tab === 'mine' ? PackagePlus : tab === 'claims' ? Hand : q ? SearchX : PackageSearch;
   const empty = loading ? (
     <ActivityIndicator color="#2F5755" style={{ marginTop: 32 }} />
   ) : (
-    <View className="items-center bg-surface rounded-lg py-12 gap-4" style={SHADOW_MD}>
-      <Inbox size={64} color={isDark ? '#6b7280' : '#9ca3af'} />
-      <Text className="text-muted text-base">{emptyText}</Text>
+    <View className="items-center bg-surface rounded-lg py-12 px-6 gap-4" style={SHADOW_MD}>
+      <View className="w-24 h-24 rounded-full bg-inset items-center justify-center">
+        <EmptyIcon size={44} color={isDark ? '#DFD0B8' : '#2F5755'} strokeWidth={1.6} />
+      </View>
+      <Text className="text-muted text-base text-center">{isBoard && q ? `"${q}" için ilan bulunamadı.` : emptyText}</Text>
     </View>
   );
 

@@ -64,6 +64,11 @@ const api = axios.create({
     // Backend'e "cookie jar'ım yok, Bearer + refresh token akışı kullan" sinyali
     // (bkz. server/controllers/loginController.js login() dallanması).
     'X-Client-Type': 'mobile',
+    // Avatar 2.0'ı okuyabildiğimizin sinyali. Bu başlığı göndermeyen
+    // istemcilere sunucu v2 avatar config'ini null döner (eski sürümler v2'yi
+    // görünce FACES[NaN] ile çöküyordu; bkz. server/middleware/avatarCompat.js).
+    // Başlık eksik kalırsa bu sürüm de herkesi varsayılan avatarla gösterir.
+    'X-Avatar-Version': '2',
   },
 });
 
@@ -519,6 +524,8 @@ export const lostItemAPI = {
   getMyClaims: () => api.get('/lost-items/claims/mine'),
   decideClaim: (claimId: number, action: 'accept' | 'reject', note?: string) =>
     api.patch(`/lost-items/claims/${claimId}`, { action, note }),
+  getMessages: (claimId: number) => api.get(`/lost-items/claims/${claimId}/messages`),
+  sendMessage: (claimId: number, body: string) => api.post(`/lost-items/claims/${claimId}/messages`, { body }),
 };
 
 export const scheduleAPI = {
