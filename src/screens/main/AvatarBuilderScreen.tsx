@@ -1,130 +1,258 @@
-import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Rect as SvgRect } from 'react-native-svg';
-import { Check, Dice5, ShieldOff } from 'lucide-react-native';
-import { avatarAPI } from '../../lib/api';
-import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
-import { AvatarSVG } from '../../components/avatar/AvatarSVG';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  BEARD_COLORS,
-  BEARD_STYLES,
-  BG_COLORS,
-  BROW_COLORS,
-  BROW_STYLES,
-  DEFAULT_AVATAR_CONFIG,
-  EYE_COLORS,
-  EYE_STYLES,
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeOut,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSequence,
+  withTiming,
+  ZoomIn,
+} from 'react-native-reanimated';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Check, Dice5, X } from 'lucide-react-native';
+import { avatarAPI } from '../../lib/api';
+import { useTheme } from '../../context/ThemeContext';
+import { Avatar2SVG, type Avatar2Mode } from '../../avatar2/Avatar2SVG';
+import {
+  ACCC,
+  ACCENT,
+  ACCS,
+  BEARDS,
+  BG,
+  BODIES,
+  BROWS,
+  BUILDS,
+  EYEC,
+  EYES,
   FACES,
-  HAIR_COLORS,
-  HAIR_STYLES,
-  JERSEYS,
-  LIP_COLORS,
-  OUTFIT_COLORS,
-  OUTFIT_LABELS,
-  OUTFIT_PATTERN_COLORS,
-  OUTFIT_STYLES,
-  SKIN_COLORS,
-  generateRandomConfig,
-  jerseyBodyRects,
-  type AvatarConfig,
-  type Rect,
-} from '../../constants/avatarConfig';
+  HAIR,
+  HAIRC,
+  HATS,
+  LIPC,
+  MAKEC,
+  MAKEUP,
+  MOUTHS,
+  NOSES,
+  OUTC,
+  OUTFITS,
+  SKIN,
+  normalize,
+  optionsFor,
+  randomConfig,
+  sexOf,
+  vectorPaths,
+  type AvatarV2,
+  type Sex,
+} from '../../avatar2/core';
+import { pixelPaths } from '../../avatar2/pixel';
+import { toV2 } from '../../avatar2/migrateV1';
 
-function ColorRow({ colors, activeIdx, onChange }: { colors: string[]; activeIdx: number; onChange: (i: number) => void }) {
+// AVATAR 2.0 OLUŞTURUCU. Sekme ve renk düzeni web'deki
+// client/src/components/AvatarBuilder.jsx ile aynı; tarif ve iki çizici
+// src/avatar2'de (web'deki client/src/avatar2'nin birebir kopyası).
+//
+// Kayıt yalnızca v2: eski avatar her yerde kalktı, ikili yazma yok. Eski
+// sürümler v2'yi okuyamadığı için sunucu, X-Avatar-Version: 2 göndermeyen
+// istemcilere v2 config'i null döner (bkz. lib/api.ts).
+
+type Key = keyof AvatarV2;
+interface Opt {
+  id: string;
+  name: string;
+  sex?: Sex;
+}
+interface Cat {
+  id: string;
+  label: string;
+  only?: Sex;
+  groups: [label: string, key: Key, list: Opt[]][];
+  colors: [label: string, key: Key, list: string[]][];
+}
+
+// Makyaj yalnızca kadında, Sakal yalnızca erkekte.
+const CATS: Cat[] = [
+  {
+    id: 'body',
+    label: 'Vücut',
+    groups: [
+      ['Vücut tipi', 'body', BODIES],
+      ['Genişlik', 'build', BUILDS],
+    ],
+    colors: [
+      ['Ten rengi', 'skin', SKIN],
+      ['Arka plan', 'bg', BG],
+    ],
+  },
+  { id: 'face', label: 'Yüz', groups: [['Yüz şekli', 'face', FACES]], colors: [['Ten rengi', 'skin', SKIN]] },
+  { id: 'hair', label: 'Saç', groups: [['Saç', 'hair', HAIR]], colors: [['Saç rengi', 'hairColor', HAIRC]] },
+  { id: 'eyes', label: 'Gözler', groups: [['Göz', 'eyes', EYES]], colors: [['Göz rengi', 'eyeColor', EYEC]] },
+  { id: 'brows', label: 'Kaşlar', groups: [['Kaş', 'brows', BROWS]], colors: [] },
+  { id: 'nose', label: 'Burun', groups: [['Burun', 'nose', NOSES]], colors: [] },
+  { id: 'mouth', label: 'Ağız', groups: [['Ağız', 'mouth', MOUTHS]], colors: [['Dudak rengi', 'lip', LIPC]] },
+  { id: 'makeup', label: 'Makyaj', only: 'k', groups: [['Makyaj', 'makeup', MAKEUP]], colors: [['Far rengi', 'makeupColor', MAKEC]] },
+  { id: 'beard', label: 'Sakal', only: 'e', groups: [['Sakal', 'beard', BEARDS]], colors: [['Sakal rengi', 'beardColor', HAIRC]] },
+  {
+    id: 'outfit',
+    label: 'Kıyafet',
+    groups: [['Kıyafet', 'outfit', OUTFITS]],
+    colors: [
+      ['Ana renk', 'outfitColor', OUTC],
+      ['Detay rengi', 'accent', ACCENT],
+    ],
+  },
+  { id: 'hat', label: 'Şapka', groups: [['Şapka ve örtü', 'hat', HATS]], colors: [['Renk', 'hatColor', OUTC]] },
+  { id: 'acc', label: 'Aksesuar', groups: [['Aksesuar', 'acc', ACCS]], colors: [['Aksesuar rengi', 'accColor', ACCC]] },
+];
+
+// Vücut tipi listesi süzülmez: ikisi de her zaman seçilebilir olmalı.
+const visible = (key: Key, list: Opt[], sx: Sex) => (key === 'body' ? list : optionsFor(list, sx));
+const catsFor = (sx: Sex) => CATS.filter((c) => !c.only || c.only === sx);
+const sameColor = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+function ColorRow({ colors, value, onChange }: { colors: string[]; value: string; onChange: (c: string) => void }) {
   return (
     <View className="flex-row flex-wrap gap-2">
-      {colors.map((c, i) => (
-        <Pressable
-          key={i}
-          onPress={() => onChange(i)}
-          className={`w-[26px] h-[26px] rounded-[13px] border-2 ${
-            i === activeIdx ? 'border-accent scale-110' : c === '#ffffff' ? 'border-line' : 'border-transparent'
-          }`}
-          style={{ backgroundColor: c }}
-        />
-      ))}
+      {colors.map((c) => {
+        const on = sameColor(c, value);
+        return (
+          <Pressable
+            key={c}
+            onPress={() => onChange(c)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: on }}
+            className={`w-[26px] h-[26px] rounded-[13px] border-2 ${on ? 'border-accent scale-110' : 'border-line'}`}
+            style={{ backgroundColor: c }}
+          />
+        );
+      })}
     </View>
   );
 }
 
-function MiniSvg({ rects, skin }: { rects: Rect[]; skin: string }) {
-  return (
-    <Svg width={30} height={30} viewBox="0 0 32 40">
-      <SvgRect x={8} y={7} width={16} height={16} fill={skin} />
-      {rects.map((r, i) => (r.type === 'image' ? null : <SvgRect key={i} x={r.x} y={r.y} width={r.w} height={r.h} rx={r.rx} fill={r.c} />))}
-    </Svg>
-  );
-}
-
-function OptButton({
-  rects,
-  skin,
+// Seçenek kutusu, o seçenekle çizilmiş avatarın kendisi.
+// Memo yok: `config` her seçimde yeniden kuruluyor, bu bilerek — kutular güncel
+// saç rengi, ten vb. ile çizilmeli. Hesap ucuz (Normal ~0,2 ms, Piksel ~1,8 ms).
+function OptTile({
+  label,
+  config,
+  mode,
   active,
   onPress,
-  disabled,
 }: {
-  rects: Rect[];
-  skin: string;
+  label: string;
+  config: Partial<AvatarV2>;
+  mode: Avatar2Mode;
   active: boolean;
   onPress: () => void;
-  disabled?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
-      disabled={disabled}
-      className={`w-[38px] h-[38px] rounded-lg border-2 items-center justify-center overflow-hidden ${
-        active ? 'border-accent bg-accent-soft' : 'border-line bg-inset'
-      } ${disabled ? 'opacity-30' : ''}`}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: active }}
+      className={`w-[64px] items-center gap-1 py-1 rounded-xl border-2 ${active ? 'border-accent bg-accent-soft' : 'border-transparent bg-inset'}`}
     >
-      <MiniSvg rects={rects} skin={skin} />
+      {/* 48 dp: satıra 5 seçenek sığsın (web'de de aynı). */}
+      <View className="w-[48px] h-[48px] rounded-[8px] overflow-hidden">
+        <Avatar2SVG config={config} mode={mode} size={48} />
+      </View>
+      <Text numberOfLines={2} className={`text-[10px] font-semibold text-center px-0.5 ${active ? 'text-ink' : 'text-muted'}`}>
+        {label}
+      </Text>
     </Pressable>
   );
 }
 
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
+function Section({ label, children }: { label?: string; children: React.ReactNode }) {
   return (
     <View className="mt-4">
-      <Text className="text-[11px] font-bold text-muted2 tracking-[0.5px] mb-2 uppercase">{label}</Text>
+      {!!label && <Text className="text-[11px] font-bold text-muted2 tracking-[0.5px] mb-2 uppercase">{label}</Text>}
       {children}
     </View>
   );
 }
 
+// Görünüm avatarın sahibinin seçimi ve config'le birlikte kaydediliyor: herkes
+// avatarı bu görünümde görür.
+function ModeSwitch({ mode, onChange }: { mode: Avatar2Mode; onChange: (m: Avatar2Mode) => void }) {
+  return (
+    <View className="flex-row rounded-[10px] border border-line overflow-hidden" accessibilityLabel="Görünüm">
+      {(['piksel', 'normal'] as const).map((m) => (
+        <Pressable
+          key={m}
+          onPress={() => onChange(m)}
+          accessibilityRole="button"
+          accessibilityState={{ selected: mode === m }}
+          className={`px-3.5 h-10 items-center justify-center ${mode === m ? 'bg-accent-soft' : ''}`}
+        >
+          <Text className={`text-[13px] font-bold ${mode === m ? 'text-ink' : 'text-muted'}`}>{m === 'piksel' ? 'Piksel' : 'Normal'}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 interface Props {
-  initialConfig: Partial<AvatarConfig>;
-  isStaff: boolean;
-  onSaved: (config: AvatarConfig) => void;
+  // Sunucudaki config olduğu gibi (v1 ya da v2); toV2 ile okunuyor.
+  initialConfig: unknown;
+  onSaved: (config: AvatarV2) => void;
   onClose: () => void;
 }
 
-export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, onClose }: Props) {
+export default function AvatarBuilderScreen({ initialConfig, onSaved, onClose }: Props) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const [cfg, setCfg] = useState<AvatarConfig>({ ...DEFAULT_AVATAR_CONFIG, ...initialConfig });
+  const initial = useMemo(() => toV2(initialConfig), [initialConfig]);
+  const [cfg, setCfg] = useState<AvatarV2>(initial.config);
+  // v1'den çevrilen avatarda vücut tipi tahmin edilemediyse kullanıcıya sor.
+  // Hiç avatarı olmayanda da sexGuessed false geliyor (toV2(null)); ona "çevrildi"
+  // demek yanlış olur, o yüzden yalnızca gerçekten bir eski config varken.
+  const hadConfig = !!initialConfig && typeof initialConfig === 'object' && Object.keys(initialConfig).length > 0;
+  const [askBody, setAskBody] = useState(hadConfig && !initial.sexGuessed);
+  const [tab, setTab] = useState('body');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
-  const set = useCallback(<K extends keyof AvatarConfig>(key: K, val: AvatarConfig[K]) => {
-    setCfg((prev) => ({ ...prev, [key]: val }));
+  const sx = sexOf(cfg);
+  const cats = catsFor(sx);
+  // Vücut tipi değişince Makyaj/Sakal sekmesi kaybolabilir: Vücut'a dön.
+  const cat = cats.find((c) => c.id === tab) ?? cats[0];
+
+  const set = useCallback((key: Key, val: string) => {
+    setCfg((prev) => normalize({ ...prev, [key]: val }));
+    if (key === 'body') setAskBody(false);
     setSaved(false);
   }, []);
 
-  const handleRandomize = () => {
-    setCfg({ ...generateRandomConfig(), jersey: null });
+  // Rastgele, seçili görünümü korur.
+  const handleRandomize = useCallback(() => {
+    setCfg((prev) => randomConfig(Math.random, prev.style));
+    setAskBody(false);
     setSaved(false);
-  };
+  }, []);
 
   const handleSave = async () => {
     setSaving(true);
     setError('');
     try {
-      await avatarAPI.save(cfg as unknown as Record<string, unknown>);
+      // Sunucu bilinmeyen alanı 400 ile reddediyor; normalize yalnızca şemadaki
+      // alanları bırakıp renkleri #rrggbb'ye zorluyor.
+      const clean = normalize(cfg);
+      await avatarAPI.save(clean as unknown as Record<string, unknown>);
       setSaved(true);
-      onSaved(cfg);
+      onSaved(clean);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Avatar kaydedilemedi.');
     } finally {
@@ -132,185 +260,181 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
     }
   };
 
-  const skin = SKIN_COLORS[cfg.skin] || SKIN_COLORS[0];
+  // ── Düzen ──────────────────────────────────────────────────────────────────
+  // Solda sabit avatar (+ görünüm, zar), yanında kategoriler alt alta; altta
+  // seçenekler, tek kaydırma alanı. Avatar küçülüp büyümüyor; dokununca tam
+  // ekran açılıyor. Web'deki AvatarBuilder.jsx ile aynı düzen.
+  const { width: winW, height: winH } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  // 412 dp'lik telefonda 176; dar ekranda kategorilere en az yarısı kalsın.
+  const AV = Math.min(176, Math.floor((winW - 32 - 12) / 2));
+  const ZOOM = Math.floor(Math.min(winW, winH) * 0.85);
+  const scrollRef = useRef<ScrollView>(null);
+  // Kategori değişince listenin başına dön.
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [cat.id]);
+  const [zoom, setZoom] = useState(false);
+  const reduceMotion = useReducedMotion();
+
+  // Zar her basışta geri gerilip iki tur atarak sıçrıyor, yaylanıp yerine
+  // oturuyor (web'deki dice-roll ile aynı kareler).
+  const diceTurn = useSharedValue(0);
+  const diceScale = useSharedValue(1);
+  const diceLift = useSharedValue(0);
+  const diceStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: diceLift.value }, { rotate: `${diceTurn.value}deg` }, { scale: diceScale.value }],
+  }));
+  const onDice = useCallback(() => {
+    if (!reduceMotion) {
+      const out = Easing.out(Easing.cubic);
+      const base = Math.round(diceTurn.value / 360) * 360;
+      diceTurn.value = withSequence(
+        withTiming(base - 28, { duration: 120, easing: out }),
+        withTiming(base + 560, { duration: 320, easing: out }),
+        withTiming(base + 705, { duration: 185, easing: out }),
+        withTiming(base + 724, { duration: 95 }),
+        withTiming(base + 720, { duration: 80 })
+      );
+      diceScale.value = withSequence(
+        withTiming(0.88, { duration: 120 }),
+        withTiming(1.15, { duration: 320, easing: out }),
+        withTiming(0.94, { duration: 185 }),
+        withTiming(1.03, { duration: 95 }),
+        withTiming(1, { duration: 80 })
+      );
+      diceLift.value = withSequence(
+        withTiming(2, { duration: 120 }),
+        withTiming(-12, { duration: 320, easing: out }),
+        withTiming(2, { duration: 185 }),
+        withTiming(-2, { duration: 95 }),
+        withTiming(0, { duration: 80 })
+      );
+    }
+    handleRandomize();
+  }, [diceLift, diceScale, diceTurn, handleRandomize, reduceMotion]);
+
+  // Geliştirici için: Android'de çizilecek gerçek düğüm sayısı (yollar +
+  // tekil kırpmalar). Eski paketli avatarın en kötüsü 13.
+  const nodes = useMemo(() => {
+    if (!__DEV__) return 0;
+    if (cfg.style === 'piksel') return pixelPaths(cfg).length;
+    const { paths } = vectorPaths(cfg);
+    return paths.length + new Set(paths.filter((p) => p.clip).map((p) => p.clip)).size;
+  }, [cfg]);
 
   return (
     <SafeAreaView edges={['top', 'bottom']} className="flex-1 bg-surface">
-      <View className="items-center py-4 border-b border-line-soft">
-        {/* Avatar kutunun İÇ alanı kadar: 150 − 2×3 (çerçeve) = 144. Eskiden 140
-            çiziliyordu ve kutu ortalamadığı için sağda/altta 4 px'lik şeritte
-            zemin rengi yerine kabın rengi görünüyordu. */}
-        <View className="w-[150px] h-[150px] rounded-[30px] overflow-hidden border-[3px] border-beige">
-          <AvatarSVG config={cfg} size={144} />
-        </View>
-        {/* Kaydet ARTIK BURADA DEĞİL, alt çubukta (kullanıcı isteği: "sağda
-            kaydet solda vazgeç"). Üstte yalnızca rastgele üretme kaldı —
-            önizlemenin hemen altında durması gereken tek eylem o. */}
-        <View className="flex-row gap-2.5 mt-3">
+      <View className="flex-row gap-3 px-4 pt-4 pb-3 border-b border-line-soft">
+        {/* ── Avatar (sabit) ── */}
+        <View className="items-center gap-2" style={{ width: AV }}>
           <Pressable
-            className="flex-row items-center gap-1.5 px-4 h-10 rounded-[10px] bg-brand"
-            onPress={handleRandomize}
+            onPress={() => setZoom(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Avatarı büyük göster"
+            className="rounded-[28px] overflow-hidden border-[3px] border-beige"
+            style={{ width: AV, height: AV }}
+          >
+            {/* Avatar kutunun İÇ alanı kadar: AV − 2×3 (çerçeve). */}
+            <Avatar2SVG config={cfg} size={AV - 6} />
+          </Pressable>
+          {__DEV__ && <Text className="text-[10px] text-muted2">{nodes} düğüm</Text>}
+          <ModeSwitch mode={cfg.style} onChange={(m) => set('style', m)} />
+          {/* Arka plansız zar; basılıyken rengi açılıyor (web'deki hover ile aynı). */}
+          <Pressable
+            onPress={onDice}
             accessibilityRole="button"
             accessibilityLabel="Rastgele avatar"
+            hitSlop={6}
+            style={({ pressed }) => ({
+              width: 40,
+              height: 40,
+              alignItems: 'center',
+              justifyContent: 'center',
+              transform: [{ scale: pressed ? 0.92 : 1 }],
+            })}
           >
-            <Dice5 size={18} color="#fff" />
-            <Text className="text-white text-[13px] font-bold">Rastgele</Text>
+            {({ pressed }) => (
+              <Animated.View style={diceStyle}>
+                <Dice5 size={28} strokeWidth={2} color={pressed ? (isDark ? '#ffffff' : '#5A9690') : isDark ? '#DFD0B8' : '#2F5755'} />
+              </Animated.View>
+            )}
           </Pressable>
         </View>
-        {!!error && <Text className="text-red-600 text-[11.5px] mt-2 text-center max-w-[220px]">{error}</Text>}
+
+        {/* ── Kategoriler (alt alta, sabit) ── */}
+        {/* Satır 24 dp: 11 kategori avatar sütunu kadar yer tutsun, seçeneklere alan kalsın. */}
+        <View className="flex-1" accessibilityRole="tablist">
+          {cats.map((c) => {
+            const on = c.id === cat.id;
+            const count = c.groups.reduce((n, [, key, list]) => n + visible(key, list, sx).length, 0);
+            return (
+              <Pressable
+                key={c.id}
+                onPress={() => setTab(c.id)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: on }}
+                className={`flex-row items-center justify-between px-2.5 h-[24px] rounded-md ${on ? 'bg-brand' : ''}`}
+              >
+                <Text numberOfLines={1} className={`text-[13px] font-bold ${on ? 'text-white' : 'text-ink'}`}>
+                  {c.label}
+                </Text>
+                <Text className={`text-[11px] font-semibold ${on ? 'text-white/70' : 'text-muted2'}`}>{count}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} className="flex-1 px-4" contentContainerStyle={{ paddingBottom: 40 }}>
-        <Section label="Arka plan">
-          <ColorRow colors={BG_COLORS} activeIdx={cfg.bg} onChange={(v) => set('bg', v)} />
-        </Section>
-
-        <Section label="Ten rengi">
-          <ColorRow colors={SKIN_COLORS} activeIdx={cfg.skin} onChange={(v) => set('skin', v)} />
-        </Section>
-
-        <Section label="Yüz şekli">
-          <View className="flex-row flex-wrap gap-2">
-            {FACES.map((rects, i) => (
-              <OptButton key={i} rects={rects} skin={skin} active={cfg.face === i} onPress={() => set('face', i)} />
-            ))}
+      <ScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        className="flex-1 px-4"
+        contentContainerStyle={{ paddingBottom: 40 }}
+      >
+        {askBody && (
+          <View className="mt-4 rounded-[10px] border border-warn bg-warn-soft p-3">
+            <Text className="text-[13px] text-warn-ink leading-[18px]">Avatarın yeni sürüme çevrildi. Vücut tipini seçer misin? Seçenekler buna göre değişiyor.</Text>
+            <View className="flex-row gap-2 mt-2.5">
+              {BODIES.map((b) => (
+                <Pressable
+                  key={b.id}
+                  onPress={() => set('body', b.id)}
+                  accessibilityRole="button"
+                  className="px-3.5 h-9 items-center justify-center rounded-lg border border-warn"
+                >
+                  <Text className="text-[13px] font-bold text-warn-ink">{b.name}</Text>
+                </Pressable>
+              ))}
+            </View>
           </View>
-        </Section>
-
-        <Section label="Saç Stili">
-          <View className="flex-row flex-wrap gap-2">
-            {HAIR_STYLES.map((style, i) => (
-              <OptButton
-                key={i}
-                rects={(style ?? []).map((r) => ({ ...r, c: HAIR_COLORS[cfg.hairColor] }))}
-                skin={skin}
-                active={cfg.hair === i}
-                onPress={() => set('hair', i)}
-              />
-            ))}
-          </View>
-        </Section>
-
-        <Section label="Saç rengi">
-          <ColorRow colors={HAIR_COLORS} activeIdx={cfg.hairColor} onChange={(v) => set('hairColor', v)} />
-        </Section>
-
-        <Section label="Göz">
-          <View className="flex-row flex-wrap gap-2">
-            {EYE_STYLES.map((fn, i) => (
-              <OptButton
-                key={i}
-                rects={fn(skin, EYE_COLORS[cfg.eyeColor])}
-                skin={skin}
-                active={cfg.eye === i}
-                onPress={() => set('eye', i)}
-              />
-            ))}
-          </View>
-        </Section>
-
-        <Section label="Göz rengi">
-          <ColorRow colors={EYE_COLORS} activeIdx={cfg.eyeColor} onChange={(v) => set('eyeColor', v)} />
-        </Section>
-
-        <Section label="Kaş">
-          <View className="flex-row flex-wrap gap-2">
-            {BROW_STYLES.map((fn, i) => (
-              <OptButton
-                key={i}
-                rects={fn(BROW_COLORS[cfg.browColor ?? 0])}
-                skin={skin}
-                active={cfg.brow === i}
-                onPress={() => set('brow', i)}
-              />
-            ))}
-          </View>
-        </Section>
-
-        <Section label="Kaş rengi">
-          <ColorRow colors={BROW_COLORS} activeIdx={cfg.browColor ?? 0} onChange={(v) => set('browColor', v)} />
-        </Section>
-
-        <Section label="Dudak rengi">
-          <ColorRow colors={LIP_COLORS} activeIdx={cfg.lipColor ?? 0} onChange={(v) => set('lipColor', v)} />
-        </Section>
-
-        <Section label="Sakal">
-          <View className="flex-row flex-wrap gap-2">
-            {BEARD_STYLES.map((fn, i) => (
-              <OptButton
-                key={i}
-                rects={fn(BEARD_COLORS[cfg.beardColor])}
-                skin={skin}
-                active={cfg.beard === i}
-                onPress={() => set('beard', i)}
-              />
-            ))}
-          </View>
-        </Section>
-
-        <Section label="Sakal rengi">
-          <ColorRow colors={BEARD_COLORS} activeIdx={cfg.beardColor} onChange={(v) => set('beardColor', v)} />
-        </Section>
-
-        <Section label="Kıyafet">
-          <View className="flex-row flex-wrap gap-2">
-            {OUTFIT_STYLES.map((fn, i) => (
-              <OptButton
-                key={i}
-                rects={i === 0 ? [] : fn(OUTFIT_COLORS[cfg.outfitColor], OUTFIT_PATTERN_COLORS[cfg.outfitColor2 ?? 0])}
-                skin={skin}
-                active={!cfg.jersey && cfg.outfit === i}
-                onPress={() => set('outfit', i)}
-                disabled={!!cfg.jersey}
-              />
-            ))}
-          </View>
-          {!!cfg.jersey && <Text className="text-[11px] text-muted2 mt-1.5">Forma seçiliyken kıyafet değiştirilemez.</Text>}
-        </Section>
-
-        {!cfg.jersey && (
-          <>
-            <Section label="Kıyafet ana rengi">
-              <ColorRow colors={OUTFIT_COLORS} activeIdx={cfg.outfitColor} onChange={(v) => set('outfitColor', v)} />
-            </Section>
-            {cfg.outfit > 0 && (
-              <Section label="Kıyafet desen / detay rengi">
-                <ColorRow colors={OUTFIT_PATTERN_COLORS} activeIdx={cfg.outfitColor2 ?? 0} onChange={(v) => set('outfitColor2', v)} />
-              </Section>
-            )}
-          </>
         )}
-
-        {isStaff && (
-          <Section label="Forma (admin/moderatör)">
-            <View className="flex-row flex-wrap gap-2">
-              {JERSEYS.map((team) => (
-                <OptButton
-                  key={team.id}
-                  rects={jerseyBodyRects(team)}
-                  skin={skin}
-                  active={cfg.jersey === team.id}
-                  onPress={() => set('jersey', team.id)}
+        {cat.groups.map(([label, key, list]) => (
+          <Section key={key} label={cat.groups.length > 1 ? label : undefined}>
+            <View className="flex-row flex-wrap gap-1.5">
+              {visible(key, list, sx).map((o) => (
+                <OptTile
+                  key={o.id}
+                  label={o.name}
+                  config={key === 'body' ? normalize({ ...cfg, body: o.id }) : { ...cfg, [key]: o.id }}
+                  mode={cfg.style}
+                  active={cfg[key] === o.id}
+                  onPress={() => set(key, o.id)}
                 />
               ))}
             </View>
-            {!!cfg.jersey && (
-              <Pressable className="flex-row items-center gap-1.5 mt-2" onPress={() => set('jersey', null)}>
-                <ShieldOff size={14} color={isDark ? '#9ca3af' : '#6b7280'} />
-                <Text className="text-xs text-muted font-semibold">Formayı kaldır</Text>
-              </Pressable>
-            )}
-            <Text className="text-[11px] text-muted2 mt-1.5">Forma seçiliyken renkler sabittir.</Text>
           </Section>
-        )}
+        ))}
+        {cat.colors.map(([label, key, list]) => (
+          <Section key={key} label={label}>
+            <ColorRow colors={list} value={String(cfg[key])} onChange={(c) => set(key, c)} />
+          </Section>
+        ))}
       </ScrollView>
 
-      {/* ALT ÇUBUK — solda Vazgeç, sağda Kaydet (kullanıcı isteği).
-          Eskiden burada tek bir "Kapat" vardı ve Kaydet ekranın en üstünde,
-          önizlemenin altında duruyordu: kullanıcı aşağıda seçim yapıp
-          kaydetmek için başa dönmek zorunda kalıyordu. Kaydet'in `saving` /
-          `saved` durumları olduğu gibi korundu. */}
+      {/* Hata, Kaydet'in hemen üstünde. */}
+      {!!error && <Text className="text-red-600 text-[11.5px] text-center px-4 pt-2">{error}</Text>}
+      {/* ALT ÇUBUK — solda Vazgeç, sağda Kaydet (kullanıcı isteği). */}
       <View className="flex-row items-center gap-3 px-4 py-3 border-t border-line-soft">
         <Pressable
           className="flex-1 items-center justify-center h-11 rounded-[10px] border border-line"
@@ -331,6 +455,31 @@ export default function AvatarBuilderScreen({ initialConfig, isStaff, onSaved, o
           <Text className="text-white text-sm font-bold">{saving ? 'Kaydediliyor...' : saved ? 'Kaydedildi!' : 'Kaydet'}</Text>
         </Pressable>
       </View>
+
+      {/* ── Tam ekran önizleme ── avatara dokununca; herhangi bir yere dokununca kapanır. */}
+      {zoom && (
+        <Animated.View
+          entering={reduceMotion ? undefined : FadeIn.duration(160)}
+          exiting={reduceMotion ? undefined : FadeOut.duration(120)}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, backgroundColor: 'rgba(0,0,0,0.85)' }}
+        >
+          <Pressable
+            onPress={() => setZoom(false)}
+            accessibilityRole="button"
+            accessibilityLabel="Önizlemeyi kapat"
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Animated.View entering={reduceMotion ? undefined : ZoomIn.duration(200)}>
+              <View className="rounded-[36px] overflow-hidden border-4 border-white" style={{ width: ZOOM, height: ZOOM }}>
+                <Avatar2SVG config={cfg} size={ZOOM - 8} />
+              </View>
+            </Animated.View>
+          </Pressable>
+          <View pointerEvents="none" style={{ position: 'absolute', top: insets.top + 12, right: 16 }}>
+            <X size={26} color="#fff" />
+          </View>
+        </Animated.View>
+      )}
     </SafeAreaView>
   );
 }

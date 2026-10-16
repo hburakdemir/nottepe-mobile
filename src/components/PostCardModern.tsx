@@ -84,9 +84,9 @@ function PostCardModernInner({ post, showStatus = false, showRating = true, onDe
   const isSaved = savedPosts.includes(String(postId));
   // ⚠️ `useMemo` ZORUNLU — `buildPostAuthorAvatar` her çağrıda YENİ bir nesne
   // döndürüyor. Memoize edilmezse `AvatarDisplay`in (ve onun içindeki
-  // `AvatarSVG`in) `React.memo`su HİÇBİR ZAMAN tutmaz: bu kartın her
+  // `Avatar2SVG`nin) `React.memo`su HİÇBİR ZAMAN tutmaz: bu kartın her
   // render'ında avatarın bütün native SVG düğümleri sökülüp yeniden
-  // kuruluyordu — akışta onlarca kart var (düğüm sayısı: avatarPack.ts).
+  // kuruluyordu — akışta onlarca kart var (düğüm sayısı: avatar2/Avatar2SVG.tsx).
   // `CommentSection` aynı işi `buildCommentAuthorAvatar` için zaten yapıyor.
   const authorAvatar = React.useMemo(() => buildPostAuthorAvatar(post), [post]);
   const files = post.file_urls ?? [];

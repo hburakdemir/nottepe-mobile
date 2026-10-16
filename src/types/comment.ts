@@ -1,5 +1,4 @@
 import type { Badge } from '../components/BadgeChip';
-import type { AvatarConfig } from '../constants/avatarConfig';
 
 export interface Comment {
   id: number;
@@ -9,7 +8,8 @@ export interface Comment {
   content?: string | null;
   rating?: number | null;
   role?: string;
-  avatar_config?: Partial<AvatarConfig> | null;
+  // v1 ya da v2 olabilir; her zaman toV2 ile okunur (bkz. avatar2/migrateV1.ts).
+  avatar_config?: unknown;
   avatar_photo_path?: string | null;
   avatar_display_mode?: 'avatar' | 'photo' | 'both';
   created_at: string;

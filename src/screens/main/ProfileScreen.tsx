@@ -24,7 +24,7 @@ import { useMetrics } from '../../theme/metrics';
 import ProfileSkeleton from '../../components/profile/ProfileSkeleton';
 import { TABS, type TabKey } from '../../components/profile/profileCommon';
 import { PagerPlaceholder } from '../../components/profile/PagerPage';
-import HeaderCard from '../../components/profile/HeaderCard';
+import HeaderCard, { type DisplayMode } from '../../components/profile/HeaderCard';
 import TabStrip from '../../components/profile/TabStrip';
 import PostsTab from '../../components/profile/PostsTab';
 import ChecklistsTab from '../../components/profile/ChecklistsTab';
@@ -46,7 +46,6 @@ export default function ProfileScreen() {
   const route = useRoute<RouteProp<MainTabParamList, 'Profile'>>();
   const { user, updateUser } = useAuth();
   useCoachTour(PROFILE_TOUR_ID, PROFILE_TOUR, useIsFocused());
-  const isStaff = user?.role === 'admin' || user?.role === 'moderator';
   const { savedPosts } = useSavedPosts();
 
   const [activeTab, setActiveTab] = useState<TabKey>(route.params?.initialTab ?? 'posts');
@@ -92,6 +91,7 @@ export default function ProfileScreen() {
   // Avatar değişince üst bar ve tab bar da tazelensin.
   const invalidateMyAvatar = useInvalidateMyAvatar();
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [displayModeBusy, setDisplayModeBusy] = useState(false);
 
   const [showAvatarBuilder, setShowAvatarBuilder] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -265,10 +265,27 @@ export default function ProfileScreen() {
     }
   }, [invalidateMyAvatar, queryClient]);
 
+  // Fotoğraf / avatar / ikisi de — web'deki ProfilePage seçimiyle aynı uç.
+  const handleSetDisplayMode = useCallback(async (mode: DisplayMode) => {
+    setDisplayModeBusy(true);
+    try {
+      const res = await avatarAPI.setDisplayMode(mode);
+      queryClient.setQueryData(MY_AVATAR_KEY, (res.data.avatar as AvatarData | null) ?? null);
+      invalidateMyAvatar();
+    } catch (err: any) {
+      Alert.alert('Hata', err.response?.data?.error || 'Görünüm değiştirilemedi.');
+    } finally {
+      setDisplayModeBusy(false);
+    }
+  }, [invalidateMyAvatar, queryClient]);
+
   // `HeaderCard` memo'lu — eylem nesnesi de stabil referans olmalı.
   const ownerActions = useMemo(
-    () => ({ photoUploading, onPickPhoto: handlePickPhoto, onOpenAvatarBuilder: openAvatarBuilder, onOpenEdit: openEditModal }),
-    [photoUploading, handlePickPhoto, openAvatarBuilder, openEditModal]
+    () => ({
+      photoUploading, onPickPhoto: handlePickPhoto, onOpenAvatarBuilder: openAvatarBuilder, onOpenEdit: openEditModal,
+      onSetDisplayMode: handleSetDisplayMode, displayModeBusy,
+    }),
+    [photoUploading, handlePickPhoto, openAvatarBuilder, openEditModal, handleSetDisplayMode, displayModeBusy]
   );
 
   // --- Kayan (collapsing) profil başlığı -----------------------------------
@@ -518,8 +535,7 @@ export default function ProfileScreen() {
             ölçüm yaptırıyor — bilinen bir react-native-safe-area-context deseni. */}
         <SafeAreaProvider>
           <AvatarBuilderScreen
-            initialConfig={avatar?.config || {}}
-            isStaff={isStaff}
+            initialConfig={avatar?.config}
             onClose={() => setShowAvatarBuilder(false)}
             onSaved={(newCfg) => {
               queryClient.setQueryData(MY_AVATAR_KEY, (prev: AvatarData | null | undefined) => ({

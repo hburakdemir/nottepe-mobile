@@ -1,5 +1,4 @@
 import type { AvatarData } from '../components/avatar/AvatarDisplay';
-import type { AvatarConfig } from '../constants/avatarConfig';
 import type { Post } from '../types/post';
 import type { Comment } from '../types/comment';
 
@@ -16,7 +15,7 @@ export function buildPostAuthorAvatar(post: Post): AvatarData | null {
   const isStaffAuthor = post.user_role === 'admin' || post.user_role === 'moderator';
 
   return {
-    config: (post.avatar_config as Partial<AvatarConfig> | null) ?? null,
+    config: post.avatar_config ?? null,
     photo_path: isStaffAuthor ? (post.avatar_photo_path ?? null) : null,
     display_mode: isStaffAuthor ? (post.avatar_display_mode ?? 'avatar') : 'avatar',
   };
@@ -33,7 +32,7 @@ export function buildCommentAuthorAvatar(comment: Comment): AvatarData | null {
   const isStaffAuthor = comment.role === 'admin' || comment.role === 'moderator';
 
   return {
-    config: (comment.avatar_config as Partial<AvatarConfig> | null) ?? null,
+    config: comment.avatar_config ?? null,
     photo_path: isStaffAuthor ? (comment.avatar_photo_path ?? null) : null,
     display_mode: isStaffAuthor ? (comment.avatar_display_mode ?? 'avatar') : 'avatar',
   };

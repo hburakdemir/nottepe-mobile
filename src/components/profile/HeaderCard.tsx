@@ -28,7 +28,17 @@ export interface HeaderOwnerActions {
   onPickPhoto: () => void;
   onOpenAvatarBuilder: () => void;
   onOpenEdit: () => void;
+  /** Fotoğraf yüklüyse profilde/akışta ne görünsün (web'deki üçlü seçimle aynı). */
+  onSetDisplayMode: (mode: DisplayMode) => void;
+  displayModeBusy: boolean;
 }
+
+export type DisplayMode = 'avatar' | 'photo' | 'both';
+const DISPLAY_MODES: { mode: DisplayMode; label: string }[] = [
+  { mode: 'avatar', label: 'Avatar' },
+  { mode: 'photo', label: 'Fotoğraf' },
+  { mode: 'both', label: 'İkisi de' },
+];
 
 // Profil başlık kartı: avatar, kimlik bilgileri, rozetler — kendi profili ve
 // başkasının profili AYNI kartı kullanıyor, farklar yalnızca:
@@ -65,6 +75,7 @@ function HeaderCard({
   const visibleBadges = useMemo(() => badges.filter((b) => b.is_visible !== false), [badges]);
   // Avatara dokununca büyütülmüş hâli (kullanıcı isteği), hafif titreşimle.
   const [zoomed, setZoomed] = useState(false);
+  const showsPhoto = !!avatar?.photo_path && (avatar.display_mode === 'photo' || avatar.display_mode === 'both');
   const { width } = useWindowDimensions();
   const zoomSize = Math.min(width - 64, 320);
   const { theme } = useTheme();
@@ -91,9 +102,10 @@ function HeaderCard({
                 geçişi büyütülmüş görünümde çalışıyor. */}
             {/* Avatarın kendi arka plan karesi gizli (kullanıcı isteği): yalnızca
                 karakter. Avatar yoksa geyik ikonu marka zemininde. */}
+            {/* Fotoğraf gösteriliyorsa çerçeve tam daire (kullanıcı isteği). */}
             <View
               pointerEvents="none"
-              className={`w-20 h-20 rounded-[20px] items-center justify-center overflow-hidden ${avatar ? '' : 'bg-brand'}`}
+              className={`w-20 h-20 items-center justify-center overflow-hidden ${showsPhoto ? 'rounded-full' : 'rounded-[20px]'} ${avatar ? '' : 'bg-brand'}`}
             >
               {avatar ? <AvatarDisplay avatar={avatar} size={80} showBg={false} /> : <DeerIcon size={32} color="#fff" />}
             </View>
@@ -127,6 +139,26 @@ function HeaderCard({
             </Text>
             {nameAccessory}
           </View>
+          {!!ownerActions && !!avatar?.photo_path && (
+            <View className="flex-row gap-1 mt-1" accessibilityRole="radiogroup" accessibilityLabel="Profilde görünen">
+              {DISPLAY_MODES.map(({ mode, label }) => {
+                const on = (avatar.display_mode ?? 'avatar') === mode;
+                return (
+                  <Pressable
+                    key={mode}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: on, disabled: ownerActions.displayModeBusy }}
+                    disabled={on || ownerActions.displayModeBusy}
+                    onPress={() => ownerActions.onSetDisplayMode(mode)}
+                    hitSlop={{ top: 6, bottom: 6 }}
+                    className={`px-2.5 py-[3px] rounded-full border ${on ? 'bg-brand border-brand' : 'border-line'}`}
+                  >
+                    <Text className={`text-[11px] font-semibold ${on ? 'text-white' : 'text-muted'}`}>{label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
           {!!identity?.full_name && <Text pointerEvents="none" className="text-[13px] text-ink2 mt-0.5">{identity.full_name}</Text>}
           {belowName}
           {!!identity?.email && <Text pointerEvents="none" className="text-[12.5px] text-muted mt-px">{identity.email}</Text>}

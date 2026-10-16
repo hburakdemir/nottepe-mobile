@@ -87,7 +87,7 @@ interface CommentCardProps {
 // yorum YAZMA kutusunun state'i (`content`, `rating`) de aynı bileşende
 // duruyor. Memo olmadan HER TUŞ VURUŞU bütün yorum satırlarını yeniden
 // çiziyordu — her satırda bir avatar var, o avatar da piksel-sanat bir SVG
-// (~40 düğüm, bkz. AvatarSVG.tsx). 20 yorumluk bir gönderide bu, her harfte
+// (~40 düğüm, bkz. avatar2/Avatar2SVG.tsx). 20 yorumluk bir gönderide bu, her harfte
 // ~800 native SVG düğümünün yeniden değerlendirilmesi demekti. Testçilerin
 // "gönderilere girince yorumlar çok geç yükleniyor" dediği maliyetin bir
 // kısmı buydu.

@@ -45,13 +45,13 @@ const PROFILE_ROUTE = 'Profile';
 // kuruluyordu — profil yuvasındaki avatar dahil. O avatar piksel-sanat bir SVG,
 // yani her dokunuşta onlarca native SVG düğümü sökülüp yeniden kuruluyordu.
 // Testçilerin "sayfa geçişlerinde tabbar donuyor" dediği şey buydu.
-// (Düğüm sayısı 1.0.15'te ortalama 24,5'ten 6,8'e indi — bkz. avatarPack.ts —
-// ama bu memo yine şart: maliyet düştü, sıfırlanmadı.)
+// (Düğüm sayısı 1.0.15'te ortalama 24,5'ten 6,8'e inmişti; Avatar 2.0'da yine
+// ~30-55 — bkz. avatar2/Avatar2SVG.tsx. Bu memo o yüzden şart.)
 //
 // Artık her yuva kendi prop'larına bakıyor: bir geçişte yalnızca İKİ yuvanın
 // `isFocused`'ı değişiyor (eskisi false olur, yenisi true), kalan üçü prop
 // olarak aynı kaldığı için hiç çizilmiyor. Avatar da ayrıca memoize
-// (AvatarDisplay + AvatarSVG), dolayısıyla profil yuvası odak değiştirse bile
+// (AvatarDisplay + Avatar2SVG), dolayısıyla profil yuvası odak değiştirse bile
 // SVG yeniden kurulmuyor — yalnızca çevresindeki halkanın kalınlığı değişiyor.
 //
 // ⚠️ `onPress` çağrı yerinde bağımlılıksız `useCallback` olmak ZORUNDA;

@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Image } from 'expo-image';
 import { getFileUrl } from '../../lib/config';
-import type { AvatarConfig } from '../../constants/avatarConfig';
-import { AvatarSVG } from './AvatarSVG';
+import { Avatar2SVG } from '../../avatar2/Avatar2SVG';
 
 export interface AvatarData {
-  config?: Partial<AvatarConfig> | null;
+  // Sunucudan geldiği gibi: v1 (eski piksel avatar) ya da v2. Avatar2SVG
+  // içeride toV2 ile okuyor; burada şekline bakılmıyor.
+  config?: unknown;
   photo_path?: string | null;
   display_mode?: 'avatar' | 'photo' | 'both';
 }
@@ -17,12 +18,29 @@ interface Props {
   showBg?: boolean;
 }
 
+// Fotoğraf daire kutuda kırpılıyor: yalnız Image'ın borderRadius'u iOS'ta
+// köşeli görünebiliyor (kullanıcı raporu), overflow: hidden her iki platformda tutarlı.
+function RoundPhoto({ path, size }: { path: string; size: number }) {
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden' }}>
+      <Image
+        source={{ uri: getFileUrl(`avatars/${path}`) }}
+        style={{ width: size, height: size }}
+        contentFit="cover"
+        transition={150}
+        cachePolicy="memory-disk"
+        recyclingKey={path}
+      />
+    </View>
+  );
+}
+
 // 'both' modunda büyük boyutlarda dokunarak avatar/fotoğraf arasında geçiş —
 // web'deki swipe carousel'in basitleştirilmiş dokunma eşdeğeri.
 //
 // `React.memo`: bu bileşen tab bar'ın profil yuvasında duruyor ve çoğu
-// kullanıcıda `AvatarSVG`'ye düşüyor — yani ~40 native SVG düğümü. Memo
-// olmadan her sekme dokunuşunda hepsi yeniden kuruluyordu (bkz. AvatarSVG.tsx).
+// kullanıcıda `Avatar2SVG`'ye düşüyor — yani ~30-55 native SVG düğümü. Memo
+// olmadan her sekme dokunuşunda hepsi yeniden kuruluyordu (bkz. avatar2/Avatar2SVG.tsx).
 // İç state'i (`showPhotoInBoth`) memo'dan etkilenmiyor, korunuyor.
 const AvatarDisplay = React.memo(function AvatarDisplay({ avatar, size = 40, showBg = true }: Props) {
   const [showPhotoInBoth, setShowPhotoInBoth] = useState(true);
@@ -32,44 +50,17 @@ const AvatarDisplay = React.memo(function AvatarDisplay({ avatar, size = 40, sho
   const showBoth = avatar?.display_mode === 'both' && hasPhoto;
 
   if (showPhoto) {
-    return (
-      <Image
-        source={{ uri: getFileUrl(`avatars/${avatar!.photo_path}`) }}
-        style={{ width: size, height: size, borderRadius: size / 2 }}
-        contentFit="cover"
-        transition={150}
-        cachePolicy="memory-disk"
-        recyclingKey={avatar!.photo_path}
-      />
-    );
+    return <RoundPhoto path={avatar!.photo_path!} size={size} />;
   }
 
   if (showBoth) {
-    if (size < 60) {
-      return (
-        <Image
-          source={{ uri: getFileUrl(`avatars/${avatar!.photo_path}`) }}
-          style={{ width: size, height: size, borderRadius: size / 2 }}
-          contentFit="cover"
-          transition={150}
-          cachePolicy="memory-disk"
-          recyclingKey={avatar!.photo_path}
-        />
-      );
-    }
+    if (size < 60) return <RoundPhoto path={avatar!.photo_path!} size={size} />;
     return (
       <Pressable onPress={() => setShowPhotoInBoth((v) => !v)} style={{ width: size, height: size }}>
         {showPhotoInBoth ? (
-          <Image
-            source={{ uri: getFileUrl(`avatars/${avatar!.photo_path}`) }}
-            style={{ width: size, height: size, borderRadius: size / 2 }}
-            contentFit="cover"
-            transition={150}
-            cachePolicy="memory-disk"
-            recyclingKey={avatar!.photo_path}
-          />
+          <RoundPhoto path={avatar!.photo_path!} size={size} />
         ) : (
-          <AvatarSVG config={config} size={size} showBg={showBg} />
+          <Avatar2SVG config={config} size={size} showBg={showBg} />
         )}
         <View
           style={{
@@ -87,7 +78,7 @@ const AvatarDisplay = React.memo(function AvatarDisplay({ avatar, size = 40, sho
     );
   }
 
-  return <AvatarSVG config={config} size={size} showBg={showBg} />;
+  return <Avatar2SVG config={config} size={size} showBg={showBg} />;
 });
 
 export default AvatarDisplay;

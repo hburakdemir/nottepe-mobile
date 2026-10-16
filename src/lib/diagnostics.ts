@@ -130,7 +130,7 @@ const MAX_ENTRIES = 200;
 //    ve sebep başka yerde.
 //
 // BEKLENTİ (düşmesi gerekenler): bütün sekme satırları — avatar düğüm sayısı
-// 25-53'ten ~8-12'ye indi (bkz. avatarPack.ts) ve avatar bu yolların hepsinde
+// 25-53'ten ~8-12'ye indi (eski avatarPack.ts; Avatar 2.0'da yine ~30-55, bkz. avatar2/Avatar2SVG.tsx) ve avatar bu yolların hepsinde
 // var. Kötü kare oranı da menü aç/kapada ve kaydırmada düşmeli.
 const STORAGE_KEY = 'diag:jsblocks:v7';
 
@@ -247,7 +247,8 @@ let marksAtLastTick: Record<string, number> = {};
  * zaten ağacın kurulması.
  *
  * ⚠️ GEÇİCİ. `DIAGNOSTICS_ENABLED` ile birlikte tek commit'te silinecek —
- * çağrı yerleri: AvatarSVG, MainTabsScreen, HomeScreen, ProfileScreen.
+ * çağrı yerleri: Avatar2SVG ('AvatarSVG' etiketiyle, eski ölçümlerle
+ * karşılaştırılabilsin diye), MainTabsScreen, HomeScreen, ProfileScreen.
  */
 export function diagMark(name: string): void {
   if (!DIAGNOSTICS_ENABLED) return;
